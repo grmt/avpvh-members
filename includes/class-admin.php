@@ -1,0 +1,147 @@
+<?php
+defined('ABSPATH') || exit;
+
+class AVPVH_Admin {
+
+    public function __construct() {
+        add_action('admin_menu', [$this, 'register_menus']);
+        add_action('admin_post_avpvh_mark_fee_paid', [$this, 'handle_mark_fee_paid']);
+        add_action('admin_post_avpvh_save_settings', [$this, 'handle_save_settings']);
+    }
+
+    public function register_menus(): void {
+        add_menu_page(
+            'AVP-PvH Leden', 'AVP-PvH Leden', 'manage_options',
+            'avpvh-members', [$this, 'render_members_list'],
+            'dashicons-groups', 30
+        );
+        add_submenu_page(
+            'avpvh-members', 'Ledenbeheer', 'Ledenbeheer', 'manage_options',
+            'avpvh-members', [$this, 'render_members_list']
+        );
+        add_submenu_page(
+            'avpvh-members', 'Ledendetail', 'Ledendetail', 'manage_options',
+            'avpvh-member-detail', [$this, 'render_member_detail']
+        );
+        add_submenu_page(
+            'avpvh-members', 'Instellingen', 'Instellingen', 'manage_options',
+            'avpvh-settings', [$this, 'render_settings']
+        );
+    }
+
+    public function render_members_list(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/members-list.php';
+    }
+
+    public function render_member_detail(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/member-detail.php';
+    }
+
+    public function render_settings(): void {
+        $test_result = null;
+        if (isset($_GET['test_lldap'])) {
+            check_admin_referer('avpvh_test_lldap');
+            $test_result = AVPVH_LLDAP::test_connection();
+        }
+        ?>
+        <div class="wrap">
+            <h1>AVP-PvH Instellingen</h1>
+            <?php if ($test_result === true) : ?>
+                <div class="notice notice-success"><p>LLDAP verbinding OK.</p></div>
+            <?php elseif (is_wp_error($test_result)) : ?>
+                <div class="notice notice-error"><p>LLDAP fout: <?php echo esc_html($test_result->get_error_message()); ?></p></div>
+            <?php endif; ?>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('avpvh_save_settings'); ?>
+                <input type="hidden" name="action" value="avpvh_save_settings">
+                <table class="form-table">
+                    <tr>
+                        <th><label for="lldap_url">LLDAP URL</label></th>
+                        <td><input type="url" id="lldap_url" name="lldap_url" class="regular-text"
+                                   value="<?php echo esc_attr(get_option('avpvh_lldap_url', 'http://lldap:17170')); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="lldap_user">LLDAP admin gebruikersnaam</label></th>
+                        <td><input type="text" id="lldap_user" name="lldap_user" class="regular-text"
+                                   value="<?php echo esc_attr(get_option('avpvh_lldap_user', 'admin')); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="lldap_password">LLDAP admin wachtwoord</label></th>
+                        <td><input type="password" id="lldap_password" name="lldap_password" class="regular-text"
+                                   value="<?php echo esc_attr(get_option('avpvh_lldap_password', '')); ?>">
+                        </td>
+                    </tr>
+                    <tr><th colspan="2"><h2 style="margin:0">Google OAuth</h2></th></tr>
+                    <tr>
+                        <th><label for="oauth_google_client_id">Client ID</label></th>
+                        <td><input type="text" id="oauth_google_client_id" name="oauth_google_client_id" class="regular-text"
+                                   value="<?php echo esc_attr(get_option('avpvh_oauth_google_client_id', '')); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="oauth_google_client_secret">Client Secret</label></th>
+                        <td><input type="password" id="oauth_google_client_secret" name="oauth_google_client_secret" class="regular-text"
+                                   value="<?php echo esc_attr(get_option('avpvh_oauth_google_client_secret', '')); ?>">
+                            <p class="description">Redirect URI voor Google Console: <code><?php echo esc_html(rest_url('avpvh/v1/oauth/google/callback')); ?></code></p>
+                        </td>
+                    </tr>
+                    <tr><th colspan="2"><h2 style="margin:0">Microsoft OAuth</h2></th></tr>
+                    <tr>
+                        <th><label for="oauth_microsoft_client_id">Client ID</label></th>
+                        <td><input type="text" id="oauth_microsoft_client_id" name="oauth_microsoft_client_id" class="regular-text"
+                                   value="<?php echo esc_attr(get_option('avpvh_oauth_microsoft_client_id', '')); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="oauth_microsoft_client_secret">Client Secret</label></th>
+                        <td><input type="password" id="oauth_microsoft_client_secret" name="oauth_microsoft_client_secret" class="regular-text"
+                                   value="<?php echo esc_attr(get_option('avpvh_oauth_microsoft_client_secret', '')); ?>">
+                            <p class="description">Redirect URI voor Azure: <code><?php echo esc_html(rest_url('avpvh/v1/oauth/microsoft/callback')); ?></code></p>
+                        </td>
+                    </tr>
+                </table>
+                <?php submit_button('Opslaan'); ?>
+            </form>
+            <p>
+                <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-settings', 'test_lldap' => '1'], admin_url('admin.php')), 'avpvh_test_lldap')); ?>"
+                   class="button">Verbinding testen</a>
+            </p>
+        </div>
+        <?php
+    }
+
+    public function handle_save_settings(): void {
+        check_admin_referer('avpvh_save_settings');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+        update_option('avpvh_lldap_url',      sanitize_url(wp_unslash($_POST['lldap_url'] ?? '')));
+        update_option('avpvh_lldap_user',     sanitize_text_field(wp_unslash($_POST['lldap_user'] ?? '')));
+        update_option('avpvh_lldap_password', sanitize_text_field(wp_unslash($_POST['lldap_password'] ?? '')));
+        update_option('avpvh_oauth_google_client_id',         sanitize_text_field(wp_unslash($_POST['oauth_google_client_id'] ?? '')));
+        update_option('avpvh_oauth_google_client_secret',     sanitize_text_field(wp_unslash($_POST['oauth_google_client_secret'] ?? '')));
+        update_option('avpvh_oauth_microsoft_client_id',      sanitize_text_field(wp_unslash($_POST['oauth_microsoft_client_id'] ?? '')));
+        update_option('avpvh_oauth_microsoft_client_secret',  sanitize_text_field(wp_unslash($_POST['oauth_microsoft_client_secret'] ?? '')));
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-settings', 'updated' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_mark_fee_paid(): void {
+        check_admin_referer('avpvh_mark_fee_paid');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+        $fee_id    = (int) ($_POST['fee_id'] ?? 0);
+        $member_id = (int) ($_POST['member_id'] ?? 0);
+        if ($fee_id > 0) {
+            AVPVH_DB::mark_fee_paid($fee_id);
+            $member = AVPVH_DB::get_member($member_id);
+            if ($member && $member->wp_user_id) {
+                delete_user_meta((int) $member->wp_user_id, '_avpvh_show_fee_popup');
+            }
+        }
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-member-detail', 'id' => $member_id, 'updated' => '1'],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+}

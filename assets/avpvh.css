@@ -1,0 +1,34 @@
+.avpvh-members-only {
+    padding: 2rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    text-align: center;
+    max-width: 400px;
+    margin: 2rem auto;
+}
+
+.avpvh-members-only p {
+    margin-bottom: 1.25rem;
+    color: #555;
+}
+
+.avpvh-login-btn {
+    display: inline-block;
+    margin: .4rem;
+    padding: .6rem 1.2rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: .95rem;
+    background: #4285f4;
+    color: #fff;
+}
+
+.avpvh-login-microsoft {
+    background: #0078d4;
+}
+
+.avpvh-login-btn:hover {
+    opacity: .88;
+    color: #fff;
+}

@@ -1,0 +1,46 @@
+.avpvh-fee-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .5);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avpvh-fee-popup-box {
+    background: #fff;
+    border-radius: 4px;
+    padding: 2rem;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, .25);
+    text-align: center;
+}
+
+.avpvh-fee-popup-box h2 {
+    margin-top: 0;
+}
+
+.avpvh-notice {
+    border-left: 4px solid #d63638;
+    background: #fcf0f1;
+    padding: .75rem 1rem;
+    margin: 1rem 0;
+}
+
+.avpvh-login-wrap {
+    max-width: 420px;
+    margin: 3rem auto;
+    padding: 0 1rem;
+}
+
+.avpvh-login-wrap input[type="email"],
+.avpvh-login-wrap input[type="password"] {
+    width: 100%;
+    padding: .5rem;
+    box-sizing: border-box;
+}
+
+.avpvh-error   { color: #d63638; font-weight: 600; }
+.avpvh-success { color: #1d7e45; font-weight: 600; }
