@@ -2,198 +2,257 @@
 
 ## Context
 
-The AVP Philips van Horne WordPress site (pvh tenant, `www.avphilipsvanhorne.nl`) has 50+ blog posts all password-protected with the single password "Voegenteller". The club wants members to log in with personal accounts and see content without needing the password. Former members can log in but see a notice and content stays locked. Members who haven't paid the current year's membership dues see a popup on login. Member data, address history, excavation camp participation (2010–2026), and fee tracking all live in custom DB tables created from existing XLS files.
+The AVP Philips van Horne WordPress site (pvh tenant, `www.avphilipsvanhorne.nl`) has 50+ blog posts
+all password-protected with the single password "Voegenteller". The club wants members to log in with
+personal accounts and see content without needing the password. Former members can log in but see a
+notice and content stays locked. Members who haven't paid the current year's membership dues see a
+popup on login. Member data, address history, excavation camp participation (2010–2026), and fee
+tracking all live in custom DB tables created from existing XLS files.
+
+---
+
+## Architecture
+
+```
+Browser ──► nginx ──auth_request──► Authelia ──LDAP──► LLDAP (MariaDB: lldap.*)
+                 └── X-Remote-User header ──────────► WordPress
+                                                          └── avpvh-members plugin
+                                                                ├── reads lldap.users (email, user_id)
+                                                                └── pvh_avm_* tables (business data)
+```
+
+| Component | Role |
+|-----------|------|
+| **LLDAP** | Lightweight LDAP server; stores user accounts in MariaDB database `lldap` (same server as WordPress). Exposes LDAP + GraphQL API + web UI. |
+| **Authelia** | Identity broker; authenticates against LLDAP. Guards protected paths on `www.avphilipsvanhorne.nl`. Passes `Remote-User` (email) header after auth. |
+| **nginx** | `auth_request /authelia` for protected locations; injects `X-Remote-User` header; bypasses auth for public paths. |
+| **Plugin** | Reads `X-Remote-User` → auto-logs WP user in. Checks `pvh_avm_members.status` for content bypass + fee popup. Admin UI manages members + calls LLDAP GraphQL API. |
+| **lldap.users** | Identity: `user_id`, `email`, `display_name`. Single source of truth for login credentials. |
+| **pvh_avm_members** | Business data: first/last name, phone, status, fees, camps, addresses. Linked to LLDAP by `lldap_user_id`. Email is NOT duplicated here. |
+
+### Public vs protected pages
+
+Authelia `access_control` for `www.avphilipsvanhorne.nl`:
+
+| Path pattern | Policy |
+|---|---|
+| `/wp-content/**`, `/wp-json/**`, `/wp-login.php` | bypass |
+| `/`, `/over-ons/**`, `/contact/**` (configurable) | bypass |
+| `/wp-admin/**` | two_factor |
+| everything else (blog posts) | one_factor |
 
 ---
 
 ## Deliverables
 
-1. **Custom WordPress plugin** — `avpvh-members` (pvh-tenant only)
-2. **Python import scripts** — members from XLS, camp participation from excavation XLS files
-3. **Fee tracking schema** — designed to hold data back to 1975, initially populated from XLS/manual entry
+1. **LLDAP Docker service** — MariaDB backend (`lldap` database)
+2. **Authelia config update** — LDAP backend + `avphilipsvanhorne.nl` session cookie + access rules
+3. **nginx config update** — `auth_request` + header injection for pvh vhost
+4. **WordPress plugin** — `avpvh-members` (proxy-header auto-login, content access, admin UI)
+5. **Python import scripts** — members from XLS (LLDAP user + DB row), camps from XLS
 
 ---
 
 ## Database Schema
 
-All tables use the `pvh_` WordPress table prefix so they live inside the shared `wpdb` database alongside all other pvh tables.
+### lldap.users (owned by LLDAP — read-only from plugin)
 
-**`pvh_avm_members`**
+| Column | Type |
+|--------|------|
+| user_id | VARCHAR(255) PK — login uid, e.g. `j.jansen` |
+| email | VARCHAR(255) UNIQUE |
+| lowercase_email | VARCHAR(255) UNIQUE |
+| display_name | VARCHAR(255) |
+| password_hash | BLOB |
+| uuid | VARCHAR(36) UNIQUE |
+| creation_date | DATETIME |
+| modified_date | DATETIME |
+| password_modified_date | DATETIME |
+
+### pvh_avm_members (plugin-owned, in wordpress_pvh database)
+
 | Column | Type | Notes |
 |--------|------|-------|
 | id | INT PK AUTO | |
-| wp_user_id | INT NULL | FK to pvh_users.ID; NULL for ex-leden not yet provisioned |
-| last_name | VARCHAR(100) | |
+| lldap_user_id | VARCHAR(255) UNIQUE NOT NULL | FK to lldap.users.user_id |
+| wp_user_id | INT NULL | Auto-created on first proxy-auth login |
 | first_name | VARCHAR(100) | |
+| last_name | VARCHAR(100) | |
 | birth_date | DATE NULL | |
-| email | VARCHAR(150) | |
 | phone | VARCHAR(30) | |
 | mobile | VARCHAR(30) | |
 | emergency_contact | VARCHAR(200) | |
-| status | ENUM('active','inactive','visitor') | active = current member |
+| status | ENUM('active','inactive','visitor') | |
 | joined_year | YEAR NULL | |
 | left_year | YEAR NULL | |
 | created_at / updated_at | TIMESTAMP | |
 
-**`pvh_avm_addresses`** (history)
-| Column | Type |
-|--------|------|
-| id | INT PK |
-| member_id | INT FK → pvh_avm_members |
-| street / house_number / postal_code / city / country | VARCHAR |
-| valid_from | DATE NULL |
-| valid_until | DATE NULL — NULL = current address |
+**No `email` column** — email is fetched by JOIN with `lldap.users`.
 
-**`pvh_avm_camps`**
-| Column | Type |
-|--------|------|
-| id | INT PK |
-| name | VARCHAR(150) — e.g. "Goeblange VII" |
-| year | YEAR |
-| location | VARCHAR(150) — e.g. "Goeblange, Luxemburg" |
+### pvh_avm_addresses (unchanged, FK → pvh_avm_members.id)
+### pvh_avm_camps (unchanged)
+### pvh_avm_camp_participation (unchanged, FK → pvh_avm_members.id)
+### pvh_avm_fees (unchanged, FK → pvh_avm_members.id)
 
-**`pvh_avm_camp_participation`**
-| Column | Type |
-|--------|------|
-| id | INT PK |
-| member_id | INT FK |
-| camp_id | INT FK |
-| nights | TINYINT NULL |
-| nawacht | TINYINT DEFAULT 0 |
-| diet | VARCHAR(50) NULL |
-| notes | TEXT NULL |
+### Required MariaDB grant
 
-**`pvh_avm_fees`** (supports years back to 1975)
-| Column | Type |
-|--------|------|
-| id | INT PK |
-| member_id | INT FK |
-| year | SMALLINT (supports 1975+) |
-| amount_due | DECIMAL(8,2) NULL |
-| amount_paid | DECIMAL(8,2) NULL |
-| paid_date | DATE NULL |
-| status | ENUM('paid','pending','waived') |
+The WordPress DB user needs SELECT on lldap.* for cross-DB JOINs:
+
+```sql
+GRANT SELECT ON lldap.* TO 'wordpress'@'%';
+FLUSH PRIVILEGES;
+```
+
+---
+
+## Infrastructure Changes
+
+### 1. LLDAP Docker service
+
+```yaml
+lldap:
+  image: lldap/lldap:stable
+  restart: unless-stopped
+  expose:
+    - 3890    # LDAP
+    - 17170   # web UI + GraphQL API
+  networks:
+    - web_network
+  environment:
+    - LLDAP_JWT_SECRET_FILE=/run/secrets/lldap_jwt_secret
+    - LLDAP_LDAP_BASE_DN=dc=avpvh,dc=nl
+    - LLDAP_DATABASE_URL=mysql://wordpress:PASSWORD@mariadb:3306/lldap
+    - LLDAP_LDAP_USER_PASS_FILE=/run/secrets/lldap_admin_password
+  secrets:
+    - lldap_jwt_secret
+    - lldap_admin_password
+```
+
+### 2. Authelia configuration additions
+
+```yaml
+authentication_backend:
+  ldap:
+    address: ldap://lldap:3890
+    base_dn: dc=avpvh,dc=nl
+    username_attribute: uid
+    additional_users_dn: ou=people
+    users_filter: (&({username_attribute}={input})(objectClass=person))
+    additional_groups_dn: ou=groups
+    groups_filter: (member={dn})
+    group_name_attribute: cn
+    mail_attribute: mail
+    user: uid=admin,ou=people,dc=avpvh,dc=nl
+    password: <lldap admin password>
+
+session:
+  cookies:
+    - name: authelia_session
+      domain: rechtspreker.nl
+      authelia_url: https://auth.rechtspreker.nl
+      expiration: 1 hour
+      inactivity: 5 minutes
+    - name: avpvh_session
+      domain: avphilipsvanhorne.nl
+      authelia_url: https://auth.avphilipsvanhorne.nl
+      expiration: 8 hours
+      inactivity: 30 minutes
+```
+
+### 3. nginx changes (pvh vhost)
+
+```nginx
+location /authelia {
+    internal;
+    proxy_pass http://authelia:9091/api/authz/auth-request;
+    proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
+    proxy_set_header Content-Length "";
+    proxy_pass_request_body off;
+}
+
+location / {
+    auth_request /authelia;
+    auth_request_set $user $upstream_http_remote_user;
+    error_page 401 =302 https://auth.avphilipsvanhorne.nl/?rd=$scheme://$http_host$request_uri;
+    proxy_set_header X-Remote-User $user;
+    # ... existing proxy_pass to WordPress
+}
+```
 
 ---
 
 ## Plugin Structure
 
-`/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/`
-
 ```
-avpvh-members.php          main file: register activation hook, load includes
+avpvh-members.php
 includes/
-  class-db.php             dbDelta table creation, helper query methods
-  class-access.php         password_required filter + ex-member notice
-  class-fee-popup.php      wp_login hook, wp_footer modal output
-  class-admin.php          register admin menu pages
+  class-db.php          dbDelta schema + cross-DB query helpers (JOINs with lldap.users)
+  class-access.php      proxy-header auto-login + password_required bypass + ex-member notice
+  class-fee-popup.php   wp_login hook, wp_footer modal
+  class-admin.php       admin menu + mark-fee-paid handler
+  class-lldap.php       LLDAP GraphQL API client (create / update / delete users)
 admin/
-  members-list.php         searchable table: name, status, last payment year, camps
-  member-detail.php        address history, camp list, fee history per member
+  members-list.php
+  member-detail.php
 assets/
-  fee-popup.js             simple modal, dismiss sets cookie for 7 days
+  fee-popup.js
   fee-popup.css
 ```
 
-### Access control logic (`class-access.php`)
+### Key query pattern (class-db.php)
 
 ```php
-// Active members: bypass password on all posts
-add_filter('password_required', function($required, $post) {
-    if (!is_user_logged_in()) return $required;
-    $member = avpvh_get_member_by_wp_user(get_current_user_id());
-    if ($member && $member->status === 'active') return false;
-    return $required;
-}, 10, 2);
+// All member queries JOIN across database boundary
+$lldap = defined('AVPVH_LLDAP_DB') ? AVPVH_LLDAP_DB : 'lldap';
 
-// Ex-members: show notice in content (password form still shows above it)
-add_filter('the_content', function($content) {
-    if (!is_user_logged_in()) return $content;
-    $member = avpvh_get_member_by_wp_user(get_current_user_id());
-    if ($member && $member->status === 'inactive') {
-        return '<div class="avpvh-notice">Uw lidmaatschap is beëindigd. Neem contact op met het bestuur.</div>';
-    }
-    return $content;
-});
+SELECT u.user_id, u.email, u.display_name,
+       m.id, m.lldap_user_id, m.wp_user_id,
+       m.first_name, m.last_name, m.status, m.phone ...
+FROM {$lldap}.users u
+JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
+WHERE ...
 ```
 
-### Fee popup logic (`class-fee-popup.php`)
+### class-access.php — proxy header auto-login
 
-- On `wp_login`: query `pvh_avm_fees` for current year + member. If no `paid` row → set user meta `_avpvh_show_fee_popup` = current year.
-- On `wp_footer`: if user is logged in and meta matches current year and no dismiss cookie → output modal HTML.
-- Modal dismiss button sets a cookie (`avpvh_fee_dismissed`) valid 7 days and clears the meta via AJAX.
-- Meta is cleared permanently when an admin marks the fee as paid in the admin UI.
+On `init`: reads `$_SERVER['HTTP_X_REMOTE_USER']` (email), looks up member by email (cross-DB JOIN),
+auto-provisions WP user on first login, calls `wp_set_current_user` + `wp_set_auth_cookie`.
+
+### class-lldap.php — GraphQL API client
+
+Authenticates via `POST /auth/simple/login` → Bearer JWT.
+Wraps: `createUser`, `updateUser`, `deleteUser`, `addUserToGroup`, `removeUserFromGroup`.
+Credentials stored in `wp_options`: `avpvh_lldap_url`, `avpvh_lldap_password`.
 
 ---
 
 ## Import Scripts
 
-### `scripts/import-avpvh-members.py`
+### scripts/import-avpvh-members.py
 
-- Reads `ledenlijst bijgewerkt mei 2026.xlsx.xlsx` (sheet "Leden" → active, sheet "ex-leden" → inactive)
-- Connects to MariaDB on `localhost:6603` using password from `/opt/docker/secrets/compose/mysql_password.txt`
-- For each active member:
-  - Creates WP user via `docker compose exec wpcli-pvh wp user create ...` (subscriber role, random password)
-  - Inserts into `pvh_avm_members` with `wp_user_id`
-  - Inserts current address into `pvh_avm_addresses` (valid_until = NULL)
-  - Inserts a `pvh_avm_fees` row for 2026 with status `pending` (admin will mark paid)
-- For each ex-member (sheet "ex-leden"):
-  - Creates WP user (subscriber role)
-  - Inserts with `status = 'inactive'`
-  - Inserts address
-- Skips rows that already exist (idempotent on email)
+For each row in XLS:
+1. Create LLDAP user via GraphQL API → get `user_id` back
+2. Add to group `leden` (active) or `ex-leden` (inactive)
+3. INSERT `pvh_avm_members` with `lldap_user_id`, first/last name, phone, status, etc.
+4. INSERT `pvh_avm_addresses`
+5. INSERT `pvh_avm_fees` (active members only, current year, pending)
 
-### `scripts/import-avpvh-camps.py`
+WP user creation is deferred to first login. Idempotent on email.
 
-- Iterates over excavation XLS files in `/home/grmt/avpvh_drive/xls/Opgravingen/` and the 2026 Goeblange folder
-- For each file: extracts year and location from directory/filename, creates `pvh_avm_camps` row
-- Reads "totaal inschrijvingen" sheet: matches participant names to `pvh_avm_members` by last_name + first_name (fuzzy if needed)
-- Inserts `pvh_avm_camp_participation` rows (nights, nawacht, diet from columns)
-- Unmatched names logged to stdout for manual review
+### scripts/import-avpvh-camps.py
+
+Unchanged logic; matches participants by last_name + first_name against `pvh_avm_members`.
 
 ---
 
 ## Login Flow
 
-Standard `wp-login.php` is not exposed to members. Instead:
-
-1. A custom WordPress page (slug `/inloggen/`) renders a single **email field** form.
-2. On submit the plugin checks the submitted email against `pvh_avm_members.email`.
-   - **Unknown email** → "Dit e-mailadres is niet bij ons bekend."
-   - **Known member** → trigger `retrieve_password()` to send WP's standard password-reset link to that address. Message: "Er is een inloglink naar uw e-mailadres gestuurd."
-3. Member clicks the link in the email → lands on the WP set-password page → sets their own password.
-4. On subsequent logins: same email form; if a WP password is already set the form also shows a password field. Alternatively they can always request a fresh link.
-5. `lost_password` / password-reset is blocked for any email not in `pvh_avm_members` (via `allow_password_reset` filter).
-
-**Import change**: WP users are created with a random unusable password (`wp_generate_password(64)`). Members never know this password — they only ever authenticate via the emailed link.
-
-### New hooks in `class-access.php`
-
-```php
-// Block password reset for non-members
-add_filter('allow_password_reset', function($allow, $user_id) {
-    return avpvh_get_member_by_wp_user($user_id) !== null;
-}, 10, 2);
-
-// Redirect wp-login.php to custom page for non-admins
-add_action('login_init', function() {
-    if (current_user_can('manage_options')) return;
-    wp_redirect(home_url('/inloggen/'));
-    exit;
-});
-```
-
-### New file: `templates/login-page.php`
-Page template used by the `/inloggen/` page. Renders the email (+ optional password) form and handles AJAX or POST submission.
-
----
-
-## Admin UI
-
-WordPress admin menu "AVP-PvH Leden" with two pages:
-
-1. **Member list** — search by name/status/year, shows last paid year, camp count. Links to detail.
-2. **Member detail** — tabs: contact info + address history | camps participated | fee history. Fee rows have "mark as paid" button (updates `pvh_avm_fees`, clears popup meta).
+1. Member visits protected blog post → nginx `auth_request` → Authelia detects no session → redirects to `https://auth.avphilipsvanhorne.nl`.
+2. Member logs in with email + password → Authelia verifies against LLDAP → sets `avpvh_session` cookie.
+3. Redirected back → nginx injects `X-Remote-User: <email>` → WordPress receives request.
+4. Plugin `init` hook reads header → JOIN `lldap.users` + `pvh_avm_members` by email → auto-logs WP user in.
+5. `password_required` filter → active member → `false` → post content shown.
+6. Password reset / forgot password → handled entirely by Authelia + LLDAP. No login form in plugin.
 
 ---
 
@@ -201,29 +260,35 @@ WordPress admin menu "AVP-PvH Leden" with two pages:
 
 | Path | Action |
 |------|--------|
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/avpvh-members.php` | Create |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/includes/class-db.php` | Create |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/includes/class-access.php` | Create (content access + login flow) |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/templates/login-page.php` | Create |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/includes/class-fee-popup.php` | Create |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/includes/class-admin.php` | Create |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/admin/members-list.php` | Create |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/admin/member-detail.php` | Create |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/assets/fee-popup.js` | Create |
-| `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/assets/fee-popup.css` | Create |
-| `/opt/docker/scripts/import-avpvh-members.py` | Create |
-| `/opt/docker/scripts/import-avpvh-camps.py` | Create |
+| `/opt/docker/scripts/docker-compose.yml` | Modify: add `lldap` service |
+| `/opt/docker/volumes/authelia/config/configuration.yml` | Modify: LDAP backend + pvh domain |
+| `/opt/docker/volumes/openresty/<pvh-vhost>.conf` | Modify: auth_request + headers |
+| `avpvh-members.php` | Create |
+| `includes/class-db.php` | Create |
+| `includes/class-access.php` | Create |
+| `includes/class-fee-popup.php` | Create |
+| `includes/class-admin.php` | Create |
+| `includes/class-lldap.php` | Create |
+| `admin/members-list.php` | Create |
+| `admin/member-detail.php` | Create |
+| `assets/fee-popup.js` | Create |
+| `assets/fee-popup.css` | Create |
+| `scripts/import-avpvh-members.py` | Create |
+| `scripts/import-avpvh-camps.py` | Create |
+
+No `templates/login-page.php` — login handled entirely by Authelia.
 
 ---
 
 ## Verification
 
-1. Activate plugin via WP-CLI: `wp plugin activate avpvh-members --allow-root ...`
-2. Confirm tables created: `wp db query "SHOW TABLES LIKE 'pvh_avm_%'" ...`
-3. Run `import-avpvh-members.py` — verify member count matches XLS (~94 active, ~24 inactive)
-4. Run `import-avpvh-camps.py` — check matched/unmatched participant log
-5. Log in as an active member → confirm password-protected post content is visible, no password form
-6. Log in as an ex-member → confirm password form + notice visible, content NOT accessible
-7. Set a 2026 fee row to `pending` for a test user → log in → confirm popup appears
-8. Mark fee as paid in admin → log in again → confirm no popup
-9. Admin: search member, view address history, view camp list, view fee history
+1. Start LLDAP; confirm `lldap` database + tables created in MariaDB; grant SELECT to wordpress user.
+2. Restart Authelia; confirm login at `auth.avphilipsvanhorne.nl` works against LLDAP.
+3. Run `import-avpvh-members.py` — verify ~94 active + ~24 inactive in LLDAP web UI and in DB.
+4. Reload nginx pvh vhost; visit protected post unauthenticated → redirect to Authelia.
+5. Log in as active member → post content visible, no password form.
+6. Log in as ex-member → "lidmaatschap beëindigd" notice.
+7. Set 2026 fee pending for test user → log in → fee popup appears.
+8. Mark fee paid in WP admin → log in again → no popup.
+9. Admin: member list, detail tabs (contact/addresses, camps, fees), sync via LLDAP API.
+10. Run `import-avpvh-camps.py` — check matched/unmatched log.
