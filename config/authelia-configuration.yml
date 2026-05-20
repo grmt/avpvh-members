@@ -1,0 +1,118 @@
+---
+###############################################################
+#                   Authelia configuration                    #
+###############################################################
+# Deploy: sudo cp authelia-configuration.yml /opt/docker/volumes/authelia/config/configuration.yml
+# Then:   docker compose restart authelia
+#
+# IMPORTANT: this switches authentication_backend from file to LDAP.
+# LLDAP must be running and the 'admin' user provisioned before restarting Authelia.
+# The old users_database.yml test user ('authelia') is no longer needed.
+
+server:
+  address: 'tcp://:9091'
+
+log:
+  level: 'info'
+
+totp:
+  issuer: 'avphilipsvanhorne.nl'
+
+identity_validation:
+  reset_password:
+    jwt_secret: ''  # loaded via AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE
+
+authentication_backend:
+  ldap:
+    address: 'ldap://lldap:3890'
+    base_dn: 'dc=avpvh,dc=nl'
+    additional_users_dn: 'ou=people'
+    users_filter: '(&(|({username_attribute}={input})({mail_attribute}={input}))(objectClass=person))'
+    additional_groups_dn: 'ou=groups'
+    groups_filter: '(member={dn})'
+    attributes:
+      username: 'uid'
+      mail: 'mail'
+      display_name: 'displayName'
+      group_name: 'cn'
+    user: 'uid=admin,ou=people,dc=avpvh,dc=nl'
+    password: ''  # loaded via AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD_FILE
+
+access_control:
+  default_policy: 'deny'
+  rules:
+    # rechtspreker.nl is NOT handled by Authelia — served directly without SSO.
+
+    - domain: 'auth.avphilipsvanhorne.nl'
+      policy: 'bypass'
+
+    # LLDAP admin UI — two-factor only
+    - domain: 'leden-admin.avphilipsvanhorne.nl'
+      policy: 'two_factor'
+
+    # Public pages — no login required
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/wp-content/.*'
+        - '^/wp-json/.*'
+        - '^/wp-cron\.php'
+        - '^/wp-admin/admin-ajax\.php'
+        - '^/$'
+        - '^/over-ons(/.*)?$'
+        - '^/contact(/.*)?$'
+        - '^/over-de-vereniging(/.*)?$'
+      policy: 'bypass'
+
+    # wp-admin requires two-factor
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/wp-admin/.*'
+        - '^/wp-login\.php'
+      policy: 'two_factor'
+
+    # All other pages (blog posts) require one-factor
+    - domain: 'www.avphilipsvanhorne.nl'
+      policy: 'one_factor'
+
+    # these domains redirect to www.avphilipsvanhorne.nl via nginx
+    - domain: 'avphilipsvanhorne.nl'
+      policy: 'bypass'
+
+    - domain: 'avpvh.nl'
+      policy: 'bypass'
+
+    - domain: 'www.avpvh.nl'
+      policy: 'bypass'
+
+session:
+  secret: ''  # loaded via AUTHELIA_SESSION_SECRET_FILE
+
+  cookies:
+    - name: 'avpvh_session'
+      domain: 'avphilipsvanhorne.nl'
+      authelia_url: 'https://auth.avphilipsvanhorne.nl'
+      default_redirection_url: 'https://www.avphilipsvanhorne.nl/avpvh-login/'
+      expiration: '8 hours'
+      inactivity: '30 minutes'
+
+  redis:
+    host: 'redis'
+    port: 6379
+
+regulation:
+  max_retries: 3
+  find_time: '2 minutes'
+  ban_time: '5 minutes'
+
+storage:
+  encryption_key: ''  # loaded via AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE
+  local:
+    path: '/config/db.sqlite3'
+
+notifier:
+  smtp:
+    address: 'smtp.gmail.com:587'
+    sender: 'no-reply@avphilipsvanhorne.nl'
+    username: 'garmt@avphilipsvanhorne.nl'
+    # password loaded from Docker secret via AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE
+
