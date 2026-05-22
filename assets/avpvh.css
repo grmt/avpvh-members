@@ -32,3 +32,47 @@
     opacity: .88;
     color: #fff;
 }
+
+/* Login pagina */
+.avpvh-login-page {
+    max-width: 420px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+}
+
+.avpvh-login-intro {
+    margin-bottom: 1.5rem;
+    color: #444;
+    line-height: 1.6;
+}
+
+.avpvh-login-options {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+
+.avpvh-login-options a {
+    display: block;
+    padding: .65rem 1rem;
+    border-radius: 4px;
+    text-align: center;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: .95rem;
+    color: #fff;
+}
+
+.avpvh-login-options a.avpvh-login-google    { background: #4285f4; }
+.avpvh-login-options a.avpvh-login-microsoft { background: #0078d4; }
+.avpvh-login-options a.avpvh-login-password  { background: #555; }
+.avpvh-login-options a:hover { opacity: .88; color: #fff; }
+
+.avpvh-login-hint {
+    font-size: .82rem;
+    color: #666;
+    margin: -.25rem 0 0;
+}

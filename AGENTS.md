@@ -1,34 +1,24 @@
 # AI Agent Guidance - AVP-PvH Member System
 
-Welcome, Agent. This repository is a complex integration between WordPress, LLDAP, Authelia, and an OpenResty-based Docker stack. To ensure system stability and architectural consistency, you MUST read and follow the guidance in these documents:
+Welcome, Agent. This repository is a WordPress plugin integrated with LLDAP, Authelia, and a Docker stack. Read the documents below before making any changes.
 
-## 🧭 Steering Documents
+## Steering Documents
 
-1. **[GEMINI.md](./GEMINI.md) (Mandatory)**
-   - **Purpose:** Core architectural mandates and technical constraints.
-   - **Key takeaway:** LLDAP is the Single Source of Truth for identity. NEVER duplicate emails in WordPress tables. Use cross-database JOINs.
+1. **[GEMINI.md](./GEMINI.md)** — Architectural mandates. Read this first.
+2. **[README.md](./README.md)** — System overview, setup, deploy instructions.
+3. **[PLAN.md](./PLAN.md)** — Design decisions, login flows, file structure, OAuth setup notes.
 
-2. **[README.md](./README.md)**
-   - **Purpose:** High-level system overview and features.
-   - **Key takeaway:** Understand the "Big Picture" of how Authelia, Nginx, and the Plugin interact.
+## Key Rules
 
-3. **[PLAN.md](./PLAN.md)**
-   - **Purpose:** The original design specification and roadmap.
-   - **Key takeaway:** Reference this for the "Why" behind the current implementation and to check the status of specific deliverables.
+- **LLDAP is identity SSoT.** Never store email in WordPress tables. Always use cross-DB JOINs via `AVPVH_LLDAP_DB`.
+- **Authelia only guards `/wp-admin/`**. All other access control is handled by the plugin.
+- **No inline scripts.** CSP blocks `wp_localize_script`. Pass JS config via `<script type="application/json">` in `wp_footer`.
+- **No wp-login.php.** It redirects to `/avpvh-login/`. Don't add WP password forms.
+- **Deploy:** `sudo rsync -a --delete ~/04-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/`
 
-## 🛠 Infrastructure Context
+## Infrastructure
 
-This project is part of a larger multi-tenant stack located at `/opt/docker`.
-- **Nginx/OpenResty:** Handles the vhost and Authelia subrequests.
-- **Authelia:** The Identity Broker.
-- **LLDAP:** The User Directory (MariaDB backend).
-- **WordPress Plugin:** Trust proxy headers (`HTTP_REMOTE_USER`) and manages business logic (fees, camps).
-
-## 🧠 Memory & Local Context
-
-- **Private Memory:** Local notes, machine-specific paths, and transient findings are stored in the private memory folder. Do not commit these to the repository.
-- **Search First:** Before modifying any SQL or authentication logic, use `grep_search` to find existing patterns in `includes/class-db.php` and `includes/class-access.php`.
-
-## ⚠️ Critical Warning
-
-Do not attempt to "simplify" the database schema by adding identity columns to the WordPress tables. The cross-database join pattern is an intentional design choice to prevent data desynchronization between LLDAP and WordPress.
+- MariaDB is in container `scripts-mysql-1`, accessible via `docker exec scripts-mysql-1 mariadb ...`
+- WordPress PvH container: `scripts-wordpress-pvh-1`
+- WordPress DB prefix: `pvh_`
+- Content volume: `/opt/docker/volumes/html/wp-content-pvh/`

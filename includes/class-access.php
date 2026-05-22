@@ -6,21 +6,60 @@ class AVPVH_Access {
     public function __construct() {
         add_action('init',               [$this, 'auto_login_from_proxy_header'], 1);
         add_action('template_redirect',  [$this, 'handle_login_bridge']);
+        add_filter('the_content',        [$this, 'inject_login_form'], 5);
         add_filter('post_password_required', [$this, 'bypass_for_active_member'], 10, 2);
         add_filter('the_content',          [$this, 'ex_member_notice']);
         add_filter('protected_title_format', [$this, 'clean_protected_title']);
         add_filter('the_password_form',    [$this, 'members_only_form']);
     }
 
-    // Called on the /avpvh-login/ page: Authelia sets Remote-User here because
-    // the path is not bypassed, so auto_login_from_proxy_header has already
-    // set the WP auth cookie by the time we reach template_redirect.
+    // Called on the /avpvh-login/ page. If already logged in (via proxy header or
+    // OAuth), redirect to home. Otherwise let inject_login_form render the form.
     public function handle_login_bridge(): void {
         if (!is_page('avpvh-login')) {
             return;
         }
-        wp_redirect(home_url('/'));
-        exit;
+        if (is_user_logged_in()) {
+            wp_redirect(home_url('/'));
+            exit;
+        }
+    }
+
+    public function inject_login_form(string $content): string {
+        if (!is_page('avpvh-login') || is_user_logged_in()) {
+            return $content;
+        }
+
+        $providers  = AVPVH_OAuth::configured_providers();
+        $login_urls = [];
+        foreach ($providers as $key => $provider) {
+            $login_urls[$key] = AVPVH_OAuth::login_url($key);
+        }
+
+        wp_enqueue_script(
+            'avpvh-login-form',
+            plugin_dir_url(dirname(__FILE__)) . 'assets/login-form.js',
+            [], '1.0', true
+        );
+
+        $login_config = wp_json_encode([
+            'autheliaUrl'  => 'https://auth.avphilipsvanhorne.nl',
+            'loginUrls'    => $login_urls,
+            'hasGoogle'    => isset($providers['google']),
+            'hasMicrosoft' => isset($providers['microsoft']),
+        ]);
+        add_action('wp_footer', function () use ($login_config) {
+            echo '<script type="application/json" id="avpvh-login-config">' . $login_config . '</script>';
+        });
+
+        ob_start();
+        ?>
+        <div class="avpvh-login-page">
+            <p class="avpvh-login-intro">Gebruik het e-mailadres waarmee u bij de vereniging geregistreerd staat. Als u met dat adres bij Google of Microsoft inlogt, hoeft u hier geen wachtwoord in te tikken. Kent Google of Microsoft u niet met dit e-mailadres, kies dan &ldquo;Inloggen met wachtwoord&rdquo; om de eerste keer een wachtwoord aan te maken.</p>
+            <div class="avpvh-login-options" id="avpvh-login-options"></div>
+        </div>
+        <?php
+        return ob_get_clean();
     }
 
     public function auto_login_from_proxy_header(): void {
@@ -60,6 +99,7 @@ class AVPVH_Access {
                 wp_update_user([
                     'ID'           => $uid,
                     'display_name' => trim($member->first_name . ' ' . $member->last_name),
+                    'role'         => 'contributor',
                 ]);
                 AVPVH_DB::set_wp_user_id((int) $member->id, $uid);
                 $user = get_user_by('id', $uid);
@@ -96,22 +136,10 @@ class AVPVH_Access {
         if (is_user_logged_in()) {
             return $form;
         }
-        ob_start();
-        ?>
-        <div class="avpvh-members-only">
+        return '<div class="avpvh-members-only">
             <p>Deze pagina is alleen beschikbaar voor leden.</p>
-            <?php foreach (AVPVH_OAuth::configured_providers() as $key => $provider) : ?>
-                <a class="avpvh-login-btn avpvh-login-<?php echo esc_attr($key); ?>"
-                   href="<?php echo esc_url(AVPVH_OAuth::login_url($key)); ?>">
-                    Inloggen met <?php echo esc_html($provider['label']); ?>
-                </a>
-            <?php endforeach; ?>
-            <?php if (!AVPVH_OAuth::configured_providers()) : ?>
-                <a class="avpvh-login-btn" href="https://auth.avphilipsvanhorne.nl">Inloggen</a>
-            <?php endif; ?>
-        </div>
-        <?php
-        return ob_get_clean();
+            <a class="avpvh-login-btn" href="' . esc_url(home_url('/avpvh-login/')) . '">Inloggen</a>
+        </div>';
     }
 
     public function ex_member_notice(string $content): string {
