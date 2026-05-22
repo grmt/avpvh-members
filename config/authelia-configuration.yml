@@ -11,6 +11,7 @@
 
 server:
   address: 'tcp://:9091'
+  asset_path: '/config/assets'
 
 log:
   level: 'info'
@@ -50,29 +51,15 @@ access_control:
     - domain: 'leden-admin.avphilipsvanhorne.nl'
       policy: 'two_factor'
 
-    # Public pages — no login required
-    - domain: 'www.avphilipsvanhorne.nl'
-      resources:
-        - '^/wp-content/.*'
-        - '^/wp-json/.*'
-        - '^/wp-cron\.php'
-        - '^/wp-admin/admin-ajax\.php'
-        - '^/$'
-        - '^/over-ons(/.*)?$'
-        - '^/contact(/.*)?$'
-        - '^/over-de-vereniging(/.*)?$'
-      policy: 'bypass'
-
     # wp-admin requires two-factor
     - domain: 'www.avphilipsvanhorne.nl'
       resources:
         - '^/wp-admin/.*'
-        - '^/wp-login\.php'
       policy: 'two_factor'
 
-    # All other pages (blog posts) require one-factor
+    # All other pages: bypass Authelia, WordPress plugin handles access control
     - domain: 'www.avphilipsvanhorne.nl'
-      policy: 'one_factor'
+      policy: 'bypass'
 
     # these domains redirect to www.avphilipsvanhorne.nl via nginx
     - domain: 'avphilipsvanhorne.nl'

@@ -7,6 +7,7 @@ class AVPVH_Admin {
         add_action('admin_menu', [$this, 'register_menus']);
         add_action('admin_post_avpvh_mark_fee_paid', [$this, 'handle_mark_fee_paid']);
         add_action('admin_post_avpvh_save_settings', [$this, 'handle_save_settings']);
+        add_action('admin_post_avpvh_test_oauth',    [$this, 'handle_test_oauth']);
     }
 
     public function register_menus(): void {
@@ -38,10 +39,16 @@ class AVPVH_Admin {
     }
 
     public function render_settings(): void {
+        $oauth_test = isset($_GET['oauth_test']) ? sanitize_text_field($_GET['oauth_test']) : null;
+        $oauth_test_provider = isset($_GET['oauth_provider']) ? sanitize_text_field($_GET['oauth_provider']) : null;
+
         $test_result = null;
-        if (isset($_GET['test_lldap'])) {
+        if (isset($_POST['test_lldap'])) {
             check_admin_referer('avpvh_test_lldap');
-            $test_result = AVPVH_LLDAP::test_connection();
+            $url      = sanitize_url(wp_unslash($_POST['lldap_url'] ?? 'http://lldap:17170'));
+            $user     = sanitize_text_field(wp_unslash($_POST['lldap_user'] ?? 'admin'));
+            $password = sanitize_text_field(wp_unslash($_POST['lldap_password'] ?? ''));
+            $test_result = AVPVH_LLDAP::test_connection_with($url, $user, $password);
         }
         ?>
         <div class="wrap">
@@ -51,26 +58,21 @@ class AVPVH_Admin {
             <?php elseif (is_wp_error($test_result)) : ?>
                 <div class="notice notice-error"><p>LLDAP fout: <?php echo esc_html($test_result->get_error_message()); ?></p></div>
             <?php endif; ?>
+            <?php if ($oauth_test === 'ok') : ?>
+                <div class="notice notice-success"><p><?php echo esc_html(ucfirst($oauth_test_provider)); ?> credentials OK — client ID en secret zijn geldig.</p></div>
+            <?php elseif ($oauth_test === 'fail') : ?>
+                <div class="notice notice-error"><p>
+                    <?php echo esc_html(ucfirst($oauth_test_provider)); ?> credentials ongeldig — controleer de client ID en secret
+                    <?php if ($oauth_test_provider === 'google') : ?>in de Google Cloud Console<?php else : ?>in de Azure portal<?php endif; ?>.
+                    <?php if (!empty($_GET['oauth_error'])) : ?>
+                        <br><small>Fout: <?php echo esc_html($_GET['oauth_error']); ?></small>
+                    <?php endif; ?>
+                </p></div>
+            <?php endif; ?>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                 <?php wp_nonce_field('avpvh_save_settings'); ?>
                 <input type="hidden" name="action" value="avpvh_save_settings">
                 <table class="form-table">
-                    <tr>
-                        <th><label for="lldap_url">LLDAP URL</label></th>
-                        <td><input type="url" id="lldap_url" name="lldap_url" class="regular-text"
-                                   value="<?php echo esc_attr(get_option('avpvh_lldap_url', 'http://lldap:17170')); ?>"></td>
-                    </tr>
-                    <tr>
-                        <th><label for="lldap_user">LLDAP admin gebruikersnaam</label></th>
-                        <td><input type="text" id="lldap_user" name="lldap_user" class="regular-text"
-                                   value="<?php echo esc_attr(get_option('avpvh_lldap_user', 'admin')); ?>"></td>
-                    </tr>
-                    <tr>
-                        <th><label for="lldap_password">LLDAP admin wachtwoord</label></th>
-                        <td><input type="password" id="lldap_password" name="lldap_password" class="regular-text"
-                                   value="<?php echo esc_attr(get_option('avpvh_lldap_password', '')); ?>">
-                        </td>
-                    </tr>
                     <tr><th colspan="2"><h2 style="margin:0">Google OAuth</h2></th></tr>
                     <tr>
                         <th><label for="oauth_google_client_id">Client ID</label></th>
@@ -82,6 +84,13 @@ class AVPVH_Admin {
                         <td><input type="password" id="oauth_google_client_secret" name="oauth_google_client_secret" class="regular-text"
                                    value="<?php echo esc_attr(get_option('avpvh_oauth_google_client_secret', '')); ?>">
                             <p class="description">Redirect URI voor Google Console: <code><?php echo esc_html(rest_url('avpvh/v1/oauth/google/callback')); ?></code></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th></th>
+                        <td>
+                            <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['action' => 'avpvh_test_oauth', 'provider' => 'google'], admin_url('admin-post.php')), 'avpvh_test_oauth_google')); ?>"
+                               class="button">Google credentials testen</a>
                         </td>
                     </tr>
                     <tr><th colspan="2"><h2 style="margin:0">Microsoft OAuth</h2></th></tr>
@@ -97,13 +106,38 @@ class AVPVH_Admin {
                             <p class="description">Redirect URI voor Azure: <code><?php echo esc_html(rest_url('avpvh/v1/oauth/microsoft/callback')); ?></code></p>
                         </td>
                     </tr>
+                    <tr>
+                        <th></th>
+                        <td>
+                            <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['action' => 'avpvh_test_oauth', 'provider' => 'microsoft'], admin_url('admin-post.php')), 'avpvh_test_oauth_microsoft')); ?>"
+                               class="button">Microsoft credentials testen</a>
+                        </td>
+                    </tr>
                 </table>
                 <?php submit_button('Opslaan'); ?>
             </form>
-            <p>
-                <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-settings', 'test_lldap' => '1'], admin_url('admin.php')), 'avpvh_test_lldap')); ?>"
-                   class="button">Verbinding testen</a>
-            </p>
+
+            <hr>
+            <h2>LLDAP verbinding testen</h2>
+            <form method="post">
+                <?php wp_nonce_field('avpvh_test_lldap'); ?>
+                <input type="hidden" name="test_lldap" value="1">
+                <table class="form-table">
+                    <tr>
+                        <th><label for="lldap_url">URL</label></th>
+                        <td><input type="url" id="lldap_url" name="lldap_url" class="regular-text" value="http://lldap:17170"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="lldap_user">Gebruikersnaam</label></th>
+                        <td><input type="text" id="lldap_user" name="lldap_user" class="regular-text" value="admin"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="lldap_password">Wachtwoord</label></th>
+                        <td><input type="password" id="lldap_password" name="lldap_password" class="regular-text" value=""></td>
+                    </tr>
+                </table>
+                <?php submit_button('Verbinding testen', 'secondary'); ?>
+            </form>
         </div>
         <?php
     }
@@ -113,14 +147,68 @@ class AVPVH_Admin {
         if (!current_user_can('manage_options')) {
             wp_die('Geen toegang.', 403);
         }
-        update_option('avpvh_lldap_url',      sanitize_url(wp_unslash($_POST['lldap_url'] ?? '')));
-        update_option('avpvh_lldap_user',     sanitize_text_field(wp_unslash($_POST['lldap_user'] ?? '')));
-        update_option('avpvh_lldap_password', sanitize_text_field(wp_unslash($_POST['lldap_password'] ?? '')));
         update_option('avpvh_oauth_google_client_id',         sanitize_text_field(wp_unslash($_POST['oauth_google_client_id'] ?? '')));
         update_option('avpvh_oauth_google_client_secret',     sanitize_text_field(wp_unslash($_POST['oauth_google_client_secret'] ?? '')));
         update_option('avpvh_oauth_microsoft_client_id',      sanitize_text_field(wp_unslash($_POST['oauth_microsoft_client_id'] ?? '')));
         update_option('avpvh_oauth_microsoft_client_secret',  sanitize_text_field(wp_unslash($_POST['oauth_microsoft_client_secret'] ?? '')));
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-settings', 'updated' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_test_oauth(): void {
+        $provider = sanitize_text_field($_GET['provider'] ?? '');
+        if (!in_array($provider, ['google', 'microsoft'], true)) {
+            wp_die('Onbekende provider.', 400);
+        }
+        check_admin_referer('avpvh_test_oauth_' . $provider);
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $client_id     = get_option('avpvh_oauth_' . $provider . '_client_id');
+        $client_secret = get_option('avpvh_oauth_' . $provider . '_client_secret');
+
+        if (!$client_id || !$client_secret) {
+            wp_safe_redirect(add_query_arg([
+                'page'          => 'avpvh-settings',
+                'oauth_test'    => 'fail',
+                'oauth_provider' => $provider,
+                'oauth_error'   => 'Client ID of secret is niet ingevuld.',
+            ], admin_url('admin.php')));
+            exit;
+        }
+
+        $config    = AVPVH_OAuth::PROVIDERS[$provider];
+        $response  = wp_remote_post($config['token_url'], [
+            'body' => [
+                'client_id'     => $client_id,
+                'client_secret' => $client_secret,
+                'code'          => 'test_dummy_code',
+                'redirect_uri'  => rest_url('avpvh/v1/oauth/' . $provider . '/callback'),
+                'grant_type'    => 'authorization_code',
+            ],
+            'timeout' => 10,
+        ]);
+
+        $redirect_args = ['page' => 'avpvh-settings', 'oauth_provider' => $provider];
+
+        if (is_wp_error($response)) {
+            $redirect_args['oauth_test']  = 'fail';
+            $redirect_args['oauth_error'] = $response->get_error_message();
+        } else {
+            $body  = json_decode(wp_remote_retrieve_body($response), true);
+            $error = $body['error'] ?? '';
+            // invalid_grant = credentials OK, dummy code rejected (expected)
+            // invalid_client = credentials wrong
+            if ($error === 'invalid_grant' || $error === 'invalid_request') {
+                $redirect_args['oauth_test'] = 'ok';
+            } else {
+                $redirect_args['oauth_test']  = 'fail';
+                $redirect_args['oauth_error'] = $body['error_description'] ?? $error ?: 'Onbekende fout.';
+            }
+        }
+
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
 

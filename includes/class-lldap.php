@@ -109,11 +109,18 @@ class AVPVH_LLDAP {
         return $data['groups'] ?? [];
     }
 
-    public static function test_connection(): bool|\WP_Error {
-        self::$token = null;
-        $token = self::token();
-        if (is_wp_error($token)) {
-            return $token;
+    public static function test_connection_with(string $url, string $user, string $password): bool|\WP_Error {
+        $response = wp_remote_post(rtrim($url, '/') . '/auth/simple/login', [
+            'headers' => ['Content-Type' => 'application/json'],
+            'body'    => wp_json_encode(['username' => $user, 'password' => $password]),
+            'timeout' => 5,
+        ]);
+        if (is_wp_error($response)) {
+            return $response;
+        }
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (empty($body['token'])) {
+            return new \WP_Error('lldap_auth', 'Login mislukt: ' . wp_remote_retrieve_body($response));
         }
         return true;
     }

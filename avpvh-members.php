@@ -30,6 +30,22 @@ add_action('wp_enqueue_scripts', function () {
     wp_enqueue_style('avpvh', plugin_dir_url(__FILE__) . 'assets/avpvh.css', [], '1.0');
 });
 
+add_action('after_setup_theme', function () {
+    if (!current_user_can('edit_posts')) {
+        show_admin_bar(false);
+    }
+});
+
+add_action('login_init', function () {
+    wp_safe_redirect(home_url('/avpvh-login/'));
+    exit;
+});
+
+add_filter('logout_url', function (): string {
+    return rest_url('avpvh/v1/logout');
+});
+
+
 new AVPVH_Access();
 new AVPVH_Nav_Auth();
 new AVPVH_OAuth();

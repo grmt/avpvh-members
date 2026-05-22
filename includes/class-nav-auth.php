@@ -21,34 +21,23 @@ class AVPVH_Nav_Auth {
 
         $is_active = $member && $member->status === 'active';
 
-        // Build provider login URLs for the menu button(s).
-        $login_buttons = [];
-        foreach (AVPVH_OAuth::configured_providers() as $key => $provider) {
-            $login_buttons[] = [
-                'label' => 'Inloggen met ' . $provider['label'],
-                'url'   => AVPVH_OAuth::login_url($key),
-            ];
-        }
-        if (!$login_buttons) {
-            $login_buttons[] = [
-                'label' => 'Inloggen',
-                'url'   => home_url('/avpvh-login/'),
-            ];
-        }
-
         wp_enqueue_script(
             'avpvh-nav-auth',
             plugin_dir_url(dirname(__FILE__)) . 'assets/nav-auth.js',
             [], '1.0', true
         );
 
-        wp_localize_script('avpvh-nav-auth', 'avpvhAuth', [
-            'isLoggedIn'     => is_user_logged_in(),
-            'isActiveMember' => $is_active,
-            'membersPageIds' => self::MEMBERS_PAGE_IDS,
-            'logoutUrl'      => rest_url('avpvh/v1/logout'),
-            'loginButtons'   => $login_buttons,
-        ]);
+        add_action('wp_footer', function () use ($is_active) {
+            echo '<script type="application/json" id="avpvh-auth-config">'
+                . wp_json_encode([
+                    'isLoggedIn'     => is_user_logged_in(),
+                    'isActiveMember' => $is_active,
+                    'membersPageIds' => self::MEMBERS_PAGE_IDS,
+                    'logoutUrl'      => rest_url('avpvh/v1/logout'),
+                    'loginUrl'       => home_url('/avpvh-login/'),
+                ])
+                . '</script>';
+        });
     }
 
     public function render_logout_route(): void {
