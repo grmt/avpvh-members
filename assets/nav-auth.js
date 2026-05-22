@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
-    var cfg = window.avpvhAuth;
+    var el = document.getElementById('avpvh-auth-config');
+    if (!el) return;
+    var cfg = JSON.parse(el.textContent);
     if (!cfg) return;
 
     // --- hide members-only nav items for guests ---
@@ -27,9 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (cfg.isLoggedIn) {
             ul.appendChild(makeItem('Uitloggen', cfg.logoutUrl, 'avpvh-auth-item'));
         } else {
-            cfg.loginButtons.forEach(function (btn) {
-                ul.appendChild(makeItem(btn.label, btn.url, 'avpvh-auth-item'));
-            });
+            ul.appendChild(makeItem('Inloggen', cfg.loginUrl, 'avpvh-auth-item'));
         }
     });
 
