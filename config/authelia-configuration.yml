@@ -12,12 +12,19 @@
 server:
   address: 'tcp://:9091'
   asset_path: '/config/assets'
+  headers:
+    csp_template: "default-src 'self'; frame-src 'none'; object-src 'none'; style-src 'self' 'nonce-${NONCE}' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-+OsIn6RhyCZCUkkvtHxFtP0kU3CGdGeLjDd9Fzqdl3o='; script-src 'self' 'nonce-${NONCE}'; connect-src 'self' https://api.pwnedpasswords.com"
 
 log:
   level: 'info'
 
 totp:
   issuer: 'avphilipsvanhorne.nl'
+
+password_policy:
+  zxcvbn:
+    enabled: true
+    min_score: 3
 
 identity_validation:
   reset_password:
@@ -50,6 +57,13 @@ access_control:
     # LLDAP admin UI — two-factor only
     - domain: 'leden-admin.avphilipsvanhorne.nl'
       policy: 'two_factor'
+
+    # admin-ajax.php is used for frontend AJAX by plugins/themes — bypass Authelia,
+    # WordPress handles nonce/capability checks itself. Must come before the wp-admin rule.
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/wp-admin/admin-ajax\.php'
+      policy: 'bypass'
 
     # wp-admin requires two-factor
     - domain: 'www.avphilipsvanhorne.nl'

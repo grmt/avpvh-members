@@ -61,7 +61,32 @@ class AVPVH_OAuth {
         exit;
     }
 
+    private function get_client_ip(): string {
+        // Trust X-Forwarded-For only from our nginx proxy (runs on the same host).
+        $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+        if ($forwarded) {
+            return trim(explode(',', $forwarded)[0]);
+        }
+        return $_SERVER['REMOTE_ADDR'] ?? '';
+    }
+
+    private function check_ip_throttle(): bool {
+        $key = 'avpvh_oauth_fail_' . md5($this->get_client_ip());
+        return (int) get_transient($key) >= 3;
+    }
+
+    private function record_ip_failure(): void {
+        $key   = 'avpvh_oauth_fail_' . md5($this->get_client_ip());
+        $count = (int) get_transient($key);
+        set_transient($key, $count + 1, 15 * MINUTE_IN_SECONDS);
+    }
+
     public function handle_callback(string $provider, \WP_REST_Request $request): void {
+        if ($this->check_ip_throttle()) {
+            wp_redirect(home_url('/avpvh-login/?error=no_member'));
+            exit;
+        }
+
         $code  = sanitize_text_field($request->get_param('code')  ?? '');
         $state = sanitize_text_field($request->get_param('state') ?? '');
 
@@ -82,7 +107,10 @@ class AVPVH_OAuth {
 
         $member = AVPVH_DB::get_member_by_email($email);
         if (!$member) {
-            wp_die('Het e-mailadres <strong>' . esc_html($email) . '</strong> is niet gekoppeld aan een lid.', 'Geen toegang', ['response' => 403]);
+            $this->record_ip_failure();
+            AVPVH_DB::log_attempt($email, $provider, 'no_member');
+            wp_redirect(home_url('/avpvh-login/?error=no_member'));
+            exit;
         }
 
         $user = $this->get_or_create_wp_user($email, $member);
@@ -90,6 +118,7 @@ class AVPVH_OAuth {
             wp_die('Kon WordPress-gebruiker niet aanmaken.', 'Fout', ['response' => 500]);
         }
 
+        AVPVH_DB::log_attempt($email, $provider, 'success');
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID, true);
         do_action('wp_login', $user->user_login, $user);

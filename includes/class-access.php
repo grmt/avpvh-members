@@ -11,6 +11,27 @@ class AVPVH_Access {
         add_filter('the_content',          [$this, 'ex_member_notice']);
         add_filter('protected_title_format', [$this, 'clean_protected_title']);
         add_filter('the_password_form',    [$this, 'members_only_form']);
+        add_action('rest_api_init',        [$this, 'register_hibp_route']);
+
+        add_action('wp_head',                      [$this, 'noindex_members_content']);
+        add_filter('wp_sitemaps_posts_query_args', [$this, 'sitemap_exclude_protected']);
+        add_filter('wp_sitemaps_add_provider',     [$this, 'sitemap_remove_users'], 10, 2);
+        add_filter('wp_sitemaps_post_types',       [$this, 'sitemap_remove_post_type']);
+        add_filter('wp_sitemaps_taxonomies',       '__return_empty_array');
+    }
+
+    public function register_hibp_route(): void {
+        register_rest_route('avpvh/v1', '/hibp-flag', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'handle_hibp_flag'],
+            'permission_callback' => '__return_true',
+        ]);
+    }
+
+    public function handle_hibp_flag(\WP_REST_Request $request): \WP_REST_Response {
+        $email = sanitize_email($request->get_param('email') ?? '');
+        AVPVH_DB::log_attempt($email ?: 'onbekend', 'password_reset', 'hibp_warned');
+        return new \WP_REST_Response(['ok' => true], 200);
     }
 
     // Called on the /avpvh-login/ page. If already logged in (via proxy header or
@@ -52,10 +73,16 @@ class AVPVH_Access {
             echo '<script type="application/json" id="avpvh-login-config">' . $login_config . '</script>';
         });
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $error = sanitize_key($_GET['error'] ?? '');
+
         ob_start();
         ?>
         <div class="avpvh-login-page">
-            <p class="avpvh-login-intro">Gebruik het e-mailadres waarmee u bij de vereniging geregistreerd staat. Als u met dat adres bij Google of Microsoft inlogt, hoeft u hier geen wachtwoord in te tikken. Kent Google of Microsoft u niet met dit e-mailadres, kies dan &ldquo;Inloggen met wachtwoord&rdquo; om de eerste keer een wachtwoord aan te maken.</p>
+            <?php if ($error === 'no_member'): ?>
+            <p class="avpvh-login-error">Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.</p>
+            <?php endif; ?>
+            <p class="avpvh-login-intro">Gebruik het e-mailadres waarmee je bij de vereniging geregistreerd staat. Als je met dat adres bij Google of Microsoft inlogt, hoef je hier geen wachtwoord in te tikken. Kent Google of Microsoft je niet met dit e-mailadres, kies dan &ldquo;Inloggen met wachtwoord&rdquo; om de eerste keer een wachtwoord aan te maken.</p>
             <div class="avpvh-login-options" id="avpvh-login-options"></div>
         </div>
         <?php
@@ -112,6 +139,7 @@ class AVPVH_Access {
             return;
         }
 
+        AVPVH_DB::log_attempt($email, 'proxy', 'success');
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID);
         do_action('wp_login', $user->user_login, $user);
@@ -148,8 +176,63 @@ class AVPVH_Access {
         }
         $member = avpvh_get_member_by_wp_user(get_current_user_id());
         if ($member && $member->status === 'inactive') {
-            return '<div class="avpvh-notice">Uw lidmaatschap is beëindigd. Neem contact op met het bestuur.</div>';
+            return '<div class="avpvh-notice">Je lidmaatschap is beëindigd. Neem contact op met het bestuur.</div>';
         }
         return $content;
+    }
+
+    public function noindex_members_content(): void {
+        // Always noindex author archives and individual posts (all members-only)
+        if (is_author() || is_single()) {
+            echo '<meta name="robots" content="noindex, nofollow">' . "\n";
+            return;
+        }
+
+        if (!is_page()) {
+            return;
+        }
+
+        $should_noindex = is_page(['avpvh-login']);
+
+        if (!$should_noindex) {
+            $members_root = get_page_by_path('leden');
+            if ($members_root) {
+                $descendants = wp_list_pluck(
+                    get_pages(['child_of' => $members_root->ID, 'post_status' => 'publish']),
+                    'ID'
+                );
+                $should_noindex = is_page(array_merge([$members_root->ID], $descendants));
+            }
+        }
+
+        if ($should_noindex) {
+            echo '<meta name="robots" content="noindex, nofollow">' . "\n";
+        }
+    }
+
+    public function sitemap_exclude_protected(array $args): array {
+        $args['has_password'] = false;
+
+        $exclude_slugs = ['leden', 'avpvh-login'];
+        foreach ($exclude_slugs as $slug) {
+            $page = get_page_by_path($slug);
+            if ($page) {
+                $children = get_pages(['child_of' => $page->ID, 'post_status' => 'publish']);
+                $ids = wp_list_pluck($children, 'ID');
+                $ids[] = $page->ID;
+                $args['post__not_in'] = array_merge((array) ($args['post__not_in'] ?? []), $ids);
+            }
+        }
+
+        return $args;
+    }
+
+    public function sitemap_remove_users($provider, string $name) {
+        return in_array($name, ['users', 'taxonomies'], true) ? false : $provider;
+    }
+
+    public function sitemap_remove_post_type(array $post_types): array {
+        unset($post_types['post']);
+        return $post_types;
     }
 }
