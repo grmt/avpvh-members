@@ -42,6 +42,16 @@
     border-radius: 6px;
 }
 
+.avpvh-login-error {
+    margin-bottom: 1rem;
+    padding: .75rem 1rem;
+    background: #fff3cd;
+    border-left: 4px solid #e6a817;
+    color: #7a5000;
+    border-radius: 3px;
+    line-height: 1.5;
+}
+
 .avpvh-login-intro {
     margin-bottom: 1.5rem;
     color: #444;

@@ -1,0 +1,25 @@
+<?php
+// Known disposable/throwaway email domains. Add more as needed.
+return [
+    '10minutemail.com', '10minutemail.net', '10minutemail.org',
+    'guerrillamail.com', 'guerrillamail.net', 'guerrillamail.org',
+    'guerrillamail.info', 'guerrillamail.biz', 'guerrillamail.de',
+    'mailinator.com', 'mailinator.net', 'mailinator.org',
+    'maildrop.cc', 'mailnull.com', 'mailnesia.com',
+    'trashmail.com', 'trashmail.net', 'trashmail.org', 'trashmail.me',
+    'trashmail.at', 'trashmail.io', 'trashmail.xyz',
+    'tempmail.com', 'tempmail.net', 'tempmail.org',
+    'temp-mail.org', 'temp-mail.ru', 'temp-mail.io',
+    'fakeinbox.com', 'fakeinbox.net',
+    'dispostable.com', 'disposablemail.com',
+    'yopmail.com', 'yopmail.fr', 'cool.fr.nf', 'jetable.fr.nf',
+    'nospam.ze.tc', 'nomail.xl.cx', 'mega.zik.dj',
+    'spam4.me', 'spamgourmet.com', 'spamgourmet.net',
+    'spamgourmet.org', 'spamfree24.org',
+    'throwam.com', 'throwaway.email',
+    'sharklasers.com', 'guerrillamailblock.com', 'grr.la',
+    'guerrillamail.info', 'spam4.me', 'spamthisplease.com',
+    'mintemail.com', 'tempr.email', 'discard.email',
+    'mailnull.com', 'spamgob.com', 'anonaddy.com',
+    'inboxbear.com', 'harakirimail.com',
+];
