@@ -2,7 +2,14 @@
     'use strict';
 
     $(document).ready(function() {
-        const $form = $('#avpvh-registration-form');
+        // Support both registration and member profile forms
+        let $form = $('#avpvh-registration-form');
+        let formAction = 'avpvh_save_registration';
+
+        if ($form.length === 0) {
+            $form = $('#avpvh-profile-form');
+            formAction = 'avpvh_save_member_profile';
+        }
 
         if ($form.length === 0) {
             return;
@@ -22,7 +29,7 @@
             $form.addClass('loading');
 
             const formData = new FormData($form[0]);
-            formData.append('action', 'avpvh_save_registration');
+            formData.append('action', formAction);
 
             $.ajax({
                 type: 'POST',
