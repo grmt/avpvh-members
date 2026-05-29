@@ -36,14 +36,62 @@ class AVPVH_Access {
 
     // Called on the /avpvh-login/ page. If already logged in (via proxy header or
     // OAuth), redirect to home. Otherwise let inject_login_form render the form.
+    // Also redirects non-members away from member-only pages and posts.
     public function handle_login_bridge(): void {
-        if (!is_page('avpvh-login')) {
+        if (is_page('avpvh-login')) {
+            if (is_user_logged_in()) {
+                wp_redirect(home_url('/'));
+                exit;
+            }
             return;
         }
-        if (is_user_logged_in()) {
-            wp_redirect(home_url('/'));
+
+        // Redirect non-members away from members-only content
+        if ($this->is_members_only_request() && !$this->current_user_is_active_member()) {
+            wp_redirect(home_url('/avpvh-login/'));
             exit;
         }
+    }
+
+    private function is_members_only_request(): bool {
+        // All individual posts are members-only
+        if (is_single()) {
+            return true;
+        }
+
+        // Author archives are members-only
+        if (is_author()) {
+            return true;
+        }
+
+        // Password-protected pages are members-only
+        if (is_page() && is_singular() && post_password_required()) {
+            return true;
+        }
+
+        // Pages in the members section (/leden/ and descendants)
+        if (is_page()) {
+            $members_root = get_page_by_path('leden');
+            if ($members_root) {
+                $descendants = wp_list_pluck(
+                    get_pages(['child_of' => $members_root->ID, 'post_status' => 'publish']),
+                    'ID'
+                );
+                if (is_page(array_merge([$members_root->ID], $descendants))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function current_user_is_active_member(): bool {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+        $member = avpvh_get_member_by_wp_user(get_current_user_id());
+        return $member && $member->status === 'active';
     }
 
     public function inject_login_form(string $content): string {
