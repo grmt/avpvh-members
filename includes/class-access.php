@@ -71,15 +71,20 @@ class AVPVH_Access {
 
         // Pages in the members section (/leden/ and descendants)
         if (is_page()) {
-            $members_root = get_page_by_path('leden');
-            if ($members_root) {
-                $descendants = wp_list_pluck(
-                    get_pages(['child_of' => $members_root->ID, 'post_status' => 'publish']),
-                    'ID'
-                );
-                if (is_page(array_merge([$members_root->ID], $descendants))) {
-                    return true;
-                }
+            $leden_roots = get_posts([
+                'name'        => 'leden',
+                'post_type'   => 'page',
+                'post_status' => 'publish',
+                'numberposts' => -1,
+                'fields'      => 'ids',
+            ]);
+            $members_ids = [];
+            foreach ($leden_roots as $root_id) {
+                $children    = get_pages(['child_of' => $root_id, 'post_status' => 'publish']);
+                $members_ids = array_merge($members_ids, wp_list_pluck($children, 'ID'), [$root_id]);
+            }
+            if (!empty($members_ids) && is_page($members_ids)) {
+                return true;
             }
         }
 
@@ -243,14 +248,19 @@ class AVPVH_Access {
         $should_noindex = is_page(['avpvh-login']);
 
         if (!$should_noindex) {
-            $members_root = get_page_by_path('leden');
-            if ($members_root) {
-                $descendants = wp_list_pluck(
-                    get_pages(['child_of' => $members_root->ID, 'post_status' => 'publish']),
-                    'ID'
-                );
-                $should_noindex = is_page(array_merge([$members_root->ID], $descendants));
+            $leden_roots = get_posts([
+                'name'        => 'leden',
+                'post_type'   => 'page',
+                'post_status' => 'publish',
+                'numberposts' => -1,
+                'fields'      => 'ids',
+            ]);
+            $members_ids = [];
+            foreach ($leden_roots as $root_id) {
+                $children     = get_pages(['child_of' => $root_id, 'post_status' => 'publish']);
+                $members_ids  = array_merge($members_ids, wp_list_pluck($children, 'ID'), [$root_id]);
             }
+            $should_noindex = !empty($members_ids) && is_page($members_ids);
         }
 
         if ($should_noindex) {
@@ -261,16 +271,22 @@ class AVPVH_Access {
     public function sitemap_exclude_protected(array $args): array {
         $args['has_password'] = false;
 
-        $exclude_slugs = ['leden', 'avpvh-login'];
-        foreach ($exclude_slugs as $slug) {
-            $page = get_page_by_path($slug);
-            if ($page) {
-                $children = get_pages(['child_of' => $page->ID, 'post_status' => 'publish']);
-                $ids = wp_list_pluck($children, 'ID');
-                $ids[] = $page->ID;
-                $args['post__not_in'] = array_merge((array) ($args['post__not_in'] ?? []), $ids);
-            }
+        // Exclude all pages with slug 'leden' (may be multiple) and their descendants
+        $leden_pages = get_posts([
+            'name'        => 'leden',
+            'post_type'   => 'page',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'fields'      => 'ids',
+        ]);
+        $leden_pages[] = get_page_by_path('avpvh-login') ? get_page_by_path('avpvh-login')->ID : 0;
+
+        $exclude = (array) ($args['post__not_in'] ?? []);
+        foreach (array_filter($leden_pages) as $root_id) {
+            $children = get_pages(['child_of' => $root_id, 'post_status' => 'publish']);
+            $exclude   = array_merge($exclude, wp_list_pluck($children, 'ID'), [$root_id]);
         }
+        $args['post__not_in'] = $exclude;
 
         return $args;
     }
