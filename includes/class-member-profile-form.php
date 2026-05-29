@@ -292,7 +292,7 @@ class AVPVH_Member_Profile_Form {
                 true
             );
 
-            wp_localize_script('avpvh_registration', 'avpvhRegistration', [
+            wp_localize_script('avpvh-registration', 'avpvhRegistration', [
                 'ajaxUrl' => admin_url('admin-ajax.php'),
             ]);
         }

@@ -1,31 +1,64 @@
+.avpvh-member-profile-form,
 .avpvh-registration-form {
-    max-width: 800px;
+    max-width: 900px;
     margin: 2rem auto;
-    padding: 2rem;
-    background: #f9f9f9;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
 }
 
-.avpvh-registration-form fieldset {
+.avpvh-member-profile-form h2,
+.avpvh-registration-form h2 {
+    margin: 0;
+    padding: 2rem;
+    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
+    color: white;
+    font-size: 1.8rem;
+}
+
+.avpvh-member-profile-form > p,
+.avpvh-registration-form > p {
+    padding: 0 2rem;
+}
+
+.avpvh-member-profile-form > form,
+.avpvh-registration-form > form {
+    padding: 2rem;
+}
+
+.avpvh-registration-form fieldset,
+.avpvh-member-profile-form fieldset {
     margin: 2rem 0;
     padding: 1.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fafafa;
 }
 
-.avpvh-registration-form fieldset.nested {
+.avpvh-registration-form fieldset:first-of-type,
+.avpvh-member-profile-form fieldset:first-of-type {
+    margin-top: 0;
+}
+
+.avpvh-registration-form fieldset.nested,
+.avpvh-member-profile-form fieldset.nested {
     margin: 1rem 0;
     padding: 1rem;
-    background: #f5f5f5;
+    background: white;
+    border: 1px solid #ddd;
 }
 
-.avpvh-registration-form legend {
-    font-size: 1.1rem;
-    font-weight: bold;
-    margin-bottom: 1rem;
-    padding: 0 0.5rem;
+.avpvh-registration-form legend,
+.avpvh-member-profile-form legend {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    padding: 0;
+    color: #0073aa;
+    border-bottom: 2px solid #0073aa;
+    padding-bottom: 0.5rem;
 }
 
 .form-group {

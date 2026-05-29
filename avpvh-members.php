@@ -57,4 +57,6 @@ new AVPVH_Nav_Auth();
 new AVPVH_OAuth();
 new AVPVH_Ledenlijst();
 new AVPVH_Fee_Popup();
+new AVPVH_Registration_Form();
+new AVPVH_Member_Profile_Form();
 new AVPVH_Admin();
