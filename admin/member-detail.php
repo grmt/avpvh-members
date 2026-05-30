@@ -5,7 +5,38 @@ if (!current_user_can('manage_options')) wp_die('Geen toegang.');
 $member_id = (int) ($_GET['id'] ?? 0);
 $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
 if (!$member) {
-    echo '<div class="wrap"><p>Lid niet gevonden.</p></div>';
+    $search  = sanitize_text_field($_GET['s'] ?? '');
+    $results = $search ? AVPVH_DB::get_members(['search' => $search]) : [];
+    ?>
+    <div class="wrap">
+        <h1>Ledendetail</h1>
+        <form method="get">
+            <input type="hidden" name="page" value="avpvh-member-detail">
+            <p class="search-box">
+                <input type="search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Naam of e-mail" autofocus>
+                <button type="submit" class="button">Zoeken</button>
+            </p>
+        </form>
+        <?php if ($search && !$results) : ?>
+            <p>Geen leden gevonden.</p>
+        <?php elseif ($results) : ?>
+            <table class="wp-list-table widefat striped" style="max-width:600px">
+                <thead><tr><th>Naam</th><th>E-mail</th><th>Status</th></tr></thead>
+                <tbody>
+                <?php foreach ($results as $r) :
+                    $url = add_query_arg(['page' => 'avpvh-member-detail', 'id' => $r->id], admin_url('admin.php'));
+                ?>
+                    <tr>
+                        <td><a href="<?php echo esc_url($url); ?>"><?php echo esc_html($r->last_name . ', ' . $r->first_name); ?></a></td>
+                        <td><?php echo esc_html($r->email); ?></td>
+                        <td><?php echo esc_html($r->status); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>
+    <?php
     return;
 }
 
@@ -54,6 +85,9 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <h2>Contactgegevens</h2>
     <table class="form-table">
         <tr><th>LLDAP user_id</th><td><code><?php echo esc_html($member->lldap_user_id); ?></code></td></tr>
+        <tr><th>Voornaam</th><td><?php echo esc_html($member->first_name); ?></td></tr>
+        <tr><th>Achternaam</th><td><?php echo esc_html($member->last_name); ?></td></tr>
+        <tr><th>Doopnaam</th><td><?php echo esc_html($member->baptism_name ?: '—'); ?></td></tr>
         <tr><th>E-mail</th><td><?php echo esc_html($member->email); ?></td></tr>
         <tr><th>Status</th><td><?php echo esc_html($member->status); ?></td></tr>
         <tr><th>Telefoon</th><td><?php echo esc_html($member->phone); ?></td></tr>
