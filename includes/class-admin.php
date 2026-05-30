@@ -4,6 +4,11 @@ defined('ABSPATH') || exit;
 class AVPVH_Admin {
 
     public function __construct() {
+        // Load registration and sync admin pages
+        require_once AVPVH_PLUGIN_DIR . 'admin/registrations-list.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/registration-detail.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/sync-status.php';
+
         add_action('admin_menu', [$this, 'register_menus']);
         add_action('admin_post_avpvh_mark_fee_paid', [$this, 'handle_mark_fee_paid']);
         add_action('admin_post_avpvh_save_settings', [$this, 'handle_save_settings']);
@@ -25,6 +30,10 @@ class AVPVH_Admin {
             'avpvh-member-detail', [$this, 'render_member_detail']
         );
         add_submenu_page(
+            'avpvh-members', 'Loginpogingen', 'Loginpogingen', 'manage_options',
+            'avpvh-login-attempts', [$this, 'render_login_attempts']
+        );
+        add_submenu_page(
             'avpvh-members', 'Instellingen', 'Instellingen', 'manage_options',
             'avpvh-settings', [$this, 'render_settings']
         );
@@ -36,6 +45,10 @@ class AVPVH_Admin {
 
     public function render_member_detail(): void {
         require AVPVH_PLUGIN_DIR . 'admin/member-detail.php';
+    }
+
+    public function render_login_attempts(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/login-attempts.php';
     }
 
     public function render_settings(): void {

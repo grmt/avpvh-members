@@ -40,7 +40,7 @@ class AVPVH_Fee_Popup {
         <div id="avpvh-fee-popup" class="avpvh-fee-popup-overlay" role="dialog" aria-modal="true" aria-labelledby="avpvh-fee-popup-title">
             <div class="avpvh-fee-popup-box">
                 <h2 id="avpvh-fee-popup-title">Contributie <?php echo esc_html($popup_year); ?></h2>
-                <p>Uw contributie voor <?php echo esc_html($popup_year); ?> is nog niet ontvangen. Neem contact op met de penningmeester.</p>
+                <p>Je contributie voor <?php echo esc_html($popup_year); ?> is nog niet ontvangen. Neem contact op met de penningmeester.</p>
                 <button id="avpvh-fee-dismiss" class="button"><?php esc_html_e('Sluiten', 'avpvh-members'); ?></button>
             </div>
         </div>
