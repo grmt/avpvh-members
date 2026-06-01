@@ -73,3 +73,7 @@ Use `scripts/test-user.sh` to add/remove temporary test users:
 ./scripts/test-user.sh add garmt.noname garmt.noname@gmail.com Garmt "Noname (test)"
 ./scripts/test-user.sh remove garmt.noname
 ```
+
+## Development Workflow
+
+Changes are committed locally, pushed to GitHub, then deployed on the remote host via git pull and rsync.
