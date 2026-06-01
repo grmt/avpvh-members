@@ -73,3 +73,7 @@ Use `scripts/test-user.sh` to add/remove temporary test users:
 ./scripts/test-user.sh add test.member test.member@example.invalid Test "Member (fictief)"
 ./scripts/test-user.sh remove test.member
 ```
+
+## Development Workflow
+
+Changes are committed locally, pushed to GitHub, then deployed on the remote host via git pull and rsync.
