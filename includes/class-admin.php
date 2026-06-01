@@ -17,7 +17,7 @@ class AVPVH_Admin {
 
     public function register_menus(): void {
         add_menu_page(
-            'AVP-PvH Leden', 'AVP-PvH Leden', 'manage_options',
+            'AV-PvH Leden', 'AV-PvH Leden', 'manage_options',
             'avpvh-members', [$this, 'render_members_list'],
             'dashicons-groups', 30
         );

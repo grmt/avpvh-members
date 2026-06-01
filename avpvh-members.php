@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: AVP-PvH Members
- * Description: Member login, access control, fee tracking and admin for AVP Philips van Horne.
+ * Plugin Name: AV-PvH Members
+ * Description: Member login, access control, fee tracking and admin for AV Philips van Horne.
  * Version:     1.0.0
  * Author:      grmt
  * Text Domain: avpvh-members
