@@ -86,8 +86,23 @@
         attachResetLink();
         attachHIBP();
     });
-    observer.observe(document.body, { childList: true, subtree: true });
-    attachResetLink();
-    attachHIBP();
+
+    if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+        document.addEventListener('DOMContentLoaded', function () {
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    }
+
+    if (document.body) {
+        attachResetLink();
+        attachHIBP();
+    } else {
+        document.addEventListener('DOMContentLoaded', function () {
+            attachResetLink();
+            attachHIBP();
+        });
+    }
 
 })();
