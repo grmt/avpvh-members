@@ -50,7 +50,7 @@ class AVPVH_Ledenlijst {
                 <tbody>
                 <?php foreach ($leden as $lid) : ?>
                     <tr>
-                        <td><?php echo esc_html($lid->first_name . ' ' . $lid->last_name); ?></td>
+                        <td><?php echo esc_html(avpvh_format_name($lid)); ?></td>
                         <td><a href="mailto:<?php echo esc_attr($lid->email); ?>"><?php echo esc_html($lid->email); ?></a></td>
                         <td>
                             <?php if ($lid->mobile) : ?>
