@@ -52,7 +52,7 @@ $sort_indicator = function (string $col) use ($orderby, $order): string {
         <table class="wp-list-table widefat striped">
             <thead>
                 <tr>
-                    <th><a href="<?php echo esc_url($sort_url('last_name')); ?>">Achternaam<?php echo $sort_indicator('last_name'); ?></a></th>
+                    <th><a href="<?php echo esc_url($sort_url('last_name')); ?>">Achternaam<?php echo $sort_indicator('last_name'); ?></a> / <a href="<?php echo esc_url($sort_url('suffix_last_name')); ?>">tv<?php echo $sort_indicator('suffix_last_name'); ?></a></th>
                     <th><a href="<?php echo esc_url($sort_url('first_name')); ?>">Voornaam<?php echo $sort_indicator('first_name'); ?></a></th>
                     <th>Doopnaam</th>
                     <th>E-mail</th>
@@ -115,7 +115,7 @@ $sort_indicator = function (string $col) use ($orderby, $order): string {
                     $detail_url = add_query_arg(['page' => 'avpvh-member-detail', 'id' => $m->id], admin_url('admin.php'));
                 ?>
                 <tr>
-                    <td><a href="<?php echo esc_url($detail_url); ?>"><?php echo esc_html($m->last_name); ?></a></td>
+                    <td><a href="<?php echo esc_url($detail_url); ?>"><?php echo esc_html(avpvh_format_name($m, $orderby === 'suffix_last_name' ? 'list_suffix' : 'list')); ?></a></td>
                     <td><?php echo esc_html($m->first_name); ?></td>
                     <td><?php echo esc_html($m->baptism_name ?: '—'); ?></td>
                     <td><?php echo esc_html($m->email); ?></td>

@@ -27,7 +27,7 @@ if (!$member) {
                     $url = add_query_arg(['page' => 'avpvh-member-detail', 'id' => $r->id], admin_url('admin.php'));
                 ?>
                     <tr>
-                        <td><a href="<?php echo esc_url($url); ?>"><?php echo esc_html($r->last_name . ', ' . $r->first_name); ?></a></td>
+                        <td><a href="<?php echo esc_url($url); ?>"><?php echo esc_html(avpvh_format_name($r, 'list')); ?></a></td>
                         <td><?php echo esc_html($r->email); ?></td>
                         <td><?php echo esc_html($r->status); ?></td>
                     </tr>
@@ -56,13 +56,13 @@ $sync_msg = null;
 if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $member_id)) {
     $result = AVPVH_LLDAP::update_user($member->lldap_user_id, [
         'email'       => $member->email,
-        'displayName' => trim($member->first_name . ' ' . $member->last_name),
+        'displayName' => avpvh_format_name($member),
     ]);
     $sync_msg = is_wp_error($result) ? $result->get_error_message() : 'Gesynchroniseerd met LLDAP.';
 }
 ?>
 <div class="wrap">
-    <h1><?php echo esc_html($member->last_name . ', ' . $member->first_name); ?></h1>
+    <h1><?php echo esc_html(avpvh_format_name($member, 'list')); ?></h1>
     <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-members'], admin_url('admin.php'))); ?>">&larr; Terug naar ledenlijst</a>
     &nbsp;|&nbsp;
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
@@ -86,6 +86,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <table class="form-table">
         <tr><th>LLDAP user_id</th><td><code><?php echo esc_html($member->lldap_user_id); ?></code></td></tr>
         <tr><th>Voornaam</th><td><?php echo esc_html($member->first_name); ?></td></tr>
+        <tr><th>Tussenvoegsel</th><td><?php echo esc_html($member->suffix ?: '—'); ?></td></tr>
         <tr><th>Achternaam</th><td><?php echo esc_html($member->last_name); ?></td></tr>
         <tr><th>Doopnaam</th><td><?php echo esc_html($member->baptism_name ?: '—'); ?></td></tr>
         <tr><th>E-mail</th><td><?php echo esc_html($member->email); ?></td></tr>

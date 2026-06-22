@@ -185,7 +185,7 @@ class AVPVH_OAuth {
             }
             wp_update_user([
                 'ID'           => $uid,
-                'display_name' => trim($member->first_name . ' ' . $member->last_name),
+                'display_name' => avpvh_format_name($member),
             ]);
             AVPVH_DB::set_wp_user_id((int) $member->id, $uid);
             $user = get_user_by('id', $uid);

@@ -53,13 +53,19 @@ class AVPVH_Member_Profile_Form {
                     <legend>Personal Information</legend>
 
                     <div class="form-group">
-                        <label for="first_name">First Name *</label>
+                        <label for="first_name">Voornaam *</label>
                         <input type="text" id="first_name" name="first_name"
                             value="<?php echo esc_attr($member->first_name); ?>" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="last_name">Last Name *</label>
+                        <label for="suffix">Tussenvoegsel</label>
+                        <input type="text" id="suffix" name="suffix"
+                            value="<?php echo esc_attr($member->suffix ?? ''); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="last_name">Achternaam *</label>
                         <input type="text" id="last_name" name="last_name"
                             value="<?php echo esc_attr($member->last_name); ?>" required>
                     </div>
@@ -227,7 +233,8 @@ class AVPVH_Member_Profile_Form {
         // Collect member data
         $member_data = [
             'first_name' => sanitize_text_field($_POST['first_name'] ?? ''),
-            'last_name' => sanitize_text_field($_POST['last_name'] ?? ''),
+            'suffix'     => sanitize_text_field($_POST['suffix'] ?? ''),
+            'last_name'  => sanitize_text_field($_POST['last_name'] ?? ''),
             'baptism_name' => sanitize_text_field($_POST['baptism_name'] ?? ''),
             'birth_date' => sanitize_text_field($_POST['birth_date'] ?? '') ?: null,
             'phone' => sanitize_text_field($_POST['phone'] ?? ''),
