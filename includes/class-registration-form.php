@@ -77,7 +77,7 @@ class AVPVH_Registration_Form {
                 </div>
             <?php endif; ?>
 
-            <p style="color: #666;">Editing registration for: <strong><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></strong></p>
+            <p style="color: #666;">Editing registration for: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
 
             <form id="avpvh-registration-form" method="post">
                 <?php wp_nonce_field('avpvh_registration', 'avpvh_nonce'); ?>
@@ -163,7 +163,7 @@ class AVPVH_Registration_Form {
         // Add self
         $accessible[] = (object) [
             'id' => $current_member->id,
-            'name' => $current_member->first_name . ' ' . $current_member->last_name,
+            'name' => avpvh_format_name($current_member),
             'relationship' => 'self',
         ];
 
@@ -175,7 +175,7 @@ class AVPVH_Registration_Form {
                 if ($fm->id !== $current_member->id) {
                     $accessible[] = (object) [
                         'id' => $fm->id,
-                        'name' => $fm->first_name . ' ' . $fm->last_name,
+                        'name' => avpvh_format_name($fm),
                         'relationship' => $fm->relationship ?? 'family',
                     ];
                 }
@@ -190,7 +190,7 @@ class AVPVH_Registration_Form {
             if (empty($partner_in_list)) {
                 $accessible[] = (object) [
                     'id' => $partner->id,
-                    'name' => $partner->first_name . ' ' . $partner->last_name,
+                    'name' => avpvh_format_name($partner),
                     'relationship' => 'partner',
                 ];
             }
@@ -204,7 +204,7 @@ class AVPVH_Registration_Form {
                     if (empty($in_list)) {
                         $accessible[] = (object) [
                             'id' => $fm->id,
-                            'name' => $fm->first_name . ' ' . $fm->last_name,
+                            'name' => avpvh_format_name($fm),
                             'relationship' => $fm->relationship ?? 'family',
                         ];
                     }

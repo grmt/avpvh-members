@@ -18,6 +18,7 @@ class AVPVH_DB {
             lldap_user_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
             wp_user_id INT UNSIGNED NULL,
             first_name VARCHAR(100) NOT NULL DEFAULT '',
+            suffix VARCHAR(50) NOT NULL DEFAULT '',
             last_name VARCHAR(100) NOT NULL DEFAULT '',
             baptism_name VARCHAR(200) NOT NULL DEFAULT '',
             birth_date DATE NULL,
@@ -206,6 +207,11 @@ class AVPVH_DB {
             self::install();
             update_option('avpvh_db_version', '1.4');
         }
+        if (version_compare($version, '1.5', '<')) {
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                ADD COLUMN suffix VARCHAR(50) NOT NULL DEFAULT '' AFTER first_name");
+            update_option('avpvh_db_version', '1.5');
+        }
     }
 
     public static function log_attempt(string $email, string $method, string $result): void {
@@ -250,7 +256,7 @@ class AVPVH_DB {
         $lldap = self::lldap();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
-                       m.first_name, m.last_name, m.baptism_name, m.birth_date,
+                       m.first_name, m.suffix, m.last_name, m.baptism_name, m.birth_date,
                        m.phone, m.mobile, m.emergency_contact,
                        m.status, m.joined_year, m.left_year,
                        m.created_at, m.updated_at
@@ -327,7 +333,7 @@ class AVPVH_DB {
             }
         }
 
-        $allowed_order = ['last_name', 'first_name', 'status', 'joined_year', 'fee_status', 'camp_count'];
+        $allowed_order = ['last_name', 'suffix_last_name', 'first_name', 'status', 'joined_year', 'fee_status', 'camp_count'];
         $orderby = in_array($args['orderby'] ?? '', $allowed_order, true) ? $args['orderby'] : 'last_name';
         $order   = strtoupper($args['order'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 
@@ -337,8 +343,9 @@ class AVPVH_DB {
         }
 
         $order_sql = match ($orderby) {
-            'last_name'   => "m.last_name $order, m.first_name $order",
-            'first_name'  => "m.first_name $order, m.last_name $order",
+            'last_name'        => "m.last_name $order, m.first_name $order",
+            'suffix_last_name' => "m.suffix $order, m.last_name $order, m.first_name $order",
+            'first_name'       => "m.first_name $order, m.last_name $order",
             'status'      => "m.status $order, m.last_name ASC",
             'joined_year' => "m.joined_year $order, m.last_name ASC",
             'fee_status'  => "f.status $order, m.last_name ASC",
@@ -373,7 +380,7 @@ class AVPVH_DB {
         $today = current_time('Y-m-d');
         return $wpdb->get_results($wpdb->prepare(
             "SELECT u.email,
-                    m.id, m.first_name, m.last_name, m.phone, m.mobile, m.status,
+                    m.id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
                     a.street, a.house_number, a.postal_code, a.city, a.country
              FROM {$lldap}.users u
              JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
@@ -640,4 +647,29 @@ class AVPVH_DB {
 
 function avpvh_get_member_by_wp_user(int $user_id): ?object {
     return AVPVH_DB::get_member_by_wp_user($user_id);
+}
+
+/**
+ * Format a member's full name.
+ *
+ * 'full'         → "Germie van den Berg"
+ * 'list'         → "Berg, Germie"          (sort/display by last name)
+ * 'list_suffix'  → "van den Berg, Germie"  (sort/display by suffix + last name)
+ */
+function avpvh_format_name(object $member, string $format = 'full'): string {
+    $first  = $member->first_name;
+    $suffix = $member->suffix ?? '';
+    $last   = $member->last_name;
+
+    return match ($format) {
+        'list'        => $suffix
+                            ? "$last, $first ($suffix)"
+                            : "$last, $first",
+        'list_suffix' => $suffix
+                            ? "$suffix $last, $first"
+                            : "$last, $first",
+        default       => $suffix
+                            ? "$first $suffix $last"
+                            : "$first $last",
+    };
 }
