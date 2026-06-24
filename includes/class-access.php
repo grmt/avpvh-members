@@ -135,7 +135,7 @@ class AVPVH_Access {
             <?php if ($error === 'no_member'): ?>
             <p class="avpvh-login-error">Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.</p>
             <?php endif; ?>
-            <p class="avpvh-login-intro">Gebruik het e-mailadres waarmee je bij de vereniging geregistreerd staat. Als je met dat adres bij Google of Microsoft inlogt, hoef je hier geen wachtwoord in te tikken. Kent Google of Microsoft je niet met dit e-mailadres, kies dan &ldquo;Inloggen met wachtwoord&rdquo; om de eerste keer een wachtwoord aan te maken.</p>
+            <p class="avpvh-login-intro">Gebruik het e-mailadres waarmee je bij de vereniging geregistreerd staat. Als je met dat adres bij Google of Microsoft inlogt, hoef je hier geen wachtwoord in te tikken. Kent Google of Microsoft je niet met dit e-mailadres, kies dan &ldquo;Inloggen met wachtwoord&rdquo; om via Authelia in te loggen.</p>
             <div class="avpvh-login-options" id="avpvh-login-options"></div>
         </div>
         <?php
@@ -160,6 +160,7 @@ class AVPVH_Access {
         }
 
         $email = $member->email;
+        AVPVH_DB::sync_primary_email_identity((int) $member->id, $email);
 
         // Provision a WP user on first login — it exists solely so WordPress
         // can maintain a session. Members never set a WP password.

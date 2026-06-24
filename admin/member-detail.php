@@ -43,8 +43,13 @@ if (!$member) {
 $addresses  = AVPVH_DB::get_addresses($member_id);
 $camps      = AVPVH_DB::get_camps_for_member($member_id);
 $fees       = AVPVH_DB::get_fees_for_member($member_id);
+$identities = AVPVH_DB::get_member_identities($member_id);
 $active_tab = sanitize_key($_GET['tab'] ?? 'contact');
 $updated    = !empty($_GET['updated']);
+$identity_ok = !empty($_GET['identity_ok']);
+$identity_deleted = !empty($_GET['identity_deleted']);
+$identity_primary = !empty($_GET['identity_primary']);
+$identity_error = sanitize_key($_GET['identity_error'] ?? '');
 
 $tab_url = fn(string $tab): string => add_query_arg(
     ['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $tab],
@@ -65,11 +70,25 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <h1><?php echo esc_html(avpvh_format_name($member, 'list')); ?></h1>
     <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-members'], admin_url('admin.php'))); ?>">&larr; Terug naar ledenlijst</a>
     &nbsp;|&nbsp;
+    <a href="<?php echo esc_url(add_query_arg(['member_id' => $member_id], home_url('/avpvh-member-profile/'))); ?>"
+       class="button button-small">Bewerk profiel</a>
+    &nbsp;|&nbsp;
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
        class="button button-small">Sync naar LLDAP</a>
 
     <?php if ($updated) : ?>
         <div class="notice notice-success is-dismissible"><p>Bijgewerkt.</p></div>
+    <?php endif; ?>
+    <?php if ($identity_ok) : ?>
+        <div class="notice notice-success is-dismissible"><p>E-mailadres gekoppeld.</p></div>
+    <?php elseif ($identity_deleted) : ?>
+        <div class="notice notice-success is-dismissible"><p>E-mailadres verwijderd.</p></div>
+    <?php elseif ($identity_primary) : ?>
+        <div class="notice notice-success is-dismissible"><p>Primaire identiteit aangepast.</p></div>
+    <?php elseif ($identity_error === 'limiet') : ?>
+        <div class="notice notice-error is-dismissible"><p>Dit lid heeft al het maximale aantal van 3 e-mailadressen.</p></div>
+    <?php elseif ($identity_error === 'onvolledig') : ?>
+        <div class="notice notice-error is-dismissible"><p>Vul provider en e-mailadres volledig in.</p></div>
     <?php endif; ?>
     <?php if ($sync_msg) : ?>
         <div class="notice notice-<?php echo str_contains($sync_msg, 'LLDAP') && !str_contains($sync_msg, 'fout') ? 'success' : 'error'; ?> is-dismissible"><p><?php echo esc_html($sync_msg); ?></p></div>
@@ -98,6 +117,64 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th>Lid sinds</th><td><?php echo esc_html($member->joined_year ?: '—'); ?></td></tr>
         <tr><th>Vertrokken</th><td><?php echo esc_html($member->left_year ?: '—'); ?></td></tr>
     </table>
+
+    <h2>Inlogadressen</h2>
+    <table class="wp-list-table widefat striped">
+        <thead><tr><th>Provider</th><th>E-mail</th><th>Primair</th><th>Actie</th></tr></thead>
+        <tbody>
+        <?php if (!$identities) : ?>
+            <tr><td colspan="4">Geen gekoppelde adressen.</td></tr>
+        <?php else : foreach ($identities as $identity) : ?>
+            <tr>
+                <td><?php echo esc_html(ucfirst($identity->provider)); ?></td>
+                <td><?php echo esc_html($identity->email); ?></td>
+                <td><?php echo $identity->is_primary ? 'Ja' : 'Nee'; ?></td>
+                <td>
+                    <?php if (!$identity->is_primary) : ?>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin-right:.5rem">
+                        <?php wp_nonce_field('avpvh_primary_identity'); ?>
+                        <input type="hidden" name="action" value="avpvh_primary_identity">
+                        <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                        <input type="hidden" name="provider" value="<?php echo esc_attr($identity->provider); ?>">
+                        <button type="submit" class="button button-small">Maak primair</button>
+                    </form>
+                    <?php endif; ?>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block">
+                        <?php wp_nonce_field('avpvh_delete_identity'); ?>
+                        <input type="hidden" name="action" value="avpvh_delete_identity">
+                        <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                        <input type="hidden" name="provider" value="<?php echo esc_attr($identity->provider); ?>">
+                        <button type="submit" class="button button-small">Verwijder</button>
+                    </form>
+                </td>
+            </tr>
+        <?php endforeach; endif; ?>
+        </tbody>
+    </table>
+
+    <h3 style="margin-top:1rem">Nieuw e-mailadres koppelen</h3>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="form-table">
+        <?php wp_nonce_field('avpvh_add_identity'); ?>
+        <input type="hidden" name="action" value="avpvh_add_identity">
+        <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+        <table class="form-table">
+            <tr>
+                <th><label for="provider">Provider</label></th>
+                <td>
+                    <select id="provider" name="provider">
+                        <option value="email">E-mail</option>
+                        <option value="google">Google</option>
+                        <option value="microsoft">Microsoft</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <th><label for="identity_email">E-mail</label></th>
+                <td><input type="email" id="identity_email" name="email" class="regular-text" value=""></td>
+            </tr>
+        </table>
+        <?php submit_button('Koppelen', 'secondary'); ?>
+    </form>
 
     <h2>Adreshistorie</h2>
     <table class="wp-list-table widefat striped">
