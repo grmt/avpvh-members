@@ -18,8 +18,14 @@ class AVPVH_Nav_Auth {
         $member = is_user_logged_in()
             ? avpvh_get_member_by_wp_user(get_current_user_id())
             : null;
+        $user   = wp_get_current_user();
 
         $is_active = $member && $member->status === 'active';
+        $role_label = $this->role_label($user);
+        $member_role_label = $this->member_role_label($user);
+        $identity_label = $member
+            ? avpvh_format_name($member)
+            : ($user && $user->display_name ? $user->display_name : $user->user_login);
 
         wp_enqueue_script(
             'avpvh-nav-auth',
@@ -32,6 +38,9 @@ class AVPVH_Nav_Auth {
                 . wp_json_encode([
                     'isLoggedIn'     => is_user_logged_in(),
                     'isActiveMember' => $is_active,
+                    'userLabel'      => $identity_label,
+                    'roleLabel'      => $role_label,
+                    'memberRoleLabel'=> $member_role_label,
                     'membersPageIds' => self::MEMBERS_PAGE_IDS,
                     'logoutUrl'      => rest_url('avpvh/v1/logout'),
                     'loginUrl'       => home_url('/avpvh-login/'),
@@ -50,6 +59,37 @@ class AVPVH_Nav_Auth {
             'callback'            => [$this, 'rest_logout'],
             'permission_callback' => '__return_true',
         ]);
+    }
+
+    private function role_label(\WP_User $user): string {
+        if (empty($user->roles)) {
+            return 'Gebruiker';
+        }
+
+        return match ($user->roles[0]) {
+            'administrator' => 'Beheerder',
+            'editor'         => 'Redacteur',
+            'author'         => 'Auteur',
+            'contributor'    => 'Medewerker',
+            'subscriber'     => 'Lid',
+            default          => ucfirst(str_replace('_', ' ', $user->roles[0])),
+        };
+    }
+
+    private function member_role_label(\WP_User $user): string {
+        $role = (string) get_user_meta($user->ID, 'avpvh_member_role', true);
+        if ($role === '') {
+            return '';
+        }
+
+        return match (strtolower($role)) {
+            'bestuur'      => 'Bestuur',
+            'feest'        => 'Feest',
+            'boek'         => 'Boek',
+            'fiscus'       => 'Fiscus',
+            'secretariaat'  => 'Secretariaat',
+            default        => ucfirst($role),
+        };
     }
 
     public function rest_logout(): void {

@@ -48,6 +48,28 @@ class AVPVH_Member_Profile_Form {
             <?php if ($is_admin_edit) : ?>
                 <p style="color: #666;">Administrator editing: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
             <?php endif; ?>
+            <?php if (is_user_logged_in()) : ?>
+                <?php $user = wp_get_current_user(); ?>
+                <div class="avpvh-auth-status" style="margin: 0 0 1rem;">
+                    <span class="avpvh-auth-status__badge">
+                        <?php
+                        $member_role = (string) get_user_meta($user->ID, 'avpvh_member_role', true);
+                        $member_role_label = $this->member_role_label($member_role);
+                        $parts = [
+                            avpvh_format_name($member),
+                            $this->role_label($user),
+                        ];
+                        if ($member_role_label !== '') {
+                            $parts[] = $member_role_label;
+                        }
+                        $parts[] = ($member->status === 'active' ? 'Actief lid' : ($member->status === 'inactive' ? 'Oud lid' : 'Bezoeker'));
+                        echo esc_html(
+                            implode(' · ', $parts)
+                        );
+                        ?>
+                    </span>
+                </div>
+            <?php endif; ?>
 
             <form id="avpvh-profile-form" method="post">
                 <?php wp_nonce_field('avpvh_member_profile', 'avpvh_nonce'); ?>
@@ -356,6 +378,36 @@ class AVPVH_Member_Profile_Form {
 
         // Self-service may only edit contact details.
         return $contact;
+    }
+
+    private function role_label(\WP_User $user): string {
+        if (empty($user->roles)) {
+            return 'Gebruiker';
+        }
+
+        return match ($user->roles[0]) {
+            'administrator' => 'Beheerder',
+            'editor'         => 'Redacteur',
+            'author'         => 'Auteur',
+            'contributor'    => 'Medewerker',
+            'subscriber'     => 'Lid',
+            default          => ucfirst(str_replace('_', ' ', $user->roles[0])),
+        };
+    }
+
+    private function member_role_label(string $role): string {
+        if ($role === '') {
+            return '';
+        }
+
+        return match (strtolower($role)) {
+            'bestuur'      => 'Bestuur',
+            'feest'        => 'Feest',
+            'boek'         => 'Boek',
+            'fiscus'       => 'Fiscus',
+            'secretariaat'  => 'Secretariaat',
+            default        => ucfirst($role),
+        };
     }
 
     /**

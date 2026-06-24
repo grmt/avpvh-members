@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!ul) return;
 
         if (cfg.isLoggedIn) {
+            var statusItem = makeStatusItem(cfg.userLabel, cfg.roleLabel, cfg.memberRoleLabel, cfg.isActiveMember);
+            ul.appendChild(statusItem);
             ul.appendChild(makeItem('Uitloggen', cfg.logoutUrl, 'avpvh-auth-item'));
         } else {
             ul.appendChild(makeItem('Inloggen', cfg.loginUrl, 'avpvh-auth-item'));
@@ -41,6 +43,21 @@ document.addEventListener('DOMContentLoaded', function () {
         a.href = url;
         a.textContent = label;
         li.appendChild(a);
+        return li;
+    }
+
+    function makeStatusItem(userLabel, roleLabel, memberRoleLabel, isActiveMember) {
+        var li = document.createElement('li');
+        li.className = 'wp-block-navigation-item avpvh-auth-status';
+
+        var span = document.createElement('span');
+        span.className = 'avpvh-auth-status__badge';
+        var parts = [userLabel, roleLabel];
+        if (memberRoleLabel) parts.push(memberRoleLabel);
+        parts.push(isActiveMember ? 'Lid' : 'Geen lid');
+        span.textContent = parts.join(' · ');
+
+        li.appendChild(span);
         return li;
     }
 });
