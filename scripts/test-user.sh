@@ -39,6 +39,14 @@ case "$cmd" in
             VALUES ('${user_id}', '${first_name}', '${last_name}', 'active')
             ON DUPLICATE KEY UPDATE first_name=first_name;
         "
+        db wpdb "
+            INSERT INTO pvh_avm_member_identities (member_id, provider, email, is_primary)
+            SELECT m.id, 'email', u.email, 1
+            FROM pvh_avm_members m
+            JOIN lldap.users u ON u.user_id = m.lldap_user_id
+            WHERE m.lldap_user_id = '${user_id}'
+            ON DUPLICATE KEY UPDATE email=VALUES(email), is_primary=1;
+        "
         echo "Test user '${user_id}' (${email}) added."
         ;;
 
