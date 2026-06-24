@@ -105,12 +105,19 @@ class AVPVH_OAuth {
             wp_die('Kon e-mailadres niet ophalen bij ' . esc_html(self::PROVIDERS[$provider]['label']) . '.', 'Fout', ['response' => 502]);
         }
 
-        $member = AVPVH_DB::get_member_by_email($email);
+        $member_identity = AVPVH_DB::get_member_identity($provider, $email);
+        $member = $member_identity
+            ? AVPVH_DB::get_member((int) $member_identity->member_id)
+            : AVPVH_DB::get_member_by_email($email);
         if (!$member) {
             $this->record_ip_failure();
             AVPVH_DB::log_attempt($email, $provider, 'no_member');
             wp_redirect(home_url('/avpvh-login/?error=no_member'));
             exit;
+        }
+
+        if (!$member_identity) {
+            AVPVH_DB::ensure_identity((int) $member->id, $provider, $email);
         }
 
         $user = $this->get_or_create_wp_user($email, $member);
