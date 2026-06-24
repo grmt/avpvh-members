@@ -104,6 +104,21 @@ class AVPVH_DB {
             PRIMARY KEY (id)
         ) $charset;");
 
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_member_identities (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            member_id INT UNSIGNED NOT NULL,
+            provider ENUM('email','google','microsoft') NOT NULL DEFAULT 'email',
+            email VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+            is_primary TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY provider_email (provider, email(191)),
+            UNIQUE KEY member_provider (member_id, provider),
+            KEY member_id (member_id),
+            KEY email (email(100))
+        ) $charset;");
+
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_family_members (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             family_id INT UNSIGNED NOT NULL,
@@ -212,6 +227,10 @@ class AVPVH_DB {
                 ADD COLUMN suffix VARCHAR(50) NOT NULL DEFAULT '' AFTER first_name");
             update_option('avpvh_db_version', '1.5');
         }
+        if (version_compare($version, '1.6', '<')) {
+            self::install();
+            update_option('avpvh_db_version', '1.6');
+        }
     }
 
     public static function log_attempt(string $email, string $method, string $result): void {
@@ -279,6 +298,174 @@ class AVPVH_DB {
             self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1",
             $email
         )) ?: null;
+    }
+
+    public static function normalize_identity_email(string $email): string {
+        return strtolower(sanitize_email($email));
+    }
+
+    public static function get_member_identity(string $provider, string $email): ?object {
+        global $wpdb;
+        $provider = sanitize_key($provider);
+        $email    = self::normalize_identity_email($email);
+        if (!in_array($provider, ['email', 'google', 'microsoft'], true) || !$email) {
+            return null;
+        }
+
+        $lldap = self::lldap();
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT i.*, m.id AS member_id, m.lldap_user_id, m.wp_user_id
+             FROM {$wpdb->prefix}avm_member_identities i
+             JOIN {$wpdb->prefix}avm_members m ON m.id = i.member_id
+             WHERE i.provider = %s AND LOWER(i.email) = LOWER(%s)
+             LIMIT 1",
+            $provider,
+            $email
+        )) ?: null;
+    }
+
+    public static function get_member_identities(int $member_id): array {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_member_identities WHERE member_id = %d ORDER BY is_primary DESC, provider ASC, email ASC",
+            $member_id
+        )) ?: [];
+    }
+
+    public static function get_member_identity_count(int $member_id): int {
+        global $wpdb;
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}avm_member_identities WHERE member_id = %d",
+            $member_id
+        ));
+    }
+
+    public static function sync_primary_email_identity(int $member_id, string $email): void {
+        global $wpdb;
+        $email = self::normalize_identity_email($email);
+        if (!$email) {
+            return;
+        }
+
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_member_identities WHERE member_id = %d AND provider = 'email' LIMIT 1",
+            $member_id
+        ));
+
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}avm_member_identities SET is_primary = 0 WHERE member_id = %d",
+            $member_id
+        ));
+
+        if ($existing) {
+            $wpdb->update(
+                "{$wpdb->prefix}avm_member_identities",
+                ['email' => $email, 'is_primary' => 1],
+                ['id' => (int) $existing->id],
+                ['%s', '%d'],
+                ['%d']
+            );
+            return;
+        }
+
+        $wpdb->insert(
+            "{$wpdb->prefix}avm_member_identities",
+            [
+                'member_id'   => $member_id,
+                'provider'    => 'email',
+                'email'       => $email,
+                'is_primary'  => 1,
+            ],
+            ['%d', '%s', '%s', '%d']
+        );
+    }
+
+    public static function ensure_identity(int $member_id, string $provider, string $email, bool $primary = false): bool {
+        global $wpdb;
+        $provider = sanitize_key($provider);
+        $email    = self::normalize_identity_email($email);
+        if (!in_array($provider, ['email', 'google', 'microsoft'], true) || !$email) {
+            return false;
+        }
+
+        $count = self::get_member_identity_count($member_id);
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_member_identities WHERE member_id = %d AND provider = %s",
+            $member_id,
+            $provider
+        ));
+
+        if (!$existing && $count >= 3) {
+            return false;
+        }
+
+        if ($primary) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}avm_member_identities SET is_primary = 0 WHERE member_id = %d",
+                $member_id
+            ));
+        }
+
+        if ($existing) {
+            return (bool) $wpdb->update(
+                "{$wpdb->prefix}avm_member_identities",
+                ['email' => $email, 'is_primary' => $primary ? 1 : 0],
+                ['id' => (int) $existing->id],
+                ['%s', '%d'],
+                ['%d']
+            );
+        }
+
+        return (bool) $wpdb->insert(
+            "{$wpdb->prefix}avm_member_identities",
+            [
+                'member_id'  => $member_id,
+                'provider'   => $provider,
+                'email'      => $email,
+                'is_primary' => $primary ? 1 : 0,
+            ],
+            ['%d', '%s', '%s', '%d']
+        );
+    }
+
+    public static function delete_identity(int $member_id, string $provider): bool {
+        global $wpdb;
+        $provider = sanitize_key($provider);
+        if (!in_array($provider, ['email', 'google', 'microsoft'], true)) {
+            return false;
+        }
+
+        return false !== $wpdb->delete(
+            "{$wpdb->prefix}avm_member_identities",
+            ['member_id' => $member_id, 'provider' => $provider],
+            ['%d', '%s']
+        );
+    }
+
+    public static function set_primary_identity(int $member_id, string $provider): bool {
+        global $wpdb;
+        $provider = sanitize_key($provider);
+        if (!in_array($provider, ['email', 'google', 'microsoft'], true)) {
+            return false;
+        }
+
+        $updated = $wpdb->update(
+            "{$wpdb->prefix}avm_member_identities",
+            ['is_primary' => 0],
+            ['member_id' => $member_id],
+            ['%d'],
+            ['%d']
+        );
+
+        $updated2 = $wpdb->update(
+            "{$wpdb->prefix}avm_member_identities",
+            ['is_primary' => 1],
+            ['member_id' => $member_id, 'provider' => $provider],
+            ['%d'],
+            ['%d', '%s']
+        );
+
+        return $updated !== false && $updated2 !== false;
     }
 
     public static function get_member_by_wp_user(int $user_id): ?object {
