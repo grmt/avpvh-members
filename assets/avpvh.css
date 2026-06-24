@@ -86,3 +86,21 @@
     color: #666;
     margin: -.25rem 0 0;
 }
+
+.avpvh-auth-status {
+    display: flex;
+    align-items: center;
+}
+
+.avpvh-auth-status__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: .35rem .7rem;
+    border-radius: 999px;
+    background: #f2f4f7;
+    color: #333;
+    font-size: .85rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    white-space: nowrap;
+}
