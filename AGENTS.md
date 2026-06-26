@@ -8,6 +8,18 @@ Welcome, Agent. This repository is a WordPress plugin integrated with LLDAP, Aut
 2. **[README.md](./README.md)** — System overview, setup, deploy instructions.
 3. **[PLAN.md](./PLAN.md)** — Design decisions, login flows, file structure, OAuth setup notes.
 
+## Branch Workflow — Mandatory
+
+**Never commit or push directly to `main`.** This applies to all AI agents (Claude, Gemini, Codex) without exception.
+
+Before making any change:
+1. Create a feature branch: `git checkout -b <type>/<short-description>`
+2. Commit your changes to that branch
+3. Push the branch to origin
+4. Stop — do not merge. The human reviews and merges via pull request.
+
+If you are already on `main`, stop and switch to a branch before touching any file.
+
 ## Taal & Toon
 
 - **Spreek gebruikers aan met "je/jij"**, niet met "u". Dit geldt voor alle gebruikersgerichte teksten in PHP-templates, foutmeldingen, pop-ups en loginpagina's.
