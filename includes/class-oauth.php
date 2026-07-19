@@ -116,8 +116,8 @@ class AVPVH_OAuth {
             exit;
         }
 
-        if (!$member_identity) {
-            AVPVH_DB::ensure_identity((int) $member->id, $provider, $email);
+        if (!$member_identity && !AVPVH_DB::ensure_identity((int) $member->id, $provider, $email)) {
+            error_log("AVPVH_OAuth: failed to link {$provider} identity ({$email}) for member {$member->id} — at 3-identity limit or invalid provider.");
         }
 
         $user = $this->get_or_create_wp_user($email, $member);
