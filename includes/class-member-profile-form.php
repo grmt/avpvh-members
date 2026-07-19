@@ -213,12 +213,64 @@ class AVPVH_Member_Profile_Form {
                 <button type="submit" class="button button-primary">Update Profile</button>
             </form>
 
+            <?php if (!$is_admin_edit) : ?>
+                <?php $this->render_directory_consent($member); ?>
+            <?php endif; ?>
+
             <!-- Audit Trail -->
             <?php $this->render_audit_trail($member); ?>
         </div>
         <?php
 
         return ob_get_clean();
+    }
+
+    /**
+     * Granular ledenlijst visibility controls (AVG/GDPR consent).
+     */
+    private function render_directory_consent($member): void {
+        ?>
+        <fieldset class="avpvh-directory-consent">
+            <legend>Zichtbaarheid in ledenlijst</legend>
+
+            <?php if (!empty($_GET['consent_saved'])) : ?>
+                <p>Je voorkeuren zijn opgeslagen.</p>
+            <?php endif; ?>
+
+            <?php if ($member->directory_consent !== 'granted') : ?>
+                <p>Je deelt momenteel geen gegevens met andere leden in de ledenlijst.</p>
+            <?php endif; ?>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('avpvh_directory_consent'); ?>
+                <input type="hidden" name="action" value="avpvh_set_directory_consent">
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="share_email" value="1" <?php checked($member->share_email); ?>>
+                        E-mailadres tonen in de ledenlijst
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="share_phone" value="1" <?php checked($member->share_phone); ?>>
+                        Telefoonnummer tonen in de ledenlijst
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="share_address" value="1" <?php checked($member->share_address); ?>>
+                        Adres tonen in de ledenlijst
+                    </label>
+                </div>
+
+                <button type="submit" name="consent" value="granted" class="button button-primary">Voorkeuren opslaan</button>
+                <?php if ($member->directory_consent === 'granted') : ?>
+                    <button type="submit" name="consent" value="declined" class="button">Toestemming volledig intrekken</button>
+                <?php endif; ?>
+            </form>
+        </fieldset>
+        <?php
     }
 
     /**
