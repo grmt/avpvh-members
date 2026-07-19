@@ -38,3 +38,29 @@
 .avpvh-ledenlijst-tabel tr.avpvh-hidden {
     display: none;
 }
+
+.avpvh-ledenlijst-toestemming {
+    max-width: 640px;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #f9f9f9;
+}
+
+.avpvh-ledenlijst-toestemming h2 {
+    margin-top: 0;
+}
+
+.avpvh-ledenlijst-toestemming form {
+    margin-top: 1rem;
+    display: flex;
+    gap: .5rem;
+}
+
+.avpvh-ledenlijst-melding {
+    padding: .5rem .75rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+    background: #e6f4ea;
+    border: 1px solid #b7dfc0;
+}

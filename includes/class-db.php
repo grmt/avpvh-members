@@ -28,6 +28,12 @@ class AVPVH_DB {
             status ENUM('active','inactive','visitor') NOT NULL DEFAULT 'active',
             joined_year YEAR NULL,
             left_year YEAR NULL,
+            directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'pending',
+            directory_consent_at TIMESTAMP NULL,
+            share_email TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+            share_phone TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+            share_address TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+            share_camp_history TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -231,6 +237,16 @@ class AVPVH_DB {
             self::install();
             update_option('avpvh_db_version', '1.6');
         }
+        if (version_compare($version, '1.7', '<')) {
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                ADD COLUMN directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'pending' AFTER emergency_contact,
+                ADD COLUMN directory_consent_at TIMESTAMP NULL AFTER directory_consent,
+                ADD COLUMN share_email TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER directory_consent_at,
+                ADD COLUMN share_phone TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER share_email,
+                ADD COLUMN share_address TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER share_phone,
+                ADD COLUMN share_camp_history TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER share_address");
+            update_option('avpvh_db_version', '1.7');
+        }
     }
 
     public static function log_attempt(string $email, string $method, string $result): void {
@@ -278,6 +294,8 @@ class AVPVH_DB {
                        m.first_name, m.suffix, m.last_name, m.baptism_name, m.birth_date,
                        m.phone, m.mobile, m.emergency_contact,
                        m.status, m.joined_year, m.left_year,
+                       m.directory_consent, m.directory_consent_at,
+                       m.share_email, m.share_phone, m.share_address, m.share_camp_history,
                        m.created_at, m.updated_at
                 FROM {$lldap}.users u
                 JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id";
@@ -568,13 +586,14 @@ class AVPVH_DB {
         return $wpdb->get_results($wpdb->prepare(
             "SELECT u.email,
                     m.id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
+                    m.share_email, m.share_phone, m.share_address,
                     a.street, a.house_number, a.postal_code, a.city, a.country
              FROM {$lldap}.users u
              JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
              LEFT JOIN {$wpdb->prefix}avm_addresses a ON a.member_id = m.id
                AND (a.valid_from IS NULL OR a.valid_from <= %s)
                AND (a.valid_until IS NULL OR a.valid_until >= %s)
-             WHERE m.status = 'active'
+             WHERE m.status = 'active' AND m.directory_consent = 'granted'
              ORDER BY m.last_name, m.first_name",
             $today, $today
         )) ?: [];
