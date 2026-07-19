@@ -33,7 +33,7 @@ class AVPVH_Nav_Auth {
             [], '1.0', true
         );
 
-        add_action('wp_footer', function () use ($is_active) {
+        add_action('wp_footer', function () use ($is_active, $identity_label, $role_label, $member_role_label) {
             echo '<script type="application/json" id="avpvh-auth-config">'
                 . wp_json_encode([
                     'isLoggedIn'     => is_user_logged_in(),
