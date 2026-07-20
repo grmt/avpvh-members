@@ -29,11 +29,8 @@ class AVPVH_Ledenlijst {
             return '<p>De ledenlijst is alleen beschikbaar voor actieve leden.</p>';
         }
 
-        if ($member->directory_consent !== 'granted') {
-            return $this->render_consent_gate();
-        }
-
-        $leden = AVPVH_DB::get_members_with_address();
+        $is_bestuur = strtolower((string) get_user_meta(get_current_user_id(), 'avpvh_member_role', true)) === 'bestuur';
+        $leden = AVPVH_DB::get_members_with_address((int) $member->id, $is_bestuur);
         if (!$leden) {
             return '<p>Geen leden gevonden.</p>';
         }
@@ -44,6 +41,12 @@ class AVPVH_Ledenlijst {
             <?php if (!empty($_GET['consent_saved'])) : ?>
                 <p class="avpvh-ledenlijst-melding">Je voorkeuren zijn opgeslagen.</p>
             <?php endif; ?>
+            <p class="avpvh-ledenlijst-uitleg">
+                Deze lijst wordt gedeeld met alle ingelogde actieve leden, zoals beschreven
+                in de <a href="https://www.avphilipsvanhorne.nl/wp-content/uploads/public/2024/04/Privacy-Verklaring.pdf" target="_blank" rel="noopener">privacyverklaring</a>.
+                Je kunt via <a href="<?php echo esc_url(home_url('/avpvh-member-profile/')); ?>">je profiel</a>
+                losse gegevens afschermen of je gegevens volledig verbergen.
+            </p>
             <input type="search" id="avpvh-ledenlijst-zoek" placeholder="Zoeken…" class="avpvh-ledenlijst-zoek">
             <table class="avpvh-ledenlijst-tabel">
                 <thead>
@@ -90,39 +93,6 @@ class AVPVH_Ledenlijst {
                 <?php endforeach; ?>
                 </tbody>
             </table>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
-
-    private function render_consent_gate(): string {
-        ob_start();
-        ?>
-        <div class="avpvh-ledenlijst-toestemming">
-            <?php if (!empty($_GET['consent_saved'])) : ?>
-                <p>Je keuze is opgeslagen.</p>
-            <?php endif; ?>
-            <h2>Toestemming voor de ledenlijst</h2>
-            <p>
-                Om de ledenlijst te kunnen bekijken, geef je toestemming om jouw naam,
-                adresgegevens, e-mailadres en telefoonnummer te delen met andere ingelogde
-                actieve leden. Deze gegevens worden alleen gebruikt voor onderling contact
-                tussen leden (bijvoorbeeld carpoolen) en verschijnen nooit openbaar op internet.
-            </p>
-            <p>
-                Je kunt deze keuze op elk moment aanpassen via je profiel: je kunt losse
-                gegevens (zoals je telefoonnummer) afschermen, of je toestemming volledig
-                intrekken.
-            </p>
-            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('avpvh_directory_consent'); ?>
-                <input type="hidden" name="action" value="avpvh_set_directory_consent">
-                <input type="hidden" name="share_email" value="1">
-                <input type="hidden" name="share_phone" value="1">
-                <input type="hidden" name="share_address" value="1">
-                <button type="submit" name="consent" value="granted" class="button button-primary">Ja, ik ga akkoord</button>
-                <button type="submit" name="consent" value="declined" class="button">Nee, niet delen</button>
-            </form>
         </div>
         <?php
         return ob_get_clean();

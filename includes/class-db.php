@@ -28,7 +28,7 @@ class AVPVH_DB {
             status ENUM('active','inactive','visitor') NOT NULL DEFAULT 'active',
             joined_year YEAR NULL,
             left_year YEAR NULL,
-            directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'pending',
+            directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'granted',
             directory_consent_at TIMESTAMP NULL,
             share_email TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
             share_phone TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
@@ -246,6 +246,16 @@ class AVPVH_DB {
                 ADD COLUMN share_address TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER share_phone,
                 ADD COLUMN share_camp_history TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER share_address");
             update_option('avpvh_db_version', '1.7');
+        }
+        if (version_compare($version, '1.8', '<')) {
+            // The published privacy statement already establishes that the member
+            // directory is shared with all members — flip from opt-in to opt-out.
+            // One-time backfill: undecided members become shared; real declines stand.
+            $wpdb->query("UPDATE {$wpdb->prefix}avm_members
+                SET directory_consent = 'granted' WHERE directory_consent = 'pending'");
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                MODIFY directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'granted'");
+            update_option('avpvh_db_version', '1.8');
         }
     }
 
@@ -579,14 +589,14 @@ class AVPVH_DB {
     // Address / camp / fee helpers — unchanged from original
     // -------------------------------------------------------------------
 
-    public static function get_members_with_address(): array {
+    public static function get_members_with_address(int $viewer_member_id = 0, bool $viewer_sees_minors = false): array {
         global $wpdb;
         $lldap = self::lldap();
         $today = current_time('Y-m-d');
-        return $wpdb->get_results($wpdb->prepare(
+        $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT u.email,
                     m.id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
-                    m.share_email, m.share_phone, m.share_address,
+                    m.birth_date, m.share_email, m.share_phone, m.share_address,
                     a.street, a.house_number, a.postal_code, a.city, a.country
              FROM {$lldap}.users u
              JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
@@ -597,6 +607,24 @@ class AVPVH_DB {
              ORDER BY m.last_name, m.first_name",
             $today, $today
         )) ?: [];
+
+        $leden = [];
+        foreach ($rows as $lid) {
+            $is_minor = $lid->birth_date && self::age($lid->birth_date) < 16;
+            if ($is_minor) {
+                $visible = $viewer_sees_minors
+                    || ($viewer_member_id && self::is_same_household($viewer_member_id, (int) $lid->id));
+                if (!$visible) {
+                    continue;
+                }
+                // Bestuur/household sees a minor's full info regardless of their own opt-out flags.
+                $lid->share_email   = 1;
+                $lid->share_phone   = 1;
+                $lid->share_address = 1;
+            }
+            $leden[] = $lid;
+        }
+        return $leden;
     }
 
     public static function get_addresses(int $member_id): array {
@@ -718,6 +746,66 @@ class AVPVH_DB {
         $family_2 = self::get_family_for_member($member_id_2);
 
         return $family_1 && $family_1 === $family_2;
+    }
+
+    // -------------------------------------------------------------------
+    // Household — family link or matching current address
+    // -------------------------------------------------------------------
+
+    public static function current_address(int $member_id): ?object {
+        global $wpdb;
+        $today = current_time('Y-m-d');
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_addresses WHERE member_id = %d
+             AND (valid_from IS NULL OR valid_from <= %s)
+             AND (valid_until IS NULL OR valid_until >= %s)
+             ORDER BY valid_from DESC LIMIT 1",
+            $member_id, $today, $today
+        )) ?: null;
+    }
+
+    public static function is_same_household(int $member_id_1, int $member_id_2): bool {
+        if ($member_id_1 === $member_id_2) {
+            return true;
+        }
+        if (self::is_family_member($member_id_1, $member_id_2)) {
+            return true;
+        }
+
+        $addr_1 = self::current_address($member_id_1);
+        $addr_2 = self::current_address($member_id_2);
+        if (!$addr_1 || !$addr_2 || !$addr_1->street || !$addr_2->street) {
+            return false;
+        }
+
+        return strcasecmp(trim($addr_1->street), trim($addr_2->street)) === 0
+            && strcasecmp(trim((string) $addr_1->house_number), trim((string) $addr_2->house_number)) === 0
+            && strcasecmp(trim($addr_1->postal_code), trim($addr_2->postal_code)) === 0;
+    }
+
+    public static function age(string $birth_date): int {
+        $birth = new \DateTime($birth_date);
+        $today = new \DateTime(current_time('Y-m-d'));
+        return (int) $today->diff($birth)->y;
+    }
+
+    /**
+     * Members $member_id may manage (view/edit) via the self-service profile
+     * form: themselves plus everyone in their household. Includes $member_id.
+     */
+    public static function get_manageable_members(int $member_id): array {
+        global $wpdb;
+        $active = $wpdb->get_results(
+            self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name"
+        ) ?: [];
+
+        $manageable = [];
+        foreach ($active as $m) {
+            if (self::is_same_household($member_id, (int) $m->id)) {
+                $manageable[] = $m;
+            }
+        }
+        return $manageable;
     }
 
     // -------------------------------------------------------------------
