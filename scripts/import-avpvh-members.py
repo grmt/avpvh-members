@@ -23,7 +23,7 @@ import pymysql
 import openpyxl
 import requests
 
-SECRET_FILE   = '/opt/docker/secrets/compose/mysql_password.txt'
+SECRET_FILE   = '/opt/docker/secrets/compose/wordpress_db_password.txt'
 DB_HOST       = '127.0.0.1'
 DB_PORT       = 6603
 DB_USER       = 'wp_user'
@@ -187,6 +187,27 @@ def parse_year(raw: str):
     return int(m.group()) if m else None
 
 
+def age_on(birth_date, today: date) -> int:
+    years = today.year - birth_date.year
+    if (today.month, today.day) < (birth_date.month, birth_date.day):
+        years -= 1
+    return years
+
+
+def placeholder_child_uid(session: requests.Session, first_name: str, last_name: str,
+                          dry_run: bool) -> str:
+    """Members under 16 never get their own login (per policy) — generate a
+    non-deliverable placeholder uid/email instead of using the row's real
+    (guardian's) email, so no one can authenticate as them."""
+    base = uid_from_email(f'{first_name}.{last_name}@placeholder')
+    uid = base
+    n = 1
+    while not dry_run and lldap_user_exists(session, uid):
+        n += 1
+        uid = f'{base}{n}'
+    return uid
+
+
 # ---------------------------------------------------------------------------
 # Import logic
 # ---------------------------------------------------------------------------
@@ -225,7 +246,11 @@ def import_sheet(cursor, session: requests.Session, sheet,
         city       = c(row, 'woonplaats') or c(row, 'stad')
         country    = c(row, 'land') or 'Nederland'
 
-        uid = uid_from_email(email)
+        if birth_date and age_on(birth_date, date.today()) < 16:
+            uid = placeholder_child_uid(session, first_name, last_name, dry_run)
+            email = f'{uid}@avpvh.local'
+        else:
+            uid = uid_from_email(email)
 
         # Skip if this LLDAP uid already has a member record (family sharing one email)
         cursor.execute(
