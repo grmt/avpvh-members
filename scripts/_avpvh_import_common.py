@@ -211,12 +211,37 @@ def placeholder_child_uid(session: requests.Session, first_name: str, last_name:
     return uid
 
 
+TUSSENVOEGSEL_PREFIXES = (
+    'van der ', 'van den ', 'van de ', 'ten ', 'ter ',
+    'de ', 'van ', 'te ', 'von ', 'la ', 'le ', 'du ',
+)
+
+
 def normalize_name_key(first_name: str, last_name: str) -> tuple[str, str]:
     """Normalized (first, last) key for matching a DB member to a sheet row.
-    pvh_avm_members stores tussenvoegsel two different ways depending on when
-    a row was created: legacy rows glue it into last_name as "Achternaam,
-    suffix" (empty suffix column); newer rows keep it in the separate suffix
-    column with a clean last_name. Splitting on the comma handles both —
-    sheet rows never contain one, so this is a no-op there."""
-    core_last = (last_name or '').split(',', 1)[0]
+    pvh_avm_members stores tussenvoegsel three different ways depending on
+    when a row was created: legacy rows glue it into last_name as
+    "Achternaam, suffix" (empty suffix column); some rows glue a capitalized
+    prefix directly onto last_name with no comma ("De Boe"); newer rows keep
+    it in the separate suffix column with a clean last_name. Handling both
+    comma- and prefix-based forms means this is a no-op for sheet rows,
+    which never contain either."""
+    last = (last_name or '').strip()
+    if ',' in last:
+        core_last = last.split(',', 1)[0]
+    else:
+        lowered = last.lower()
+        core_last = last
+        for prefix in TUSSENVOEGSEL_PREFIXES:
+            if lowered.startswith(prefix):
+                core_last = last[len(prefix):]
+                break
     return ((first_name or '').strip().lower(), core_last.strip().lower())
+
+
+def first_name_contains(db_first_name: str, sheet_first_name: str) -> bool:
+    """True if the sheet's (short) first name appears as a whole word inside
+    the DB's first name — catches e.g. DB "Frank (Franciscus Maria
+    Henricus)" vs sheet "Frank", or "Julie Vrijheid" vs sheet "Julie"."""
+    words = re.findall(r"[^\W\d_]+", (db_first_name or '').lower(), re.UNICODE)
+    return (sheet_first_name or '').strip().lower() in words
