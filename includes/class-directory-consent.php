@@ -14,9 +14,25 @@ class AVPVH_Directory_Consent {
             wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
         }
 
-        $member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-        if (!$member) {
+        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
+        if (!$own_member) {
             wp_die('Ledenprofiel niet gevonden.', 'Fout', ['response' => 404]);
+        }
+
+        $member = $own_member;
+        $requested_id = (int) ($_POST['member_id'] ?? 0);
+        if ($requested_id > 0 && $requested_id !== (int) $own_member->id) {
+            $manageable = AVPVH_DB::get_manageable_members((int) $own_member->id);
+            $member = null;
+            foreach ($manageable as $m) {
+                if ((int) $m->id === $requested_id) {
+                    $member = $m;
+                    break;
+                }
+            }
+            if (!$member) {
+                wp_die('Geen toegang tot dit ledenprofiel.', 'Fout', ['response' => 403]);
+            }
         }
 
         $decision = sanitize_key($_POST['consent'] ?? '');
