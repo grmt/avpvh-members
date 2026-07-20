@@ -133,7 +133,11 @@ def diff_member(db_row: dict, sheet_row: dict) -> dict:
             f"last_name={sheet_row['last_name']!r} suffix={sheet_row['suffix']!r}",
         )
 
-    address_changed = any(
+    # Require at least a street or city in the sheet before treating this as a
+    # real address change — otherwise "country defaults to Nederland" alone
+    # would flag a no-address-on-either-side member as changed.
+    has_real_address = not blank(sheet_row['street']) or not blank(sheet_row['city'])
+    address_changed = has_real_address and any(
         not blank(sheet_row[f]) and str(db_row[f] or '') != str(sheet_row[f])
         for f in ADDRESS_FIELDS
     )
