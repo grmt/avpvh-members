@@ -37,7 +37,7 @@ from _avpvh_import_common import (
     read_secret, get_db, lldap_login, get_group_id,
     uid_from_email, lldap_create_user, lldap_add_to_group,
     sheet_headers, col, parse_date, age_on, placeholder_child_uid,
-    normalize_name_key, SECRET_FILE,
+    normalize_name_key, first_name_contains, SECRET_FILE,
 )
 
 FIELDS_TO_SYNC = ['birth_date', 'phone', 'mobile', 'emergency_contact']
@@ -45,22 +45,20 @@ ADDRESS_FIELDS = ['street', 'house_number', 'postal_code', 'city', 'country']
 
 # --- Manual overrides confirmed with the user for the 2026-20-07 sheet ---
 
-# DB has a surname spelling variant that would otherwise miss the sheet
-# match ("Rooy, van" in the DB vs "Rooij" in the sheet — same person,
-# confirmed). Used only to compute the matching key; the diff still shows
-# the real current DB value being corrected.
-DB_NAME_KEY_CORRECTIONS = {70: ('Marieke', 'Rooij')}
+# DB rows with a name that wouldn't otherwise match the sheet (spelling
+# variant, nickname unrelated to the formal name, or a wrong surname on
+# file) — confirmed same person in each case. Used only to compute the
+# matching key; the diff still shows the real current DB value being
+# corrected.
+DB_NAME_KEY_CORRECTIONS = {
+    70: ('Marieke', 'Rooij'),    # DB "Rooy, van" — spelling variant
+    74: ('Peter', 'Schroeten'),  # DB "Petrus Jacobus" — nickname, not a substring match
+    42: ('Olivia', 'Gussinklo'), # DB wrongly has last_name "Crasborn" — confirmed error
+}
 
 # Sheet lost formatting on these two shared-household house numbers
 # ("40-1 hoog" -> "40 1") — keep the DB's value instead of overwriting it.
 PRESERVE_DB_FIELDS = {29: {'house_number'}, 31: {'house_number'}}
-
-# Adults whose e-mail is currently shared with a family member (so they'd
-# normally be skipped as "gezin deelt account") but who should get their own
-# distinct account now via a placeholder e-mail, same mechanism as minors
-# but without the no-login restriction — they can set a real e-mail
-# themselves later.
-FORCE_CREATE_WITH_PLACEHOLDER = {('sylvester', 'beerens')}
 
 
 def blank(v) -> bool:
@@ -221,7 +219,6 @@ def create_member(cursor, session: requests.Session, sheet_row: dict,
     suffix = sheet_row['suffix']
     email = sheet_row['email']
     birth_date = sheet_row['birth_date']
-    name_key = normalize_name_key(first_name, last_name)
 
     if not email or '@' not in email:
         print(f'  SKIP create (no e-mail on file): {first_name} {last_name}')
@@ -235,16 +232,15 @@ def create_member(cursor, session: requests.Session, sheet_row: dict,
 
     cursor.execute(f"SELECT id FROM {WP_PREFIX}avm_members WHERE lldap_user_id = %s", (uid,))
     if cursor.fetchone():
-        if name_key in FORCE_CREATE_WITH_PLACEHOLDER:
-            # placeholder_child_uid() just generates a non-colliding uid from a
-            # name — reused here for an adult splitting from a shared family
-            # e-mail, not because they're a minor.
-            uid = placeholder_child_uid(session, first_name, last_name, dry_run)
-            email = f'{uid}@avpvh.local'
-            print(f'    (shared e-mail — using placeholder per manual override, uid={uid})')
-        else:
-            print(f'  SKIP create (gezin deelt account, uid={uid}): {first_name} {last_name}')
-            return
+        # Someone in the sheet shares an e-mail with an existing member (a
+        # spouse, parent, etc.) — give them their own distinct account via a
+        # placeholder e-mail rather than skipping. placeholder_child_uid()
+        # just generates a non-colliding uid from a name; reused here
+        # regardless of age, not because they're a minor.
+        old_uid = uid
+        uid = placeholder_child_uid(session, first_name, last_name, dry_run)
+        email = f'{uid}@avpvh.local'
+        print(f'    (shared e-mail with uid={old_uid} — using placeholder uid={uid} instead)')
 
     lldap_create_user(session, uid, email, first_name, last_name, dry_run)
     lldap_add_to_group(session, uid, group_id, dry_run)
@@ -271,6 +267,32 @@ def create_member(cursor, session: requests.Session, sheet_row: dict,
     print(f'  CREATE: {first_name} {last_name} <{email}> → uid={uid}')
 
 
+def find_secondary_matches(sheet_only: list, db_only: list,
+                          sheet_rows: dict, db_members: dict) -> dict:
+    """Second pass over rows the exact-match pass missed: match a sheet row
+    to a DB member when they share the same core last name AND the sheet's
+    short first name appears as a whole word inside the DB's (often fuller)
+    first name — e.g. sheet "Frank" / DB "Frank (Franciscus Maria
+    Henricus)". Only applied when exactly one candidate exists on the DB
+    side for that last name, kept just as conservative as the primary exact
+    match — ambiguous cases are left for manual review instead of guessed
+    at. Returns {sheet_key: db_key}."""
+    db_by_last: dict[str, list] = {}
+    for dkey in db_only:
+        db_by_last.setdefault(dkey[1], []).append(dkey)
+
+    matches = {}
+    for skey in sheet_only:
+        sfirst, slast = skey
+        candidates = db_by_last.get(slast, [])
+        if len(candidates) != 1:
+            continue
+        dkey = candidates[0]
+        if first_name_contains(db_members[dkey]['first_name'], sfirst):
+            matches[skey] = dkey
+    return matches
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('xlsx', help='Path to ledenlijst xlsx')
@@ -289,19 +311,33 @@ def main():
             sheet_rows = load_sheet_rows(wb['Leden'])
             db_members = load_db_members(cur)
 
-            matched = sorted(set(sheet_rows) & set(db_members))
+            exact_matched = sorted(set(sheet_rows) & set(db_members))
             sheet_only = sorted(set(sheet_rows) - set(db_members))
             db_only = sorted(set(db_members) - set(sheet_rows))
 
+            secondary = find_secondary_matches(sheet_only, db_only, sheet_rows, db_members)
+            if secondary:
+                print(f'Secondary matches (short first name found inside a fuller DB '
+                      f'name, same surname): {len(secondary)}')
+                for skey, dkey in secondary.items():
+                    print(f"  sheet {sheet_rows[skey]['first_name']} {sheet_rows[skey]['last_name']}"
+                          f" -> DB {db_members[dkey]['first_name']} {db_members[dkey]['last_name']}"
+                          f" (id={db_members[dkey]['id']})")
+                sheet_only = [k for k in sheet_only if k not in secondary]
+                db_only = [k for k in db_only if k not in secondary.values()]
+
+            # (sheet_key, db_key) pairs to diff/update — exact matches plus secondary ones.
+            matched_pairs = [(k, k) for k in exact_matched] + list(secondary.items())
+
             print(f'Sheet rows: {len(sheet_rows)}, active DB members: {len(db_members)}')
-            print(f'Matched by name: {len(matched)}, sheet-only (candidates to create): '
+            print(f'Matched by name: {len(matched_pairs)}, sheet-only (candidates to create): '
                   f'{len(sheet_only)}, DB-only (not in sheet, not touched): {len(db_only)}')
 
             print('\n=== UPDATE (matched members with changed fields) ===')
             updated = 0
-            for key in matched:
-                db_row = db_members[key]
-                sheet_row = effective_sheet_row(db_row['id'], db_row, sheet_rows[key])
+            for skey, dkey in matched_pairs:
+                db_row = db_members[dkey]
+                sheet_row = effective_sheet_row(db_row['id'], db_row, sheet_rows[skey])
                 changes = diff_member(db_row, sheet_row)
                 if not changes:
                     continue
@@ -311,7 +347,8 @@ def main():
                     print(f'    {field}: {old!r} -> {new!r}')
                 apply_update(cur, db_row['id'], changes, sheet_row, dry)
             verb = 'would be updated' if dry else 'updated'
-            print(f'{updated} member(s) {verb} ({len(matched) - updated} matched, no changes)')
+            print(f'{updated} member(s) {verb} '
+                  f'({len(matched_pairs) - updated} matched, no changes)')
 
             print('\n=== CREATE (in sheet, no matching DB member) ===')
             for key in sheet_only:
