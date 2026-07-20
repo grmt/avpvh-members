@@ -1,0 +1,38 @@
+.avpvh-kamp-overzicht {
+    margin-top: 1rem;
+    /* Break out of the theme's narrow content column — this grid is wide. */
+    width: 100vw;
+    max-width: 1400px;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding-left: 2rem;
+    padding-right: 2rem;
+    box-sizing: border-box;
+}
+
+.avpvh-kamp-overzicht-meta {
+    color: #555;
+    font-size: .9rem;
+    margin: 0 0 .5rem;
+}
+
+.avpvh-kamp-overzicht-scroll {
+    overflow-x: auto;
+}
+
+.avpvh-kamp-overzicht-tabel {
+    border-collapse: collapse;
+    font-size: .85rem;
+    white-space: nowrap;
+}
+
+.avpvh-kamp-overzicht-tabel td {
+    border: 1px solid #ddd;
+    padding: .3rem .5rem;
+    text-align: center;
+}
+
+.avpvh-kamp-overzicht-tabel td:first-child {
+    text-align: left;
+    white-space: nowrap;
+}
