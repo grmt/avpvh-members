@@ -167,6 +167,10 @@ def col(row: tuple, headers: list[str], name: str) -> str:
     try:
         idx = headers.index(name)
         v = row[idx].value if hasattr(row[idx], 'value') else row[idx]
+        # Excel stores plain numbers (house numbers, postal codes) as floats;
+        # openpyxl hands them back as e.g. 47.0 — strip the spurious ".0".
+        if isinstance(v, float) and v.is_integer():
+            v = int(v)
         return str(v).strip() if v is not None else ''
     except ValueError:
         return ''
