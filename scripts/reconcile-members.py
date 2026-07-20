@@ -43,6 +43,25 @@ from _avpvh_import_common import (
 FIELDS_TO_SYNC = ['birth_date', 'phone', 'mobile', 'emergency_contact']
 ADDRESS_FIELDS = ['street', 'house_number', 'postal_code', 'city', 'country']
 
+# --- Manual overrides confirmed with the user for the 2026-20-07 sheet ---
+
+# DB has a surname spelling variant that would otherwise miss the sheet
+# match ("Rooy, van" in the DB vs "Rooij" in the sheet — same person,
+# confirmed). Used only to compute the matching key; the diff still shows
+# the real current DB value being corrected.
+DB_NAME_KEY_CORRECTIONS = {70: ('Marieke', 'Rooij')}
+
+# Sheet lost formatting on these two shared-household house numbers
+# ("40-1 hoog" -> "40 1") — keep the DB's value instead of overwriting it.
+PRESERVE_DB_FIELDS = {29: {'house_number'}, 31: {'house_number'}}
+
+# Adults whose e-mail is currently shared with a family member (so they'd
+# normally be skipped as "gezin deelt account") but who should get their own
+# distinct account now via a placeholder e-mail, same mechanism as minors
+# but without the no-login restriction — they can set a real e-mail
+# themselves later.
+FORCE_CREATE_WITH_PLACEHOLDER = {('sylvester', 'beerens')}
+
 
 def blank(v) -> bool:
     return v is None or (isinstance(v, str) and v.strip() == '')
@@ -97,7 +116,8 @@ def load_db_members(cursor) -> dict:
     members = {}
     for (mid, first, last, suffix, birth_date, phone, mobile, emergency,
          street, house_nr, postal, city, country) in cursor.fetchall():
-        key = normalize_name_key(first, last)
+        key_first, key_last = DB_NAME_KEY_CORRECTIONS.get(mid, (first, last))
+        key = normalize_name_key(key_first, key_last)
         if key in members:
             print(f'  WARNING: duplicate name among active DB members, first one wins: '
                   f'{first} {last} (id={mid})')
@@ -110,6 +130,18 @@ def load_db_members(cursor) -> dict:
             'city': city, 'country': country,
         }
     return members
+
+
+def effective_sheet_row(member_id: int, db_row: dict, sheet_row: dict) -> dict:
+    """Sheet row with any PRESERVE_DB_FIELDS entries replaced by the current
+    DB value, so a known-bad sheet value never overwrites a known-good one."""
+    preserved = PRESERVE_DB_FIELDS.get(member_id)
+    if not preserved:
+        return sheet_row
+    row = dict(sheet_row)
+    for field in preserved:
+        row[field] = db_row[field]
+    return row
 
 
 def diff_member(db_row: dict, sheet_row: dict) -> dict:
@@ -189,6 +221,7 @@ def create_member(cursor, session: requests.Session, sheet_row: dict,
     suffix = sheet_row['suffix']
     email = sheet_row['email']
     birth_date = sheet_row['birth_date']
+    name_key = normalize_name_key(first_name, last_name)
 
     if not email or '@' not in email:
         print(f'  SKIP create (no e-mail on file): {first_name} {last_name}')
@@ -202,8 +235,16 @@ def create_member(cursor, session: requests.Session, sheet_row: dict,
 
     cursor.execute(f"SELECT id FROM {WP_PREFIX}avm_members WHERE lldap_user_id = %s", (uid,))
     if cursor.fetchone():
-        print(f'  SKIP create (gezin deelt account, uid={uid}): {first_name} {last_name}')
-        return
+        if name_key in FORCE_CREATE_WITH_PLACEHOLDER:
+            # placeholder_child_uid() just generates a non-colliding uid from a
+            # name — reused here for an adult splitting from a shared family
+            # e-mail, not because they're a minor.
+            uid = placeholder_child_uid(session, first_name, last_name, dry_run)
+            email = f'{uid}@avpvh.local'
+            print(f'    (shared e-mail — using placeholder per manual override, uid={uid})')
+        else:
+            print(f'  SKIP create (gezin deelt account, uid={uid}): {first_name} {last_name}')
+            return
 
     lldap_create_user(session, uid, email, first_name, last_name, dry_run)
     lldap_add_to_group(session, uid, group_id, dry_run)
@@ -260,14 +301,15 @@ def main():
             updated = 0
             for key in matched:
                 db_row = db_members[key]
-                changes = diff_member(db_row, sheet_rows[key])
+                sheet_row = effective_sheet_row(db_row['id'], db_row, sheet_rows[key])
+                changes = diff_member(db_row, sheet_row)
                 if not changes:
                     continue
                 updated += 1
                 print(f"{db_row['first_name']} {db_row['last_name']} (id={db_row['id']}):")
                 for field, (old, new) in changes.items():
                     print(f'    {field}: {old!r} -> {new!r}')
-                apply_update(cur, db_row['id'], changes, sheet_rows[key], dry)
+                apply_update(cur, db_row['id'], changes, sheet_row, dry)
             verb = 'would be updated' if dry else 'updated'
             print(f'{updated} member(s) {verb} ({len(matched) - updated} matched, no changes)')
 
