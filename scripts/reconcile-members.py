@@ -54,6 +54,9 @@ DB_NAME_KEY_CORRECTIONS = {
     70: ('Voornaam', 'Spelling'),    # DB "Speling, van" — spelling variant
     74: ('Roepnaam', 'Voorbeeld'),  # DB "Formele Voornamen" — nickname, not a substring match
     42: ('Voornaam', 'Juistenaam'), # DB wrongly has last_name "Foutenaam" — confirmed error
+    65: ('Roepnaam', 'Anders'),    # DB "Formele Voornamen" — call name unrelated to formal name, confirmed same person
+    60: ('Voornaam', 'Gedeeld'), # ambiguous vs id 61 for the secondary pass (same surname) — disambiguated manually
+    61: ('Andere', 'Gedeeld'),
 }
 
 # Sheet lost formatting on these two shared-household house numbers
