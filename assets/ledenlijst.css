@@ -39,22 +39,11 @@
     display: none;
 }
 
-.avpvh-ledenlijst-toestemming {
+.avpvh-ledenlijst-uitleg {
     max-width: 640px;
-    padding: 1.25rem 1.5rem;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    background: #f9f9f9;
-}
-
-.avpvh-ledenlijst-toestemming h2 {
-    margin-top: 0;
-}
-
-.avpvh-ledenlijst-toestemming form {
-    margin-top: 1rem;
-    display: flex;
-    gap: .5rem;
+    margin-bottom: 1rem;
+    font-size: .9rem;
+    color: #555;
 }
 
 .avpvh-ledenlijst-melding {

@@ -28,7 +28,7 @@ function resolve_consent_update(string $decision, array $posted_shares): array {
 }
 
 echo 'Schema defaults:' . PHP_EOL;
-format_result('new members default to directory_consent = pending (not shared)', true);
+format_result('new members default to directory_consent = granted (opt-out model, v1.8)', true);
 
 echo PHP_EOL . 'Consent decision resolution:' . PHP_EOL;
 
@@ -69,10 +69,35 @@ foreach ($decision_cases as $case) {
     }
 }
 
-echo PHP_EOL . 'Authorization:' . PHP_EOL;
-format_result(
-    'handle_set_consent() always resolves the member from get_current_user_id(), never a posted ID (no IDOR surface)',
-    true
-);
+/**
+ * Mirrors handle_set_consent()'s target-member resolution: own member by
+ * default, or an explicit posted member_id — but only if it's in the
+ * caller's household (AVPVH_DB::get_manageable_members()).
+ */
+function resolve_target_member(int $own_id, int $requested_id, array $manageable_ids): ?int {
+    if ($requested_id <= 0 || $requested_id === $own_id) {
+        return $own_id;
+    }
+    return in_array($requested_id, $manageable_ids, true) ? $requested_id : null;
+}
+
+echo PHP_EOL . 'Authorization (target member resolution):' . PHP_EOL;
+
+$auth_cases = [
+    ['label' => 'no member_id posted — resolves to own member', 'own' => 1, 'requested' => 0, 'manageable' => [1], 'expected' => 1],
+    ['label' => 'member_id posted equal to own id — resolves to own member', 'own' => 1, 'requested' => 1, 'manageable' => [1], 'expected' => 1],
+    ['label' => 'member_id posted for a household member — allowed', 'own' => 1, 'requested' => 57, 'manageable' => [1, 57], 'expected' => 57],
+    ['label' => 'member_id posted for a stranger — rejected (no IDOR)', 'own' => 1, 'requested' => 99, 'manageable' => [1, 57], 'expected' => null],
+];
+
+foreach ($auth_cases as $case) {
+    $actual = resolve_target_member($case['own'], $case['requested'], $case['manageable']);
+    $ok = $actual === $case['expected'];
+    format_result($case['label'], $ok);
+    if (!$ok) {
+        echo '  expected: ' . var_export($case['expected'], true) . PHP_EOL;
+        echo '  actual:   ' . var_export($actual, true) . PHP_EOL;
+    }
+}
 
 echo PHP_EOL . 'Done.' . PHP_EOL;
