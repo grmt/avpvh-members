@@ -18,6 +18,7 @@ class AVPVH_Member_Profile_Form {
             return '<p style="color: red;">Please log in to edit your profile.</p>';
         }
 
+        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
         $member = $this->get_target_member();
 
         if (!$member) {
@@ -25,6 +26,8 @@ class AVPVH_Member_Profile_Form {
         }
 
         $is_admin_edit = current_user_can('manage_options') && !empty($_GET['member_id']);
+        $is_household_edit = !$is_admin_edit && $own_member && (int) $member->id !== (int) $own_member->id;
+        $huisgenoten = $own_member ? AVPVH_DB::get_manageable_members((int) $own_member->id) : [];
 
         // Get current address
         $addresses = AVPVH_DB::get_addresses($member->id);
@@ -47,6 +50,21 @@ class AVPVH_Member_Profile_Form {
             <h2><?php echo $is_admin_edit ? 'Edit Member Profile' : 'Edit Your Profile'; ?></h2>
             <?php if ($is_admin_edit) : ?>
                 <p style="color: #666;">Administrator editing: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
+            <?php elseif ($is_household_edit) : ?>
+                <p style="color: #666;">Je bewerkt het profiel van: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
+            <?php endif; ?>
+
+            <?php if (count($huisgenoten) > 1) : ?>
+                <div class="avpvh-huisgenoten">
+                    <span>Huisgenoten:</span>
+                    <?php foreach ($huisgenoten as $hg) : ?>
+                        <?php if ((int) $hg->id === (int) $member->id) : ?>
+                            <strong><?php echo esc_html(avpvh_format_name($hg)); ?></strong>
+                        <?php else : ?>
+                            <a href="<?php echo esc_url(add_query_arg('member_id', $hg->id)); ?>"><?php echo esc_html(avpvh_format_name($hg)); ?></a>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
             <?php endif; ?>
             <?php if (is_user_logged_in()) : ?>
                 <?php $user = wp_get_current_user(); ?>
@@ -237,13 +255,20 @@ class AVPVH_Member_Profile_Form {
                 <p>Je voorkeuren zijn opgeslagen.</p>
             <?php endif; ?>
 
-            <?php if ($member->directory_consent !== 'granted') : ?>
+            <?php if ($member->directory_consent === 'granted') : ?>
+                <p>
+                    Je gegevens zijn zichtbaar voor andere ingelogde actieve leden in de
+                    ledenlijst, zoals beschreven in de privacyverklaring. Hieronder kun je
+                    losse gegevens afschermen, of je gegevens volledig verbergen.
+                </p>
+            <?php else : ?>
                 <p>Je deelt momenteel geen gegevens met andere leden in de ledenlijst.</p>
             <?php endif; ?>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                 <?php wp_nonce_field('avpvh_directory_consent'); ?>
                 <input type="hidden" name="action" value="avpvh_set_directory_consent">
+                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
 
                 <div class="form-group">
                     <label>
@@ -385,27 +410,46 @@ class AVPVH_Member_Profile_Form {
     }
 
     private function get_target_member(): ?object {
-        if (current_user_can('manage_options') && !empty($_GET['member_id'])) {
-            $member_id = (int) $_GET['member_id'];
-            if ($member_id > 0) {
-                return AVPVH_DB::get_member($member_id);
-            }
+        $wp_user = wp_get_current_user();
+        $own_member = AVPVH_DB::get_member_by_wp_user($wp_user->ID);
+
+        $member_id = (int) ($_GET['member_id'] ?? 0);
+        if ($member_id > 0 && $this->can_edit_member($own_member, $member_id)) {
+            return AVPVH_DB::get_member($member_id);
         }
 
-        $wp_user = wp_get_current_user();
-        return AVPVH_DB::get_member_by_wp_user($wp_user->ID);
+        return $own_member;
     }
 
     private function get_target_member_for_save(): ?object {
-        if (current_user_can('manage_options')) {
-            $member_id = (int) ($_POST['member_id'] ?? 0);
-            if ($member_id > 0) {
-                return AVPVH_DB::get_member($member_id);
-            }
+        $wp_user = wp_get_current_user();
+        $own_member = AVPVH_DB::get_member_by_wp_user($wp_user->ID);
+
+        $member_id = (int) ($_POST['member_id'] ?? 0);
+        if ($member_id > 0 && $this->can_edit_member($own_member, $member_id)) {
+            return AVPVH_DB::get_member($member_id);
         }
 
-        $wp_user = wp_get_current_user();
-        return AVPVH_DB::get_member_by_wp_user($wp_user->ID);
+        return $own_member;
+    }
+
+    /**
+     * Admins can edit any member; everyone else can edit their own profile or
+     * a household member's (same family link or current address).
+     */
+    private function can_edit_member(?object $own_member, int $target_member_id): bool {
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        if (!$own_member) {
+            return false;
+        }
+        foreach (AVPVH_DB::get_manageable_members((int) $own_member->id) as $m) {
+            if ((int) $m->id === $target_member_id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
