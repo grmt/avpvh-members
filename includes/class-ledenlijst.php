@@ -44,7 +44,7 @@ class AVPVH_Ledenlijst {
             <p class="avpvh-ledenlijst-uitleg">
                 Deze lijst wordt gedeeld met alle ingelogde actieve leden, zoals beschreven
                 in de <a href="https://www.avphilipsvanhorne.nl/wp-content/uploads/public/2024/04/Privacy-Verklaring.pdf" target="_blank" rel="noopener">privacyverklaring</a>.
-                Je kunt via <a href="<?php echo esc_url(home_url('/avpvh-member-profile/')); ?>">je profiel</a>
+                Je kunt via <a href="<?php echo esc_url(home_url('/member-profile/')); ?>">je profiel</a>
                 losse gegevens afschermen of je gegevens volledig verbergen.
             </p>
             <input type="search" id="avpvh-ledenlijst-zoek" placeholder="Zoeken…" class="avpvh-ledenlijst-zoek">

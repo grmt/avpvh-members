@@ -1,5 +1,13 @@
 .avpvh-ledenlijst {
     margin-top: 1rem;
+    /* Break out of the theme's narrow content column for a wider table. */
+    width: 100vw;
+    max-width: 1400px;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding-left: 2rem;
+    padding-right: 2rem;
+    box-sizing: border-box;
 }
 
 .avpvh-ledenlijst-zoek {
