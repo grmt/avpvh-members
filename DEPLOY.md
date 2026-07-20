@@ -18,7 +18,7 @@ Example:
 
 1. Commit locally on the feature branch
 2. Run syntax checks and saved ad-hoc tests
-3. Sync the repo to the server clone at `~/04-src/avpvh-members`
+3. Sync the repo to the server clone at `~/03-src/avpvh-members`
 4. Test there before merging or pushing anything upstream
 
 ## Live Deploy
