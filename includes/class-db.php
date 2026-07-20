@@ -955,6 +955,12 @@ function avpvh_format_name(object $member, string $format = 'full'): string {
     $suffix = $member->suffix ?? '';
     $last   = $member->last_name;
 
+    // Legacy rows store tussenvoegsel glued into last_name as "Achternaam, suffix"
+    // instead of the separate suffix column — split it for display.
+    if ($suffix === '' && str_contains($last, ',')) {
+        [$last, $suffix] = array_map('trim', explode(',', $last, 2));
+    }
+
     return match ($format) {
         'list'        => $suffix
                             ? "$last, $first ($suffix)"

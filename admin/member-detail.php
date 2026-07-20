@@ -70,7 +70,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <h1><?php echo esc_html(avpvh_format_name($member, 'list')); ?></h1>
     <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-members'], admin_url('admin.php'))); ?>">&larr; Terug naar ledenlijst</a>
     &nbsp;|&nbsp;
-    <a href="<?php echo esc_url(add_query_arg(['member_id' => $member_id], home_url('/avpvh-member-profile/'))); ?>"
+    <a href="<?php echo esc_url(add_query_arg(['member_id' => $member_id], home_url('/member-profile/'))); ?>"
        class="button button-small">Bewerk profiel</a>
     &nbsp;|&nbsp;
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
