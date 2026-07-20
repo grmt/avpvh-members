@@ -10,207 +10,36 @@ Sheet "ex-leden" → status = inactive → LLDAP group "ex-leden"
 
 Idempotent on email. WP user creation is deferred to first login.
 
+To update existing members' fields (birth date, address, phone, etc.) from a
+newer spreadsheet, use reconcile-members.py instead — this script only
+inserts new members and silently skips anyone whose derived LLDAP uid
+already has a member record.
+
 Dependencies:
     pip install pymysql openpyxl requests
 """
 
 import argparse
-import re
-import sys
-from datetime import date, datetime
+from datetime import date
 
-import pymysql
 import openpyxl
 import requests
 
-SECRET_FILE   = '/opt/docker/secrets/compose/wordpress_db_password.txt'
-DB_HOST       = '127.0.0.1'
-DB_PORT       = 6603
-DB_USER       = 'wp_user'
-DB_NAME       = 'wpdb'
-WP_PREFIX     = 'pvh_'
-CURRENT_YEAR  = date.today().year
+from _avpvh_import_common import (
+    WP_PREFIX, GROUP_ACTIVE, GROUP_INACTIVE,
+    read_secret, get_db, lldap_login, get_group_id,
+    uid_from_email, lldap_create_user, lldap_add_to_group,
+    sheet_headers, col, parse_date, parse_year, age_on, placeholder_child_uid,
+    SECRET_FILE,
+)
 
-LLDAP_URL     = 'https://leden-admin.avphilipsvanhorne.nl'
-LLDAP_ADMIN   = 'admin'
-LLDAP_SECRET_FILE = '/opt/docker/secrets/compose/lldap_admin_password.txt'
-
-GROUP_ACTIVE   = 'leden'
-GROUP_INACTIVE = 'ex-leden'
-
-# Normalize xlsx header names to internal field names
-HEADER_ALIASES = {
-    'voorna(a)m(en)': 'voornaam',
-    'e-mailadres':    'email',
-    'telefoonnummer': 'telefoon',
-    'plaats':         'woonplaats',
-    'contact bij calamiteit:': 'noodcontact',
-}
+CURRENT_YEAR = date.today().year
 
 # ex-leden sheet has no header row; col 0 contains a left-year note
 EX_LEDEN_COLS = ['vertrekjaar', 'achternaam', 'voornaam', 'geboortedatum',
                  'straat', 'huisnummer', 'postcode', 'woonplaats',
                  'land', 'email', 'telefoon', 'mobiel']
 
-
-# ---------------------------------------------------------------------------
-# MariaDB helpers
-# ---------------------------------------------------------------------------
-
-def read_secret(path: str) -> str:
-    with open(path) as f:
-        return f.read().strip()
-
-
-def get_db(password: str):
-    return pymysql.connect(
-        host=DB_HOST, port=DB_PORT,
-        user=DB_USER, password=password,
-        database=DB_NAME, charset='utf8mb4',
-    )
-
-
-# ---------------------------------------------------------------------------
-# LLDAP GraphQL helpers
-# ---------------------------------------------------------------------------
-
-def lldap_login(session: requests.Session) -> None:
-    password = read_secret(LLDAP_SECRET_FILE)
-    r = session.post(f'{LLDAP_URL}/auth/simple/login', json={
-        'username': LLDAP_ADMIN,
-        'password': password,
-    }, timeout=10)
-    r.raise_for_status()
-    token = r.json()['token']
-    session.headers['Authorization'] = f'Bearer {token}'
-
-
-def graphql(session: requests.Session, query: str, variables: dict | None = None) -> dict:
-    r = session.post(f'{LLDAP_URL}/api/graphql',
-                     json={'query': query, 'variables': variables or {}},
-                     timeout=10)
-    r.raise_for_status()
-    body = r.json()
-    if 'errors' in body:
-        raise RuntimeError(f'GraphQL error: {body["errors"]}')
-    return body.get('data', {})
-
-
-def get_group_id(session: requests.Session, group_name: str) -> int:
-    data = graphql(session, 'query { groups { id displayName } }')
-    for g in data.get('groups', []):
-        if g['displayName'].lower() == group_name.lower():
-            return int(g['id'])
-    # Create group if missing
-    data = graphql(session,
-        'mutation CreateGroup($name: String!) { createGroup(name: $name) { id } }',
-        {'name': group_name})
-    return int(data['createGroup']['id'])
-
-
-def uid_from_email(email: str) -> str:
-    local = email.split('@')[0].lower()
-    return re.sub(r'[^a-z0-9._-]', '.', local)
-
-
-def lldap_user_exists(session: requests.Session, uid: str) -> bool:
-    try:
-        data = graphql(session,
-            'query GetUser($id: String!) { user(userId: $id) { id } }',
-            {'id': uid})
-        return data.get('user') is not None
-    except RuntimeError:
-        return False
-
-
-def lldap_create_user(session: requests.Session, uid: str, email: str,
-                      first_name: str, last_name: str, dry_run: bool) -> bool:
-    if lldap_user_exists(session, uid):
-        print(f'    LLDAP user already exists: {uid}')
-        return True
-    if dry_run:
-        print(f'    [dry-run] would create LLDAP user: {uid} <{email}>')
-        return True
-    graphql(session,
-        '''mutation CreateUser($user: CreateUserInput!) {
-               createUser(user: $user) { id }
-           }''',
-        {'user': {
-            'id':          uid,
-            'email':       email,
-            'displayName': f'{first_name} {last_name}'.strip(),
-        }})
-    return True
-
-
-def lldap_add_to_group(session: requests.Session, uid: str, group_id: int,
-                       dry_run: bool) -> None:
-    if dry_run:
-        return
-    try:
-        graphql(session,
-            '''mutation Add($userId: String!, $groupId: Int!) {
-                   addUserToGroup(userId: $userId, groupId: $groupId) { ok }
-               }''',
-            {'userId': uid, 'groupId': group_id})
-    except RuntimeError as e:
-        if 'unique-memberships' in str(e) or 'Duplicate entry' in str(e):
-            pass  # already a member
-        else:
-            raise
-
-
-# ---------------------------------------------------------------------------
-# XLS parsing helpers
-# ---------------------------------------------------------------------------
-
-def col(row: tuple, headers: list[str], name: str) -> str:
-    try:
-        idx = headers.index(name)
-        v = row[idx].value if hasattr(row[idx], 'value') else row[idx]
-        return str(v).strip() if v is not None else ''
-    except ValueError:
-        return ''
-
-
-def parse_date(raw: str):
-    for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d/%m/%Y'):
-        try:
-            return datetime.strptime(raw, fmt).date()
-        except (ValueError, TypeError):
-            pass
-    return None
-
-
-def parse_year(raw: str):
-    m = re.search(r'\b(19|20)\d{2}\b', str(raw))
-    return int(m.group()) if m else None
-
-
-def age_on(birth_date, today: date) -> int:
-    years = today.year - birth_date.year
-    if (today.month, today.day) < (birth_date.month, birth_date.day):
-        years -= 1
-    return years
-
-
-def placeholder_child_uid(session: requests.Session, first_name: str, last_name: str,
-                          dry_run: bool) -> str:
-    """Members under 16 never get their own login (per policy) — generate a
-    non-deliverable placeholder uid/email instead of using the row's real
-    (guardian's) email, so no one can authenticate as them."""
-    base = uid_from_email(f'{first_name}.{last_name}@placeholder')
-    uid = base
-    n = 1
-    while not dry_run and lldap_user_exists(session, uid):
-        n += 1
-        uid = f'{base}{n}'
-    return uid
-
-
-# ---------------------------------------------------------------------------
-# Import logic
-# ---------------------------------------------------------------------------
 
 def import_sheet(cursor, session: requests.Session, sheet,
                  status: str, group_id: int, dry_run: bool,
@@ -220,9 +49,7 @@ def import_sheet(cursor, session: requests.Session, sheet,
         headers = positional_headers
         rows = sheet.iter_rows()
     else:
-        raw = [str(c.value).strip().lower() if c.value else ''
-               for c in next(sheet.iter_rows(min_row=1, max_row=1))]
-        headers = [HEADER_ALIASES.get(h, h) for h in raw]
+        headers = sheet_headers(sheet)
         rows = sheet.iter_rows(min_row=2)
 
     def c(row, name): return col(row, headers, name)
@@ -233,6 +60,7 @@ def import_sheet(cursor, session: requests.Session, sheet,
             continue
 
         last_name  = c(row, 'achternaam') or c(row, 'naam')
+        suffix     = c(row, 'suffix')
         first_name = c(row, 'voornaam')
         phone      = c(row, 'telefoon')
         mobile     = c(row, 'mobiel')
@@ -269,10 +97,10 @@ def import_sheet(cursor, session: requests.Session, sheet,
             # 2. Insert pvh_avm_members
             cursor.execute(
                 f"""INSERT INTO {WP_PREFIX}avm_members
-                    (lldap_user_id, first_name, last_name, birth_date,
+                    (lldap_user_id, first_name, suffix, last_name, birth_date,
                      phone, mobile, emergency_contact, status, joined_year, left_year)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                (uid, first_name, last_name, birth_date,
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (uid, first_name, suffix, last_name, birth_date,
                  phone, mobile, emergency, status, joined_yr, left_yr)
             )
             member_id = cursor.lastrowid
