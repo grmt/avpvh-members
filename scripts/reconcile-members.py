@@ -54,6 +54,9 @@ DB_NAME_KEY_CORRECTIONS = {
     70: ('Marieke', 'Rooij'),    # DB "Rooy, van" — spelling variant
     74: ('Peter', 'Schroeten'),  # DB "Petrus Jacobus" — nickname, not a substring match
     42: ('Olivia', 'Gussinklo'), # DB wrongly has last_name "Crasborn" — confirmed error
+    65: ('Gaston', 'Moonen'),    # DB "Antonius Franciscus Wilhelmus" — call name unrelated to formal name, confirmed same person
+    60: ('Meindert', 'Lippits'), # ambiguous vs id 61 for the secondary pass (same surname) — disambiguated manually
+    61: ('Willemijn', 'Lippits'),
 }
 
 # Sheet lost formatting on these two shared-household house numbers
