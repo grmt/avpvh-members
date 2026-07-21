@@ -1,7 +1,9 @@
-/* Compact mobile header: shrink the logo + title so the logo/title group
-   (NOT the outer header row, which also holds the nav/hamburger and needs
-   to keep the theme's own responsive wrap behavior) takes up less space. */
-@media (max-width: 600px) {
+/* Compact mobile header/footer: shrink the logo + title so the logo/title
+   group (NOT the outer header row, which also holds the nav/hamburger and
+   needs to keep the theme's own responsive wrap behavior) takes up less
+   space. Covers portrait phones (narrow width) AND landscape phones (short
+   height, but often wider than 600px) — both need the same treatment. */
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
     header.wp-block-template-part .wp-block-group.is-layout-flex:has(> .wp-block-site-logo) {
         align-items: center;
         gap: .4rem;
@@ -16,6 +18,28 @@
         font-size: .75rem !important;
         line-height: 1.15;
         max-width: 11rem;
+    }
+
+    footer.wp-block-template-part .wp-block-site-logo img {
+        width: 16px;
+        height: 16px;
+    }
+
+    footer.wp-block-template-part .wp-block-site-title {
+        font-size: .7rem !important;
+        line-height: 1.15;
+    }
+
+    footer.wp-block-template-part .wp-block-site-tagline {
+        font-size: .6rem !important;
+        line-height: 1.1;
+        margin: 0;
+    }
+
+    .avpvh-auth-status__badge {
+        max-width: 6rem;
+        font-size: .65rem;
+        padding: .2rem .5rem;
     }
 }
 
@@ -127,11 +151,4 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-@media (max-width: 600px) {
-    .avpvh-auth-status__badge {
-        max-width: 7rem;
-        font-size: .7rem;
-    }
 }
