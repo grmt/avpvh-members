@@ -90,17 +90,27 @@
 .avpvh-auth-status {
     display: flex;
     align-items: center;
+    min-width: 0;
 }
 
 .avpvh-auth-status__badge {
-    display: inline-flex;
-    align-items: center;
-    padding: .35rem .7rem;
+    display: inline-block;
+    max-width: 12rem;
+    padding: .25rem .6rem;
     border-radius: 999px;
     background: #f2f4f7;
     color: #333;
-    font-size: .85rem;
+    font-size: .75rem;
     font-weight: 600;
     letter-spacing: .01em;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 600px) {
+    .avpvh-auth-status__badge {
+        max-width: 7rem;
+        font-size: .7rem;
+    }
 }

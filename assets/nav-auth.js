@@ -52,10 +52,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var span = document.createElement('span');
         span.className = 'avpvh-auth-status__badge';
-        var parts = [userLabel, roleLabel];
-        if (memberRoleLabel) parts.push(memberRoleLabel);
-        parts.push(isActiveMember ? 'Lid' : 'Geen lid');
-        span.textContent = parts.join(' · ');
+        // Keep this compact — just who's logged in and their membership status.
+        // roleLabel/memberRoleLabel are still passed in for pages that want them.
+        span.textContent = userLabel + ' · ' + (isActiveMember ? 'Lid' : 'Geen lid');
+        span.title = [userLabel, roleLabel, memberRoleLabel].filter(Boolean).join(' · ');
 
         li.appendChild(span);
         return li;
