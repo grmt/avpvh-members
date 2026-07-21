@@ -15,6 +15,17 @@ if (!defined('AVPVH_LLDAP_DB')) {
     define('AVPVH_LLDAP_DB', 'lldap');
 }
 
+/**
+ * Cache-busting version for an asset: the file's own mtime, so every deploy
+ * (which changes the file) invalidates browsers' cached copies automatically
+ * instead of relying on a hand-maintained version string.
+ */
+function avpvh_asset_version(string $relative_path): string {
+    $path = AVPVH_PLUGIN_DIR . ltrim($relative_path, '/');
+    $mtime = file_exists($path) ? filemtime($path) : false;
+    return $mtime ? (string) $mtime : '1.0';
+}
+
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-registration-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-google-sheets-sync.php';
@@ -36,7 +47,7 @@ register_activation_hook(__FILE__, ['AVPVH_DB', 'install']);
 add_action('plugins_loaded', ['AVPVH_DB', 'maybe_upgrade']);
 
 add_action('wp_enqueue_scripts', function () {
-    wp_enqueue_style('avpvh', plugin_dir_url(__FILE__) . 'assets/avpvh.css', [], '1.0');
+    wp_enqueue_style('avpvh', plugin_dir_url(__FILE__) . 'assets/avpvh.css', [], avpvh_asset_version('assets/avpvh.css'));
 });
 
 add_action('after_setup_theme', function () {

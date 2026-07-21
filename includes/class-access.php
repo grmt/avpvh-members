@@ -113,7 +113,7 @@ class AVPVH_Access {
         wp_enqueue_script(
             'avpvh-login-form',
             plugin_dir_url(dirname(__FILE__)) . 'assets/login-form.js',
-            [], '1.0', true
+            [], avpvh_asset_version('assets/login-form.js'), true
         );
 
         $login_config = wp_json_encode([

@@ -30,7 +30,7 @@ class AVPVH_Nav_Auth {
         wp_enqueue_script(
             'avpvh-nav-auth',
             plugin_dir_url(dirname(__FILE__)) . 'assets/nav-auth.js',
-            [], '1.0', true
+            [], avpvh_asset_version('assets/nav-auth.js'), true
         );
 
         add_action('wp_footer', function () use ($is_active, $identity_label, $role_label, $member_role_label) {

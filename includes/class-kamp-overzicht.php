@@ -16,7 +16,7 @@ class AVPVH_Kamp_Overzicht {
         }
         global $post;
         if ($post && has_shortcode($post->post_content, 'avpvh_kamp_overzicht')) {
-            wp_enqueue_style('avpvh-kamp-overzicht', plugin_dir_url(dirname(__FILE__)) . 'assets/kamp-overzicht.css', [], '1.0');
+            wp_enqueue_style('avpvh-kamp-overzicht', plugin_dir_url(dirname(__FILE__)) . 'assets/kamp-overzicht.css', [], avpvh_asset_version('assets/kamp-overzicht.css'));
         }
     }
 
