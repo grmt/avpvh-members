@@ -584,12 +584,12 @@ class AVPVH_Member_Profile_Form {
      * made the change, and — only when they edited someone else's profile —
      * the affected member as well, at their remaining identities.
      */
-    public static function notify_identity_change(object $member, ?object $actor_member, string $action, string $provider, string $email): void {
+    public static function notify_identity_change(object $member, ?object $actor_member, string $action, string $provider, string $email, ?\WP_User $actor_user = null): void {
         $provider_labels = ['email' => 'e-mailadres', 'google' => 'Google-account', 'microsoft' => 'Microsoft-account'];
         $provider_label = $provider_labels[$provider] ?? $provider;
         $member_name = avpvh_format_name($member);
 
-        $actor_user = wp_get_current_user();
+        $actor_user = $actor_user ?: wp_get_current_user();
         $is_self = $actor_member && (int) $actor_member->id === (int) $member->id;
 
         $subject = 'AV Philips van Horne — inloggegevens gewijzigd';
