@@ -1,3 +1,35 @@
+/* Compact mobile header: logo + 2-line title/tagline, same height as the
+   hamburger icon, all on one row — matches the small-logo/small-text style
+   the footer's own site-logo/title block already uses. */
+@media (max-width: 600px) {
+    header.wp-block-template-part .wp-block-group.is-layout-flex {
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: .5rem;
+    }
+
+    header.wp-block-template-part .wp-block-site-logo img {
+        width: 32px;
+        height: 32px;
+    }
+
+    header.wp-block-template-part .wp-block-site-title {
+        font-size: .75rem !important;
+        line-height: 1.15;
+        max-width: 9rem;
+    }
+
+    header.wp-block-template-part .wp-block-site-tagline {
+        font-size: .65rem !important;
+        line-height: 1.1;
+        margin: 0;
+    }
+
+    header.wp-block-template-part .wp-block-navigation__responsive-container-open {
+        padding: 0;
+    }
+}
+
 .avpvh-members-only {
     padding: 2rem;
     border: 1px solid #e0e0e0;
