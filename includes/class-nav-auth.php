@@ -44,6 +44,7 @@ class AVPVH_Nav_Auth {
                     'membersPageIds' => self::MEMBERS_PAGE_IDS,
                     'logoutUrl'      => rest_url('avpvh/v1/logout'),
                     'loginUrl'       => home_url('/avpvh-login/'),
+                    'profileUrl'     => home_url('/member-profile/'),
                 ])
                 . '</script>';
         });
