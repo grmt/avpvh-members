@@ -58,11 +58,14 @@ access_control:
     - domain: 'leden-admin.avphilipsvanhorne.nl'
       policy: 'two_factor'
 
-    # admin-ajax.php is used for frontend AJAX by plugins/themes — bypass Authelia,
-    # WordPress handles nonce/capability checks itself. Must come before the wp-admin rule.
+    # admin-ajax.php and admin-post.php are used for frontend form/AJAX
+    # submissions by plugins/themes (e.g. the member profile form) — bypass
+    # Authelia, WordPress handles nonce/capability checks itself. Must come
+    # before the wp-admin rule.
     - domain: 'www.avphilipsvanhorne.nl'
       resources:
         - '^/wp-admin/admin-ajax\.php'
+        - '^/wp-admin/admin-post\.php'
       policy: 'bypass'
 
     # wp-admin requires two-factor
