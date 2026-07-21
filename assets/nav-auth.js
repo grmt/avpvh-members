@@ -54,6 +54,26 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // --- keep opened dropdowns/submenus from falling outside the viewport ---
+    // Covers both our own account menu and core's "has-child" nav submenus
+    // (e.g. the "Alleen voor Leden" submenu in the footer): whenever one of
+    // these toggles to aria-expanded="true", scroll its containing <li> into
+    // view if expanding it pushed part of it past the bottom edge.
+    new MutationObserver(function (mutations) {
+        mutations.forEach(function (m) {
+            var target = m.target;
+            if (!target.matches('.avpvh-auth-status__toggle, .wp-block-navigation-submenu__toggle')) return;
+            if (target.getAttribute('aria-expanded') !== 'true') return;
+            var li = target.closest('li');
+            if (!li) return;
+            requestAnimationFrame(function () {
+                if (li.getBoundingClientRect().bottom > window.innerHeight) {
+                    li.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                }
+            });
+        });
+    }).observe(document.body, { attributes: true, attributeFilter: ['aria-expanded'], subtree: true });
+
     function openMenu(li, toggle, menu) {
         li.classList.add('is-open');
         toggle.setAttribute('aria-expanded', 'true');
