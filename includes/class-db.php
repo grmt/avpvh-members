@@ -21,10 +21,13 @@ class AVPVH_DB {
             suffix VARCHAR(50) NOT NULL DEFAULT '',
             last_name VARCHAR(100) NOT NULL DEFAULT '',
             baptism_name VARCHAR(200) NOT NULL DEFAULT '',
+            passport_name VARCHAR(200) NOT NULL DEFAULT '',
             birth_date DATE NULL,
             phone VARCHAR(30) NOT NULL DEFAULT '',
             mobile VARCHAR(30) NOT NULL DEFAULT '',
             emergency_contact VARCHAR(200) NOT NULL DEFAULT '',
+            family_relation_member_id INT UNSIGNED NULL,
+            diet VARCHAR(255) NOT NULL DEFAULT '',
             status ENUM('active','inactive','visitor') NOT NULL DEFAULT 'active',
             joined_year YEAR NULL,
             left_year YEAR NULL,
@@ -38,7 +41,8 @@ class AVPVH_DB {
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY lldap_user_id (lldap_user_id),
-            KEY wp_user_id (wp_user_id)
+            KEY wp_user_id (wp_user_id),
+            KEY family_relation_member_id (family_relation_member_id)
         ) $charset;");
 
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_addresses (
@@ -257,6 +261,14 @@ class AVPVH_DB {
                 MODIFY directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'granted'");
             update_option('avpvh_db_version', '1.8');
         }
+        if (version_compare($version, '1.9', '<')) {
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                ADD COLUMN passport_name VARCHAR(200) NOT NULL DEFAULT '' AFTER baptism_name,
+                ADD COLUMN family_relation_member_id INT UNSIGNED NULL AFTER emergency_contact,
+                ADD COLUMN diet VARCHAR(255) NOT NULL DEFAULT '' AFTER family_relation_member_id,
+                ADD KEY family_relation_member_id (family_relation_member_id)");
+            update_option('avpvh_db_version', '1.9');
+        }
     }
 
     public static function log_attempt(string $email, string $method, string $result): void {
@@ -301,8 +313,8 @@ class AVPVH_DB {
         $lldap = self::lldap();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
-                       m.first_name, m.suffix, m.last_name, m.baptism_name, m.birth_date,
-                       m.phone, m.mobile, m.emergency_contact,
+                       m.first_name, m.suffix, m.last_name, m.baptism_name, m.passport_name, m.birth_date,
+                       m.phone, m.mobile, m.emergency_contact, m.family_relation_member_id, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
                        m.share_email, m.share_phone, m.share_address, m.share_camp_history,
