@@ -14,8 +14,8 @@ class AVPVH_Ledenlijst {
         }
         global $post;
         if ($post && has_shortcode($post->post_content, 'avpvh_ledenlijst')) {
-            wp_enqueue_script('avpvh-ledenlijst', plugin_dir_url(dirname(__FILE__)) . 'assets/ledenlijst.js', [], '1.0', true);
-            wp_enqueue_style('avpvh-ledenlijst', plugin_dir_url(dirname(__FILE__)) . 'assets/ledenlijst.css', [], '1.0');
+            wp_enqueue_script('avpvh-ledenlijst', plugin_dir_url(dirname(__FILE__)) . 'assets/ledenlijst.js', [], avpvh_asset_version('assets/ledenlijst.js'), true);
+            wp_enqueue_style('avpvh-ledenlijst', plugin_dir_url(dirname(__FILE__)) . 'assets/ledenlijst.css', [], avpvh_asset_version('assets/ledenlijst.css'));
         }
     }
 
