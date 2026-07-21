@@ -516,14 +516,14 @@ class AVPVH_Member_Profile_Form {
                 'avpvh-registration',
                 plugin_dir_url(dirname(__FILE__)) . 'assets/registration.css',
                 [],
-                '1.0'
+                avpvh_asset_version('assets/registration.css')
             );
 
             wp_enqueue_script(
                 'avpvh-registration',
                 plugin_dir_url(dirname(__FILE__)) . 'assets/registration.js',
                 ['jquery'],
-                '1.0',
+                avpvh_asset_version('assets/registration.js'),
                 true
             );
 
