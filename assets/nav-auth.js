@@ -18,8 +18,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- inject the account menu into every nav ---
-    var navs = document.querySelectorAll('nav.wp-block-navigation');
+    // --- inject the account menu into the header nav only ---
+    // (the footer has its own separate nav.wp-block-navigation blocks —
+    // e.g. "Menu" and "Privacy" columns — that shouldn't each get one too)
+    var navs = document.querySelectorAll('header.wp-block-template-part nav.wp-block-navigation');
     navs.forEach(function (nav) {
         // find the top-level <ul>
         var ul = nav.querySelector('.wp-block-navigation__container');
@@ -28,6 +30,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         ul.appendChild(makeAccountItem(cfg));
     });
+
+    // --- temporary viewport debug badge, only with ?avpvh_debug=1 ---
+    if (/[?&]avpvh_debug=1/.test(location.search)) {
+        var badge = document.createElement('div');
+        badge.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999999;'
+            + 'background:#c00;color:#fff;font:12px monospace;padding:.4em;text-align:center;';
+        function updateBadge() {
+            badge.textContent = 'innerWidth=' + window.innerWidth
+                + ' innerHeight=' + window.innerHeight
+                + ' visualViewportHeight=' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a')
+                + ' orientation=' + (screen.orientation ? screen.orientation.type : 'n/a');
+        }
+        updateBadge();
+        window.addEventListener('resize', updateBadge);
+        document.body.appendChild(badge);
+    }
 
     // Close any open account menu when clicking outside it.
     document.addEventListener('click', function (e) {
