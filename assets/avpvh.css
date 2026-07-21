@@ -72,6 +72,19 @@
     display: block;
 }
 
+.avpvh-informatiefje-toc {
+    columns: 2;
+    column-gap: 2rem;
+    margin: 0 0 1.5rem;
+    padding-left: 1.2rem;
+}
+
+@media (max-width: 600px) {
+    .avpvh-informatiefje-toc {
+        columns: 1;
+    }
+}
+
 .avpvh-members-only {
     padding: 2rem;
     border: 1px solid #e0e0e0;
