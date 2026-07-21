@@ -257,9 +257,10 @@ class AVPVH_Member_Profile_Form {
 
             <?php if ($member->directory_consent === 'granted') : ?>
                 <p>
-                    Je gegevens zijn zichtbaar voor andere ingelogde actieve leden in de
-                    ledenlijst, zoals beschreven in de privacyverklaring. Hieronder kun je
-                    losse gegevens afschermen, of je gegevens volledig verbergen.
+                    Zoals beschreven in de privacyverklaring zijn je gegevens alleen
+                    zichtbaar voor andere actieve leden, maar alleen als ze ingelogd zijn.
+                    Hieronder kan je door het vinkje te verwijderen aangeven welke gegevens
+                    je ook voor hen wil verbergen.
                 </p>
             <?php else : ?>
                 <p>Je deelt momenteel geen gegevens met andere leden in de ledenlijst.</p>
