@@ -48,6 +48,10 @@ def cell_color(cell) -> str | None:
     return '#' + rgb[-6:]
 
 
+def cell_bold(cell) -> bool:
+    return bool(cell.font and cell.font.bold)
+
+
 def cell_value(cell) -> str:
     v = cell.value
     if v is None:
@@ -67,7 +71,7 @@ def build_grid(ws) -> dict:
         row = []
         for c in range(GRID_FIRST_COL, GRID_LAST_COL + 1):
             cell = ws.cell(row=r, column=c)
-            row.append({'v': cell_value(cell), 'c': cell_color(cell)})
+            row.append({'v': cell_value(cell), 'c': cell_color(cell), 'b': cell_bold(cell)})
         grid.append(row)
 
     return {'title': title, 'last_updated': last_updated, 'note': note, 'grid': grid}

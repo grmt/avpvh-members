@@ -49,8 +49,16 @@ class AVPVH_Kamp_Overzicht {
                 <table class="avpvh-kamp-overzicht-tabel">
                     <?php foreach ($data['grid'] as $row) : ?>
                         <tr>
-                            <?php foreach ($row as $cell) : ?>
-                                <td<?php echo !empty($cell['c']) ? ' style="background:' . esc_attr($cell['c']) . '"' : ''; ?>><?php echo esc_html($cell['v'] ?? ''); ?></td>
+                            <?php foreach ($row as $cell) :
+                                $style = [];
+                                if (!empty($cell['c'])) {
+                                    $style[] = 'background:' . $cell['c'];
+                                }
+                                if (!empty($cell['b'])) {
+                                    $style[] = 'font-weight:bold';
+                                }
+                            ?>
+                                <td<?php echo $style ? ' style="' . esc_attr(implode(';', $style)) . '"' : ''; ?>><?php echo esc_html($cell['v'] ?? ''); ?></td>
                             <?php endforeach; ?>
                         </tr>
                     <?php endforeach; ?>
