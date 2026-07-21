@@ -139,104 +139,17 @@
     margin: -.25rem 0 0;
 }
 
-.avpvh-auth-status {
-    position: relative;
-    display: flex;
-    align-items: center;
+/* The account entry reuses core's own has-child/submenu-toggle markup and
+   CSS (same as "Welkom!", "De vereniging", ...) so positioning, the mobile
+   overlay layout, and the "Alleen voor Leden"-style behaviour all come for
+   free. Only the icon-only toggle and the non-link name label need a touch
+   of their own styling. */
+.avpvh-auth-status .wp-block-navigation-submenu__toggle {
+    padding: .5em;
 }
 
-.avpvh-auth-status__toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    padding: .3rem;
-    margin: 0;
-    line-height: 0;
-    color: inherit;
-    cursor: pointer;
-    border-radius: 999px;
-}
-
-.avpvh-auth-status__toggle:hover,
-.avpvh-auth-status.is-open .avpvh-auth-status__toggle {
-    background: rgba(0, 0, 0, .06);
-}
-
-.avpvh-auth-status__menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    z-index: 100;
-    margin: .3rem 0 0;
-    padding: .4rem 0;
-    min-width: 11rem;
-    list-style: none;
-    background: #fff;
-    color: #333;
-    border-radius: 6px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
-}
-
-.avpvh-auth-status__menu[hidden] {
-    display: none;
-}
-
-.avpvh-auth-status__menu-label {
-    padding: .4rem 1rem;
+.avpvh-auth-status__menu-label .wp-block-navigation-item__content {
     font-size: .8rem;
-    font-weight: 600;
-    color: #555;
+    color: #777;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.avpvh-auth-status__menu li a {
-    display: block;
-    padding: .4rem 1rem;
-    color: #333;
-    text-decoration: none;
-    white-space: nowrap;
-}
-
-.avpvh-auth-status__menu li a:hover {
-    background: #f2f4f7;
-    color: #333;
-}
-
-/* Inside the mobile full-screen menu overlay, nav items stack in a column
-   instead of sitting in a horizontal bar. The absolute/right-anchored
-   dropdown positioning (designed for the desktop nav bar) doesn't make
-   sense there and can push the menu off-screen — let it flow inline as
-   a normal part of the stacked list instead. */
-.wp-block-navigation__responsive-container.is-menu-open .avpvh-auth-status {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-}
-
-.wp-block-navigation__responsive-container.is-menu-open .avpvh-auth-status__toggle {
-    width: 100%;
-    justify-content: flex-start;
-    padding: .5em 0;
-}
-
-.wp-block-navigation__responsive-container.is-menu-open .avpvh-auth-status__menu {
-    position: static;
-    box-shadow: none;
-    background: transparent;
-    min-width: 0;
-    width: 100%;
-    margin: 0 0 0 .5rem;
-    padding: 0;
-}
-
-.wp-block-navigation__responsive-container.is-menu-open .avpvh-auth-status__menu-label {
-    padding: .3rem 0;
-}
-
-.wp-block-navigation__responsive-container.is-menu-open .avpvh-auth-status__menu li a {
-    padding: .3rem 0;
 }
