@@ -513,14 +513,14 @@ class AVPVH_Member_Profile_Form {
         if (is_singular() && has_shortcode(get_post()->post_content ?? '', 'avpvh_member_profile')) {
             wp_enqueue_style(
                 'avpvh-registration',
-                plugin_dir_url(AVPVH_PLUGIN_DIR) . 'assets/registration.css',
+                plugin_dir_url(dirname(__FILE__)) . 'assets/registration.css',
                 [],
                 '1.0'
             );
 
             wp_enqueue_script(
                 'avpvh-registration',
-                plugin_dir_url(AVPVH_PLUGIN_DIR) . 'assets/registration.js',
+                plugin_dir_url(dirname(__FILE__)) . 'assets/registration.js',
                 ['jquery'],
                 '1.0',
                 true
