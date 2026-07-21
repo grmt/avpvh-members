@@ -50,11 +50,13 @@
     }
 }
 
-/* Word/LibreOffice HTML export uses the legacy align="left"/"right" <img>
-   attribute for text-wrap layout. Without any clearfix in the exported
-   markup, those floats can escape their paragraph and drift up over
-   whatever precedes the content (e.g. the site header) — and a fixed
-   pixel width doesn't fit a phone screen. Neutralize both. */
+/* Word/LibreOffice HTML export positions some images two different ways:
+   the legacy align="left"/"right" <img> attribute (a plain float, escapes
+   its paragraph without a clearfix), and images that had a fixed
+   "position on page" text-wrap in Word, exported as a <span
+   class="sd-abs-pos" style="position:absolute; top:...; left:..."> —
+   which anchors them to the page's top-left regardless of where they sit
+   in the document. Neutralize both, and cap image width for phones. */
 .avpvh-informatiefje {
     overflow: auto;
 }
@@ -63,6 +65,11 @@
     float: none !important;
     max-width: 100%;
     height: auto;
+}
+
+.avpvh-informatiefje .sd-abs-pos {
+    position: static !important;
+    display: block;
 }
 
 .avpvh-members-only {
