@@ -41,6 +41,19 @@
         font-size: .65rem;
         padding: .2rem .5rem;
     }
+
+    /* Core's navigation block only auto-collapses to a hamburger below 600px
+       WIDTH (wp-includes/blocks/navigation/style.min.css). Landscape phones
+       are usually wider than that, so without this override the full menu
+       (including the login badge) stays permanently expanded there instead
+       of collapsing behind the toggle button like it does in portrait. */
+    .wp-block-navigation__responsive-container-open:not(.always-shown) {
+        display: flex !important;
+    }
+
+    .wp-block-navigation__responsive-container:not(.is-menu-open) {
+        display: none !important;
+    }
 }
 
 .avpvh-members-only {
