@@ -47,10 +47,13 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.appendChild(badge);
     }
 
-    // Close any open account menu when clicking outside it.
+    // Close the account menu when clicking outside it (core's own submenus
+    // already handle this for themselves via the Interactivity API).
     document.addEventListener('click', function (e) {
-        document.querySelectorAll('.avpvh-auth-status.is-open').forEach(function (li) {
-            if (!li.contains(e.target)) closeMenu(li);
+        document.querySelectorAll('.avpvh-auth-status').forEach(function (li) {
+            if (li.contains(e.target)) return;
+            var toggle = li.querySelector('.wp-block-navigation-submenu__toggle');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
         });
     });
 
@@ -62,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
     new MutationObserver(function (mutations) {
         mutations.forEach(function (m) {
             var target = m.target;
-            if (!target.matches('.avpvh-auth-status__toggle, .wp-block-navigation-submenu__toggle')) return;
+            if (!target.matches('.wp-block-navigation-submenu__toggle')) return;
             if (target.getAttribute('aria-expanded') !== 'true') return;
             var li = target.closest('li');
             if (!li) return;
@@ -74,28 +77,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }).observe(document.body, { attributes: true, attributeFilter: ['aria-expanded'], subtree: true });
 
-    function openMenu(li, toggle, menu) {
-        li.classList.add('is-open');
-        toggle.setAttribute('aria-expanded', 'true');
-        menu.hidden = false;
-    }
-
-    function closeMenu(li) {
-        var toggle = li.querySelector('.avpvh-auth-status__toggle');
-        var menu = li.querySelector('.avpvh-auth-status__menu');
-        li.classList.remove('is-open');
-        if (toggle) toggle.setAttribute('aria-expanded', 'false');
-        if (menu) menu.hidden = true;
-    }
-
+    // Builds the account entry using the same has-child/submenu-toggle
+    // markup core's own nav menu items use (e.g. "Welkom!", "De vereniging"),
+    // so it automatically gets their existing desktop dropdown positioning
+    // and mobile full-screen-overlay behaviour for free — no bespoke CSS.
     function makeAccountItem(cfg) {
         var li = document.createElement('li');
-        li.className = 'wp-block-navigation-item avpvh-auth-status';
+        li.className = 'wp-block-navigation-item has-child open-on-hover-click wp-block-navigation-submenu avpvh-auth-status';
 
         var toggle = document.createElement('button');
         toggle.type = 'button';
-        toggle.className = 'avpvh-auth-status__toggle';
-        toggle.setAttribute('aria-haspopup', 'true');
+        toggle.className = 'wp-block-navigation__submenu-icon wp-block-navigation-submenu__toggle';
         toggle.setAttribute('aria-expanded', 'false');
         toggle.setAttribute('aria-label', 'Account');
         toggle.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">'
@@ -103,14 +95,12 @@ document.addEventListener('DOMContentLoaded', function () {
             + '</svg>';
         toggle.addEventListener('click', function (e) {
             e.stopPropagation();
-            var isOpen = li.classList.contains('is-open');
-            document.querySelectorAll('.avpvh-auth-status.is-open').forEach(closeMenu);
-            if (!isOpen) openMenu(li, toggle, menu);
+            var isOpen = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
         });
 
         var menu = document.createElement('ul');
-        menu.className = 'avpvh-auth-status__menu';
-        menu.hidden = true;
+        menu.className = 'wp-block-navigation__submenu-container wp-block-navigation-submenu';
 
         if (cfg.isLoggedIn) {
             var nameLabel = cfg.userLabel + ' · ' + (cfg.isActiveMember ? 'Lid' : 'Geen lid');
@@ -128,15 +118,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function makeMenuLabel(text, title) {
         var li = document.createElement('li');
-        li.className = 'avpvh-auth-status__menu-label';
-        li.textContent = text;
-        if (title) li.title = title;
+        li.className = 'wp-block-navigation-item wp-block-navigation-link avpvh-auth-status__menu-label';
+        var span = document.createElement('span');
+        span.className = 'wp-block-navigation-item__content';
+        span.textContent = text;
+        if (title) span.title = title;
+        li.appendChild(span);
         return li;
     }
 
     function makeMenuLink(label, url) {
         var li = document.createElement('li');
+        li.className = 'wp-block-navigation-item wp-block-navigation-link';
         var a = document.createElement('a');
+        a.className = 'wp-block-navigation-item__content';
         a.href = url;
         a.textContent = label;
         li.appendChild(a);
