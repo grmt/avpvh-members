@@ -187,8 +187,16 @@ class AVPVH_OAuth {
         $profile_url = home_url('/member-profile/');
         $redirect_args = ['member_id' => $member_id];
 
-        // The requesting session must still be logged in as the same user.
-        if (!is_user_logged_in() || get_current_user_id() !== $user_id) {
+        // Identify the requester from the state transient we issued at the
+        // start of the flow, not from the request's own cookies: REST
+        // requests reached via a plain browser redirect (as this callback
+        // is, from Google/Microsoft) don't carry the wp_rest nonce cookie
+        // auth needs, so is_user_logged_in() can't be trusted here. The
+        // transient itself — keyed by the random `state` value we generated
+        // and only the real OAuth round-trip could echo back — is already
+        // the CSRF protection for this flow.
+        $requesting_user = $user_id ? get_userdata($user_id) : false;
+        if (!$requesting_user) {
             wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'not_you'], $profile_url));
             exit;
         }
@@ -216,7 +224,7 @@ class AVPVH_OAuth {
             exit;
         }
 
-        AVPVH_Member_Profile_Form::notify_identity_change($member, $own_member, 'toegevoegd', $provider, $email);
+        AVPVH_Member_Profile_Form::notify_identity_change($member, $own_member, 'toegevoegd', $provider, $email, $requesting_user);
 
         wp_redirect(add_query_arg($redirect_args + ['identity_added' => '1'], $profile_url));
         exit;
@@ -296,7 +304,14 @@ class AVPVH_OAuth {
     }
 
     public static function add_identity_url(string $provider, int $member_id): string {
-        return add_query_arg('add_member_id', $member_id, rest_url('avpvh/v1/oauth/' . $provider . '/start'));
+        // Cookie-authenticated REST requests need a valid wp_rest nonce or
+        // WordPress ignores the logged-in cookie entirely (CSRF protection) —
+        // without this, is_user_logged_in() would see a guest even though the
+        // member is clearly logged in in their browser.
+        return add_query_arg(
+            ['add_member_id' => $member_id, '_wpnonce' => wp_create_nonce('wp_rest')],
+            rest_url('avpvh/v1/oauth/' . $provider . '/start')
+        );
     }
 
     public static function login_url(string $provider): string {
