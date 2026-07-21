@@ -1,11 +1,10 @@
-/* Compact mobile header: logo + 2-line title/tagline, same height as the
-   hamburger icon, all on one row — matches the small-logo/small-text style
-   the footer's own site-logo/title block already uses. */
+/* Compact mobile header: shrink the logo + title so the logo/title group
+   (NOT the outer header row, which also holds the nav/hamburger and needs
+   to keep the theme's own responsive wrap behavior) takes up less space. */
 @media (max-width: 600px) {
-    header.wp-block-template-part .wp-block-group.is-layout-flex {
+    header.wp-block-template-part .wp-block-group.is-layout-flex:has(> .wp-block-site-logo) {
         align-items: center;
-        flex-wrap: nowrap;
-        gap: .5rem;
+        gap: .4rem;
     }
 
     header.wp-block-template-part .wp-block-site-logo img {
@@ -16,17 +15,7 @@
     header.wp-block-template-part .wp-block-site-title {
         font-size: .75rem !important;
         line-height: 1.15;
-        max-width: 9rem;
-    }
-
-    header.wp-block-template-part .wp-block-site-tagline {
-        font-size: .65rem !important;
-        line-height: 1.1;
-        margin: 0;
-    }
-
-    header.wp-block-template-part .wp-block-navigation__responsive-container-open {
-        padding: 0;
+        max-width: 11rem;
     }
 }
 
