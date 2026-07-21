@@ -50,6 +50,21 @@
     }
 }
 
+/* Word/LibreOffice HTML export uses the legacy align="left"/"right" <img>
+   attribute for text-wrap layout. Without any clearfix in the exported
+   markup, those floats can escape their paragraph and drift up over
+   whatever precedes the content (e.g. the site header) — and a fixed
+   pixel width doesn't fit a phone screen. Neutralize both. */
+.avpvh-informatiefje {
+    overflow: auto;
+}
+
+.avpvh-informatiefje img {
+    float: none !important;
+    max-width: 100%;
+    height: auto;
+}
+
 .avpvh-members-only {
     padding: 2rem;
     border: 1px solid #e0e0e0;
@@ -142,10 +157,17 @@
 /* The account entry reuses core's own has-child/submenu-toggle markup and
    CSS (same as "Welkom!", "De vereniging", ...) so positioning, the mobile
    overlay layout, and the "Alleen voor Leden"-style behaviour all come for
-   free. Only the icon-only toggle and the non-link name label need a touch
-   of their own styling. */
-.avpvh-auth-status .wp-block-navigation-submenu__toggle {
-    padding: .5em;
+   free. Only the icon button itself and the non-link name label need a
+   touch of their own styling — a <button> doesn't inherit the same
+   font/line-height as the <a> other items use for their text label. */
+.avpvh-auth-status__content {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
 }
 
 .avpvh-auth-status__menu-label .wp-block-navigation-item__content {

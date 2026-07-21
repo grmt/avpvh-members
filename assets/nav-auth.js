@@ -85,19 +85,31 @@ document.addEventListener('DOMContentLoaded', function () {
         var li = document.createElement('li');
         li.className = 'wp-block-navigation-item has-child open-on-hover-click wp-block-navigation-submenu avpvh-auth-status';
 
-        var toggle = document.createElement('button');
-        toggle.type = 'button';
-        toggle.className = 'wp-block-navigation__submenu-icon wp-block-navigation-submenu__toggle';
-        toggle.setAttribute('aria-expanded', 'false');
-        toggle.setAttribute('aria-label', 'Account');
-        toggle.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">'
+        function toggleOpen(e) {
+            e.stopPropagation();
+            var isOpen = chevron.getAttribute('aria-expanded') === 'true';
+            chevron.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+        }
+
+        // The icon acts as the item's "label" — same role as the <a> text
+        // ("Welkom!", "De vereniging", ...) other top-level items use — so
+        // it picks up their sizing/spacing instead of being an orphan toggle.
+        var content = document.createElement('button');
+        content.type = 'button';
+        content.className = 'wp-block-navigation-item__content avpvh-auth-status__content';
+        content.setAttribute('aria-label', 'Account');
+        content.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
             + '<path fill="currentColor" d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z"/>'
             + '</svg>';
-        toggle.addEventListener('click', function (e) {
-            e.stopPropagation();
-            var isOpen = toggle.getAttribute('aria-expanded') === 'true';
-            toggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
-        });
+        content.addEventListener('click', toggleOpen);
+
+        var chevron = document.createElement('button');
+        chevron.type = 'button';
+        chevron.className = 'wp-block-navigation__submenu-icon wp-block-navigation-submenu__toggle';
+        chevron.setAttribute('aria-expanded', 'false');
+        chevron.setAttribute('aria-label', 'Account submenu');
+        chevron.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false"><path d="M1.50002 4L6.00002 8L10.5 4" stroke-width="1.5"></path></svg>';
+        chevron.addEventListener('click', toggleOpen);
 
         var menu = document.createElement('ul');
         menu.className = 'wp-block-navigation__submenu-container wp-block-navigation-submenu';
@@ -111,7 +123,8 @@ document.addEventListener('DOMContentLoaded', function () {
             menu.appendChild(makeMenuLink('Inloggen', cfg.loginUrl));
         }
 
-        li.appendChild(toggle);
+        li.appendChild(content);
+        li.appendChild(chevron);
         li.appendChild(menu);
         return li;
     }
