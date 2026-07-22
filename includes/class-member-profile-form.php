@@ -234,21 +234,17 @@ class AVPVH_Member_Profile_Form {
     }
 
     /**
-     * Self-service e-mail/identity management: shows the member's up-to-3
-     * login identities (one per provider: email/google/microsoft), lets them
-     * verify-and-add a Google/Microsoft account, and remove one (with a
-     * warning if it's the address they're currently logged in with).
+     * Self-service e-mail/identity management: shows the member's login
+     * identities (up to 3 in total, any mix of providers — e.g. two
+     * Google-verified addresses is fine), lets them verify-and-add a
+     * Google/Microsoft account, and remove one (with a warning if it's the
+     * address they're currently logged in with).
      */
     private function render_identities($member): void {
         $identities = AVPVH_DB::get_member_identities((int) $member->id);
-        $by_provider = [];
-        foreach ($identities as $identity) {
-            $by_provider[$identity->provider] = $identity;
-        }
-
         $current_user = wp_get_current_user();
-        $providers = [
-            'email'     => 'E-mailadres',
+        $provider_labels = [
+            'email'     => 'Alleen wachtwoord',
             'google'    => 'Google',
             'microsoft' => 'Microsoft',
         ];
@@ -256,10 +252,9 @@ class AVPVH_Member_Profile_Form {
         <fieldset class="avpvh-identities">
             <legend>Inlog-e-mailadressen</legend>
             <p>
-                Je kunt tot drie e-mailadressen koppelen om mee in te loggen: één gewoon
-                e-mailadres, één Google-account en één Microsoft-account. Om een adres toe
-                te voegen moet je er daadwerkelijk mee inloggen, zodat we weten dat het
-                echt van jou is.
+                Je kunt tot drie e-mailadressen koppelen om mee in te loggen, in elke
+                combinatie van methodes. Om een adres toe te voegen moet je er daadwerkelijk
+                mee inloggen, zodat we weten dat het echt van jou is.
             </p>
 
             <?php if (!empty($_GET['identity_added'])) : ?>
@@ -280,44 +275,43 @@ class AVPVH_Member_Profile_Form {
             <?php endif; ?>
 
             <table class="avpvh-identities-table">
-                <?php foreach ($providers as $key => $label) : ?>
+                <?php foreach ($identities as $identity) :
+                    $is_current_login = strcasecmp($identity->email, $current_user->user_email) === 0;
+                    $label = $provider_labels[$identity->provider] ?? $identity->provider;
+                ?>
                     <tr>
+                        <td><?php echo esc_html($identity->email); ?></td>
                         <td><?php echo esc_html($label); ?></td>
-                        <?php if (isset($by_provider[$key])) :
-                            $identity = $by_provider[$key];
-                            $is_current_login = strcasecmp($identity->email, $current_user->user_email) === 0;
-                        ?>
-                            <td><?php echo esc_html($identity->email); ?></td>
-                            <td>
-                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                    onsubmit="return confirm('<?php echo $is_current_login
-                                        ? esc_js('Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?')
-                                        : esc_js('Dit e-mailadres verwijderen?'); ?>');">
-                                    <?php wp_nonce_field('avpvh_remove_identity'); ?>
-                                    <input type="hidden" name="action" value="avpvh_remove_identity">
-                                    <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
-                                    <input type="hidden" name="provider" value="<?php echo esc_attr($key); ?>">
-                                    <button type="submit" class="button">Verwijderen</button>
-                                </form>
-                            </td>
-                        <?php else : ?>
-                            <td><em>niet gekoppeld</em></td>
-                            <td>
-                                <?php if ($key === 'email') : ?>
-                                    —
-                                <?php else :
-                                    $configured = AVPVH_OAuth::configured_providers();
-                                    if (isset($configured[$key])) :
-                                ?>
-                                    <a class="button" href="<?php echo esc_url(AVPVH_OAuth::add_identity_url($key, (int) $member->id)); ?>">
-                                        Verifieer en voeg toe
-                                    </a>
-                                <?php endif; endif; ?>
-                            </td>
-                        <?php endif; ?>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                onsubmit="return confirm('<?php echo $is_current_login
+                                    ? esc_js('Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?')
+                                    : esc_js('Dit e-mailadres verwijderen?'); ?>');">
+                                <?php wp_nonce_field('avpvh_remove_identity'); ?>
+                                <input type="hidden" name="action" value="avpvh_remove_identity">
+                                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                                <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
+                                <button type="submit" class="button">Verwijderen</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
+                <?php if (!$identities) : ?>
+                    <tr><td colspan="3"><em>Nog geen e-mailadressen gekoppeld.</em></td></tr>
+                <?php endif; ?>
             </table>
+
+            <?php if (count($identities) < 3) :
+                $configured = AVPVH_OAuth::configured_providers();
+            ?>
+                <p class="avpvh-identities-add">
+                    <?php foreach ($configured as $key => $provider) : ?>
+                        <a class="button" href="<?php echo esc_url(AVPVH_OAuth::add_identity_url($key, (int) $member->id)); ?>">
+                            Verifieer en voeg <?php echo esc_html($provider['label']); ?> toe
+                        </a>
+                    <?php endforeach; ?>
+                </p>
+            <?php endif; ?>
         </fieldset>
         <?php
     }
@@ -543,8 +537,8 @@ class AVPVH_Member_Profile_Form {
             wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
         }
 
-        $member_id = (int) ($_POST['member_id'] ?? 0);
-        $provider  = sanitize_key($_POST['provider'] ?? '');
+        $member_id   = (int) ($_POST['member_id'] ?? 0);
+        $identity_id = (int) ($_POST['identity_id'] ?? 0);
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
 
         if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
@@ -563,16 +557,18 @@ class AVPVH_Member_Profile_Form {
         }
 
         $removed_email = null;
+        $removed_provider = null;
         foreach ($identities as $identity) {
-            if ($identity->provider === $provider) {
+            if ((int) $identity->id === $identity_id) {
                 $removed_email = $identity->email;
+                $removed_provider = $identity->provider;
                 break;
             }
         }
 
         if ($removed_email) {
-            AVPVH_DB::delete_identity($member_id, $provider);
-            self::notify_identity_change($member, $own_member, 'verwijderd', $provider, $removed_email);
+            AVPVH_DB::delete_identity_by_id($member_id, $identity_id);
+            self::notify_identity_change($member, $own_member, 'verwijderd', $removed_provider, $removed_email);
         }
 
         wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_removed' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
