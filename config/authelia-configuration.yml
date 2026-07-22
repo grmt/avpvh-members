@@ -68,11 +68,19 @@ access_control:
         - '^/wp-admin/admin-post\.php'
       policy: 'bypass'
 
-    # wp-admin requires two-factor
+    # wp-admin: two-factor for board members (group "bestuur"), denied for
+    # everyone else — regular members have no business there at all.
     - domain: 'www.avphilipsvanhorne.nl'
       resources:
         - '^/wp-admin/.*'
+      subject:
+        - 'group:bestuur'
       policy: 'two_factor'
+
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/wp-admin/.*'
+      policy: 'deny'
 
     # All other pages: bypass Authelia, WordPress plugin handles access control
     - domain: 'www.avphilipsvanhorne.nl'
