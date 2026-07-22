@@ -176,6 +176,12 @@ button.button-primary:active {
     vertical-align: middle;
 }
 
+.avpvh-identities-add {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
 .avpvh-identity-notice {
     padding: .6rem 1rem;
     background: #d4edda;

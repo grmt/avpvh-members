@@ -135,7 +135,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                         <?php wp_nonce_field('avpvh_primary_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_primary_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                        <input type="hidden" name="provider" value="<?php echo esc_attr($identity->provider); ?>">
+                        <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
                         <button type="submit" class="button button-small">Maak primair</button>
                     </form>
                     <?php endif; ?>
@@ -143,7 +143,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                         <?php wp_nonce_field('avpvh_delete_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_delete_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                        <input type="hidden" name="provider" value="<?php echo esc_attr($identity->provider); ?>">
+                        <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
                         <button type="submit" class="button button-small">Verwijder</button>
                     </form>
                 </td>
