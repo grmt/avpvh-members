@@ -273,10 +273,13 @@ class AVPVH_DB {
             // exactly one per provider — drop the per-provider slot limit,
             // and make plain e-mail address uniqueness global instead of
             // scoped to provider (an address can never belong to more than
-            // one member, whichever method verified it).
+            // one member, whichever method verified it). The original schema
+            // also had a separate plain KEY named "email" — must go too, or
+            // adding the new UNIQUE KEY of the same name collides with it.
             $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_member_identities
                 DROP INDEX member_provider,
                 DROP INDEX provider_email,
+                DROP INDEX email,
                 ADD UNIQUE KEY email (email(191))");
             update_option('avpvh_db_version', '2.0');
         }
