@@ -279,9 +279,9 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $member_id = (int) ($_POST['member_id'] ?? 0);
-        $provider  = sanitize_key($_POST['provider'] ?? '');
-        AVPVH_DB::delete_identity($member_id, $provider);
+        $member_id   = (int) ($_POST['member_id'] ?? 0);
+        $identity_id = (int) ($_POST['identity_id'] ?? 0);
+        AVPVH_DB::delete_identity_by_id($member_id, $identity_id);
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_deleted' => '1'], admin_url('admin.php')));
         exit;
@@ -293,9 +293,9 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $member_id = (int) ($_POST['member_id'] ?? 0);
-        $provider  = sanitize_key($_POST['provider'] ?? '');
-        AVPVH_DB::set_primary_identity($member_id, $provider);
+        $member_id   = (int) ($_POST['member_id'] ?? 0);
+        $identity_id = (int) ($_POST['identity_id'] ?? 0);
+        AVPVH_DB::set_primary_identity($member_id, $identity_id);
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_primary' => '1'], admin_url('admin.php')));
         exit;
