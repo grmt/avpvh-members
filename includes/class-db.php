@@ -123,10 +123,8 @@ class AVPVH_DB {
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY provider_email (provider, email(191)),
-            UNIQUE KEY member_provider (member_id, provider),
-            KEY member_id (member_id),
-            KEY email (email(100))
+            UNIQUE KEY email (email(191)),
+            KEY member_id (member_id)
         ) $charset;");
 
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_family_members (
@@ -268,6 +266,19 @@ class AVPVH_DB {
                 ADD COLUMN diet VARCHAR(255) NOT NULL DEFAULT '' AFTER family_relation_member_id,
                 ADD KEY family_relation_member_id (family_relation_member_id)");
             update_option('avpvh_db_version', '1.9');
+        }
+        if (version_compare($version, '2.0', '<')) {
+            // Members may now have up to 3 identities in total regardless of
+            // provider (e.g. two Google-verified addresses), rather than
+            // exactly one per provider — drop the per-provider slot limit,
+            // and make plain e-mail address uniqueness global instead of
+            // scoped to provider (an address can never belong to more than
+            // one member, whichever method verified it).
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_member_identities
+                DROP INDEX member_provider,
+                DROP INDEX provider_email,
+                ADD UNIQUE KEY email (email(191))");
+            update_option('avpvh_db_version', '2.0');
         }
     }
 
@@ -420,6 +431,15 @@ class AVPVH_DB {
         );
     }
 
+    /**
+     * Adds (or re-verifies) an identity for a member. Members may have up to
+     * 3 identities in total regardless of provider — e.g. two Google-verified
+     * addresses is fine — so the limit is a total count, not one per
+     * provider. An address that's already on file for this exact member just
+     * gets its provider/primary flag updated (e.g. a plain "email" entry
+     * later confirmed via Google); the email column's global uniqueness
+     * constraint prevents it ever being claimed by a different member.
+     */
     public static function ensure_identity(int $member_id, string $provider, string $email, bool $primary = false): bool {
         global $wpdb;
         $provider = sanitize_key($provider);
@@ -428,14 +448,15 @@ class AVPVH_DB {
             return false;
         }
 
-        $count = self::get_member_identity_count($member_id);
         $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}avm_member_identities WHERE member_id = %d AND provider = %s",
-            $member_id,
-            $provider
+            "SELECT id, member_id FROM {$wpdb->prefix}avm_member_identities WHERE email = %s",
+            $email
         ));
+        if ($existing && (int) $existing->member_id !== $member_id) {
+            return false;
+        }
 
-        if (!$existing && $count >= 3) {
+        if (!$existing && self::get_member_identity_count($member_id) >= 3) {
             return false;
         }
 
@@ -449,7 +470,7 @@ class AVPVH_DB {
         if ($existing) {
             return (bool) $wpdb->update(
                 "{$wpdb->prefix}avm_member_identities",
-                ['email' => $email, 'is_primary' => $primary ? 1 : 0],
+                ['provider' => $provider, 'is_primary' => $primary ? 1 : 0],
                 ['id' => (int) $existing->id],
                 ['%s', '%d'],
                 ['%d']
@@ -468,26 +489,18 @@ class AVPVH_DB {
         );
     }
 
-    public static function delete_identity(int $member_id, string $provider): bool {
+    public static function delete_identity_by_id(int $member_id, int $identity_id): bool {
         global $wpdb;
-        $provider = sanitize_key($provider);
-        if (!in_array($provider, ['email', 'google', 'microsoft'], true)) {
-            return false;
-        }
 
         return false !== $wpdb->delete(
             "{$wpdb->prefix}avm_member_identities",
-            ['member_id' => $member_id, 'provider' => $provider],
-            ['%d', '%s']
+            ['id' => $identity_id, 'member_id' => $member_id],
+            ['%d', '%d']
         );
     }
 
-    public static function set_primary_identity(int $member_id, string $provider): bool {
+    public static function set_primary_identity(int $member_id, int $identity_id): bool {
         global $wpdb;
-        $provider = sanitize_key($provider);
-        if (!in_array($provider, ['email', 'google', 'microsoft'], true)) {
-            return false;
-        }
 
         $updated = $wpdb->update(
             "{$wpdb->prefix}avm_member_identities",
@@ -500,9 +513,9 @@ class AVPVH_DB {
         $updated2 = $wpdb->update(
             "{$wpdb->prefix}avm_member_identities",
             ['is_primary' => 1],
-            ['member_id' => $member_id, 'provider' => $provider],
+            ['id' => $identity_id, 'member_id' => $member_id],
             ['%d'],
-            ['%d', '%s']
+            ['%d', '%d']
         );
 
         return $updated !== false && $updated2 !== false;
