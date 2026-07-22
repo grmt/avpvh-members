@@ -68,19 +68,16 @@ access_control:
         - '^/wp-admin/admin-post\.php'
       policy: 'bypass'
 
-    # wp-admin: two-factor for board members (group "bestuur"), denied for
-    # everyone else — regular members have no business there at all.
+    # wp-admin requires two-factor. (A per-group restriction here would risk
+    # locking out real WordPress Administrators who aren't in the "bestuur"
+    # LLDAP group — WordPress's own manage_options capability check is the
+    # actual authorization boundary for what a two-factor-verified user can
+    # do inside wp-admin, so gating group membership at this layer too is
+    # both redundant and dangerous.)
     - domain: 'www.avphilipsvanhorne.nl'
       resources:
         - '^/wp-admin/.*'
-      subject:
-        - 'group:bestuur'
       policy: 'two_factor'
-
-    - domain: 'www.avphilipsvanhorne.nl'
-      resources:
-        - '^/wp-admin/.*'
-      policy: 'deny'
 
     # All other pages: bypass Authelia, WordPress plugin handles access control
     - domain: 'www.avphilipsvanhorne.nl'
