@@ -8,9 +8,15 @@ $participation = $participation_id ? AVPVH_DB::get_participation_by_id($particip
 if ($participation) {
     $camp_id = (int) $participation->camp_id;
 }
+// Reached cold from the sidebar link (no camp_id/id) — default to the
+// most recent camp instead of a dead end, same default as the list page.
+if (!$camp_id) {
+    $current_camp = AVPVH_DB::get_current_camp();
+    $camp_id = $current_camp->id ?? 0;
+}
 $camp = $camp_id ? AVPVH_DB::get_camp($camp_id) : null;
 if (!$camp) {
-    wp_die('Geen kamp geselecteerd.');
+    wp_die('Geen kamp gevonden. Maak eerst een kamp aan via <a href="' . esc_url(add_query_arg(['page' => 'avpvh-kampdeelname'], admin_url('admin.php'))) . '">Kampdeelname</a>.');
 }
 
 $member = $participation ? AVPVH_DB::get_member((int) $participation->member_id) : null;
