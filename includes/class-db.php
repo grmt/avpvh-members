@@ -555,6 +555,13 @@ class AVPVH_DB {
             $params[] = $s;
             $params[] = $s;
         }
+        // Per-column filters (name parts), in addition to the general search above.
+        foreach (['first_name' => 'first_name', 'suffix' => 'suffix', 'last_name' => 'last_name'] as $arg_key => $column) {
+            if (!empty($args[$arg_key])) {
+                $where .= " AND m.$column LIKE %s";
+                $params[] = '%' . $wpdb->esc_like($args[$arg_key]) . '%';
+            }
+        }
         if (!empty($args['status'])) {
             $where .= ' AND m.status = %s';
             $params[] = $args['status'];
