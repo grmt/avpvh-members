@@ -76,7 +76,7 @@ class AVPVH_DB {
             camp_id INT UNSIGNED NOT NULL,
             nights TINYINT UNSIGNED NULL,
             nawacht TINYINT UNSIGNED NOT NULL DEFAULT 0,
-            diet VARCHAR(50) NULL,
+            diet TEXT NULL,
             notes TEXT NULL,
             PRIMARY KEY (id),
             UNIQUE KEY member_camp (member_id, camp_id),
@@ -293,6 +293,13 @@ class AVPVH_DB {
                 UNIQUE KEY participation_date (participation_id, date)
             ) $charset;");
             update_option('avpvh_db_version', '2.3');
+        }
+        if (version_compare($version, '2.4', '<')) {
+            // VARCHAR(50) was too narrow for real free-text diet notes
+            // (some run well past 50 characters) — widen to match the
+            // free-text notes column next to it.
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camp_participation MODIFY diet TEXT NULL");
+            update_option('avpvh_db_version', '2.4');
         }
     }
 
