@@ -27,10 +27,6 @@ function avpvh_asset_version(string $relative_path): string {
 }
 
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/class-registration-db.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/class-google-sheets-sync.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/class-google-sheets-auth.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/class-registration-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-profile-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-access.php';
@@ -38,6 +34,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-nav-auth.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-oauth.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-ledenlijst.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-kamp-overzicht.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-kampdeelname-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory-consent.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-fee-popup.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-admin.php';
@@ -71,9 +68,9 @@ new AVPVH_Nav_Auth();
 new AVPVH_OAuth();
 new AVPVH_Ledenlijst();
 new AVPVH_Kamp_Overzicht();
+new AVPVH_Kampdeelname_Form();
 new AVPVH_Directory_Consent();
 new AVPVH_Fee_Popup();
-new AVPVH_Registration_Form();
 new AVPVH_Member_Profile_Form();
 new AVPVH_Admin();
 new AVPVH_Media_Protection();
