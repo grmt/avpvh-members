@@ -44,10 +44,16 @@ class AVPVH_Admin {
             'avpvh-members', 'Kampdeelname', 'Kampdeelname', 'manage_options',
             'avpvh-kampdeelname', [$this, 'render_kampdeelname_list']
         );
+        // Registered but not shown in the sidebar — only reachable via the
+        // "Nieuwe deelname"/"Bewerken" links on the Kampdeelname list page,
+        // which always pass a camp_id (and usually an id). Landed on cold
+        // (no params), it can only ever offer "create new" — not useful as
+        // its own standalone menu entry.
         add_submenu_page(
             'avpvh-members', 'Kampdeelname bewerken', 'Kampdeelname bewerken', 'manage_options',
             'avpvh-kampdeelname-detail', [$this, 'render_kampdeelname_detail']
         );
+        remove_submenu_page('avpvh-members', 'avpvh-kampdeelname-detail');
         add_submenu_page(
             'avpvh-members', 'Loginpogingen', 'Loginpogingen', 'manage_options',
             'avpvh-login-attempts', [$this, 'render_login_attempts']
