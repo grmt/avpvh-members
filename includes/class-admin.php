@@ -25,7 +25,7 @@ class AVPVH_Admin {
     }
 
     public function register_menus(): void {
-        add_menu_page(
+        $hook = add_menu_page(
             'AV-PvH Leden', 'AV-PvH Leden', 'manage_options',
             'avpvh-members', [$this, 'render_members_list'],
             'dashicons-groups', 30
@@ -34,6 +34,16 @@ class AVPVH_Admin {
             'avpvh-members', 'Ledenbeheer', 'Ledenbeheer', 'manage_options',
             'avpvh-members', [$this, 'render_members_list']
         );
+
+        // Wires up the "Screen Options" column show/hide checkboxes for the
+        // members list — WordPress remembers the choice per user on its own
+        // once this filter exists, no custom persistence code needed.
+        add_action('load-' . $hook, function () {
+            require_once AVPVH_PLUGIN_DIR . 'admin/class-members-list-table.php';
+            add_filter('manage_' . get_current_screen()->id . '_columns', function () {
+                return (new AVPVH_Members_List_Table())->get_columns();
+            });
+        });
         add_submenu_page(
             'avpvh-members', 'Ledendetail', 'Ledendetail', 'manage_options',
             'avpvh-member-detail', [$this, 'render_member_detail']
