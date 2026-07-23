@@ -277,6 +277,23 @@ class AVPVH_DB {
                 ADD COLUMN end_date DATE NULL AFTER start_date");
             update_option('avpvh_db_version', '2.2');
         }
+        if (version_compare($version, '2.3', '<')) {
+            // avm_camp_participation_days was added to install() alongside
+            // avm_camp_participation, but install() only runs on activation
+            // — already-active sites never got it. dbDelta is safe to call
+            // standalone for one table.
+            $charset = $wpdb->get_charset_collate();
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            dbDelta("CREATE TABLE {$wpdb->prefix}avm_camp_participation_days (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                participation_id INT UNSIGNED NOT NULL,
+                date DATE NOT NULL,
+                status VARCHAR(10) NOT NULL DEFAULT '',
+                PRIMARY KEY (id),
+                UNIQUE KEY participation_date (participation_id, date)
+            ) $charset;");
+            update_option('avpvh_db_version', '2.3');
+        }
     }
 
     public static function log_attempt(string $email, string $method, string $result): void {
