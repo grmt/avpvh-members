@@ -4,17 +4,6 @@ defined('ABSPATH') || exit;
 class AVPVH_Admin {
 
     public function __construct() {
-        // Load registration and sync admin pages
-        require_once AVPVH_PLUGIN_DIR . 'admin/registrations-list.php';
-        require_once AVPVH_PLUGIN_DIR . 'admin/registration-detail.php';
-        require_once AVPVH_PLUGIN_DIR . 'admin/sync-status.php';
-
-        // Priority 5: must register the 'avpvh-members' top-level menu before
-        // registrations-list.php/sync-status.php's own admin_menu callbacks
-        // (default priority 10) call add_submenu_page() against it — doing
-        // add_submenu_page() before the parent exists yet is what caused
-        // WordPress to render their sidebar links as a bare page slug
-        // ("avpvh-registrations") instead of "admin.php?page=avpvh-registrations".
         add_action('admin_menu', [$this, 'register_menus'], 5);
         add_action('admin_post_avpvh_mark_fee_paid', [$this, 'handle_mark_fee_paid']);
         add_action('admin_post_avpvh_save_settings', [$this, 'handle_save_settings']);
@@ -22,6 +11,9 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_add_identity',   [$this, 'handle_add_identity']);
         add_action('admin_post_avpvh_delete_identity',[$this, 'handle_delete_identity']);
         add_action('admin_post_avpvh_primary_identity',[$this, 'handle_primary_identity']);
+        add_action('admin_post_avpvh_save_participation', [$this, 'handle_save_participation']);
+        add_action('admin_post_avpvh_save_camp',          [$this, 'handle_save_camp']);
+        add_action('admin_post_avpvh_export_kampdeelname',[$this, 'handle_export_kampdeelname']);
     }
 
     public function register_menus(): void {
@@ -49,6 +41,14 @@ class AVPVH_Admin {
             'avpvh-member-detail', [$this, 'render_member_detail']
         );
         add_submenu_page(
+            'avpvh-members', 'Kampdeelname', 'Kampdeelname', 'manage_options',
+            'avpvh-kampdeelname', [$this, 'render_kampdeelname_list']
+        );
+        add_submenu_page(
+            'avpvh-members', 'Kampdeelname bewerken', 'Kampdeelname bewerken', 'manage_options',
+            'avpvh-kampdeelname-detail', [$this, 'render_kampdeelname_detail']
+        );
+        add_submenu_page(
             'avpvh-members', 'Loginpogingen', 'Loginpogingen', 'manage_options',
             'avpvh-login-attempts', [$this, 'render_login_attempts']
         );
@@ -68,6 +68,14 @@ class AVPVH_Admin {
 
     public function render_login_attempts(): void {
         require AVPVH_PLUGIN_DIR . 'admin/login-attempts.php';
+    }
+
+    public function render_kampdeelname_list(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/kampdeelname-list.php';
+    }
+
+    public function render_kampdeelname_detail(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/kampdeelname-detail.php';
     }
 
     public function render_settings(): void {
@@ -314,6 +322,84 @@ class AVPVH_Admin {
         AVPVH_DB::set_primary_identity($member_id, $identity_id);
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_primary' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_save_participation(): void {
+        check_admin_referer('avpvh_save_participation');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $camp_id   = (int) ($_POST['camp_id'] ?? 0);
+        $member_id = (int) ($_POST['member_id'] ?? 0);
+        if (!$camp_id || !$member_id) {
+            wp_die('Kamp of lid ontbreekt.', 400);
+        }
+
+        $fields = [
+            'nights'  => $_POST['nights'] !== '' ? (int) $_POST['nights'] : '',
+            'nawacht' => !empty($_POST['nawacht']),
+            'diet'    => sanitize_text_field(wp_unslash($_POST['diet'] ?? '')),
+            'notes'   => sanitize_textarea_field(wp_unslash($_POST['notes'] ?? '')),
+        ];
+        $participation_id = AVPVH_DB::save_participation($member_id, $camp_id, $fields);
+
+        $days = [];
+        foreach ((array) ($_POST['day'] ?? []) as $date => $status) {
+            $date = sanitize_text_field($date);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                $days[$date] = sanitize_text_field(wp_unslash($status));
+            }
+        }
+        AVPVH_DB::save_participation_days($participation_id, $days);
+
+        wp_safe_redirect(add_query_arg([
+            'page' => 'avpvh-kampdeelname-detail', 'id' => $participation_id, 'camp_id' => $camp_id, 'updated' => '1',
+        ], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_save_camp(): void {
+        check_admin_referer('avpvh_save_camp');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $camp_id = (int) ($_POST['camp_id'] ?? 0);
+        global $wpdb;
+        $wpdb->update("{$wpdb->prefix}avm_camps", [
+            'location'   => sanitize_text_field(wp_unslash($_POST['location'] ?? '')),
+            'start_date' => sanitize_text_field($_POST['start_date'] ?? '') ?: null,
+            'end_date'   => sanitize_text_field($_POST['end_date'] ?? '') ?: null,
+        ], ['id' => $camp_id]);
+
+        wp_safe_redirect(add_query_arg([
+            'page' => 'avpvh-kampdeelname', 'camp_id' => $camp_id, 'camp_saved' => '1',
+        ], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_export_kampdeelname(): void {
+        check_admin_referer('avpvh_export_kampdeelname');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $camp_id = (int) ($_GET['camp_id'] ?? 0);
+        $camp = AVPVH_DB::get_camp($camp_id);
+        if (!$camp) {
+            wp_die('Kamp niet gevonden.', 404);
+        }
+
+        require_once AVPVH_PLUGIN_DIR . 'includes/class-kampdeelname-export.php';
+        $bytes = AVPVH_Kampdeelname_Export::build($camp);
+
+        $filename = sanitize_file_name('kampdeelname-' . $camp->name . '-' . $camp->year . '-' . date('Y-m-d') . '.xlsx');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($bytes));
+        echo $bytes;
         exit;
     }
 }

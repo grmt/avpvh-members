@@ -64,6 +64,8 @@ class AVPVH_DB {
             name VARCHAR(150) NOT NULL DEFAULT '',
             year YEAR NOT NULL,
             location VARCHAR(150) NOT NULL DEFAULT '',
+            start_date DATE NULL,
+            end_date DATE NULL,
             PRIMARY KEY (id),
             UNIQUE KEY name_year (name, year)
         ) $charset;");
@@ -79,6 +81,19 @@ class AVPVH_DB {
             PRIMARY KEY (id),
             UNIQUE KEY member_camp (member_id, camp_id),
             KEY camp_id (camp_id)
+        ) $charset;");
+
+        // Day-by-day attendance per participation record — one row per date
+        // a member is (or might be) present. Replaces the old, unlinked
+        // avm_registration_attendance (which tracked a raw e-mail, not a
+        // real member) with the same idea properly tied to a member.
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_camp_participation_days (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            participation_id INT UNSIGNED NOT NULL,
+            date DATE NOT NULL,
+            status VARCHAR(10) NOT NULL DEFAULT '',
+            PRIMARY KEY (id),
+            UNIQUE KEY participation_date (participation_id, date)
         ) $charset;");
 
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_login_attempts (
@@ -165,52 +180,11 @@ class AVPVH_DB {
             KEY changed_at (changed_at)
         ) $charset;");
 
-        // Registration for excavation campaigns (single person per email)
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_registrations (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            email VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-            camp_id INT UNSIGNED NOT NULL,
-            year YEAR NOT NULL,
-            first_name VARCHAR(100) NOT NULL DEFAULT '',
-            phone VARCHAR(30) NOT NULL DEFAULT '',
-            food_allergies TEXT NULL,
-            notes TEXT NULL,
-            sync_status ENUM('synced','pending_push','pending_pull','conflict') NOT NULL DEFAULT 'pending_push',
-            google_row_id INT UNSIGNED NULL,
-            last_sync_timestamp TIMESTAMP NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            UNIQUE KEY email_camp_year (email, camp_id, year),
-            KEY camp_id (camp_id),
-            KEY sync_status (sync_status),
-            KEY email (email(100))
-        ) $charset;");
-
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_registration_attendance (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            registration_id INT UNSIGNED NOT NULL,
-            date DATE NOT NULL,
-            status ENUM('attending','not_attending','maybe') NOT NULL DEFAULT 'attending',
-            is_nawacht TINYINT UNSIGNED NOT NULL DEFAULT 0,
-            PRIMARY KEY (id),
-            UNIQUE KEY registration_date (registration_id, date),
-            KEY registration_id (registration_id),
-            KEY date (date)
-        ) $charset;");
-
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_sync_conflicts (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            registration_id INT UNSIGNED NOT NULL,
-            field_name VARCHAR(100) NOT NULL,
-            wp_value TEXT NULL,
-            sheet_value TEXT NULL,
-            resolved TINYINT UNSIGNED NOT NULL DEFAULT 0,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY registration_id (registration_id),
-            KEY resolved (resolved)
-        ) $charset;");
+        // Note: avm_registrations / avm_registration_attendance /
+        // avm_sync_conflicts (a never-launched Google-Forms-based signup +
+        // sync system, unlinked to real members) were removed in favour of
+        // avm_camp_participation(_days) above — see the 2.1 migration below,
+        // which drops them for existing installs.
     }
 
     public static function maybe_upgrade(): void {
@@ -282,6 +256,26 @@ class AVPVH_DB {
                 DROP INDEX email,
                 ADD UNIQUE KEY email (email(191))");
             update_option('avpvh_db_version', '2.0');
+        }
+        if (version_compare($version, '2.1', '<')) {
+            // The Google-Sheets-sync registration system (avm_registrations /
+            // avm_registration_attendance / avm_sync_conflicts) was never
+            // launched (sync was never configured, 0 rows) and is superseded
+            // by avm_camp_participation(_days), which is properly linked to
+            // real members. Drop the old tables so the data model only
+            // exists once.
+            $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_registration_attendance");
+            $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_sync_conflicts");
+            $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_registrations");
+            update_option('avpvh_db_version', '2.1');
+        }
+        if (version_compare($version, '2.2', '<')) {
+            // Needed to render/edit day-by-day attendance for a camp (the
+            // "Kampdeelname" screen) without hardcoding the date range.
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camps
+                ADD COLUMN start_date DATE NULL AFTER location,
+                ADD COLUMN end_date DATE NULL AFTER start_date");
+            update_option('avpvh_db_version', '2.2');
         }
     }
 
@@ -680,6 +674,133 @@ class AVPVH_DB {
              ORDER BY c.year DESC",
             $member_id
         )) ?: [];
+    }
+
+    // -------------------------------------------------------------------
+    // Camp participation ("Kampdeelname")
+    // -------------------------------------------------------------------
+
+    public static function get_camps(): array {
+        global $wpdb;
+        return $wpdb->get_results("SELECT * FROM {$wpdb->prefix}avm_camps ORDER BY year DESC, name ASC") ?: [];
+    }
+
+    public static function get_camp(int $camp_id): ?object {
+        global $wpdb;
+        $camp = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}avm_camps WHERE id = %d", $camp_id));
+        return $camp ?: null;
+    }
+
+    /** Most recent camp by year — used as the default for new screens. */
+    public static function get_current_camp(): ?object {
+        global $wpdb;
+        $camp = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}avm_camps ORDER BY year DESC, id DESC LIMIT 1");
+        return $camp ?: null;
+    }
+
+    public static function get_or_create_camp(string $name, int $year, string $location = '', ?string $start_date = null, ?string $end_date = null): int {
+        global $wpdb;
+        $id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_camps WHERE name = %s AND year = %d", $name, $year
+        ));
+        if ($id) {
+            return (int) $id;
+        }
+        $wpdb->insert("{$wpdb->prefix}avm_camps", [
+            'name' => $name, 'year' => $year, 'location' => $location,
+            'start_date' => $start_date, 'end_date' => $end_date,
+        ]);
+        return (int) $wpdb->insert_id;
+    }
+
+    /** All participation rows for one camp, joined with member name/status. */
+    public static function get_participation_for_camp(int $camp_id): array {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT p.*, m.first_name, m.suffix, m.last_name, m.status AS member_status
+             FROM {$wpdb->prefix}avm_camp_participation p
+             JOIN {$wpdb->prefix}avm_members m ON m.id = p.member_id
+             WHERE p.camp_id = %d
+             ORDER BY m.last_name ASC, m.first_name ASC",
+            $camp_id
+        )) ?: [];
+    }
+
+    public static function get_participation(int $member_id, int $camp_id): ?object {
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_camp_participation WHERE member_id = %d AND camp_id = %d",
+            $member_id, $camp_id
+        ));
+        return $row ?: null;
+    }
+
+    public static function get_participation_by_id(int $participation_id): ?object {
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_camp_participation WHERE id = %d", $participation_id
+        ));
+        return $row ?: null;
+    }
+
+    /** Day statuses for one participation record, keyed by 'Y-m-d'. */
+    public static function get_participation_days(int $participation_id): array {
+        global $wpdb;
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT date, status FROM {$wpdb->prefix}avm_camp_participation_days WHERE participation_id = %d",
+            $participation_id
+        )) ?: [];
+        $days = [];
+        foreach ($rows as $row) {
+            $days[$row->date] = $row->status;
+        }
+        return $days;
+    }
+
+    /**
+     * Create or update a member's participation record for a camp. Returns
+     * the participation id.
+     */
+    public static function save_participation(int $member_id, int $camp_id, array $fields): int {
+        global $wpdb;
+        $data = [
+            'nights'  => $fields['nights'] !== '' && $fields['nights'] !== null ? (int) $fields['nights'] : null,
+            'nawacht' => !empty($fields['nawacht']) ? 1 : 0,
+            'diet'    => $fields['diet'] ?? '',
+            'notes'   => $fields['notes'] ?? '',
+        ];
+        $existing = self::get_participation($member_id, $camp_id);
+        if ($existing) {
+            $wpdb->update("{$wpdb->prefix}avm_camp_participation", $data, ['id' => $existing->id]);
+            return (int) $existing->id;
+        }
+        $wpdb->insert("{$wpdb->prefix}avm_camp_participation", [
+            'member_id' => $member_id, 'camp_id' => $camp_id,
+        ] + $data);
+        return (int) $wpdb->insert_id;
+    }
+
+    /** Replace all day rows for a participation record with $days (date => status). */
+    public static function save_participation_days(int $participation_id, array $days): void {
+        global $wpdb;
+        $table = "{$wpdb->prefix}avm_camp_participation_days";
+        $wpdb->delete($table, ['participation_id' => $participation_id]);
+        foreach ($days as $date => $status) {
+            if ($status === '' || $status === null) {
+                continue;
+            }
+            $wpdb->insert($table, [
+                'participation_id' => $participation_id,
+                'date'             => $date,
+                'status'           => $status,
+            ]);
+        }
+    }
+
+    public static function delete_participation(int $participation_id): void {
+        global $wpdb;
+        $wpdb->delete("{$wpdb->prefix}avm_camp_participation_days", ['participation_id' => $participation_id]);
+        $wpdb->delete("{$wpdb->prefix}avm_camp_participation", ['id' => $participation_id]);
     }
 
     public static function get_fees_for_member(int $member_id): array {
