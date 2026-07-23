@@ -9,7 +9,13 @@ class AVPVH_Admin {
         require_once AVPVH_PLUGIN_DIR . 'admin/registration-detail.php';
         require_once AVPVH_PLUGIN_DIR . 'admin/sync-status.php';
 
-        add_action('admin_menu', [$this, 'register_menus']);
+        // Priority 5: must register the 'avpvh-members' top-level menu before
+        // registrations-list.php/sync-status.php's own admin_menu callbacks
+        // (default priority 10) call add_submenu_page() against it — doing
+        // add_submenu_page() before the parent exists yet is what caused
+        // WordPress to render their sidebar links as a bare page slug
+        // ("avpvh-registrations") instead of "admin.php?page=avpvh-registrations".
+        add_action('admin_menu', [$this, 'register_menus'], 5);
         add_action('admin_post_avpvh_mark_fee_paid', [$this, 'handle_mark_fee_paid']);
         add_action('admin_post_avpvh_save_settings', [$this, 'handle_save_settings']);
         add_action('admin_post_avpvh_test_oauth',    [$this, 'handle_test_oauth']);
