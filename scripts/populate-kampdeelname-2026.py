@@ -68,19 +68,10 @@ SKIP_LABELS = {
     'VOORNAAM & ACHTERNAAM hieronder invullen', 'Bestuur', 'Leden',
 }
 
-# People on the sheet who are NOT yet avm_members (as of 2026-07-23) — run
-# add-2026-visitor-members.py first (creates them as status='visitor'), then
-# move each name from UNLINKED_NAMES into NAME_TO_MEMBER_ID below using the
-# member ids it prints, and re-run this script.
-UNLINKED_NAMES = {
-    'Fenna Lip',                    # daughter of Henk & Mariska Lip, sister of Dirk(118)/Roos(121)
-    'Iris de Zwart',                # partner of Olaf Boekholt (32)
-    'Jessica Hammarlund Bergmann',
-    'May Hasendonckx',              # partner of Gerrit Hasendonckx (51)
-    'Taras Muravskiy',
-    'Dean Berendsen',               # son of Sylvia Soulier (80)
-    'Bram Keijers',                 # relative of Jaap Keijers (57) — not the same person
-}
+# People on the sheet who are NOT yet avm_members: none left — the 7 below
+# were created by add-2026-visitor-members.py (status='visitor', ids 127-133)
+# and moved into NAME_TO_MEMBER_ID.
+UNLINKED_NAMES = set()
 
 # name (exactly as it appears in the sheet) -> avm_members.id
 NAME_TO_MEMBER_ID = {
@@ -107,6 +98,9 @@ NAME_TO_MEMBER_ID = {
     'Twan van Rooij': 69, 'Werner van Hoof': 53, 'Wouter Vienne': 113,
     'Michiel Hoek': 52, 'Pieter Hoek': 101, 'Roos Vienne': 99,
     'Doutzen Vienne': 100, 'Jaap Keijers': 57,
+    'Fenna Lip': 127, 'Iris de Zwart': 128, 'Jessica Hammarlund Bergmann': 129,
+    'May Hasendonckx': 130, 'Taras Muravskiy': 131, 'Dean Berendsen': 132,
+    'Bram Keijers': 133,
 }
 
 
