@@ -22,9 +22,18 @@ Dependencies:
 """
 import argparse
 import datetime
+import re
 
 import pymysql
 import openpyxl
+
+
+def normalize_name(name: str) -> str:
+    """Collapse whitespace and unify dash variants (the sheet and the
+    browser-scraped snapshot used to build NAME_TO_MEMBER_ID didn't always
+    agree on '-' vs '–' vs '—' for hyphenated surnames)."""
+    name = re.sub(r'[‐-―]', '-', name)
+    return re.sub(r'\s+', ' ', name).strip()
 
 SECRET_FILE = '/opt/docker/secrets/compose/wordpress_db_password.txt'
 DB_HOST, DB_PORT, DB_USER, DB_NAME = '127.0.0.1', 6603, 'wp_user', 'wpdb'
@@ -130,10 +139,13 @@ def main():
         raise SystemExit(f'sheet {SHEET_NAME!r} not found; sheets: {wb.sheetnames}')
     rows = parse_rows(wb[SHEET_NAME])
 
+    unlinked_norm = {normalize_name(n) for n in UNLINKED_NAMES}
+    name_to_id_norm = {normalize_name(n): mid for n, mid in NAME_TO_MEMBER_ID.items()}
+
     person_rows = []
     for row in rows:
-        name = row[COL_NAME]
-        if name in SKIP_LABELS:
+        name = normalize_name(row[COL_NAME])
+        if name in SKIP_LABELS or name == '':
             continue
         if all(c == '' for c in row[1:]):
             continue
@@ -143,11 +155,11 @@ def main():
 
     to_import = []
     for row in person_rows:
-        name = row[COL_NAME]
-        if name in UNLINKED_NAMES:
+        name = normalize_name(row[COL_NAME])
+        if name in unlinked_norm:
             print(f'  SKIP (not yet a member): {name}')
             continue
-        member_id = NAME_TO_MEMBER_ID.get(name)
+        member_id = name_to_id_norm.get(name)
         if not member_id:
             print(f'  SKIP (unrecognised name, check spelling / add to mapping): {name}')
             continue
