@@ -29,10 +29,14 @@ import openpyxl
 
 
 def normalize_name(name: str) -> str:
-    """Collapse whitespace and unify dash variants (the sheet and the
-    browser-scraped snapshot used to build NAME_TO_MEMBER_ID didn't always
-    agree on '-' vs '–' vs '—' for hyphenated surnames)."""
+    """Collapse whitespace and unify hyphenated-surname spelling. The sheet
+    writes double surnames as "Hoek - De Boe" (spaced, plain hyphen); the
+    actual avm_members record has no spaces around the hyphen ("Hoek-De
+    Boe") — and the browser-scraped snapshot used to build
+    NAME_TO_MEMBER_ID had yet another variant (en-dash, spaced). Unify all
+    of these to "Hoek-De Boe" so the lookup isn't sensitive to any of it."""
     name = re.sub(r'[‐-―]', '-', name)
+    name = re.sub(r'\s*-\s*', '-', name)
     return re.sub(r'\s+', ' ', name).strip()
 
 SECRET_FILE = '/opt/docker/secrets/compose/wordpress_db_password.txt'
@@ -83,7 +87,7 @@ NAME_TO_MEMBER_ID = {
     'Annet van de Waarsenburg': 88, 'Ardine de Wit': 89, 'Germie van den Berg': 29,
     'José Salhi-Vossen': 72, 'Lilo Crasborn': 40, 'Meike Waaijers': 87,
     'Rianne de Wit': 91, 'Simon Kuppens': 58, 'Aukje Sinnema': 75,
-    'Barbara Hoek – De Boe': 105, 'Bas Waaijers': 85, 'Bernard te Gussinklo': 117,
+    'Barbara Hoek-De Boe': 105, 'Bas Waaijers': 85, 'Bernard te Gussinklo': 117,
     'Claudia Boshouwers': 34, 'Dirk Lip': 118, 'Eefje Smits': 77,
     'Elout Crasborn': 39, 'Elvire Rikkert': 106, 'Femke Hasendonckx': 50,
     'Frank Clermonts': 37, 'Frank Schoots': 73, 'Frank van Rooij': 67,
