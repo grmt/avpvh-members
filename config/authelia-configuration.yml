@@ -83,15 +83,9 @@ access_control:
     - domain: 'www.avphilipsvanhorne.nl'
       policy: 'bypass'
 
-    # these domains redirect to www.avphilipsvanhorne.nl via nginx
-    - domain: 'avphilipsvanhorne.nl'
-      policy: 'bypass'
-
-    - domain: 'avpvh.nl'
-      policy: 'bypass'
-
-    - domain: 'www.avpvh.nl'
-      policy: 'bypass'
+    # avphilipsvanhorne.nl (bare), avpvh.nl and www.avpvh.nl are all
+    # 301-redirected to www.avphilipsvanhorne.nl by nginx before the
+    # request ever reaches an auth_request check — no rule needed here.
 
 session:
   secret: ''  # loaded via AUTHELIA_SESSION_SECRET_FILE
