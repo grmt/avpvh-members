@@ -129,11 +129,17 @@ class AVPVH_Access {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $error = sanitize_key($_GET['error'] ?? '');
 
+        $error_messages = [
+            'no_member'    => 'Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.',
+            'oauth_expired' => 'Je inlogpoging duurde te lang en is verlopen. Probeer het opnieuw.',
+            'oauth_failed'  => 'Inloggen is niet gelukt. Probeer het opnieuw.',
+        ];
+
         ob_start();
         ?>
         <div class="avpvh-login-page">
-            <?php if ($error === 'no_member'): ?>
-            <p class="avpvh-login-error">Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.</p>
+            <?php if (isset($error_messages[$error])): ?>
+            <p class="avpvh-login-error"><?php echo esc_html($error_messages[$error]); ?></p>
             <?php endif; ?>
             <p class="avpvh-login-intro">Gebruik het e-mailadres waarmee je bij de vereniging geregistreerd staat. Als je met dat adres bij Google of Microsoft inlogt, hoef je hier geen wachtwoord in te tikken. Kent Google of Microsoft je niet met dit e-mailadres, kies dan &ldquo;Inloggen met wachtwoord&rdquo; om via Authelia in te loggen.</p>
             <div class="avpvh-login-options" id="avpvh-login-options"></div>
