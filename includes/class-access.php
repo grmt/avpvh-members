@@ -5,6 +5,7 @@ class AVPVH_Access {
 
     public function __construct() {
         add_action('init',               [$this, 'auto_login_from_proxy_header'], 1);
+        add_action('init',               [$this, 'enforce_session_idle_timeout'], 1);
         add_action('template_redirect',  [$this, 'handle_login_bridge']);
         add_filter('the_content',        [$this, 'inject_login_form'], 5);
         add_filter('post_password_required', [$this, 'bypass_for_active_member'], 10, 2);
@@ -133,9 +134,10 @@ class AVPVH_Access {
         $error = sanitize_key($_GET['login_error'] ?? '');
 
         $error_messages = [
-            'no_member'    => 'Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.',
-            'oauth_expired' => 'Je inlogpoging duurde te lang en is verlopen. Probeer het opnieuw.',
-            'oauth_failed'  => 'Inloggen is niet gelukt. Probeer het opnieuw.',
+            'no_member'      => 'Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.',
+            'oauth_expired'  => 'Je inlogpoging duurde te lang en is verlopen. Probeer het opnieuw.',
+            'oauth_failed'   => 'Inloggen is niet gelukt. Probeer het opnieuw.',
+            'session_expired' => 'Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in.',
         ];
 
         ob_start();
@@ -206,6 +208,38 @@ class AVPVH_Access {
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID);
         do_action('wp_login', $user->user_login, $user);
+    }
+
+    // Forces a logout after 24h of inactivity, independent of the auth
+    // cookie's own (much longer) technical expiration — "activity" means
+    // any request while logged in, so this is a sliding window, not a
+    // fixed time-since-login cutoff.
+    public function enforce_session_idle_timeout(): void {
+        if (!is_user_logged_in()) {
+            return;
+        }
+
+        $user_id       = get_current_user_id();
+        $now           = time();
+        $last_activity = (int) get_user_meta($user_id, 'avpvh_last_activity', true);
+
+        if ($last_activity && ($now - $last_activity) > DAY_IN_SECONDS) {
+            // Must clear this before wp_logout(): if the underlying identity
+            // provider (Authelia proxy header, or a still-valid OAuth
+            // session) immediately re-authenticates the user on the very
+            // next request, a stale timestamp here would trip this same
+            // branch again right away — an infinite logout redirect loop.
+            delete_user_meta($user_id, 'avpvh_last_activity');
+            wp_logout();
+            wp_redirect(home_url('/avpvh-login/?login_error=session_expired'));
+            exit;
+        }
+
+        // Throttle: only write on the first request of a "session" or once
+        // every 5 minutes, not on every single page load.
+        if (!$last_activity || ($now - $last_activity) > 5 * MINUTE_IN_SECONDS) {
+            update_user_meta($user_id, 'avpvh_last_activity', $now);
+        }
     }
 
     public function bypass_for_active_member(bool $required, \WP_Post $post): bool {
