@@ -28,21 +28,45 @@
     padding: 2rem;
 }
 
-.avpvh-huisgenoten {
-    margin: 0 2rem 1rem;
-    padding: .75rem 1rem;
+.avpvh-summary-card {
+    margin: 0 2rem 1.5rem;
+    padding: 1rem 1.25rem;
     background: #f5f5f5;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: .9rem;
+    line-height: 1.6;
 }
 
-.avpvh-huisgenoten span {
+.avpvh-summary-card__name {
+    font-size: 1.15rem;
     font-weight: 600;
-    margin-right: .5rem;
+    margin-bottom: .5rem;
 }
 
-.avpvh-huisgenoten a {
-    margin-right: .75rem;
+.avpvh-summary-card__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-bottom: .5rem;
+}
+
+.avpvh-badge {
+    display: inline-block;
+    padding: .15rem .65rem;
+    background: #0073aa;
+    color: white;
+    border-radius: 999px;
+    font-size: .8rem;
+    white-space: nowrap;
+}
+
+.avpvh-summary-card__row {
+    margin: .15rem 0;
+}
+
+.avpvh-summary-card__label {
+    font-weight: 600;
+    margin-right: .35rem;
 }
 
 .avpvh-registration-form fieldset,
@@ -219,6 +243,47 @@ button.button-primary:active {
     pointer-events: none;
 }
 
+/* Member profile only: a denser two-column layout than the registration
+   form, which stays as-is (single column, more breathing room). */
+.avpvh-member-profile-form > form {
+    padding: 1.25rem 2rem 2rem;
+}
+
+.avpvh-member-profile-form fieldset {
+    margin: 1.25rem 0;
+}
+
+.avpvh-member-profile-form fieldset:first-of-type {
+    margin-top: 0;
+}
+
+/* Only the plain label+input fieldsets (Persoonlijke gegevens, Contact
+   Information, Address) get the condensed grid — fieldsets with a table
+   or mixed content (Inlog-e-mailadressen, Zichtbaarheid, Change History)
+   keep the normal single-column flow. */
+.avpvh-member-profile-form fieldset.avpvh-fields-grid {
+    padding: 1rem 1.25rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    column-gap: 1.5rem;
+}
+
+.avpvh-member-profile-form fieldset.avpvh-fields-grid legend {
+    /* legend isn't a real grid item in any browser, so grid-column here
+       doesn't stretch it — it stays sized to its own text. The inherited
+       underline (meant for a full-width heading) then looks broken: too
+       short, with the fieldset's own border visible oddly behind it. */
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-bottom: .75rem;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.avpvh-member-profile-form .form-group {
+    margin: .5rem 0;
+}
+
 @media (max-width: 768px) {
     .avpvh-registration-form {
         padding: 1rem;
@@ -230,5 +295,29 @@ button.button-primary:active {
 
     .attendance-calendar {
         grid-template-columns: 1fr;
+    }
+
+    .avpvh-member-profile-form h2 {
+        padding: 1.25rem;
+        font-size: 1.4rem;
+    }
+
+    .avpvh-member-profile-form > p,
+    .avpvh-summary-card {
+        margin-left: 1rem;
+        margin-right: 1rem;
+    }
+
+    .avpvh-member-profile-form > form {
+        padding: 1rem;
+    }
+
+    .avpvh-member-profile-form fieldset {
+        margin: 1rem 0;
+    }
+
+    .avpvh-member-profile-form fieldset.avpvh-fields-grid {
+        grid-template-columns: 1fr;
+        padding: .85rem 1rem;
     }
 }
