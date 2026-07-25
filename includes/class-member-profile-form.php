@@ -51,12 +51,11 @@ class AVPVH_Member_Profile_Form {
 
         ob_start();
         ?>
-        <div class="avpvh-member-profile-form">
-            <h2><?php echo $is_admin_edit ? 'Edit Member Profile' : 'Edit Your Profile'; ?></h2>
+        <div class="avpvh-member-profile-form avpvh-member-profile-form--no-banner">
             <?php if ($is_admin_edit) : ?>
-                <p style="color: #666;">Administrator editing: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
+                <p class="avpvh-profile-note">Administrator editing: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
             <?php elseif ($is_household_edit) : ?>
-                <p style="color: #666;">Je bewerkt het profiel van: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
+                <p class="avpvh-profile-note">Je bewerkt het profiel van: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
             <?php endif; ?>
 
             <?php if (is_user_logged_in()) : ?>
