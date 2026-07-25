@@ -28,6 +28,18 @@
     padding: 2rem;
 }
 
+/* No banner heading here (the WP page title already says "Member
+   Profile") — needs its own top spacing instead of getting it for free
+   from the removed h2's padding. */
+.avpvh-member-profile-form--no-banner {
+    padding-top: 1.5rem;
+}
+
+.avpvh-profile-note {
+    margin: 0 2rem 1rem;
+    color: #666;
+}
+
 .avpvh-summary-card {
     margin: 0 2rem 1.5rem;
     padding: 1rem 1.25rem;
