@@ -118,7 +118,8 @@ class AVPVH_OAuth {
         $state = sanitize_text_field($request->get_param('state') ?? '');
 
         if (!$code || !$state) {
-            wp_die('Ongeldige OAuth callback.', 'Fout', ['response' => 400]);
+            wp_redirect(home_url('/avpvh-login/?error=oauth_failed'));
+            exit;
         }
 
         $stored = get_transient('avpvh_oauth_state_' . $state);
@@ -133,7 +134,12 @@ class AVPVH_OAuth {
         }
 
         if (!$add_request && $stored !== $provider) {
-            wp_die('Ongeldige OAuth state.', 'Fout', ['response' => 400]);
+            // Most commonly: the state transient (10 min TTL) expired before
+            // the user finished the provider's consent/2FA step, not an
+            // actual CSRF attempt. Send them back to try again rather than
+            // dead-ending on a wp_die() page with no way forward.
+            wp_redirect(home_url('/avpvh-login/?error=oauth_expired'));
+            exit;
         }
 
         $email = $this->fetch_email($provider, $code);
