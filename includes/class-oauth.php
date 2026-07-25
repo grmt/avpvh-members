@@ -110,7 +110,7 @@ class AVPVH_OAuth {
 
     public function handle_callback(string $provider, \WP_REST_Request $request): void {
         if ($this->check_ip_throttle()) {
-            wp_redirect(home_url('/avpvh-login/?error=no_member'));
+            wp_redirect(home_url('/avpvh-login/?login_error=no_member'));
             exit;
         }
 
@@ -118,7 +118,7 @@ class AVPVH_OAuth {
         $state = sanitize_text_field($request->get_param('state') ?? '');
 
         if (!$code || !$state) {
-            wp_redirect(home_url('/avpvh-login/?error=oauth_failed'));
+            wp_redirect(home_url('/avpvh-login/?login_error=oauth_failed'));
             exit;
         }
 
@@ -138,7 +138,7 @@ class AVPVH_OAuth {
             // the user finished the provider's consent/2FA step, not an
             // actual CSRF attempt. Send them back to try again rather than
             // dead-ending on a wp_die() page with no way forward.
-            wp_redirect(home_url('/avpvh-login/?error=oauth_expired'));
+            wp_redirect(home_url('/avpvh-login/?login_error=oauth_expired'));
             exit;
         }
 
@@ -159,7 +159,7 @@ class AVPVH_OAuth {
         if (!$member) {
             $this->record_ip_failure();
             AVPVH_DB::log_attempt($email, $provider, 'no_member');
-            wp_redirect(home_url('/avpvh-login/?error=no_member'));
+            wp_redirect(home_url('/avpvh-login/?login_error=no_member'));
             exit;
         }
 

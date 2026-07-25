@@ -126,8 +126,11 @@ class AVPVH_Access {
             echo '<script type="application/json" id="avpvh-login-config">' . $login_config . '</script>';
         });
 
+        // Note: intentionally not named "error" — that collides with a
+        // WordPress core reserved public query var and gets silently
+        // stripped from $_GET before this filter ever runs.
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $error = sanitize_key($_GET['error'] ?? '');
+        $error = sanitize_key($_GET['login_error'] ?? '');
 
         $error_messages = [
             'no_member'    => 'Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.',
@@ -141,7 +144,7 @@ class AVPVH_Access {
             <?php if (isset($error_messages[$error])): ?>
             <p class="avpvh-login-error"><?php echo esc_html($error_messages[$error]); ?></p>
             <?php endif; ?>
-            <p class="avpvh-login-intro">Gebruik het e-mailadres waarmee je bij de vereniging geregistreerd staat. Als je met dat adres bij Google of Microsoft inlogt, hoef je hier geen wachtwoord in te tikken. Kent Google of Microsoft je niet met dit e-mailadres, kies dan &ldquo;Inloggen met wachtwoord&rdquo; om via Authelia in te loggen.</p>
+            <p class="avpvh-login-intro">Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat ook wanneer je het laat valideren door Google of Microsoft. Heb je speciale rechten (bijv. bloggen), dan moet je een extra 2-staps verificatieprocedure doorlopen via &ldquo;Inloggen met wachtwoord&rdquo;.</p>
             <div class="avpvh-login-options" id="avpvh-login-options"></div>
         </div>
         <?php
