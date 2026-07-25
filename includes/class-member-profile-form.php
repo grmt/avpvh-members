@@ -59,38 +59,52 @@ class AVPVH_Member_Profile_Form {
                 <p style="color: #666;">Je bewerkt het profiel van: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
             <?php endif; ?>
 
-            <?php if (count($huisgenoten) > 1) : ?>
-                <div class="avpvh-huisgenoten">
-                    <span>Huisgenoten:</span>
-                    <?php foreach ($huisgenoten as $hg) : ?>
-                        <?php if ((int) $hg->id === (int) $member->id) : ?>
-                            <strong><?php echo esc_html(avpvh_format_name($hg)); ?></strong>
-                        <?php else : ?>
-                            <a href="<?php echo esc_url(add_query_arg('member_id', $hg->id)); ?>"><?php echo esc_html(avpvh_format_name($hg)); ?></a>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
             <?php if (is_user_logged_in()) : ?>
-                <?php $user = wp_get_current_user(); ?>
-                <div class="avpvh-auth-status" style="margin: 0 0 1rem;">
-                    <span class="avpvh-auth-status__badge">
-                        <?php
-                        $member_role = (string) get_user_meta($user->ID, 'avpvh_member_role', true);
-                        $member_role_label = $this->member_role_label($member_role);
-                        $parts = [
-                            avpvh_format_name($member),
-                            $this->role_label($user),
-                        ];
-                        if ($member_role_label !== '') {
-                            $parts[] = $member_role_label;
-                        }
-                        $parts[] = ($member->status === 'active' ? 'Actief lid' : ($member->status === 'inactive' ? 'Oud lid' : 'Bezoeker'));
-                        echo esc_html(
-                            implode(' · ', $parts)
-                        );
-                        ?>
-                    </span>
+                <?php
+                $user = wp_get_current_user();
+                $member_role = (string) get_user_meta($user->ID, 'avpvh_member_role', true);
+                $member_role_label = $this->member_role_label($member_role);
+                $status_label = $member->status === 'active' ? 'Actief lid' : ($member->status === 'inactive' ? 'Oud lid' : 'Bezoeker');
+                $badges = array_filter([$this->role_label($user), $member_role_label, $status_label]);
+
+                $lldap_groups = [];
+                if (!empty($member->user_id)) {
+                    $lldap_groups = AVPVH_LLDAP::get_user_groups($member->user_id);
+                    if (is_wp_error($lldap_groups)) {
+                        $lldap_groups = [];
+                    }
+                }
+                ?>
+                <div class="avpvh-summary-card">
+                    <div class="avpvh-summary-card__name"><?php echo esc_html(avpvh_format_name($member)); ?></div>
+                    <div class="avpvh-summary-card__badges">
+                        <?php foreach ($badges as $badge) : ?>
+                            <span class="avpvh-badge"><?php echo esc_html($badge); ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="avpvh-summary-card__row">
+                        <span class="avpvh-summary-card__label">Ingelogd als:</span>
+                        <?php echo esc_html($user->user_email); ?>
+                    </div>
+                    <?php if ($lldap_groups) : ?>
+                        <div class="avpvh-summary-card__row">
+                            <span class="avpvh-summary-card__label">Groepen:</span>
+                            <?php echo esc_html(implode(', ', wp_list_pluck($lldap_groups, 'displayName'))); ?>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (count($huisgenoten) > 1) : ?>
+                        <div class="avpvh-summary-card__row">
+                            <span class="avpvh-summary-card__label">Huisgenoten:</span>
+                            <?php foreach ($huisgenoten as $i => $hg) : ?>
+                                <?php echo $i > 0 ? ', ' : ''; ?>
+                                <?php if ((int) $hg->id === (int) $member->id) : ?>
+                                    <strong><?php echo esc_html(avpvh_format_name($hg)); ?></strong>
+                                <?php else : ?>
+                                    <a href="<?php echo esc_url(add_query_arg('member_id', $hg->id)); ?>"><?php echo esc_html(avpvh_format_name($hg)); ?></a>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
@@ -98,7 +112,7 @@ class AVPVH_Member_Profile_Form {
                 <?php wp_nonce_field('avpvh_member_profile', 'avpvh_nonce'); ?>
                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
 
-                <fieldset>
+                <fieldset class="avpvh-fields-grid">
                     <legend>Persoonlijke gegevens</legend>
 
                     <div class="form-group">
@@ -161,7 +175,7 @@ class AVPVH_Member_Profile_Form {
                     </div>
                 </fieldset>
 
-                <fieldset>
+                <fieldset class="avpvh-fields-grid">
                     <legend>Contact Information</legend>
 
                     <div class="form-group">
@@ -183,7 +197,7 @@ class AVPVH_Member_Profile_Form {
                     </div>
                 </fieldset>
 
-                <fieldset>
+                <fieldset class="avpvh-fields-grid">
                     <legend>Address</legend>
 
                     <div class="form-group">
