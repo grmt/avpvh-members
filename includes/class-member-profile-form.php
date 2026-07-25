@@ -153,20 +153,6 @@ class AVPVH_Member_Profile_Form {
                     <?php endif; ?>
 
                     <div class="form-group">
-                        <label for="family_relation_member_id">Familierelatie</label>
-                        <select id="family_relation_member_id" name="family_relation_member_id">
-                            <option value="">— Geen —</option>
-                            <?php foreach ($member_household as $hg) : ?>
-                                <?php if ((int) $hg->id === (int) $member->id) continue; ?>
-                                <option value="<?php echo esc_attr($hg->id); ?>" <?php selected((int) ($member->family_relation_member_id ?? 0), (int) $hg->id); ?>>
-                                    <?php echo esc_html(avpvh_format_name($hg)); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <p style="font-size: 0.9em; color: #666;">Bijvoorbeeld: kind van, partner van — kies uit je huisgenoten.</p>
-                    </div>
-
-                    <div class="form-group">
                         <label for="diet">Eetgewoontes / allergieën</label>
                         <input type="text" id="diet" name="diet"
                             value="<?php echo esc_attr($member->diet ?? ''); ?>"
@@ -276,9 +262,10 @@ class AVPVH_Member_Profile_Form {
                 <p class="avpvh-identity-notice avpvh-identity-notice--error">
                     <?php
                     $errors = [
-                        'in_use'    => 'Dat e-mailadres is al aan een ander lid gekoppeld.',
-                        'not_you'   => 'Er ging iets mis met de verificatie — probeer het opnieuw.',
-                        'limit'     => 'Dit adres kon niet worden toegevoegd.',
+                        'in_use'        => 'Dat e-mailadres is al aan een ander lid gekoppeld.',
+                        'not_you'       => 'Er ging iets mis met de verificatie — probeer het opnieuw.',
+                        'limit'         => 'Dit adres kon niet worden toegevoegd (maximaal drie).',
+                        'last_identity' => 'Dit is je enige inlog-e-mailadres — je kunt het pas verwijderen nadat je een ander adres hebt toegevoegd.',
                     ];
                     echo esc_html($errors[$_GET['identity_error']] ?? 'Er ging iets mis.');
                     ?>
@@ -296,6 +283,7 @@ class AVPVH_Member_Profile_Form {
                         <td><?php echo esc_html($identity->email); ?></td>
                         <td><?php echo esc_html($label); ?></td>
                         <td>
+                            <?php if (count($identities) > 1) : ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
                                 onsubmit="return confirm('<?php echo $is_current_login
                                     ? esc_js('Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?')
@@ -306,6 +294,9 @@ class AVPVH_Member_Profile_Form {
                                 <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
                                 <button type="submit" class="button">Verwijderen</button>
                             </form>
+                            <?php else : ?>
+                            <span title="Voeg eerst een ander adres toe om dit te kunnen verwijderen">—</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -456,7 +447,7 @@ class AVPVH_Member_Profile_Form {
         }
 
         $is_admin_edit = current_user_can('manage_options') && !empty($_POST['member_id']);
-        $member_data = $this->sanitize_member_data($_POST, $is_admin_edit, (int) $member->id);
+        $member_data = $this->sanitize_member_data($_POST, $is_admin_edit);
 
         try {
             // Update member with audit trail
@@ -565,7 +556,7 @@ class AVPVH_Member_Profile_Form {
 
         $identities = AVPVH_DB::get_member_identities($member_id);
         if (count($identities) <= 1) {
-            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'limit'], wp_get_referer() ?: home_url('/member-profile/')));
+            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'last_identity'], wp_get_referer() ?: home_url('/member-profile/')));
             exit;
         }
 
@@ -621,7 +612,7 @@ class AVPVH_Member_Profile_Form {
      * may update themselves; admin-only fields (baptism name, birth date)
      * are added on top for the admin edit screen.
      */
-    private function sanitize_member_data(array $data, bool $is_admin, int $member_id): array {
+    private function sanitize_member_data(array $data, bool $is_admin): array {
         $fields = [
             'first_name' => sanitize_text_field($data['first_name'] ?? ''),
             'suffix' => sanitize_text_field($data['suffix'] ?? ''),
@@ -631,7 +622,6 @@ class AVPVH_Member_Profile_Form {
             'mobile' => sanitize_text_field($data['mobile'] ?? ''),
             'emergency_contact' => sanitize_text_field($data['emergency_contact'] ?? ''),
             'diet' => sanitize_text_field($data['diet'] ?? ''),
-            'family_relation_member_id' => $this->sanitize_family_relation($data['family_relation_member_id'] ?? '', $member_id),
         ];
 
         if ($is_admin) {
@@ -640,23 +630,6 @@ class AVPVH_Member_Profile_Form {
         }
 
         return $fields;
-    }
-
-    /**
-     * A family relation must point to someone in the same household as the
-     * member being edited — never an arbitrary member id.
-     */
-    private function sanitize_family_relation(string $raw, int $member_id): ?string {
-        $relation_id = (int) $raw;
-        if ($relation_id <= 0) {
-            return null;
-        }
-        foreach (AVPVH_DB::get_manageable_members($member_id) as $m) {
-            if ((int) $m->id === $relation_id) {
-                return (string) $relation_id;
-            }
-        }
-        return null;
     }
 
     private function role_label(\WP_User $user): string {
