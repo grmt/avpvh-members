@@ -13,6 +13,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_primary_identity',[$this, 'handle_primary_identity']);
         add_action('admin_post_avpvh_save_participation', [$this, 'handle_save_participation']);
         add_action('admin_post_avpvh_save_camp',          [$this, 'handle_save_camp']);
+        add_action('admin_post_avpvh_save_activity_types',[$this, 'handle_save_activity_types']);
         add_action('admin_post_avpvh_export_kampdeelname',[$this, 'handle_export_kampdeelname']);
     }
 
@@ -373,15 +374,39 @@ class AVPVH_Admin {
         }
 
         $camp_id = (int) ($_POST['camp_id'] ?? 0);
+        $type_id = (int) ($_POST['type_id'] ?? 0);
         global $wpdb;
         $wpdb->update("{$wpdb->prefix}avm_camps", [
             'location'   => sanitize_text_field(wp_unslash($_POST['location'] ?? '')),
+            'type_id'    => $type_id ?: null,
             'start_date' => sanitize_text_field($_POST['start_date'] ?? '') ?: null,
             'end_date'   => sanitize_text_field($_POST['end_date'] ?? '') ?: null,
         ], ['id' => $camp_id]);
 
         wp_safe_redirect(add_query_arg([
             'page' => 'avpvh-kampdeelname', 'camp_id' => $camp_id, 'camp_saved' => '1',
+        ], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_save_activity_types(): void {
+        check_admin_referer('avpvh_save_activity_types');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        foreach ((array) ($_POST['type_name'] ?? []) as $id => $name) {
+            AVPVH_DB::rename_activity_type((int) $id, sanitize_text_field(wp_unslash($name)));
+        }
+
+        $new_name = sanitize_text_field(wp_unslash($_POST['new_type_name'] ?? ''));
+        if ($new_name !== '') {
+            AVPVH_DB::add_activity_type($new_name);
+        }
+
+        $camp_id = (int) ($_POST['camp_id'] ?? 0);
+        wp_safe_redirect(add_query_arg([
+            'page' => 'avpvh-kampdeelname', 'camp_id' => $camp_id, 'types_saved' => '1',
         ], admin_url('admin.php')));
         exit;
     }

@@ -20,13 +20,11 @@ class AVPVH_DB {
             first_name VARCHAR(100) NOT NULL DEFAULT '',
             suffix VARCHAR(50) NOT NULL DEFAULT '',
             last_name VARCHAR(100) NOT NULL DEFAULT '',
-            baptism_name VARCHAR(200) NOT NULL DEFAULT '',
             passport_name VARCHAR(200) NOT NULL DEFAULT '',
             birth_date DATE NULL,
             phone VARCHAR(30) NOT NULL DEFAULT '',
             mobile VARCHAR(30) NOT NULL DEFAULT '',
             emergency_contact VARCHAR(200) NOT NULL DEFAULT '',
-            family_relation_member_id INT UNSIGNED NULL,
             diet VARCHAR(255) NOT NULL DEFAULT '',
             status ENUM('active','inactive','visitor') NOT NULL DEFAULT 'active',
             joined_year YEAR NULL,
@@ -41,8 +39,7 @@ class AVPVH_DB {
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY lldap_user_id (lldap_user_id),
-            KEY wp_user_id (wp_user_id),
-            KEY family_relation_member_id (family_relation_member_id)
+            KEY wp_user_id (wp_user_id)
         ) $charset;");
 
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_addresses (
@@ -59,15 +56,30 @@ class AVPVH_DB {
             KEY member_id (member_id)
         ) $charset;");
 
+        // Activity types (Kamp/Weekend/Uitje/...) — club admins can rename or
+        // add types via the Kampdeelname screen, so this is a real editable
+        // table rather than a fixed ENUM. Seeded with the original 6 default
+        // types in the 2.6 migration below (install() alone can't seed rows
+        // safely on repeat activation — dbDelta only handles structure).
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_activity_types (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(50) NOT NULL,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            UNIQUE KEY name (name)
+        ) $charset;");
+
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_camps (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(150) NOT NULL DEFAULT '',
+            type_id INT UNSIGNED NULL,
             year YEAR NOT NULL,
             location VARCHAR(150) NOT NULL DEFAULT '',
             start_date DATE NULL,
             end_date DATE NULL,
             PRIMARY KEY (id),
-            UNIQUE KEY name_year (name, year)
+            UNIQUE KEY name_year (name, year),
+            KEY type_id (type_id)
         ) $charset;");
 
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_camp_participation (
@@ -121,14 +133,6 @@ class AVPVH_DB {
             KEY year (year)
         ) $charset;");
 
-        // Family relationships
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_families (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            name VARCHAR(200) NOT NULL DEFAULT '',
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
-        ) $charset;");
-
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_member_identities (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             member_id INT UNSIGNED NOT NULL,
@@ -142,27 +146,35 @@ class AVPVH_DB {
             KEY member_id (member_id)
         ) $charset;");
 
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_family_members (
+        // Relationships — see the "Relationships" section below for the
+        // full design note. label_id points at avm_relationship_labels,
+        // seeded in the 2.5 migration (install() alone can't seed rows
+        // safely on repeat activation — dbDelta only handles structure).
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_relationship_labels (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            family_id INT UNSIGNED NOT NULL,
-            member_id INT UNSIGNED NOT NULL,
-            relationship VARCHAR(50) NOT NULL DEFAULT 'member',
+            code VARCHAR(20) NOT NULL,
+            label VARCHAR(50) NOT NULL,
+            category VARCHAR(20) NOT NULL,
+            inverse_id INT UNSIGNED NULL,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
-            UNIQUE KEY family_member (family_id, member_id),
-            KEY family_id (family_id),
-            KEY member_id (member_id)
+            UNIQUE KEY code (code)
         ) $charset;");
 
-        // Partner relationships (one-to-one, mutual)
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_partners (
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_relationships (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            member_id_1 INT UNSIGNED NOT NULL,
-            member_id_2 INT UNSIGNED NOT NULL,
+            member_id INT UNSIGNED NOT NULL,
+            related_member_id INT UNSIGNED NOT NULL,
+            label_id INT UNSIGNED NOT NULL,
+            valid_from DATE NULL,
+            valid_until DATE NULL,
+            note VARCHAR(255) NOT NULL DEFAULT '',
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_by INT UNSIGNED NULL,
             PRIMARY KEY (id),
-            UNIQUE KEY partner_pair (member_id_1, member_id_2),
-            KEY member_id_1 (member_id_1),
-            KEY member_id_2 (member_id_2)
+            KEY member_id (member_id),
+            KEY related_member_id (related_member_id),
+            KEY label_id (label_id)
         ) $charset;");
 
         // Audit trail for member data changes
@@ -301,6 +313,290 @@ class AVPVH_DB {
             $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camp_participation MODIFY diet TEXT NULL");
             update_option('avpvh_db_version', '2.4');
         }
+        if (version_compare($version, '2.5', '<')) {
+            self::migrate_to_relationships_table();
+            update_option('avpvh_db_version', '2.5');
+        }
+        if (version_compare($version, '2.6', '<')) {
+            // Broadens avm_camps beyond just the annual dig — a "kamp" row's
+            // real dates are also the natural period for a temporary voogd
+            // assignment (see the relationships add-form's activity picker),
+            // and covers weekends/outings too now, not just kampen. Types
+            // live in their own table (avm_activity_types) rather than a
+            // fixed ENUM, so club admins can rename or add types later.
+            self::migrate_to_activity_types_table();
+            update_option('avpvh_db_version', '2.6');
+        }
+        if (version_compare($version, '2.7', '<')) {
+            // Doopnaam (baptism_name) was a separate field from paspoortnaam
+            // but never actually used for anything distinct — fold any
+            // existing data into passport_name and drop the column.
+            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'baptism_name'");
+            if ($column_exists) {
+                $wpdb->query("UPDATE {$wpdb->prefix}avm_members
+                    SET passport_name = baptism_name
+                    WHERE baptism_name != '' AND passport_name = ''");
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members DROP COLUMN baptism_name");
+            }
+            update_option('avpvh_db_version', '2.7');
+        }
+        if (version_compare($version, '2.8', '<')) {
+            // Passport name must read exactly as printed in the passport —
+            // strip parenthetical nicknames/notes left over from the old
+            // doopnaam data folded in during 2.7 (e.g. "Frank (Franciscus
+            // Maria Henricus)" -> "Frank Franciscus Maria Henricus").
+            $rows = $wpdb->get_results(
+                "SELECT id, passport_name FROM {$wpdb->prefix}avm_members
+                 WHERE passport_name LIKE '%(%' OR passport_name LIKE '%)%'
+                    OR passport_name LIKE '%[%' OR passport_name LIKE '%]%'
+                    OR passport_name LIKE '%{%' OR passport_name LIKE '%}%'"
+            );
+            foreach ($rows as $row) {
+                $cleaned = trim(preg_replace('/\s+/', ' ', preg_replace('/[()\[\]{}]/', '', $row->passport_name)));
+                $wpdb->update(
+                    "{$wpdb->prefix}avm_members",
+                    ['passport_name' => $cleaned],
+                    ['id' => $row->id],
+                    ['%s'], ['%d']
+                );
+            }
+            update_option('avpvh_db_version', '2.8');
+        }
+    }
+
+    // One-time migration (2026-07-25): replaces the three separate, mostly-
+    // unused relationship mechanisms (avm_families/avm_family_members,
+    // avm_partners, and the untyped family_relation_member_id column) with
+    // the single avm_relationships table. Real data existed in all three on
+    // the live site at migration time, so this carries it forward rather
+    // than just dropping it — see class-member-profile-form.php's git log
+    // for the manual confirmations (surname-guessing got two of the five
+    // untyped links wrong) this migration's hardcoded mapping is based on.
+    private static function migrate_to_relationships_table(): void {
+        global $wpdb;
+        $charset = $wpdb->get_charset_collate();
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_relationship_labels (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            code VARCHAR(20) NOT NULL,
+            label VARCHAR(50) NOT NULL,
+            category VARCHAR(20) NOT NULL,
+            inverse_id INT UNSIGNED NULL,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            UNIQUE KEY code (code)
+        ) $charset;");
+
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_relationships (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            member_id INT UNSIGNED NOT NULL,
+            related_member_id INT UNSIGNED NOT NULL,
+            label_id INT UNSIGNED NOT NULL,
+            valid_from DATE NULL,
+            valid_until DATE NULL,
+            note VARCHAR(255) NOT NULL DEFAULT '',
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_by INT UNSIGNED NULL,
+            PRIMARY KEY (id),
+            KEY member_id (member_id),
+            KEY related_member_id (related_member_id),
+            KEY label_id (label_id)
+        ) $charset;");
+
+        // Seed labels (idempotent — safe to re-run).
+        $labels = [
+            // code         label             category
+            ['ouder',      'ouder van',      'ouder_kind'],
+            ['kind',       'kind van',       'ouder_kind'],
+            ['partner',    'partner van',    'partner'],
+            ['vriend',     'vriend van',     'partner'],
+            ['vriendin',   'vriendin van',   'partner'],
+            ['man',        'man van',        'partner'],
+            ['vrouw',      'vrouw van',      'partner'],
+            ['huisgenoot', 'huisgenoot van', 'huisgenoot'],
+            ['voogd',      'voogd van',      'voogd'],
+            ['pupil',      'pupil van',      'voogd'],
+        ];
+        $ids = [];
+        foreach ($labels as [$code, $label, $category]) {
+            $existing_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}avm_relationship_labels WHERE code = %s", $code
+            ));
+            if ($existing_id) {
+                $ids[$code] = (int) $existing_id;
+                continue;
+            }
+            $wpdb->insert(
+                "{$wpdb->prefix}avm_relationship_labels",
+                ['code' => $code, 'label' => $label, 'category' => $category],
+                ['%s', '%s', '%s']
+            );
+            $ids[$code] = (int) $wpdb->insert_id;
+        }
+        $inverse_pairs = [
+            'ouder' => 'kind', 'kind' => 'ouder',
+            'partner' => 'partner',
+            'vriend' => 'vriendin', 'vriendin' => 'vriend',
+            'man' => 'vrouw', 'vrouw' => 'man',
+            'huisgenoot' => 'huisgenoot',
+            'voogd' => 'pupil', 'pupil' => 'voogd',
+        ];
+        foreach ($inverse_pairs as $code => $inverse_code) {
+            $wpdb->update(
+                "{$wpdb->prefix}avm_relationship_labels",
+                ['inverse_id' => $ids[$inverse_code]],
+                ['id' => $ids[$code]],
+                ['%d'], ['%d']
+            );
+        }
+
+        // Only migrate real data if the old tables still exist (a fresh
+        // install created after this version never had them).
+        $old_tables_exist = (bool) $wpdb->get_var(
+            "SHOW TABLES LIKE '{$wpdb->prefix}avm_family_members'"
+        );
+        if ($old_tables_exist) {
+            // avm_family_members: each family's 'parent'-tagged rows become
+            // a parent->child edge to each of that family's 'child'-tagged
+            // rows.
+            $family_ids = $wpdb->get_col("SELECT DISTINCT family_id FROM {$wpdb->prefix}avm_family_members");
+            foreach ($family_ids as $family_id) {
+                $members = $wpdb->get_results($wpdb->prepare(
+                    "SELECT member_id, relationship FROM {$wpdb->prefix}avm_family_members WHERE family_id = %d",
+                    $family_id
+                ));
+                $parents  = array_filter($members, fn($m) => $m->relationship === 'parent');
+                $children = array_filter($members, fn($m) => $m->relationship === 'child');
+                foreach ($parents as $parent) {
+                    foreach ($children as $child) {
+                        self::add_relationship((int) $child->member_id, (int) $parent->member_id, $ids['ouder']);
+                    }
+                }
+            }
+
+            // avm_partners had no gender/label info at all — migrate as the
+            // generic 'partner van', not a guessed man/vrouw/vriend(in).
+            $partners = $wpdb->get_results("SELECT member_id_1, member_id_2 FROM {$wpdb->prefix}avm_partners");
+            foreach ($partners as $p) {
+                self::add_relationship((int) $p->member_id_1, (int) $p->member_id_2, $ids['partner']);
+            }
+        }
+
+        // The 5 rows in the old untyped family_relation_member_id column,
+        // manually confirmed with the club 2026-07-25 (surname-guessing
+        // alone got Sanne de Vries and Fenna/Dirk's actual parents wrong):
+        //   Anna Bakker        -> vriendin van Peter Jansen
+        //   Sanne de Vries   -> vrouw van Jan de Vries (=Sanne Willems)
+        //   Marieke Peters    -> ouder van Tom Peters
+        //   Willem & Anke    -> ouder van Lisa Smit AND Mark Smit (siblings
+        //                        via shared parents, not stored directly)
+        //   Willem Smit          -> man van Anke Bosman
+        // Willem Smit (not a club member) was created separately as a
+        // 'visitor' before this migration ran. Kees Mulder/Piet Mulder'
+        // relationship was never confirmed — deliberately left unmigrated;
+        // add it manually via the profile page once known.
+        $manual_map = [
+            // subject_id => [related_id, label_code]
+            32  => [128, 'vriendin'],  // Peter Jansen      -> Anna Bakker
+            51  => [130, 'vrouw'],     // Jan de Vries -> Sanne de Vries
+            132 => [80,  'ouder'],     // Tom Peters     -> Marieke Peters
+            127 => [134, 'ouder'],     // Lisa Smit          -> Willem Smit
+            118 => [134, 'ouder'],     // Mark Smit           -> Willem Smit
+        ];
+        $manual_map_extra = [
+            127 => 54, // Lisa Smit -> Anke Bosman
+            118 => 54, // Mark Smit  -> Anke Bosman
+        ];
+        foreach ($manual_map as $subject_id => [$related_id, $label_code]) {
+            // Only insert if both members actually exist (harmless no-op
+            // if this migration re-runs against a DB that never had them,
+            // e.g. a fresh dev/staging copy).
+            $both_exist = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}avm_members WHERE id IN (%d, %d)",
+                $subject_id, $related_id
+            ));
+            if ((int) $both_exist === 2) {
+                self::add_relationship($subject_id, $related_id, $ids[$label_code]);
+            }
+        }
+        foreach ($manual_map_extra as $subject_id => $related_id) {
+            $both_exist = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}avm_members WHERE id IN (%d, %d)",
+                $subject_id, $related_id
+            ));
+            if ((int) $both_exist === 2) {
+                self::add_relationship($subject_id, $related_id, $ids['ouder']);
+            }
+        }
+        // Mariska is Henk's partner too (was only captured as Garmt/Germie
+        // in the old avm_partners table; Willem/Anke never had a row).
+        $henk = $wpdb->get_var("SELECT id FROM {$wpdb->prefix}avm_members WHERE lldap_user_id = 'willem.smit'");
+        if ($henk) {
+            self::add_relationship(54, (int) $henk, $ids['man']);
+        }
+
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_family_members");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_families");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_partners");
+
+        $column_exists = $wpdb->get_var(
+            "SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'family_relation_member_id'"
+        );
+        if ($column_exists) {
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                DROP KEY family_relation_member_id,
+                DROP COLUMN family_relation_member_id");
+        }
+    }
+
+    // One-time migration (2026-07-25): introduces avm_activity_types as a
+    // real, admin-editable table (rename/add types via the Kampdeelname
+    // screen) and points avm_camps at it via type_id, instead of a fixed
+    // ENUM of hardcoded Dutch values.
+    private static function migrate_to_activity_types_table(): void {
+        global $wpdb;
+        $charset = $wpdb->get_charset_collate();
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_activity_types (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(50) NOT NULL,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            UNIQUE KEY name (name)
+        ) $charset;");
+
+        $default_types = ['Kamp', 'Weekend', 'Uitje', 'Wandeling', 'Feest', 'Anders'];
+        $ids = [];
+        foreach ($default_types as $i => $name) {
+            $existing_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}avm_activity_types WHERE name = %s", $name
+            ));
+            if ($existing_id) {
+                $ids[$name] = (int) $existing_id;
+                continue;
+            }
+            $wpdb->insert(
+                "{$wpdb->prefix}avm_activity_types",
+                ['name' => $name, 'sort_order' => $i],
+                ['%s', '%d']
+            );
+            $ids[$name] = (int) $wpdb->insert_id;
+        }
+
+        $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_camps LIKE 'type_id'");
+        if (!$column_exists) {
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camps
+                ADD COLUMN type_id INT UNSIGNED NULL AFTER name,
+                ADD KEY type_id (type_id)");
+        }
+        // Existing camps predate the type field entirely — they were all
+        // the annual dig, so 'Kamp' is the correct default backfill.
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}avm_camps SET type_id = %d WHERE type_id IS NULL",
+            $ids['Kamp']
+        ));
     }
 
     public static function log_attempt(string $email, string $method, string $result): void {
@@ -345,8 +641,8 @@ class AVPVH_DB {
         $lldap = self::lldap();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
-                       m.first_name, m.suffix, m.last_name, m.baptism_name, m.passport_name, m.birth_date,
-                       m.phone, m.mobile, m.emergency_contact, m.family_relation_member_id, m.diet,
+                       m.first_name, m.suffix, m.last_name, m.passport_name, m.birth_date,
+                       m.phone, m.mobile, m.emergency_contact, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
                        m.share_email, m.share_phone, m.share_address, m.share_camp_history,
@@ -567,8 +863,7 @@ class AVPVH_DB {
 
         if (!empty($args['search'])) {
             $s      = '%' . $wpdb->esc_like($args['search']) . '%';
-            $where .= ' AND (m.last_name LIKE %s OR m.first_name LIKE %s OR m.baptism_name LIKE %s OR u.email LIKE %s)';
-            $params[] = $s;
+            $where .= ' AND (m.last_name LIKE %s OR m.first_name LIKE %s OR u.email LIKE %s)';
             $params[] = $s;
             $params[] = $s;
             $params[] = $s;
@@ -706,13 +1001,64 @@ class AVPVH_DB {
 
     public static function get_camps(): array {
         global $wpdb;
-        return $wpdb->get_results("SELECT * FROM {$wpdb->prefix}avm_camps ORDER BY year DESC, name ASC") ?: [];
+        return $wpdb->get_results(
+            "SELECT c.*, t.name AS type_name
+             FROM {$wpdb->prefix}avm_camps c
+             LEFT JOIN {$wpdb->prefix}avm_activity_types t ON t.id = c.type_id
+             ORDER BY c.year DESC, c.name ASC"
+        ) ?: [];
     }
 
     public static function get_camp(int $camp_id): ?object {
         global $wpdb;
-        $camp = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}avm_camps WHERE id = %d", $camp_id));
+        $camp = $wpdb->get_row($wpdb->prepare(
+            "SELECT c.*, t.name AS type_name
+             FROM {$wpdb->prefix}avm_camps c
+             LEFT JOIN {$wpdb->prefix}avm_activity_types t ON t.id = c.type_id
+             WHERE c.id = %d",
+            $camp_id
+        ));
         return $camp ?: null;
+    }
+
+    // -------------------------------------------------------------------
+    // Activity types — admin-editable list backing avm_camps.type_id
+    // -------------------------------------------------------------------
+
+    public static function get_activity_types(): array {
+        global $wpdb;
+        return $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}avm_activity_types ORDER BY sort_order, name"
+        ) ?: [];
+    }
+
+    public static function add_activity_type(string $name) {
+        global $wpdb;
+        $name = trim($name);
+        if ($name === '') {
+            return false;
+        }
+        $max_sort = (int) $wpdb->get_var("SELECT COALESCE(MAX(sort_order), 0) FROM {$wpdb->prefix}avm_activity_types");
+        $result = $wpdb->insert(
+            "{$wpdb->prefix}avm_activity_types",
+            ['name' => $name, 'sort_order' => $max_sort + 1],
+            ['%s', '%d']
+        );
+        return $result !== false ? (int) $wpdb->insert_id : false;
+    }
+
+    public static function rename_activity_type(int $id, string $name): bool {
+        global $wpdb;
+        $name = trim($name);
+        if ($name === '') {
+            return false;
+        }
+        return $wpdb->update(
+            "{$wpdb->prefix}avm_activity_types",
+            ['name' => $name],
+            ['id' => $id],
+            ['%s'], ['%d']
+        ) !== false;
     }
 
     /** Most recent camp by year — used as the default for new screens. */
@@ -854,78 +1200,128 @@ class AVPVH_DB {
     }
 
     // -------------------------------------------------------------------
-    // Family relationships
+    // Relationships — a single directed-edge table for every kind of
+    // person-to-person relation (parent/child, partner variants, voogd),
+    // replacing the old, separate, mostly-unused avm_families/
+    // avm_family_members/avm_partners mechanisms and the untyped
+    // family_relation_member_id column (migrated in the 2.5 upgrade).
+    //
+    // A row (member_id, related_member_id, label_id) reads as:
+    // "related_member_id is [label] of member_id". Labels come in
+    // inverse pairs (ouder<->kind, vriend<->vriendin, man<->vrouw) so a
+    // relationship only ever needs ONE row — whichever side's profile
+    // you're viewing, get_relationships() picks the direct or inverse
+    // label automatically. Self-inverse labels (partner, huisgenoot,
+    // voogd/pupil is the one exception with a real inverse) read the
+    // same from both sides.
     // -------------------------------------------------------------------
 
-    public static function get_family(int $family_id): ?object {
+    public static function get_relationship_labels(): array {
         global $wpdb;
-        return $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}avm_families WHERE id = %d",
-            $family_id
-        )) ?: null;
+        return $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}avm_relationship_labels ORDER BY sort_order, label"
+        ) ?: [];
     }
 
-    public static function get_family_for_member(int $member_id): ?int {
+    // Combined, human-facing view of every relationship touching this
+    // member. Each row's label is resolved so it reads as a full sentence
+    // "{other_member} is {label} {this member}" (see render_relationships()
+    // in class-member-profile-form.php) — a row's stored label describes
+    // related_member_id's role toward member_id, so on member_id's own
+    // page (as_subject) that's already the right direction; on
+    // related_member_id's own page (as_object) the sentence needs the
+    // INVERSE label instead.
+    public static function get_relationships(int $member_id): array {
         global $wpdb;
-        $result = $wpdb->get_var($wpdb->prepare(
-            "SELECT family_id FROM {$wpdb->prefix}avm_family_members WHERE member_id = %d LIMIT 1",
+
+        $as_subject = $wpdb->get_results($wpdb->prepare(
+            "SELECT r.id, r.related_member_id AS other_id, l.label, l.category,
+                    r.valid_from, r.valid_until, r.note
+             FROM {$wpdb->prefix}avm_relationships r
+             JOIN {$wpdb->prefix}avm_relationship_labels l ON l.id = r.label_id
+             WHERE r.member_id = %d",
             $member_id
-        ));
-        return $result ? (int) $result : null;
-    }
-
-    public static function get_family_members(int $family_id): array {
-        global $wpdb;
-        $lldap = self::lldap();
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT m.id, m.first_name, m.last_name, m.email, fm.relationship
-             FROM {$wpdb->prefix}avm_family_members fm
-             JOIN {$wpdb->prefix}avm_members m ON m.id = fm.member_id
-             WHERE fm.family_id = %d
-             ORDER BY m.last_name, m.first_name",
-            $family_id
         )) ?: [];
-    }
 
-    public static function create_family(string $name = ''): int {
-        global $wpdb;
-        $wpdb->insert(
-            "{$wpdb->prefix}avm_families",
-            ['name' => $name],
-            ['%s']
-        );
-        return $wpdb->insert_id;
-    }
+        $as_object = $wpdb->get_results($wpdb->prepare(
+            "SELECT r.id, r.member_id AS other_id,
+                    COALESCE(inv.label, l.label) AS label, l.category,
+                    r.valid_from, r.valid_until, r.note
+             FROM {$wpdb->prefix}avm_relationships r
+             JOIN {$wpdb->prefix}avm_relationship_labels l ON l.id = r.label_id
+             LEFT JOIN {$wpdb->prefix}avm_relationship_labels inv ON inv.id = l.inverse_id
+             WHERE r.related_member_id = %d",
+            $member_id
+        )) ?: [];
 
-    public static function add_member_to_family(int $family_id, int $member_id, string $relationship = 'member'): void {
-        global $wpdb;
-        $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}avm_family_members WHERE family_id = %d AND member_id = %d",
-            $family_id, $member_id
-        ));
-
-        if ($existing) {
-            $wpdb->update(
-                "{$wpdb->prefix}avm_family_members",
-                ['relationship' => $relationship],
-                ['family_id' => $family_id, 'member_id' => $member_id],
-                ['%s'],
-                ['%d', '%d']
-            );
-        } else {
-            $wpdb->insert(
-                "{$wpdb->prefix}avm_family_members",
-                ['family_id' => $family_id, 'member_id' => $member_id, 'relationship' => $relationship],
-                ['%d', '%d', '%s']
-            );
+        $rows = array_merge($as_subject, $as_object);
+        if (!$rows) {
+            return [];
         }
+
+        $other_ids = array_unique(array_map(fn($r) => (int) $r->other_id, $rows));
+        $placeholders = implode(',', array_fill(0, count($other_ids), '%d'));
+        $members = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, first_name, suffix, last_name FROM {$wpdb->prefix}avm_members WHERE id IN ($placeholders)",
+            $other_ids
+        ));
+        $names = [];
+        foreach ($members as $m) {
+            $names[(int) $m->id] = $m;
+        }
+
+        foreach ($rows as $row) {
+            $row->other_member = $names[(int) $row->other_id] ?? null;
+        }
+
+        return $rows;
     }
 
-    public static function is_family_member(int $member_id_1, int $member_id_2): bool {
-        $family_1 = self::get_family_for_member($member_id_1);
-        $family_2 = self::get_family_for_member($member_id_2);
+    public static function add_relationship(
+        int $member_id, int $related_member_id, int $label_id,
+        ?string $valid_from = null, ?string $valid_until = null,
+        string $note = '', int $created_by = 0
+    ): bool {
+        global $wpdb;
+        $result = $wpdb->insert(
+            "{$wpdb->prefix}avm_relationships",
+            [
+                'member_id'         => $member_id,
+                'related_member_id' => $related_member_id,
+                'label_id'          => $label_id,
+                'valid_from'        => $valid_from ?: null,
+                'valid_until'       => $valid_until ?: null,
+                'note'              => $note,
+                'created_by'        => $created_by ?: null,
+            ],
+            ['%d', '%d', '%d', '%s', '%s', '%s', '%d']
+        );
+        return $result !== false;
+    }
 
-        return $family_1 && $family_1 === $family_2;
+    public static function remove_relationship(int $relationship_id): void {
+        global $wpdb;
+        $wpdb->delete("{$wpdb->prefix}avm_relationships", ['id' => $relationship_id], ['%d']);
+    }
+
+    // True if the two members have a (currently valid) 'ouder_kind' edge
+    // in either direction — used to grant profile-edit permission to a
+    // non-cohabiting parent (e.g. after a divorce).
+    public static function is_family_member(int $member_id_1, int $member_id_2): bool {
+        global $wpdb;
+        $today = current_time('Y-m-d');
+        $result = $wpdb->get_var($wpdb->prepare(
+            "SELECT r.id FROM {$wpdb->prefix}avm_relationships r
+             JOIN {$wpdb->prefix}avm_relationship_labels l ON l.id = r.label_id
+             WHERE l.category = 'ouder_kind'
+               AND ((r.member_id = %d AND r.related_member_id = %d)
+                 OR (r.member_id = %d AND r.related_member_id = %d))
+               AND (r.valid_from IS NULL OR r.valid_from <= %s)
+               AND (r.valid_until IS NULL OR r.valid_until >= %s)
+             LIMIT 1",
+            $member_id_1, $member_id_2, $member_id_2, $member_id_1, $today, $today
+        ));
+        return (bool) $result;
     }
 
     // -------------------------------------------------------------------
@@ -988,73 +1384,6 @@ class AVPVH_DB {
         return $manageable;
     }
 
-    // -------------------------------------------------------------------
-    // Partner relationships (couple/spouse links)
-    // -------------------------------------------------------------------
-
-    public static function get_partner(int $member_id): ?object {
-        global $wpdb;
-        $result = $wpdb->get_row($wpdb->prepare(
-            "SELECT m.* FROM {$wpdb->prefix}avm_members m
-             JOIN {$wpdb->prefix}avm_partners p ON (
-                 (p.member_id_1 = %d AND m.id = p.member_id_2) OR
-                 (p.member_id_2 = %d AND m.id = p.member_id_1)
-             )
-             LIMIT 1",
-            $member_id, $member_id
-        )) ?: null;
-        return $result;
-    }
-
-    public static function are_partners(int $member_id_1, int $member_id_2): bool {
-        global $wpdb;
-        $result = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}avm_partners
-             WHERE (member_id_1 = %d AND member_id_2 = %d)
-                OR (member_id_1 = %d AND member_id_2 = %d)
-             LIMIT 1",
-            $member_id_1, $member_id_2, $member_id_2, $member_id_1
-        ));
-        return (bool) $result;
-    }
-
-    public static function link_partners(int $member_id_1, int $member_id_2): void {
-        global $wpdb;
-
-        // Ensure member_id_1 < member_id_2 for consistent ordering
-        if ($member_id_1 > $member_id_2) {
-            [$member_id_1, $member_id_2] = [$member_id_2, $member_id_1];
-        }
-
-        // Check if already linked
-        $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}avm_partners WHERE member_id_1 = %d AND member_id_2 = %d",
-            $member_id_1, $member_id_2
-        ));
-
-        if (!$existing) {
-            $wpdb->insert(
-                "{$wpdb->prefix}avm_partners",
-                ['member_id_1' => $member_id_1, 'member_id_2' => $member_id_2],
-                ['%d', '%d']
-            );
-        }
-    }
-
-    public static function unlink_partners(int $member_id_1, int $member_id_2): void {
-        global $wpdb;
-
-        // Ensure member_id_1 < member_id_2
-        if ($member_id_1 > $member_id_2) {
-            [$member_id_1, $member_id_2] = [$member_id_2, $member_id_1];
-        }
-
-        $wpdb->delete(
-            "{$wpdb->prefix}avm_partners",
-            ['member_id_1' => $member_id_1, 'member_id_2' => $member_id_2],
-            ['%d', '%d']
-        );
-    }
 
     // -------------------------------------------------------------------
     // Audit trail for member data changes
