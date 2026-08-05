@@ -6,6 +6,7 @@ class AVPVH_Access {
     public function __construct() {
         add_action('init',               [$this, 'auto_login_from_proxy_header'], 1);
         add_action('init',               [$this, 'enforce_session_idle_timeout'], 1);
+        add_action('wp_login',           [$this, 'reset_session_idle_timer'], 10, 2);
         add_action('template_redirect',  [$this, 'handle_login_bridge']);
         add_filter('the_content',        [$this, 'inject_login_form'], 5);
         add_filter('post_password_required', [$this, 'bypass_for_active_member'], 10, 2);
@@ -240,6 +241,14 @@ class AVPVH_Access {
         if (!$last_activity || ($now - $last_activity) > 5 * MINUTE_IN_SECONDS) {
             update_user_meta($user_id, 'avpvh_last_activity', $now);
         }
+    }
+
+    // A stale avpvh_last_activity timestamp can survive a normal end-of-session
+    // (only the forced timeout logout above clears it). Without this, a fresh
+    // login after such a gap would trip enforce_session_idle_timeout() on the
+    // very next request, immediately logging the user back out.
+    public function reset_session_idle_timer(string $user_login, \WP_User $user): void {
+        update_user_meta($user->ID, 'avpvh_last_activity', time());
     }
 
     public function bypass_for_active_member(bool $required, \WP_Post $post): bool {
