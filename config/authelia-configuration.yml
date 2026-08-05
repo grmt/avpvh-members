@@ -79,6 +79,22 @@ access_control:
         - '^/wp-admin/.*'
       policy: 'two_factor'
 
+    # Find and View: Zoeken in documenten — restricted to "boek" LLDAP group
+    # (DGéén, Geboortekaartjes, Speeches digitization project)
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/leden/zoeken-in-documenten/?$'
+      subject: 'group:boek'
+      policy: 'one_factor'
+
+    # Scans (Find and View) — same restriction for the underlying scan
+    # images, served directly by nginx (bypasses WordPress/PHP entirely)
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/wp-content/uploads/scans/.*'
+      subject: 'group:boek'
+      policy: 'one_factor'
+
     # All other pages: bypass Authelia, WordPress plugin handles access control
     - domain: 'www.avphilipsvanhorne.nl'
       policy: 'bypass'
