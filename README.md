@@ -58,10 +58,10 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 
 ```bash
 # Plugin
-sudo rsync -a --delete ~/04-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/
+sudo rsync -a --delete ~/03-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/
 
 # Authelia config
-sudo cp ~/04-src/avpvh-members/config/authelia-configuration.yml /opt/docker/volumes/authelia/config/configuration.yml
+sudo cp ~/03-src/avpvh-members/config/authelia-configuration.yml /opt/docker/volumes/authelia/config/configuration.yml
 docker compose -f /opt/docker/scripts/docker-compose.yml restart authelia
 ```
 

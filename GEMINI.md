@@ -42,4 +42,4 @@ This file contains foundational mandates for the AVP-PvH Member system. All deve
 - **Docker Compose:** `/opt/docker/scripts/docker-compose.yml`
 - **Authelia Config:** `/opt/docker/volumes/authelia/config/configuration.yml` (source: `config/authelia-configuration.yml`)
 - **WordPress content:** `/opt/docker/volumes/html/wp-content-pvh/`
-- **Deploy:** `sudo rsync -a --delete ~/04-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/`
+- **Deploy:** `sudo rsync -a --delete ~/03-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/`
