@@ -35,7 +35,7 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $status || $joined
         <input type="hidden" name="page" value="avpvh-members">
         <p class="search-box">
             <label class="screen-reader-text" for="avpvh-search">Zoeken</label>
-            <input type="search" id="avpvh-search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Naam, doopnaam of e-mail">
+            <input type="search" id="avpvh-search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Naam of e-mail">
         </p>
 
         <table class="avpvh-column-filters" style="margin-bottom: .5rem;">

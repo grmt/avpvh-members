@@ -107,7 +107,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th>Voornaam</th><td><?php echo esc_html($member->first_name); ?></td></tr>
         <tr><th>Tussenvoegsel</th><td><?php echo esc_html($member->suffix ?: '—'); ?></td></tr>
         <tr><th>Achternaam</th><td><?php echo esc_html($member->last_name); ?></td></tr>
-        <tr><th>Doopnaam</th><td><?php echo esc_html($member->baptism_name ?: '—'); ?></td></tr>
+        <tr><th>Paspoortnaam</th><td><?php echo esc_html($member->passport_name ?: '—'); ?></td></tr>
         <tr><th>E-mail</th><td><?php echo esc_html($member->email); ?></td></tr>
         <tr><th>Status</th><td><?php echo esc_html($member->status); ?></td></tr>
         <tr><th>Telefoon</th><td><?php echo esc_html($member->phone); ?></td></tr>
