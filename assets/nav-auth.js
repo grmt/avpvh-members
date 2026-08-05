@@ -5,16 +5,45 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!cfg) return;
 
     // --- hide members-only nav items for guests ---
+    // (climbs to the top-level nav item because every item under "Alleen voor
+    // Leden" requires login — these 2 IDs are just anchors to find and hide
+    // that whole dropdown, not a request to hide only these 2 items)
     if (!cfg.isLoggedIn) {
         cfg.membersPageIds.forEach(function (id) {
-            document.querySelectorAll('a[href*="page_id=' + id + '"], a[href*="/?p=' + id + '"]').forEach(function (a) {
+            hideLinksTo(id, { climbToTopLevel: true });
+        });
+    }
+
+    // --- hide "Zoeken in documenten" for members without boek-group access ---
+    // (this page is gated by Authelia itself, not WordPress — a member without
+    // access would just be bounced to a second login they can't complete)
+    // Unlike the guest case above, only this one item should disappear —
+    // siblings like "Ledenlijst" stay visible, so this does NOT climb to the
+    // top-level nav item.
+    if (!cfg.hasDocSearchAccess) {
+        hideLinksTo(cfg.docSearchPageId, { slug: 'zoeken-in-documenten' });
+    }
+
+    // Hides every link to a given page — matched by page_id/p query var and,
+    // optionally, its pretty-permalink slug — wherever it appears on the page,
+    // not just inside nav menus (e.g. tiles on the "leden" landing page).
+    function hideLinksTo(pageId, opts) {
+        opts = opts || {};
+        var selector = 'a[href*="page_id=' + pageId + '"], a[href*="/?p=' + pageId + '"]';
+        if (opts.slug) selector += ', a[href*="/' + opts.slug + '"]';
+        document.querySelectorAll(selector).forEach(function (a) {
+            var li = a.closest('li');
+            if (opts.climbToTopLevel) {
                 // Walk up to the <li> that is a direct child of the nav container
-                var li = a.closest('li');
                 while (li && li.parentElement && !li.parentElement.matches('nav, .wp-block-navigation__container, .wp-block-navigation__responsive-container-content')) {
                     li = li.parentElement.closest('li');
                 }
-                if (li) li.style.display = 'none';
-            });
+            }
+            if (li) {
+                li.style.display = 'none';
+            } else {
+                a.style.display = 'none';
+            }
         });
     }
 
