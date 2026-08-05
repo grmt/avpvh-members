@@ -8,6 +8,8 @@ class AVPVH_Member_Profile_Form {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('wp_ajax_avpvh_save_member_profile', [$this, 'handle_save_profile']);
         add_action('admin_post_avpvh_remove_identity', [$this, 'handle_remove_identity']);
+        add_action('admin_post_avpvh_add_relationship', [$this, 'handle_add_relationship']);
+        add_action('admin_post_avpvh_remove_relationship', [$this, 'handle_remove_relationship']);
     }
 
     /**
@@ -133,18 +135,12 @@ class AVPVH_Member_Profile_Form {
                     </div>
 
                     <div class="form-group">
-                        <label for="passport_name">Paspoortnaam (indien afwijkend)</label>
+                        <label for="passport_name">Paspoortnaam</label>
                         <input type="text" id="passport_name" name="passport_name"
                             value="<?php echo esc_attr($member->passport_name ?? ''); ?>">
                     </div>
 
                     <?php if ($is_admin_edit) : ?>
-                        <div class="form-group">
-                            <label for="baptism_name">Doopnaam (indien afwijkend)</label>
-                            <input type="text" id="baptism_name" name="baptism_name"
-                                value="<?php echo esc_attr($member->baptism_name); ?>">
-                        </div>
-
                         <div class="form-group">
                             <label for="birth_date">Geboortedatum</label>
                             <input type="date" id="birth_date" name="birth_date"
@@ -221,6 +217,11 @@ class AVPVH_Member_Profile_Form {
 
             <?php if (!$is_admin_edit) : ?>
                 <?php $this->render_identities($member); ?>
+            <?php endif; ?>
+
+            <?php $this->render_relationships($member); ?>
+
+            <?php if (!$is_admin_edit) : ?>
                 <?php $this->render_directory_consent($member); ?>
             <?php endif; ?>
 
@@ -316,6 +317,115 @@ class AVPVH_Member_Profile_Form {
                     <?php endforeach; ?>
                 </p>
             <?php endif; ?>
+        </fieldset>
+        <?php
+    }
+
+    /**
+     * Family/partner/guardian relationships — see AVPVH_DB's "Relationships"
+     * section for the data model. Available on both self/household and
+     * admin edits (unlike identities, which are self-service-only).
+     */
+    private function render_relationships($member): void {
+        $relationships = AVPVH_DB::get_relationships((int) $member->id);
+        $labels = AVPVH_DB::get_relationship_labels();
+        $all_members = array_filter(
+            AVPVH_DB::get_members(),
+            fn($m) => (int) $m->id !== (int) $member->id
+        );
+        usort($all_members, fn($a, $b) => strcasecmp($a->last_name, $b->last_name) ?: strcasecmp($a->first_name, $b->first_name));
+        $camps = AVPVH_DB::get_camps();
+        ?>
+        <fieldset class="avpvh-relationships">
+            <legend>Relaties</legend>
+
+            <?php if (!empty($_GET['relationship_added'])) : ?>
+                <p class="avpvh-identity-notice">Relatie toegevoegd.</p>
+            <?php elseif (!empty($_GET['relationship_removed'])) : ?>
+                <p class="avpvh-identity-notice">Relatie verwijderd.</p>
+            <?php elseif (!empty($_GET['relationship_error'])) : ?>
+                <p class="avpvh-identity-notice avpvh-identity-notice--error">Opslaan is niet gelukt — probeer het opnieuw.</p>
+            <?php endif; ?>
+
+            <table class="avpvh-identities-table">
+                <?php foreach ($relationships as $rel) : ?>
+                    <tr>
+                        <td>
+                            <strong><?php echo $rel->other_member ? esc_html(avpvh_format_name($rel->other_member)) : '(onbekend lid)'; ?></strong>
+                            is <?php echo esc_html($rel->label); ?>
+                            <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong>
+                        </td>
+                        <td>
+                            <?php if ($rel->valid_from || $rel->valid_until) : ?>
+                                <?php echo esc_html(trim(($rel->valid_from ?: '…') . ' – ' . ($rel->valid_until ?: '…'))); ?>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                onsubmit="return confirm('<?php echo esc_js('Deze relatie verwijderen?'); ?>');">
+                                <?php wp_nonce_field('avpvh_remove_relationship'); ?>
+                                <input type="hidden" name="action" value="avpvh_remove_relationship">
+                                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                                <input type="hidden" name="relationship_id" value="<?php echo esc_attr($rel->id); ?>">
+                                <button type="submit" class="button">Verwijderen</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$relationships) : ?>
+                    <tr><td colspan="3"><em>Nog geen relaties vastgelegd.</em></td></tr>
+                <?php endif; ?>
+            </table>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="avpvh-relationship-add">
+                <?php wp_nonce_field('avpvh_add_relationship'); ?>
+                <input type="hidden" name="action" value="avpvh_add_relationship">
+                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+
+                <div class="form-group">
+                    <label for="rel_related_member_id">Persoon</label>
+                    <select id="rel_related_member_id" name="related_member_id" required>
+                        <option value="">— Kies —</option>
+                        <?php foreach ($all_members as $m) : ?>
+                            <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m)); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="rel_label_id">is</label>
+                    <select id="rel_label_id" name="label_id" required>
+                        <?php foreach ($labels as $label) : ?>
+                            <option value="<?php echo esc_attr($label->id); ?>"><?php echo esc_html($label->label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="avpvh-field-hint">…van <?php echo esc_html(avpvh_format_name($member)); ?>.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="rel_camp_id">Periode: activiteit (optioneel — bijv. tijdelijke voogdij tijdens een kamp)</label>
+                    <select id="rel_camp_id" name="camp_id">
+                        <option value="">— Geen, handmatige data hieronder —</option>
+                        <?php foreach ($camps as $camp) : ?>
+                            <option value="<?php echo esc_attr($camp->id); ?>">
+                                <?php echo esc_html(($camp->type_name ? $camp->type_name . ': ' : '') . $camp->name . ' (' . $camp->year . ')'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="rel_valid_from">Geldig van (handmatig, tenzij een activiteit is gekozen hierboven)</label>
+                    <input type="date" id="rel_valid_from" name="valid_from">
+                </div>
+
+                <div class="form-group">
+                    <label for="rel_valid_until">Geldig tot (handmatig, tenzij een activiteit is gekozen hierboven)</label>
+                    <input type="date" id="rel_valid_until" name="valid_until">
+                </div>
+
+                <button type="submit" class="button">Relatie toevoegen</button>
+            </form>
         </fieldset>
         <?php
     }
@@ -579,6 +689,76 @@ class AVPVH_Member_Profile_Form {
         exit;
     }
 
+    public function handle_add_relationship(): void {
+        check_admin_referer('avpvh_add_relationship');
+
+        if (!is_user_logged_in()) {
+            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+        }
+
+        $member_id         = (int) ($_POST['member_id'] ?? 0);
+        $related_member_id = (int) ($_POST['related_member_id'] ?? 0);
+        $label_id           = (int) ($_POST['label_id'] ?? 0);
+        $valid_from         = sanitize_text_field($_POST['valid_from'] ?? '') ?: null;
+        $valid_until        = sanitize_text_field($_POST['valid_until'] ?? '') ?: null;
+
+        // Picking an activity ("een kamp of weekend") is an alternative to
+        // typing dates by hand — its real start/end date becomes the
+        // relationship's validity period (e.g. temporary voogdij for the
+        // camp's duration), overriding whatever was typed manually.
+        $camp_id = (int) ($_POST['camp_id'] ?? 0);
+        if ($camp_id) {
+            $camp = AVPVH_DB::get_camp($camp_id);
+            if ($camp) {
+                $valid_from  = $camp->start_date ?: $valid_from;
+                $valid_until = $camp->end_date ?: $valid_until;
+            }
+        }
+
+        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
+        if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
+            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+        }
+
+        if (!$related_member_id || !$label_id || !AVPVH_DB::get_member($related_member_id)) {
+            wp_die('Ongeldige relatie.', 'Fout', ['response' => 400]);
+        }
+
+        $saved = AVPVH_DB::add_relationship(
+            $member_id, $related_member_id, $label_id,
+            $valid_from, $valid_until, '', get_current_user_id()
+        );
+
+        wp_safe_redirect(add_query_arg(
+            ['member_id' => $member_id, $saved ? 'relationship_added' : 'relationship_error' => '1'],
+            wp_get_referer() ?: home_url('/member-profile/')
+        ));
+        exit;
+    }
+
+    public function handle_remove_relationship(): void {
+        check_admin_referer('avpvh_remove_relationship');
+
+        if (!is_user_logged_in()) {
+            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+        }
+
+        $member_id        = (int) ($_POST['member_id'] ?? 0);
+        $relationship_id  = (int) ($_POST['relationship_id'] ?? 0);
+
+        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
+        if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
+            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+        }
+
+        if ($relationship_id) {
+            AVPVH_DB::remove_relationship($relationship_id);
+        }
+
+        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'relationship_removed' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
+        exit;
+    }
+
     /**
      * E-mails everyone who should know an identity changed: the person who
      * made the change, and — only when they edited someone else's profile —
@@ -612,12 +792,19 @@ class AVPVH_Member_Profile_Form {
      * may update themselves; admin-only fields (baptism name, birth date)
      * are added on top for the admin edit screen.
      */
+    // Passport name must read exactly as printed in the passport — no
+    // parenthetical nicknames/notes (a leftover habit from the old,
+    // free-text doopnaam field this was merged from).
+    private static function strip_brackets(string $value): string {
+        return trim(preg_replace('/\s+/', ' ', preg_replace('/[()\[\]{}]/', '', $value)));
+    }
+
     private function sanitize_member_data(array $data, bool $is_admin): array {
         $fields = [
             'first_name' => sanitize_text_field($data['first_name'] ?? ''),
             'suffix' => sanitize_text_field($data['suffix'] ?? ''),
             'last_name' => sanitize_text_field($data['last_name'] ?? ''),
-            'passport_name' => sanitize_text_field($data['passport_name'] ?? ''),
+            'passport_name' => self::strip_brackets(sanitize_text_field($data['passport_name'] ?? '')),
             'phone' => sanitize_text_field($data['phone'] ?? ''),
             'mobile' => sanitize_text_field($data['mobile'] ?? ''),
             'emergency_contact' => sanitize_text_field($data['emergency_contact'] ?? ''),
@@ -625,7 +812,6 @@ class AVPVH_Member_Profile_Form {
         ];
 
         if ($is_admin) {
-            $fields['baptism_name'] = sanitize_text_field($data['baptism_name'] ?? '');
             $fields['birth_date'] = sanitize_text_field($data['birth_date'] ?? '') ?: null;
         }
 
