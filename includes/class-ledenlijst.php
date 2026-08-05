@@ -14,8 +14,8 @@ class AVPVH_Ledenlijst {
         }
         global $post;
         if ($post && has_shortcode($post->post_content, 'avpvh_ledenlijst')) {
-            wp_enqueue_script('avpvh-ledenlijst', plugin_dir_url(dirname(__FILE__)) . 'assets/ledenlijst.js', [], '1.0', true);
-            wp_enqueue_style('avpvh-ledenlijst', plugin_dir_url(dirname(__FILE__)) . 'assets/ledenlijst.css', [], '1.0');
+            wp_enqueue_script('avpvh-ledenlijst', plugin_dir_url(dirname(__FILE__)) . 'assets/ledenlijst.js', [], avpvh_asset_version('assets/ledenlijst.js'), true);
+            wp_enqueue_style('avpvh-ledenlijst', plugin_dir_url(dirname(__FILE__)) . 'assets/ledenlijst.css', [], avpvh_asset_version('assets/ledenlijst.css'));
         }
     }
 
@@ -29,7 +29,8 @@ class AVPVH_Ledenlijst {
             return '<p>De ledenlijst is alleen beschikbaar voor actieve leden.</p>';
         }
 
-        $leden = AVPVH_DB::get_members_with_address();
+        $is_bestuur = strtolower((string) get_user_meta(get_current_user_id(), 'avpvh_member_role', true)) === 'bestuur';
+        $leden = AVPVH_DB::get_members_with_address((int) $member->id, $is_bestuur);
         if (!$leden) {
             return '<p>Geen leden gevonden.</p>';
         }
@@ -37,6 +38,15 @@ class AVPVH_Ledenlijst {
         ob_start();
         ?>
         <div class="avpvh-ledenlijst">
+            <?php if (!empty($_GET['consent_saved'])) : ?>
+                <p class="avpvh-ledenlijst-melding">Je voorkeuren zijn opgeslagen.</p>
+            <?php endif; ?>
+            <p class="avpvh-ledenlijst-uitleg">
+                Deze lijst wordt gedeeld met alle ingelogde actieve leden, zoals beschreven
+                in de <a href="https://www.avphilipsvanhorne.nl/wp-content/uploads/public/2024/04/Privacy-Verklaring.pdf" target="_blank" rel="noopener">privacyverklaring</a>.
+                Je kunt via <a href="<?php echo esc_url(home_url('/member-profile/')); ?>">je profiel</a>
+                losse gegevens afschermen of je gegevens volledig verbergen.
+            </p>
             <input type="search" id="avpvh-ledenlijst-zoek" placeholder="Zoeken…" class="avpvh-ledenlijst-zoek">
             <table class="avpvh-ledenlijst-tabel">
                 <thead>
@@ -51,20 +61,32 @@ class AVPVH_Ledenlijst {
                 <?php foreach ($leden as $lid) : ?>
                     <tr>
                         <td><?php echo esc_html(avpvh_format_name($lid)); ?></td>
-                        <td><a href="mailto:<?php echo esc_attr($lid->email); ?>"><?php echo esc_html($lid->email); ?></a></td>
                         <td>
-                            <?php if ($lid->mobile) : ?>
-                                <?php echo esc_html($lid->mobile); ?><br>
+                            <?php if ($lid->share_email) : ?>
+                                <a href="mailto:<?php echo esc_attr($lid->email); ?>"><?php echo esc_html($lid->email); ?></a>
+                            <?php else : ?>
+                                —
                             <?php endif; ?>
-                            <?php echo esc_html($lid->phone); ?>
                         </td>
                         <td>
-                            <?php if ($lid->street) : ?>
+                            <?php if ($lid->share_phone) : ?>
+                                <?php if ($lid->mobile) : ?>
+                                    <?php echo esc_html($lid->mobile); ?><br>
+                                <?php endif; ?>
+                                <?php echo esc_html($lid->phone); ?>
+                            <?php else : ?>
+                                —
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ($lid->share_address && $lid->street) : ?>
                                 <?php echo esc_html($lid->street . ' ' . $lid->house_number); ?><br>
                                 <?php echo esc_html($lid->postal_code . ' ' . $lid->city); ?>
                                 <?php if ($lid->country && $lid->country !== 'Nederland') : ?>
                                     <br><?php echo esc_html($lid->country); ?>
                                 <?php endif; ?>
+                            <?php else : ?>
+                                —
                             <?php endif; ?>
                         </td>
                     </tr>

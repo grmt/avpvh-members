@@ -109,6 +109,19 @@ class AVPVH_LLDAP {
         return $data['groups'] ?? [];
     }
 
+    public static function get_user_groups(string $uid): array|\WP_Error {
+        $data = self::graphql('
+            query GetUserGroups($userId: String!) {
+                user(userId: $userId) { groups { id displayName } }
+            }',
+            ['userId' => $uid]
+        );
+        if (is_wp_error($data)) {
+            return $data;
+        }
+        return $data['user']['groups'] ?? [];
+    }
+
     public static function test_connection_with(string $url, string $user, string $password): bool|\WP_Error {
         $response = wp_remote_post(rtrim($url, '/') . '/auth/simple/login', [
             'headers' => ['Content-Type' => 'application/json'],

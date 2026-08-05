@@ -63,8 +63,8 @@ class AVPVH_Fee_Popup {
             return;
         }
         $base = plugin_dir_url(dirname(__FILE__));
-        wp_enqueue_style('avpvh-fee-popup', $base . 'assets/fee-popup.css', [], '1.0.0');
-        wp_enqueue_script('avpvh-fee-popup', $base . 'assets/fee-popup.js', ['jquery'], '1.0.0', true);
+        wp_enqueue_style('avpvh-fee-popup', $base . 'assets/fee-popup.css', [], avpvh_asset_version('assets/fee-popup.css'));
+        wp_enqueue_script('avpvh-fee-popup', $base . 'assets/fee-popup.js', ['jquery'], avpvh_asset_version('assets/fee-popup.js'), true);
         wp_localize_script('avpvh-fee-popup', 'avpvhPopup', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('avpvh_dismiss_popup'),

@@ -39,7 +39,10 @@
                 contentType: false,
                 success: function(response) {
                     if (response.success) {
-                        showMessage('success', response.data.message);
+                        // The registration handler sends {message: ...}, the
+                        // profile-save handler sends a plain string — handle both.
+                        var message = typeof response.data === 'string' ? response.data : response.data.message;
+                        showMessage('success', message);
                         // Optionally redirect after success
                         setTimeout(function() {
                             location.reload();
