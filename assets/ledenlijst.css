@@ -1,5 +1,13 @@
 .avpvh-ledenlijst {
     margin-top: 1rem;
+    /* Break out of the theme's narrow content column for a wider table. */
+    width: 100vw;
+    max-width: 1400px;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding-left: 2rem;
+    padding-right: 2rem;
+    box-sizing: border-box;
 }
 
 .avpvh-ledenlijst-zoek {
@@ -37,4 +45,19 @@
 
 .avpvh-ledenlijst-tabel tr.avpvh-hidden {
     display: none;
+}
+
+.avpvh-ledenlijst-uitleg {
+    max-width: 640px;
+    margin-bottom: 1rem;
+    font-size: .9rem;
+    color: #555;
+}
+
+.avpvh-ledenlijst-melding {
+    padding: .5rem .75rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+    background: #e6f4ea;
+    border: 1px solid #b7dfc0;
 }
