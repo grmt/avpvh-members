@@ -8,6 +8,12 @@ class AVPVH_Nav_Auth {
     // Page IDs whose nav items must be hidden for guests.
     const MEMBERS_PAGE_IDS = [647, 36];
 
+    // "Zoeken in documenten" — gated by Authelia (one_factor, group:boek) at
+    // the nginx layer, independent of the WordPress login. A member who
+    // isn't in that LLDAP group can never open it, so the link is hidden
+    // rather than sending them into a second login they can't complete.
+    const DOC_SEARCH_PAGE_ID = 1920;
+
     public function __construct() {
         add_action('wp_enqueue_scripts', [$this, 'enqueue']);
         add_action('wp_footer',          [$this, 'render_logout_route']);
@@ -26,27 +32,58 @@ class AVPVH_Nav_Auth {
         $identity_label = $member
             ? avpvh_format_name($member)
             : ($user && $user->display_name ? $user->display_name : $user->user_login);
+        $has_doc_search_access = $this->has_boek_access($member);
 
         wp_enqueue_script(
             'avpvh-nav-auth',
             plugin_dir_url(dirname(__FILE__)) . 'assets/nav-auth.js',
-            [], '1.0', true
+            [], avpvh_asset_version('assets/nav-auth.js'), true
         );
 
-        add_action('wp_footer', function () use ($is_active) {
+        add_action('wp_footer', function () use ($is_active, $identity_label, $role_label, $member_role_label, $has_doc_search_access) {
             echo '<script type="application/json" id="avpvh-auth-config">'
                 . wp_json_encode([
-                    'isLoggedIn'     => is_user_logged_in(),
-                    'isActiveMember' => $is_active,
-                    'userLabel'      => $identity_label,
-                    'roleLabel'      => $role_label,
-                    'memberRoleLabel'=> $member_role_label,
-                    'membersPageIds' => self::MEMBERS_PAGE_IDS,
-                    'logoutUrl'      => rest_url('avpvh/v1/logout'),
-                    'loginUrl'       => home_url('/avpvh-login/'),
+                    'isLoggedIn'         => is_user_logged_in(),
+                    'isActiveMember'     => $is_active,
+                    'userLabel'          => $identity_label,
+                    'roleLabel'          => $role_label,
+                    'memberRoleLabel'    => $member_role_label,
+                    'membersPageIds'     => self::MEMBERS_PAGE_IDS,
+                    'hasDocSearchAccess' => $has_doc_search_access,
+                    'docSearchPageId'    => self::DOC_SEARCH_PAGE_ID,
+                    'logoutUrl'          => rest_url('avpvh/v1/logout'),
+                    'loginUrl'           => home_url('/avpvh-login/'),
+                    'profileUrl'         => home_url('/member-profile/'),
                 ])
                 . '</script>';
         });
+    }
+
+    // Mirrors the Authelia rule `resources: ['^/leden/zoeken-in-documenten/?$'],
+    // subject: 'group:boek'` in config/authelia-configuration.yml — LLDAP group
+    // membership is the actual authorization boundary, checked live via
+    // AVPVH_LLDAP (same call the profile page's "Groepen:" row uses), cached
+    // briefly so this doesn't add an LLDAP round-trip to every page load.
+    private function has_boek_access(?object $member): bool {
+        if (!$member || empty($member->user_id)) {
+            return false;
+        }
+
+        $cache_key = 'avpvh_lldap_groups_' . $member->user_id;
+        $groups = get_transient($cache_key);
+
+        if ($groups === false) {
+            $result = AVPVH_LLDAP::get_user_groups($member->user_id);
+            $groups = is_wp_error($result) ? [] : $result;
+            set_transient($cache_key, $groups, is_wp_error($result) ? MINUTE_IN_SECONDS : 15 * MINUTE_IN_SECONDS);
+        }
+
+        foreach ($groups as $group) {
+            if (strtolower($group['displayName'] ?? '') === 'boek') {
+                return true;
+            }
+        }
+        return false;
     }
 
     public function render_logout_route(): void {

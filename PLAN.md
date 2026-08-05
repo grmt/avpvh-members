@@ -81,6 +81,10 @@ Browser ──► nginx ──auth_request──► Authelia ──LDAP──►
 | first_name, last_name | VARCHAR | |
 | status | ENUM('active','inactive','visitor') | |
 | joined_year, left_year | YEAR NULL | |
+| directory_consent | ENUM('pending','granted','declined') | AVG/GDPR consent to appear in the `[avpvh_ledenlijst]` member directory; default `pending` |
+| directory_consent_at | TIMESTAMP NULL | When the member last changed their consent decision |
+| share_email, share_phone, share_address | TINYINT(1) | Per-field opt-out once consent is `granted`; default 1 (shared) |
+| share_camp_history | TINYINT(1) | Reserved for a future member-facing camp-history view; not read anywhere yet |
 
 **No `email` column** — fetched by JOIN with `lldap.users`.
 

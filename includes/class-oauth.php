@@ -28,7 +28,7 @@ class AVPVH_OAuth {
         foreach (array_keys(self::PROVIDERS) as $provider) {
             register_rest_route('avpvh/v1', '/oauth/' . $provider . '/start', [
                 'methods'             => 'GET',
-                'callback'            => fn($r) => $this->start($provider),
+                'callback'            => fn($r) => $this->start($provider, $r),
                 'permission_callback' => '__return_true',
             ]);
             register_rest_route('avpvh/v1', '/oauth/' . $provider . '/callback', [
@@ -39,14 +39,32 @@ class AVPVH_OAuth {
         }
     }
 
-    public function start(string $provider): void {
+    public function start(string $provider, \WP_REST_Request $request): void {
         $client_id = get_option('avpvh_oauth_' . $provider . '_client_id');
         if (!$client_id) {
             wp_die($provider . ' login is niet geconfigureerd.', 'Fout', ['response' => 503]);
         }
 
+        $add_member_id = (int) $request->get_param('add_member_id');
         $state = wp_generate_password(32, false);
-        set_transient('avpvh_oauth_state_' . $state, $provider, 600);
+
+        if ($add_member_id > 0) {
+            if (!is_user_logged_in()) {
+                wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            }
+            $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
+            if (!$own_member || !$this->can_manage_member((int) $own_member->id, $add_member_id)) {
+                wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+            }
+            set_transient('avpvh_oauth_state_' . $state, wp_json_encode([
+                'provider'           => $provider,
+                'mode'               => 'add',
+                'member_id'          => $add_member_id,
+                'requesting_user_id' => get_current_user_id(),
+            ]), 600);
+        } else {
+            set_transient('avpvh_oauth_state_' . $state, $provider, 600);
+        }
 
         $config = self::PROVIDERS[$provider];
         $params = [
@@ -59,6 +77,15 @@ class AVPVH_OAuth {
 
         wp_redirect($config['auth_url'] . '?' . http_build_query($params));
         exit;
+    }
+
+    private function can_manage_member(int $own_member_id, int $target_member_id): bool {
+        foreach (AVPVH_DB::get_manageable_members($own_member_id) as $m) {
+            if ((int) $m->id === $target_member_id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function get_client_ip(): string {
@@ -83,7 +110,7 @@ class AVPVH_OAuth {
 
     public function handle_callback(string $provider, \WP_REST_Request $request): void {
         if ($this->check_ip_throttle()) {
-            wp_redirect(home_url('/avpvh-login/?error=no_member'));
+            wp_redirect(home_url('/avpvh-login/?login_error=no_member'));
             exit;
         }
 
@@ -91,18 +118,38 @@ class AVPVH_OAuth {
         $state = sanitize_text_field($request->get_param('state') ?? '');
 
         if (!$code || !$state) {
-            wp_die('Ongeldige OAuth callback.', 'Fout', ['response' => 400]);
+            wp_redirect(home_url('/avpvh-login/?login_error=oauth_failed'));
+            exit;
         }
 
         $stored = get_transient('avpvh_oauth_state_' . $state);
-        if ($stored !== $provider) {
-            wp_die('Ongeldige OAuth state.', 'Fout', ['response' => 400]);
-        }
         delete_transient('avpvh_oauth_state_' . $state);
+
+        $add_request = null;
+        if (is_string($stored) && str_starts_with($stored, '{')) {
+            $decoded = json_decode($stored, true);
+            if (is_array($decoded) && ($decoded['mode'] ?? '') === 'add' && ($decoded['provider'] ?? '') === $provider) {
+                $add_request = $decoded;
+            }
+        }
+
+        if (!$add_request && $stored !== $provider) {
+            // Most commonly: the state transient (10 min TTL) expired before
+            // the user finished the provider's consent/2FA step, not an
+            // actual CSRF attempt. Send them back to try again rather than
+            // dead-ending on a wp_die() page with no way forward.
+            wp_redirect(home_url('/avpvh-login/?login_error=oauth_expired'));
+            exit;
+        }
 
         $email = $this->fetch_email($provider, $code);
         if (!$email) {
             wp_die('Kon e-mailadres niet ophalen bij ' . esc_html(self::PROVIDERS[$provider]['label']) . '.', 'Fout', ['response' => 502]);
+        }
+
+        if ($add_request) {
+            $this->handle_add_identity_callback($provider, $email, $add_request);
+            return;
         }
 
         $member_identity = AVPVH_DB::get_member_identity($provider, $email);
@@ -112,12 +159,12 @@ class AVPVH_OAuth {
         if (!$member) {
             $this->record_ip_failure();
             AVPVH_DB::log_attempt($email, $provider, 'no_member');
-            wp_redirect(home_url('/avpvh-login/?error=no_member'));
+            wp_redirect(home_url('/avpvh-login/?login_error=no_member'));
             exit;
         }
 
-        if (!$member_identity) {
-            AVPVH_DB::ensure_identity((int) $member->id, $provider, $email);
+        if (!$member_identity && !AVPVH_DB::ensure_identity((int) $member->id, $provider, $email)) {
+            error_log("AVPVH_OAuth: failed to link {$provider} identity ({$email}) for member {$member->id} — at 3-identity limit or invalid provider.");
         }
 
         $user = $this->get_or_create_wp_user($email, $member);
@@ -131,6 +178,61 @@ class AVPVH_OAuth {
         do_action('wp_login', $user->user_login, $user);
 
         wp_redirect(home_url('/'));
+        exit;
+    }
+
+    /**
+     * Handles the callback for "verify and add this account to my profile"
+     * (started from the member profile page, not a login attempt). The
+     * OAuth round-trip itself is the proof that the requesting user
+     * actually controls this e-mail address.
+     */
+    private function handle_add_identity_callback(string $provider, string $email, array $add_request): void {
+        $member_id  = (int) $add_request['member_id'];
+        $user_id    = (int) $add_request['requesting_user_id'];
+        $profile_url = home_url('/member-profile/');
+        $redirect_args = ['member_id' => $member_id];
+
+        // Identify the requester from the state transient we issued at the
+        // start of the flow, not from the request's own cookies: REST
+        // requests reached via a plain browser redirect (as this callback
+        // is, from Google/Microsoft) don't carry the wp_rest nonce cookie
+        // auth needs, so is_user_logged_in() can't be trusted here. The
+        // transient itself — keyed by the random `state` value we generated
+        // and only the real OAuth round-trip could echo back — is already
+        // the CSRF protection for this flow.
+        $requesting_user = $user_id ? get_userdata($user_id) : false;
+        if (!$requesting_user) {
+            wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'not_you'], $profile_url));
+            exit;
+        }
+
+        $own_member = AVPVH_DB::get_member_by_wp_user($user_id);
+        if (!$own_member || !$this->can_manage_member((int) $own_member->id, $member_id)) {
+            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+        }
+
+        // Never let this e-mail be claimed if it's already linked to someone else.
+        $existing_identity = AVPVH_DB::get_member_identity($provider, $email);
+        if ($existing_identity && (int) $existing_identity->member_id !== $member_id) {
+            wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'in_use'], $profile_url));
+            exit;
+        }
+        $existing_owner = AVPVH_DB::get_member_by_email($email);
+        if ($existing_owner && (int) $existing_owner->id !== $member_id) {
+            wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'in_use'], $profile_url));
+            exit;
+        }
+
+        $member = AVPVH_DB::get_member($member_id);
+        if (!$member || !AVPVH_DB::ensure_identity($member_id, $provider, $email)) {
+            wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'limit'], $profile_url));
+            exit;
+        }
+
+        AVPVH_Member_Profile_Form::notify_identity_change($member, $own_member, 'toegevoegd', $provider, $email, $requesting_user);
+
+        wp_redirect(add_query_arg($redirect_args + ['identity_added' => '1'], $profile_url));
         exit;
     }
 
@@ -205,6 +307,17 @@ class AVPVH_OAuth {
 
     private function callback_url(string $provider): string {
         return rest_url('avpvh/v1/oauth/' . $provider . '/callback');
+    }
+
+    public static function add_identity_url(string $provider, int $member_id): string {
+        // Cookie-authenticated REST requests need a valid wp_rest nonce or
+        // WordPress ignores the logged-in cookie entirely (CSRF protection) —
+        // without this, is_user_logged_in() would see a guest even though the
+        // member is clearly logged in in their browser.
+        return add_query_arg(
+            ['add_member_id' => $member_id, '_wpnonce' => wp_create_nonce('wp_rest')],
+            rest_url('avpvh/v1/oauth/' . $provider . '/start')
+        );
     }
 
     public static function login_url(string $provider): string {
