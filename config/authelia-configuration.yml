@@ -58,32 +58,50 @@ access_control:
     - domain: 'leden-admin.avphilipsvanhorne.nl'
       policy: 'two_factor'
 
-    # admin-ajax.php is used for frontend AJAX by plugins/themes — bypass Authelia,
-    # WordPress handles nonce/capability checks itself. Must come before the wp-admin rule.
+    # admin-ajax.php and admin-post.php are used for frontend form/AJAX
+    # submissions by plugins/themes (e.g. the member profile form) — bypass
+    # Authelia, WordPress handles nonce/capability checks itself. Must come
+    # before the wp-admin rule.
     - domain: 'www.avphilipsvanhorne.nl'
       resources:
         - '^/wp-admin/admin-ajax\.php'
+        - '^/wp-admin/admin-post\.php'
       policy: 'bypass'
 
-    # wp-admin requires two-factor
+    # wp-admin requires two-factor. (A per-group restriction here would risk
+    # locking out real WordPress Administrators who aren't in the "bestuur"
+    # LLDAP group — WordPress's own manage_options capability check is the
+    # actual authorization boundary for what a two-factor-verified user can
+    # do inside wp-admin, so gating group membership at this layer too is
+    # both redundant and dangerous.)
     - domain: 'www.avphilipsvanhorne.nl'
       resources:
         - '^/wp-admin/.*'
       policy: 'two_factor'
 
+    # Find and View: Zoeken in documenten — restricted to "boek" LLDAP group
+    # (DGéén, Geboortekaartjes, Speeches digitization project)
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/leden/zoeken-in-documenten/?$'
+      subject: 'group:boek'
+      policy: 'one_factor'
+
+    # Scans (Find and View) — same restriction for the underlying scan
+    # images, served directly by nginx (bypasses WordPress/PHP entirely)
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/wp-content/uploads/scans/.*'
+      subject: 'group:boek'
+      policy: 'one_factor'
+
     # All other pages: bypass Authelia, WordPress plugin handles access control
     - domain: 'www.avphilipsvanhorne.nl'
       policy: 'bypass'
 
-    # these domains redirect to www.avphilipsvanhorne.nl via nginx
-    - domain: 'avphilipsvanhorne.nl'
-      policy: 'bypass'
-
-    - domain: 'avpvh.nl'
-      policy: 'bypass'
-
-    - domain: 'www.avpvh.nl'
-      policy: 'bypass'
+    # avphilipsvanhorne.nl (bare), avpvh.nl and www.avpvh.nl are all
+    # 301-redirected to www.avphilipsvanhorne.nl by nginx before the
+    # request ever reaches an auth_request check — no rule needed here.
 
 session:
   secret: ''  # loaded via AUTHELIA_SESSION_SECRET_FILE
