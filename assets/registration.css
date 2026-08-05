@@ -218,6 +218,16 @@ button.button-primary:active {
     flex-wrap: wrap;
 }
 
+.avpvh-field-hint {
+    font-size: 0.85em;
+    color: #666;
+    margin: .35rem 0 0;
+}
+
+.avpvh-relationship-add {
+    margin-top: 1rem;
+}
+
 .avpvh-identity-notice {
     padding: .6rem 1rem;
     background: #d4edda;
@@ -263,6 +273,7 @@ button.button-primary:active {
 
 .avpvh-member-profile-form fieldset {
     margin: 1.25rem 0;
+    padding: 1rem 1.25rem;
 }
 
 .avpvh-member-profile-form fieldset:first-of-type {
@@ -274,22 +285,28 @@ button.button-primary:active {
    or mixed content (Inlog-e-mailadressen, Zichtbaarheid, Change History)
    keep the normal single-column flow. */
 .avpvh-member-profile-form fieldset.avpvh-fields-grid {
-    padding: 1rem 1.25rem;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     column-gap: 1.5rem;
 }
 
+/* A <legend> is always sized to its own text by the browser, regardless
+   of the fieldset's layout — so the inherited underline (meant for a
+   full-width heading) looks broken on every legend here, not just the
+   grid ones: too short, with the fieldset's own border/background
+   visible oddly around it. Drop it page-wide for a plain bold heading
+   instead, without touching the shared rule (registration-form keeps
+   its underline as-is). */
+.avpvh-member-profile-form legend {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: .5rem;
+}
+
 .avpvh-member-profile-form fieldset.avpvh-fields-grid legend {
-    /* legend isn't a real grid item in any browser, so grid-column here
-       doesn't stretch it — it stays sized to its own text. The inherited
-       underline (meant for a full-width heading) then looks broken: too
-       short, with the fieldset's own border visible oddly behind it. */
     grid-column: 1 / -1;
     width: 100%;
     margin-bottom: .75rem;
-    border-bottom: none;
-    padding-bottom: 0;
 }
 
 .avpvh-member-profile-form .form-group {
