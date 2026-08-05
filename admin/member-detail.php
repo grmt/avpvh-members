@@ -70,7 +70,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <h1><?php echo esc_html(avpvh_format_name($member, 'list')); ?></h1>
     <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-members'], admin_url('admin.php'))); ?>">&larr; Terug naar ledenlijst</a>
     &nbsp;|&nbsp;
-    <a href="<?php echo esc_url(add_query_arg(['member_id' => $member_id], home_url('/avpvh-member-profile/'))); ?>"
+    <a href="<?php echo esc_url(add_query_arg(['member_id' => $member_id], home_url('/member-profile/'))); ?>"
        class="button button-small">Bewerk profiel</a>
     &nbsp;|&nbsp;
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
@@ -107,7 +107,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th>Voornaam</th><td><?php echo esc_html($member->first_name); ?></td></tr>
         <tr><th>Tussenvoegsel</th><td><?php echo esc_html($member->suffix ?: '—'); ?></td></tr>
         <tr><th>Achternaam</th><td><?php echo esc_html($member->last_name); ?></td></tr>
-        <tr><th>Doopnaam</th><td><?php echo esc_html($member->baptism_name ?: '—'); ?></td></tr>
+        <tr><th>Paspoortnaam</th><td><?php echo esc_html($member->passport_name ?: '—'); ?></td></tr>
         <tr><th>E-mail</th><td><?php echo esc_html($member->email); ?></td></tr>
         <tr><th>Status</th><td><?php echo esc_html($member->status); ?></td></tr>
         <tr><th>Telefoon</th><td><?php echo esc_html($member->phone); ?></td></tr>
@@ -135,7 +135,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                         <?php wp_nonce_field('avpvh_primary_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_primary_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                        <input type="hidden" name="provider" value="<?php echo esc_attr($identity->provider); ?>">
+                        <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
                         <button type="submit" class="button button-small">Maak primair</button>
                     </form>
                     <?php endif; ?>
@@ -143,7 +143,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                         <?php wp_nonce_field('avpvh_delete_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_delete_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                        <input type="hidden" name="provider" value="<?php echo esc_attr($identity->provider); ?>">
+                        <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
                         <button type="submit" class="button button-small">Verwijder</button>
                     </form>
                 </td>

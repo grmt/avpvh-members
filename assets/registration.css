@@ -28,6 +28,59 @@
     padding: 2rem;
 }
 
+/* No banner heading here (the WP page title already says "Member
+   Profile") — needs its own top spacing instead of getting it for free
+   from the removed h2's padding. */
+.avpvh-member-profile-form--no-banner {
+    padding-top: 1.5rem;
+}
+
+.avpvh-profile-note {
+    margin: 0 2rem 1rem;
+    color: #666;
+}
+
+.avpvh-summary-card {
+    margin: 0 2rem 1.5rem;
+    padding: 1rem 1.25rem;
+    background: #f5f5f5;
+    border-radius: 6px;
+    font-size: .9rem;
+    line-height: 1.6;
+}
+
+.avpvh-summary-card__name {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: .5rem;
+}
+
+.avpvh-summary-card__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-bottom: .5rem;
+}
+
+.avpvh-badge {
+    display: inline-block;
+    padding: .15rem .65rem;
+    background: #0073aa;
+    color: white;
+    border-radius: 999px;
+    font-size: .8rem;
+    white-space: nowrap;
+}
+
+.avpvh-summary-card__row {
+    margin: .15rem 0;
+}
+
+.avpvh-summary-card__label {
+    font-weight: 600;
+    margin-right: .35rem;
+}
+
 .avpvh-registration-form fieldset,
 .avpvh-member-profile-form fieldset {
     margin: 2rem 0;
@@ -148,6 +201,47 @@ button.button-primary:active {
     box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.2);
 }
 
+.avpvh-identities-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.avpvh-identities-table td {
+    padding: .5rem .5rem .5rem 0;
+    vertical-align: middle;
+}
+
+.avpvh-identities-add {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.avpvh-field-hint {
+    font-size: 0.85em;
+    color: #666;
+    margin: .35rem 0 0;
+}
+
+.avpvh-relationship-add {
+    margin-top: 1rem;
+}
+
+.avpvh-identity-notice {
+    padding: .6rem 1rem;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    color: #155724;
+}
+
+.avpvh-identity-notice--error {
+    background: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
 .success-message {
     padding: 1rem;
     background: #d4edda;
@@ -171,6 +265,54 @@ button.button-primary:active {
     pointer-events: none;
 }
 
+/* Member profile only: a denser two-column layout than the registration
+   form, which stays as-is (single column, more breathing room). */
+.avpvh-member-profile-form > form {
+    padding: 1.25rem 2rem 2rem;
+}
+
+.avpvh-member-profile-form fieldset {
+    margin: 1.25rem 0;
+    padding: 1rem 1.25rem;
+}
+
+.avpvh-member-profile-form fieldset:first-of-type {
+    margin-top: 0;
+}
+
+/* Only the plain label+input fieldsets (Persoonlijke gegevens, Contact
+   Information, Address) get the condensed grid — fieldsets with a table
+   or mixed content (Inlog-e-mailadressen, Zichtbaarheid, Change History)
+   keep the normal single-column flow. */
+.avpvh-member-profile-form fieldset.avpvh-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    column-gap: 1.5rem;
+}
+
+/* A <legend> is always sized to its own text by the browser, regardless
+   of the fieldset's layout — so the inherited underline (meant for a
+   full-width heading) looks broken on every legend here, not just the
+   grid ones: too short, with the fieldset's own border/background
+   visible oddly around it. Drop it page-wide for a plain bold heading
+   instead, without touching the shared rule (registration-form keeps
+   its underline as-is). */
+.avpvh-member-profile-form legend {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: .5rem;
+}
+
+.avpvh-member-profile-form fieldset.avpvh-fields-grid legend {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-bottom: .75rem;
+}
+
+.avpvh-member-profile-form .form-group {
+    margin: .5rem 0;
+}
+
 @media (max-width: 768px) {
     .avpvh-registration-form {
         padding: 1rem;
@@ -182,5 +324,29 @@ button.button-primary:active {
 
     .attendance-calendar {
         grid-template-columns: 1fr;
+    }
+
+    .avpvh-member-profile-form h2 {
+        padding: 1.25rem;
+        font-size: 1.4rem;
+    }
+
+    .avpvh-member-profile-form > p,
+    .avpvh-summary-card {
+        margin-left: 1rem;
+        margin-right: 1rem;
+    }
+
+    .avpvh-member-profile-form > form {
+        padding: 1rem;
+    }
+
+    .avpvh-member-profile-form fieldset {
+        margin: 1rem 0;
+    }
+
+    .avpvh-member-profile-form fieldset.avpvh-fields-grid {
+        grid-template-columns: 1fr;
+        padding: .85rem 1rem;
     }
 }
