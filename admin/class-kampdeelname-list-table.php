@@ -1,0 +1,77 @@
+<?php
+defined('ABSPATH') || exit;
+
+if (!class_exists('WP_List_Table')) {
+    require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+}
+
+class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
+
+    private int $camp_id;
+
+    public function __construct(int $camp_id) {
+        parent::__construct(['singular' => 'deelname', 'plural' => 'deelnames', 'ajax' => false]);
+        $this->camp_id = $camp_id;
+    }
+
+    public function get_columns(): array {
+        return [
+            'name'       => 'Naam',
+            'nights'     => 'Nachten',
+            'nawacht'    => 'Nawacht',
+            'diet'       => 'Dieet',
+            'days'       => 'Dagen aanwezig',
+            'notes'      => 'Notities',
+            'actions'    => '',
+        ];
+    }
+
+    protected function get_default_primary_column_name(): string {
+        return 'name';
+    }
+
+    public function no_items(): void {
+        echo 'Geen kampdeelname gevonden voor dit kamp.';
+    }
+
+    public function prepare_items(): void {
+        $this->_column_headers = [$this->get_columns(), [], []];
+        $this->items = $this->camp_id ? AVPVH_DB::get_participation_for_camp($this->camp_id) : [];
+    }
+
+    public function column_default($item, $column_name) {
+        return match ($column_name) {
+            'nights'  => $item->nights !== null ? esc_html((string) $item->nights) : '—',
+            'nawacht' => $item->nawacht ? 'Ja' : '—',
+            'diet'    => esc_html($item->diet ?: '—'),
+            'notes'   => esc_html($item->notes ?: ''),
+            default   => '',
+        };
+    }
+
+    public function column_name($item): string {
+        $url = add_query_arg([
+            'page' => 'avpvh-kampdeelname-detail',
+            'camp_id' => $this->camp_id,
+            'id' => $item->id,
+        ], admin_url('admin.php'));
+        $name = trim($item->first_name . ' ' . ($item->suffix ? $item->suffix . ' ' : '') . $item->last_name);
+        $muted = $item->member_status !== 'active' ? ' style="color:#a00"' : '';
+        return '<a href="' . esc_url($url) . '"' . $muted . '><strong>' . esc_html($name) . '</strong></a>';
+    }
+
+    public function column_days($item): string {
+        $days = AVPVH_DB::get_participation_days((int) $item->id);
+        $present = array_filter($days, fn($status) => $status !== '');
+        return esc_html((string) count($present));
+    }
+
+    public function column_actions($item): string {
+        $url = add_query_arg([
+            'page' => 'avpvh-kampdeelname-detail',
+            'camp_id' => $this->camp_id,
+            'id' => $item->id,
+        ], admin_url('admin.php'));
+        return '<a href="' . esc_url($url) . '" class="button button-small">Bewerken</a>';
+    }
+}
