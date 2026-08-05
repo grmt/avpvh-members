@@ -30,7 +30,7 @@ If you are already on `main`, stop and switch to a branch before touching any fi
 - **Authelia only guards `/wp-admin/`**. All other access control is handled by the plugin.
 - **No inline scripts.** CSP blocks `wp_localize_script`. Pass JS config via `<script type="application/json">` in `wp_footer`.
 - **No wp-login.php.** It redirects to `/avpvh-login/`. Don't add WP password forms.
-- **Deploy:** `sudo rsync -a --delete ~/04-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/`
+- **Deploy:** `sudo rsync -a --delete ~/03-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/`
   - ⚠️ Het pad is `wp-content-pvh`, **niet** `wp-content`. Een verkeerd pad deployt stilletjes naar de verkeerde site.
 
 ## Infrastructure
