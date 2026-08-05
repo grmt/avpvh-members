@@ -48,7 +48,7 @@ There are two deployment targets:
 
 ### 1. Server clone for testing
 
-- sync the repo to `~/04-src/avpvh-members` on the server
+- sync the repo to `~/03-src/avpvh-members` on the server
 - this is safe for branch testing
 - no merge/push to `main` is needed
 
