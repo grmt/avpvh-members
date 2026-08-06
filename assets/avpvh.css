@@ -1,3 +1,12 @@
+/* "Archeologische Vereniging Philips van Horne" wraps to two lines below
+   600px (the rule below) purely as a side effect of running out of room —
+   it's wanted at every width, not just narrow ones, so constrain it here
+   too. Doesn't touch font-size, just forces the same wrap point the mobile
+   rule already produces. */
+header.wp-block-template-part .wp-block-site-title {
+    max-width: 260px;
+}
+
 /* Compact mobile header/footer: shrink the logo + title so the logo/title
    group (NOT the outer header row, which also holds the nav/hamburger and
    needs to keep the theme's own responsive wrap behavior) takes up less
