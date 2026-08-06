@@ -943,14 +943,19 @@ class AVPVH_DB {
         $today = current_time('Y-m-d');
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT u.email,
-                    m.id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
+                    m.id, m.lldap_user_id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
                     m.birth_date, m.share_email, m.share_phone, m.share_address,
                     a.street, a.house_number, a.postal_code, a.city, a.country
              FROM {$lldap}.users u
              JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
-             LEFT JOIN {$wpdb->prefix}avm_addresses a ON a.member_id = m.id
-               AND (a.valid_from IS NULL OR a.valid_from <= %s)
-               AND (a.valid_until IS NULL OR a.valid_until >= %s)
+             LEFT JOIN {$wpdb->prefix}avm_addresses a ON a.id = (
+                 SELECT a2.id FROM {$wpdb->prefix}avm_addresses a2
+                 WHERE a2.member_id = m.id
+                   AND (a2.valid_from IS NULL OR a2.valid_from <= %s)
+                   AND (a2.valid_until IS NULL OR a2.valid_until >= %s)
+                 ORDER BY a2.valid_from DESC, a2.id DESC
+                 LIMIT 1
+             )
              WHERE m.status = 'active' AND m.directory_consent = 'granted'
              ORDER BY m.last_name, m.first_name",
             $today, $today
