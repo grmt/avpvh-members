@@ -1,12 +1,18 @@
 .avpvh-ledenlijst {
     margin-top: 1rem;
     /* Break out of the theme's narrow content column for a wider table.
-       100vw is unreliable for this on some mobile browsers (confirmed:
-       Pixel Chrome and iPad Safari both showed a much bigger left margin
-       than right) — it doesn't always match the actually-usable width, so
-       the fallback here is JS-measured (see ledenlijst.js) via
-       document.documentElement.clientWidth, which does. */
-    width: var(--avpvh-viewport-width, 100vw);
+       Deliberately no explicit `width` here — setting width AND both
+       margins together over-constrains the CSS box model, so the browser
+       silently recomputes one margin to make the numbers balance, which is
+       exactly what caused the asymmetric-margin bug confirmed on Pixel
+       Chrome, iPad Safari, and reproduced here via emulation (margin-right
+       came out -64px against an explicit margin-left of 0px, despite both
+       being set from the identical calc() expression). Omitting `width`
+       leaves it as the free variable the browser solves for, which is the
+       standard, robust way to do this. 100vw is also unreliable for the
+       vw-unit fallback on some mobile browsers, hence the JS-measured
+       --avpvh-viewport-width custom property (see ledenlijst.js), which
+       uses document.documentElement.clientWidth instead. */
     max-width: 1400px;
     margin-left: calc(50% - (var(--avpvh-viewport-width, 100vw) / 2));
     margin-right: calc(50% - (var(--avpvh-viewport-width, 100vw) / 2));
@@ -244,9 +250,19 @@
     .avpvh-ledenlijst-zoek,
     .avpvh-ledenlijst-filter,
     .avpvh-ledenlijst-dropdown,
-    .avpvh-ledenlijst-dropdown-toggle {
+    .avpvh-ledenlijst-dropdown-toggle,
+    .avpvh-ledenlijst-export {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    /* .avpvh-ledenlijst-zoek's flex: 1 1 240px (desktop rule, meant to give
+       it a 240px starting WIDTH) becomes a 240px starting HEIGHT once the
+       controls bar switches to flex-direction: column above — flex-basis
+       always tracks the main axis, which is now vertical. Confirmed on a
+       real device: the search box rendered ~240px tall. Reset it here. */
+    .avpvh-ledenlijst-zoek {
+        flex: 0 0 auto;
     }
 
     .avpvh-ledenlijst-dropdown-menu {
