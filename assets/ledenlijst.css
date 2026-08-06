@@ -126,6 +126,11 @@
     width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    /* Without this, this element's own horizontal-scroll gesture handling
+       can swallow pinch-zoom touches instead of letting the browser handle
+       them — pan-x keeps the swipe-to-see-more-columns behavior, pinch-zoom
+       explicitly keeps the page pinch-to-zoom-out working. */
+    touch-action: pan-x pinch-zoom;
 }
 
 .avpvh-ledenlijst-tabel {
@@ -237,11 +242,6 @@
     .avpvh-ledenlijst-dropdown-toggle {
         width: 100%;
         box-sizing: border-box;
-    }
-
-    .avpvh-ledenlijst-zoek,
-    .avpvh-ledenlijst-filter {
-        min-height: 44px;
     }
 
     .avpvh-ledenlijst-dropdown-menu {
