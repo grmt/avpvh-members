@@ -1,10 +1,15 @@
 .avpvh-ledenlijst {
     margin-top: 1rem;
-    /* Break out of the theme's narrow content column for a wider table. */
-    width: 100vw;
+    /* Break out of the theme's narrow content column for a wider table.
+       100vw is unreliable for this on some mobile browsers (confirmed:
+       Pixel Chrome and iPad Safari both showed a much bigger left margin
+       than right) — it doesn't always match the actually-usable width, so
+       the fallback here is JS-measured (see ledenlijst.js) via
+       document.documentElement.clientWidth, which does. */
+    width: var(--avpvh-viewport-width, 100vw);
     max-width: 1400px;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
+    margin-left: calc(50% - (var(--avpvh-viewport-width, 100vw) / 2));
+    margin-right: calc(50% - (var(--avpvh-viewport-width, 100vw) / 2));
     padding-left: 2rem;
     padding-right: 2rem;
     box-sizing: border-box;
