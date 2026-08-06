@@ -109,6 +109,25 @@ class AVPVH_LLDAP {
         return $data['groups'] ?? [];
     }
 
+    // Every group's membership in one call (LLDAP has no "groups for many
+    // users at once" query, but it does let a group query list its own
+    // users) — far cheaper than one get_user_groups() round-trip per member,
+    // which is what a ledenlijst-sized member list would otherwise need.
+    // Returns [lldap_uid => [group displayName, ...]].
+    public static function get_all_group_memberships(): array|\WP_Error {
+        $data = self::graphql('query { groups { displayName users { id } } }');
+        if (is_wp_error($data)) {
+            return $data;
+        }
+        $map = [];
+        foreach ($data['groups'] ?? [] as $group) {
+            foreach ($group['users'] ?? [] as $user) {
+                $map[$user['id']][] = $group['displayName'];
+            }
+        }
+        return $map;
+    }
+
     public static function get_user_groups(string $uid): array|\WP_Error {
         $data = self::graphql('
             query GetUserGroups($userId: String!) {
