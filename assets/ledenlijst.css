@@ -16,8 +16,8 @@
     max-width: 1400px;
     margin-left: calc(50% - (var(--avpvh-viewport-width, 100vw) / 2));
     margin-right: calc(50% - (var(--avpvh-viewport-width, 100vw) / 2));
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
     box-sizing: border-box;
 }
 
@@ -134,11 +134,13 @@
     width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    /* Without this, this element's own horizontal-scroll gesture handling
-       can swallow pinch-zoom touches instead of letting the browser handle
-       them — pan-x keeps the swipe-to-see-more-columns behavior, pinch-zoom
-       explicitly keeps the page pinch-to-zoom-out working. */
-    touch-action: pan-x pinch-zoom;
+    /* touch-action values replace the browser's default gesture set, not
+       add to it — pan-x alone (meant to just preserve horizontal swipe
+       and pinch-zoom on top of the element's own scroll handling) also
+       silently disabled vertical scrolling for any touch starting on the
+       table, confirmed by the user touching within it. All three needed
+       explicitly: horizontal swipe, vertical page scroll, pinch-zoom. */
+    touch-action: pan-x pan-y pinch-zoom;
 }
 
 .avpvh-ledenlijst-tabel {
@@ -233,8 +235,8 @@
 
 @media (max-width: 640px) {
     .avpvh-ledenlijst {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        padding-left: .5rem;
+        padding-right: .5rem;
     }
 
     /* Controls stack full-width and grow to a comfortable tap height,
