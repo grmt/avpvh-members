@@ -38,32 +38,33 @@
     padding-bottom: .5rem;
 }
 
+/* Every control in the bar — search box, dropdown toggles, export link —
+   shares this exact box (padding, min-height, border, font-size,
+   box-sizing) so they line up visually regardless of being an <input>,
+   <button>, or <a> underneath, each of which sizes itself slightly
+   differently by default given identical-looking rules otherwise. */
+.avpvh-ledenlijst-zoek,
+.avpvh-ledenlijst-dropdown-toggle,
 .avpvh-ledenlijst-export {
-    display: inline-flex;
-    align-items: center;
+    box-sizing: border-box;
     min-height: 44px;
-    padding: .5rem .9rem;
+    padding: .5rem .75rem;
     border: 1px solid #ccc;
     border-radius: 4px;
     background: #fff;
-    text-decoration: none;
-    white-space: nowrap;
+    font-size: 1rem;
+    font-family: inherit;
 }
 
 .avpvh-ledenlijst-zoek {
     flex: 1 1 240px;
-    padding: .5rem .75rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 1rem;
 }
 
-.avpvh-ledenlijst-filter {
-    padding: .5rem .75rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 1rem;
-    background: #fff;
+.avpvh-ledenlijst-export {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    white-space: nowrap;
 }
 
 .avpvh-ledenlijst-dropdown {
@@ -71,12 +72,8 @@
 }
 
 .avpvh-ledenlijst-dropdown-toggle {
-    min-height: 44px;
-    padding: .5rem .75rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #fff;
-    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
     cursor: pointer;
 }
 
@@ -248,12 +245,10 @@
     }
 
     .avpvh-ledenlijst-zoek,
-    .avpvh-ledenlijst-filter,
     .avpvh-ledenlijst-dropdown,
     .avpvh-ledenlijst-dropdown-toggle,
     .avpvh-ledenlijst-export {
         width: 100%;
-        box-sizing: border-box;
     }
 
     /* .avpvh-ledenlijst-zoek's flex: 1 1 240px (desktop rule, meant to give
