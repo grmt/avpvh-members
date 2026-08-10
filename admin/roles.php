@@ -58,8 +58,8 @@ $role_label = [
                 <td><?php echo esc_html($role_label[$d->role] ?? $d->role); ?></td>
                 <td><?php echo esc_html($to ? avpvh_format_name($to, 'list') : '#' . $d->delegated_to_member_id); ?></td>
                 <td><?php echo esc_html($by ? avpvh_format_name($by, 'list') : '#' . $d->delegated_by_member_id); ?></td>
-                <td><?php echo $d->ends_at ? esc_html(wp_date('d M Y H:i', strtotime($d->ends_at))) : 'Onbepaalde tijd'; ?></td>
-                <td><?php echo esc_html(wp_date('d M Y H:i', strtotime($d->created_at))); ?></td>
+                <td><?php echo $d->ends_at ? esc_html(wp_date('D d M Y H:i', strtotime($d->ends_at))) : 'Onbepaalde tijd'; ?></td>
+                <td><?php echo esc_html(wp_date('D d M Y H:i', strtotime($d->created_at))); ?></td>
                 <td>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
                         <?php wp_nonce_field('avpvh_revoke_delegation'); ?>
