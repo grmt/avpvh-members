@@ -27,8 +27,9 @@ function avpvh_asset_version(string $relative_path): string {
 }
 
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/class-member-profile-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-roles.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-member-profile-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-access.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-nav-auth.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-oauth.php';
@@ -64,7 +65,9 @@ new AVPVH_Ledenlijst();
 new AVPVH_Kamp_Overzicht();
 new AVPVH_Kampdeelname_Form();
 new AVPVH_Directory_Consent();
-new AVPVH_Fee_Popup();
+// AVPVH_Fee_Popup is superseded by avpvh-bookkeeping's own popup (richer
+// ledger: contribution + camp, real balances, QR code) — left in place,
+// unused, rather than deleted, so avm_fees history stays readable.
 new AVPVH_Member_Profile_Form();
 new AVPVH_Admin();
 new AVPVH_Media_Protection();

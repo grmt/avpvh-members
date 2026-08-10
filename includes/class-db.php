@@ -192,6 +192,22 @@ class AVPVH_DB {
             KEY changed_at (changed_at)
         ) $charset;");
 
+        // Temporary role handoffs (e.g. penningmeester/voorzitter during
+        // camp) — see AVPVH_Roles. The real role lives in LLDAP group
+        // membership; this table only layers a time-boxed exception on top,
+        // so the LLDAP group itself never needs to change for a handoff.
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_role_delegations (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            role VARCHAR(30) NOT NULL,
+            delegated_to_member_id INT UNSIGNED NOT NULL,
+            delegated_by_member_id INT UNSIGNED NOT NULL,
+            starts_at DATETIME NOT NULL,
+            ends_at DATETIME NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY role_active (role, delegated_to_member_id, ends_at)
+        ) $charset;");
+
         // Note: avm_registrations / avm_registration_attendance /
         // avm_sync_conflicts (a never-launched Google-Forms-based signup +
         // sync system, unlinked to real members) were removed in favour of
@@ -361,6 +377,26 @@ class AVPVH_DB {
                 );
             }
             update_option('avpvh_db_version', '2.8');
+        }
+        if (version_compare($version, '2.9', '<')) {
+            // avm_role_delegations was added to install() alongside the rest
+            // of the schema, but install() only runs on activation —
+            // already-active sites never got it. dbDelta is safe to call
+            // standalone for one table.
+            $charset = $wpdb->get_charset_collate();
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            dbDelta("CREATE TABLE {$wpdb->prefix}avm_role_delegations (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                role VARCHAR(30) NOT NULL,
+                delegated_to_member_id INT UNSIGNED NOT NULL,
+                delegated_by_member_id INT UNSIGNED NOT NULL,
+                starts_at DATETIME NOT NULL,
+                ends_at DATETIME NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY role_active (role, delegated_to_member_id, ends_at)
+            ) $charset;");
+            update_option('avpvh_db_version', '2.9');
         }
     }
 
@@ -1147,12 +1183,15 @@ class AVPVH_DB {
         $existing = self::get_participation($member_id, $camp_id);
         if ($existing) {
             $wpdb->update("{$wpdb->prefix}avm_camp_participation", $data, ['id' => $existing->id]);
+            do_action('avpvh_camp_participation_saved', $member_id, $camp_id, (int) $existing->id);
             return (int) $existing->id;
         }
         $wpdb->insert("{$wpdb->prefix}avm_camp_participation", [
             'member_id' => $member_id, 'camp_id' => $camp_id,
         ] + $data);
-        return (int) $wpdb->insert_id;
+        $participation_id = (int) $wpdb->insert_id;
+        do_action('avpvh_camp_participation_saved', $member_id, $camp_id, $participation_id);
+        return $participation_id;
     }
 
     /** Replace all day rows for a participation record with $days (date => status). */

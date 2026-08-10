@@ -15,6 +15,17 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_save_camp',          [$this, 'handle_save_camp']);
         add_action('admin_post_avpvh_save_activity_types',[$this, 'handle_save_activity_types']);
         add_action('admin_post_avpvh_export_kampdeelname',[$this, 'handle_export_kampdeelname']);
+        add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
+        add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
+    }
+
+    // manage_options (real WP admins) or bestuur (incl. voorzitter/
+    // secretaris/penningmeester, who imply bestuur — see AVPVH_Roles) —
+    // broader than the manage_options-only gate every other screen in this
+    // file uses, since board members log in as plain 'contributor' WP
+    // users and would otherwise never see this menu at all.
+    private function can_manage_roles(): bool {
+        return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('bestuur');
     }
 
     public function register_menus(): void {
@@ -63,6 +74,17 @@ class AVPVH_Admin {
             'avpvh-members', 'Instellingen', 'Instellingen', 'manage_options',
             'avpvh-settings', [$this, 'render_settings']
         );
+
+        // Only registered at all when the viewer qualifies — 'read' is the
+        // only WP capability every logged-in member has, so gating on the
+        // real rule here (rather than in add_submenu_page's capability
+        // argument) is what keeps this out of the menu for everyone else.
+        if ($this->can_manage_roles()) {
+            add_submenu_page(
+                'avpvh-members', 'Rollen & delegatie', 'Rollen & delegatie', 'read',
+                'avpvh-roles', [$this, 'render_roles']
+            );
+        }
     }
 
     public function render_members_list(): void {
@@ -83,6 +105,10 @@ class AVPVH_Admin {
 
     public function render_kampdeelname_detail(): void {
         require AVPVH_PLUGIN_DIR . 'admin/kampdeelname-detail.php';
+    }
+
+    public function render_roles(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/roles.php';
     }
 
     public function render_settings(): void {
@@ -431,6 +457,44 @@ class AVPVH_Admin {
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Content-Length: ' . strlen($bytes));
         echo $bytes;
+        exit;
+    }
+
+    public function handle_delegate_role(): void {
+        check_admin_referer('avpvh_delegate_role');
+        if (!$this->can_manage_roles()) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $by_member = avpvh_get_member_by_wp_user(get_current_user_id());
+        $role      = sanitize_key($_POST['role'] ?? '');
+        $to_member_id = (int) ($_POST['delegated_to_member_id'] ?? 0);
+        $ends_at_raw  = sanitize_text_field(wp_unslash($_POST['ends_at'] ?? ''));
+        // Datetime-local input ("2026-08-20T18:00") -> MySQL DATETIME, end of
+        // day if only a date was somehow submitted. Blank = indefinite.
+        $ends_at = $ends_at_raw !== '' ? str_replace('T', ' ', $ends_at_raw) . (strlen($ends_at_raw) === 10 ? ':00' : '') : null;
+
+        if (!$by_member || !$to_member_id || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'delegate_error' => '1'], admin_url('admin.php')));
+            exit;
+        }
+
+        $ok = AVPVH_Roles::create_delegation($role, $to_member_id, (int) $by_member->id, $ends_at);
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-roles', $ok ? 'delegate_ok' : 'delegate_error' => '1'],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+
+    public function handle_revoke_delegation(): void {
+        check_admin_referer('avpvh_revoke_delegation');
+        if (!$this->can_manage_roles()) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        AVPVH_Roles::revoke_delegation((int) ($_POST['delegation_id'] ?? 0));
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'revoke_ok' => '1'], admin_url('admin.php')));
         exit;
     }
 }
