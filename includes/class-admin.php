@@ -19,6 +19,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_delete_address',     [$this, 'handle_delete_address']);
+        add_action('admin_post_avpvh_add_member',         [$this, 'handle_add_member']);
     }
 
     // manage_options (real WP admins) or bestuur (incl. voorzitter/
@@ -53,6 +54,10 @@ class AVPVH_Admin {
         add_submenu_page(
             'avpvh-members', 'Ledendetail', 'Ledendetail', 'manage_options',
             'avpvh-member-detail', [$this, 'render_member_detail']
+        );
+        add_submenu_page(
+            'avpvh-members', 'Nieuw lid', 'Nieuw lid', 'manage_options',
+            'avpvh-add-member', [$this, 'render_add_member']
         );
         add_submenu_page(
             'avpvh-members', 'Kampdeelname', 'Kampdeelname', 'manage_options',
@@ -95,6 +100,10 @@ class AVPVH_Admin {
 
     public function render_member_detail(): void {
         require AVPVH_PLUGIN_DIR . 'admin/member-detail.php';
+    }
+
+    public function render_add_member(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/add-member.php';
     }
 
     public function render_login_attempts(): void {
@@ -387,6 +396,91 @@ class AVPVH_Admin {
             AVPVH_DB::delete_address($id, $member_id);
         }
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'address_deleted' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Creates a member the same way the one-off avpvh-ops-scripts have
+     * always done it by hand: a placeholder LLDAP account under a local
+     * @avpvh.local address (club policy — under-16 members never get a
+     * real login, and this form doesn't ask for a real email at all) plus
+     * the matching avm_members row. Warns on a same-name match rather than
+     * silently blocking it — two real people can share a name — and
+     * requires an explicit "add anyway" resubmit to proceed past that.
+     */
+    public function handle_add_member(): void {
+        check_admin_referer('avpvh_add_member');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $first_name = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
+        $suffix     = sanitize_text_field(wp_unslash($_POST['suffix'] ?? ''));
+        $last_name  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
+        $birth_date = sanitize_text_field(wp_unslash($_POST['birth_date'] ?? '')) ?: null;
+        $status     = sanitize_key($_POST['status'] ?? 'inactive');
+        $status     = in_array($status, ['active', 'inactive', 'visitor'], true) ? $status : 'inactive';
+        $confirmed  = !empty($_POST['confirmed']);
+
+        if ($first_name === '' || $last_name === '') {
+            wp_safe_redirect(add_query_arg([
+                'page' => 'avpvh-add-member', 'add_member_error' => 'onvolledig',
+            ], admin_url('admin.php')));
+            exit;
+        }
+
+        if (!$confirmed) {
+            $matches = AVPVH_DB::find_members_by_name($first_name, $last_name);
+            if ($matches) {
+                set_transient('avpvh_add_member_pending_' . get_current_user_id(), [
+                    'first_name' => $first_name, 'suffix' => $suffix, 'last_name' => $last_name,
+                    'birth_date' => $birth_date, 'status' => $status,
+                    'matches'    => wp_list_pluck($matches, 'id'),
+                ], 10 * MINUTE_IN_SECONDS);
+                wp_safe_redirect(add_query_arg(['page' => 'avpvh-add-member', 'add_member_duplicate' => '1'], admin_url('admin.php')));
+                exit;
+            }
+        }
+
+        // uid: first.last, lowercased, non [a-z0-9._-] characters folded to
+        // "." — same slug shape the ops-scripts already use, so a later
+        // hand-run script never collides with one created here.
+        $base_uid = preg_replace('/[^a-z0-9._-]/', '.', strtolower("{$first_name}.{$last_name}"));
+        $uid = $base_uid;
+        $n = 1;
+        while (AVPVH_LLDAP::get_user_display_name($uid) !== null) {
+            $n++;
+            $uid = "{$base_uid}{$n}";
+        }
+        $email = "{$uid}@avpvh.local";
+        $display_name = trim(preg_replace('/\s+/', ' ', "{$first_name} {$suffix} {$last_name}"));
+
+        $created = AVPVH_LLDAP::create_user($uid, $email, $display_name);
+        if (is_wp_error($created)) {
+            wp_safe_redirect(add_query_arg([
+                'page' => 'avpvh-add-member', 'add_member_error' => 'lldap',
+                'add_member_error_message' => rawurlencode($created->get_error_message()),
+            ], admin_url('admin.php')));
+            exit;
+        }
+
+        $groups = AVPVH_LLDAP::list_groups();
+        $group_id = null;
+        if (!is_wp_error($groups)) {
+            foreach ($groups as $group) {
+                if (strtolower($group['displayName']) === 'leden') {
+                    $group_id = (int) $group['id'];
+                    break;
+                }
+            }
+        }
+        if ($group_id) {
+            AVPVH_LLDAP::add_to_group($uid, $group_id);
+        }
+
+        $member_id = AVPVH_DB::create_member($uid, $first_name, $suffix, $last_name, $birth_date, $status);
+
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'created' => '1'], admin_url('admin.php')));
         exit;
     }
 
