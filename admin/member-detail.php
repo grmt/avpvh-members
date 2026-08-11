@@ -46,6 +46,7 @@ $fees       = AVPVH_DB::get_fees_for_member($member_id);
 $identities = AVPVH_DB::get_member_identities($member_id);
 $active_tab = sanitize_key($_GET['tab'] ?? 'contact');
 $updated    = !empty($_GET['updated']);
+$created    = !empty($_GET['created']);
 $identity_ok = !empty($_GET['identity_ok']);
 $identity_deleted = !empty($_GET['identity_deleted']);
 $identity_primary = !empty($_GET['identity_primary']);
@@ -78,6 +79,9 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
 
     <?php if ($updated) : ?>
         <div class="notice notice-success is-dismissible"><p>Bijgewerkt.</p></div>
+    <?php endif; ?>
+    <?php if ($created) : ?>
+        <div class="notice notice-success is-dismissible"><p>Nieuw lid aangemaakt.</p></div>
     <?php endif; ?>
     <?php if ($identity_ok) : ?>
         <div class="notice notice-success is-dismissible"><p>E-mailadres gekoppeld.</p></div>

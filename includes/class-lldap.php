@@ -55,6 +55,18 @@ class AVPVH_LLDAP {
         return $body['data'] ?? [];
     }
 
+    /** Null when the uid is free, the existing user's displayName otherwise — used to pick a free uid and to detect "this real person already has an account" (e.g. a minor's login-less placeholder created separately from their avm_members row) before creating a duplicate. */
+    public static function get_user_display_name(string $uid): ?string {
+        $data = self::graphql(
+            'query($id: String!) { user(userId: $id) { id displayName } }',
+            ['id' => $uid]
+        );
+        if (is_wp_error($data)) {
+            return null;
+        }
+        return $data['user']['displayName'] ?? null;
+    }
+
     public static function create_user(string $uid, string $email, string $display_name): array|\WP_Error {
         return self::graphql('
             mutation CreateUser($user: CreateUserInput!) {
