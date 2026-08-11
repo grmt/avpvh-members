@@ -22,6 +22,7 @@ class AVPVH_DB {
             last_name VARCHAR(100) NOT NULL DEFAULT '',
             passport_name VARCHAR(200) NOT NULL DEFAULT '',
             birth_date DATE NULL,
+            is_student TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             phone VARCHAR(30) NOT NULL DEFAULT '',
             mobile VARCHAR(30) NOT NULL DEFAULT '',
             emergency_contact VARCHAR(200) NOT NULL DEFAULT '',
@@ -398,6 +399,16 @@ class AVPVH_DB {
             ) $charset;");
             update_option('avpvh_db_version', '2.9');
         }
+        if (version_compare($version, '2.10', '<')) {
+            // Scholier/student is a status the contribution rate depends on
+            // (avpvh-bookkeeping) but that can't be derived from age alone.
+            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'is_student'");
+            if (!$column_exists) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                    ADD COLUMN is_student TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER birth_date");
+            }
+            update_option('avpvh_db_version', '2.10');
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -677,7 +688,7 @@ class AVPVH_DB {
         $lldap = self::lldap();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
-                       m.first_name, m.suffix, m.last_name, m.passport_name, m.birth_date,
+                       m.first_name, m.suffix, m.last_name, m.passport_name, m.birth_date, m.is_student,
                        m.phone, m.mobile, m.emergency_contact, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
