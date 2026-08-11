@@ -30,6 +30,7 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $status || $joined
 </style>
 <div class="wrap">
     <h1 class="wp-heading-inline">AVP-PvH Leden</h1>
+    <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-add-member'], admin_url('admin.php'))); ?>" class="page-title-action">Nieuw lid</a>
 
     <form method="get" id="avpvh-filter-form">
         <input type="hidden" name="page" value="avpvh-members">
