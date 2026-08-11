@@ -21,6 +21,7 @@ class AVPVH_DB {
             suffix VARCHAR(50) NOT NULL DEFAULT '',
             last_name VARCHAR(100) NOT NULL DEFAULT '',
             passport_name VARCHAR(200) NOT NULL DEFAULT '',
+            initials VARCHAR(20) NOT NULL DEFAULT '',
             birth_date DATE NULL,
             is_student TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             phone VARCHAR(30) NOT NULL DEFAULT '',
@@ -409,6 +410,19 @@ class AVPVH_DB {
             }
             update_option('avpvh_db_version', '2.10');
         }
+        if (version_compare($version, '2.11', '<')) {
+            // Bank-account holder names are routinely printed as initials +
+            // surname ("A B C Voorbeeld", "D E F Voorbeeld") — a separate field
+            // from passport_name (a full legal name, mostly still unfilled)
+            // gives avpvh-bookkeeping's matcher a direct, reliable target,
+            // and can be auto-backfilled from confirmed bank transactions.
+            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'initials'");
+            if (!$column_exists) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                    ADD COLUMN initials VARCHAR(20) NOT NULL DEFAULT '' AFTER passport_name");
+            }
+            update_option('avpvh_db_version', '2.11');
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -688,7 +702,7 @@ class AVPVH_DB {
         $lldap = self::lldap();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
-                       m.first_name, m.suffix, m.last_name, m.passport_name, m.birth_date, m.is_student,
+                       m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.is_student,
                        m.phone, m.mobile, m.emergency_contact, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
@@ -1495,6 +1509,11 @@ class AVPVH_DB {
         )) ?: [];
     }
 
+    /** Used by avpvh-bookkeeping to auto-backfill initials it recognized in a confirmed bank transaction — goes through the same audit-logged update path as a manual profile edit, so the change is traceable. */
+    public static function update_member_initials(int $member_id, string $initials): void {
+        self::update_member_with_audit($member_id, ['initials' => $initials], ['%s']);
+    }
+
     public static function update_member_with_audit(
         int $member_id,
         array $data,
@@ -1557,4 +1576,34 @@ function avpvh_format_name(object $member, string $format = 'full'): string {
                             ? "$first $suffix $last"
                             : "$first $last",
     };
+}
+
+/** First letter of each given name in a full name string, canonical "J.F.M." form (matches AVPVH_Member_Profile_Form::normalize_initials()'s output, so a stored `initials` value can be compared against this directly). Empty in, empty out. */
+function avpvh_derive_initials(string $full_name): string {
+    $words = preg_split('/\s+/', trim($full_name), -1, PREG_SPLIT_NO_EMPTY);
+    if (!$words) {
+        return '';
+    }
+    $letters = array_map(fn($w) => mb_strtoupper(mb_substr($w, 0, 1)), $words);
+    return implode('.', $letters) . '.';
+}
+
+/**
+ * A member's stored `initials` should agree with what their passport_name
+ * implies — a real mismatch usually means one of the two was mistyped, or
+ * the two were sourced from different documents. Returns null when there's
+ * nothing to compare (either field empty) or when they already agree.
+ */
+function avpvh_initials_mismatch(object $member): ?string {
+    $stored = trim($member->initials ?? '');
+    $passport = trim($member->passport_name ?? '');
+    if ($stored === '' || $passport === '') {
+        return null;
+    }
+    $derived = avpvh_derive_initials($passport);
+    $normalize = fn($s) => strtoupper(str_replace('.', '', $s));
+    if ($normalize($stored) === $normalize($derived)) {
+        return null;
+    }
+    return $derived;
 }

@@ -140,6 +140,18 @@ class AVPVH_Member_Profile_Form {
                             value="<?php echo esc_attr($member->passport_name ?? ''); ?>">
                     </div>
 
+                    <div class="form-group">
+                        <label for="initials">Voorletters (zoals op de bankrekening)</label>
+                        <input type="text" id="initials" name="initials"
+                            value="<?php echo esc_attr($member->initials ?? ''); ?>" placeholder="bv. S.J.M.">
+                        <?php $mismatch = avpvh_initials_mismatch($member); ?>
+                        <?php if ($mismatch) : ?>
+                            <p class="description" style="color:#b32d2e;font-weight:600">
+                                &#9888; Komt niet overeen met de paspoortnaam (die geeft <?php echo esc_html($mismatch); ?>).
+                            </p>
+                        <?php endif; ?>
+                    </div>
+
                     <?php if ($is_admin_edit) : ?>
                         <div class="form-group">
                             <label for="birth_date">Geboortedatum</label>
@@ -805,12 +817,22 @@ class AVPVH_Member_Profile_Form {
         return trim(preg_replace('/\s+/', ' ', preg_replace('/[()\[\]{}]/', '', $value)));
     }
 
+    /** Free-typed "s j m", "SJM", "S.J.M." all become the one canonical "S.J.M." — so stored initials compare reliably against a passport name's derived initials, and against bank-export text (avpvh-bookkeeping normalizes both the same way before comparing). */
+    private static function normalize_initials(string $raw): string {
+        $letters = preg_replace('/[^A-Za-z]/', '', $raw);
+        if ($letters === '') {
+            return '';
+        }
+        return implode('.', str_split(mb_strtoupper($letters))) . '.';
+    }
+
     private function sanitize_member_data(array $data, bool $is_admin): array {
         $fields = [
             'first_name' => sanitize_text_field($data['first_name'] ?? ''),
             'suffix' => sanitize_text_field($data['suffix'] ?? ''),
             'last_name' => sanitize_text_field($data['last_name'] ?? ''),
             'passport_name' => self::strip_brackets(sanitize_text_field($data['passport_name'] ?? '')),
+            'initials' => self::normalize_initials(sanitize_text_field($data['initials'] ?? '')),
             'phone' => sanitize_text_field($data['phone'] ?? ''),
             'mobile' => sanitize_text_field($data['mobile'] ?? ''),
             'emergency_contact' => sanitize_text_field($data['emergency_contact'] ?? ''),
