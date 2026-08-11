@@ -146,6 +146,12 @@ class AVPVH_Member_Profile_Form {
                             <input type="date" id="birth_date" name="birth_date"
                                 value="<?php echo esc_attr($member->birth_date); ?>">
                         </div>
+                        <div class="form-group">
+                            <label for="is_student">
+                                <input type="checkbox" id="is_student" name="is_student" value="1" <?php checked(!empty($member->is_student)); ?>>
+                                Scholier/student
+                            </label>
+                        </div>
                     <?php endif; ?>
 
                     <div class="form-group">
@@ -813,6 +819,7 @@ class AVPVH_Member_Profile_Form {
 
         if ($is_admin) {
             $fields['birth_date'] = sanitize_text_field($data['birth_date'] ?? '') ?: null;
+            $fields['is_student'] = !empty($data['is_student']) ? 1 : 0;
         }
 
         return $fields;
