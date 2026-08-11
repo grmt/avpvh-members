@@ -1035,6 +1035,27 @@ class AVPVH_DB {
         )) ?: [];
     }
 
+    /**
+     * The profile form only ever inserts a new address row (each save adds
+     * one), so there was never a UI to fix a wrong/duplicate valid_from or
+     * valid_until, or to remove a row entirely — needed to clean up e.g. a
+     * duplicate created by a failed/retried submission.
+     */
+    public static function update_address(int $id, int $member_id, ?string $valid_from, ?string $valid_until): void {
+        global $wpdb;
+        $wpdb->update(
+            "{$wpdb->prefix}avm_addresses",
+            ['valid_from' => $valid_from, 'valid_until' => $valid_until],
+            ['id' => $id, 'member_id' => $member_id],
+            ['%s', '%s'], ['%d', '%d']
+        );
+    }
+
+    public static function delete_address(int $id, int $member_id): void {
+        global $wpdb;
+        $wpdb->delete("{$wpdb->prefix}avm_addresses", ['id' => $id, 'member_id' => $member_id], ['%d', '%d']);
+    }
+
     public static function get_camps_for_member(int $member_id): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(

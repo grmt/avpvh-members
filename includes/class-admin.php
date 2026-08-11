@@ -17,6 +17,8 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_export_kampdeelname',[$this, 'handle_export_kampdeelname']);
         add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
+        add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
+        add_action('admin_post_avpvh_delete_address',     [$this, 'handle_delete_address']);
     }
 
     // manage_options (real WP admins) or bestuur (incl. voorzitter/
@@ -355,6 +357,36 @@ class AVPVH_Admin {
         AVPVH_DB::set_primary_identity($member_id, $identity_id);
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_primary' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_update_address(): void {
+        check_admin_referer('avpvh_update_address');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+        $id = (int) ($_POST['id'] ?? 0);
+        $member_id = (int) ($_POST['member_id'] ?? 0);
+        $valid_from = sanitize_text_field($_POST['valid_from'] ?? '') ?: null;
+        $valid_until = sanitize_text_field($_POST['valid_until'] ?? '') ?: null;
+        if ($id && $member_id) {
+            AVPVH_DB::update_address($id, $member_id, $valid_from, $valid_until);
+        }
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'address_updated' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_delete_address(): void {
+        check_admin_referer('avpvh_delete_address');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+        $id = (int) ($_POST['id'] ?? 0);
+        $member_id = (int) ($_POST['member_id'] ?? 0);
+        if ($id && $member_id) {
+            AVPVH_DB::delete_address($id, $member_id);
+        }
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'address_deleted' => '1'], admin_url('admin.php')));
         exit;
     }
 
