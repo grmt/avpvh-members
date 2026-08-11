@@ -1541,6 +1541,34 @@ class AVPVH_DB {
             }
         }
     }
+
+    /** Case-insensitive first+last name match — used by the "Nieuw lid" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, since a treasurer typing e.g. "Jules Horen" should still be warned about "Jules van Horen". */
+    public static function find_members_by_name(string $first_name, string $last_name): array {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT id, first_name, suffix, last_name, status FROM {$wpdb->prefix}avm_members
+             WHERE LOWER(first_name) = LOWER(%s) AND LOWER(last_name) = LOWER(%s)",
+            $first_name, $last_name
+        )) ?: [];
+    }
+
+    /** New member with an already-created LLDAP account (see AVPVH_Admin::handle_add_member()) — mirrors the shape of the avpvh-ops-scripts one-off "create minor member" scripts, now available from the admin UI instead of a hand-run script. */
+    public static function create_member(string $lldap_user_id, string $first_name, string $suffix, string $last_name, ?string $birth_date, string $status): int {
+        global $wpdb;
+        $wpdb->insert(
+            "{$wpdb->prefix}avm_members",
+            [
+                'lldap_user_id' => $lldap_user_id,
+                'first_name'    => $first_name,
+                'suffix'        => $suffix,
+                'last_name'     => $last_name,
+                'birth_date'    => $birth_date,
+                'status'        => $status,
+            ],
+            ['%s', '%s', '%s', '%s', '%s', '%s']
+        );
+        return (int) $wpdb->insert_id;
+    }
 }
 
 function avpvh_get_member_by_wp_user(int $user_id): ?object {
