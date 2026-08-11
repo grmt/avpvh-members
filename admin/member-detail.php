@@ -112,6 +112,16 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th>Tussenvoegsel</th><td><?php echo esc_html($member->suffix ?: '—'); ?></td></tr>
         <tr><th>Achternaam</th><td><?php echo esc_html($member->last_name); ?></td></tr>
         <tr><th>Paspoortnaam</th><td><?php echo esc_html($member->passport_name ?: '—'); ?></td></tr>
+        <tr>
+            <th>Voorletters</th>
+            <td>
+                <?php echo esc_html($member->initials ?: '—'); ?>
+                <?php $mismatch = avpvh_initials_mismatch($member); ?>
+                <?php if ($mismatch) : ?>
+                    <br><span style="color:#b32d2e;font-weight:600">&#9888; Komt niet overeen met de paspoortnaam (die geeft <?php echo esc_html($mismatch); ?>).</span>
+                <?php endif; ?>
+            </td>
+        </tr>
         <tr><th>E-mail</th><td><?php echo esc_html($member->email); ?></td></tr>
         <tr><th>Status</th><td><?php echo esc_html($member->status); ?></td></tr>
         <tr><th>Telefoon</th><td><?php echo esc_html($member->phone); ?></td></tr>
