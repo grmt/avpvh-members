@@ -89,6 +89,10 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-error is-dismissible"><p>Dit lid heeft al het maximale aantal van 3 e-mailadressen.</p></div>
     <?php elseif ($identity_error === 'onvolledig') : ?>
         <div class="notice notice-error is-dismissible"><p>Vul provider en e-mailadres volledig in.</p></div>
+    <?php elseif (!empty($_GET['address_updated'])) : ?>
+        <div class="notice notice-success is-dismissible"><p>Adres bijgewerkt.</p></div>
+    <?php elseif (!empty($_GET['address_deleted'])) : ?>
+        <div class="notice notice-success is-dismissible"><p>Adres verwijderd.</p></div>
     <?php endif; ?>
     <?php if ($sync_msg) : ?>
         <div class="notice notice-<?php echo str_contains($sync_msg, 'LLDAP') && !str_contains($sync_msg, 'fout') ? 'success' : 'error'; ?> is-dismissible"><p><?php echo esc_html($sync_msg); ?></p></div>
@@ -178,11 +182,12 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     </form>
 
     <h2>Adreshistorie</h2>
+    <p class="description">Elke keer dat een adres wordt opgeslagen via het profiel komt er een nieuwe rij bij (nooit een wijziging van een bestaande) — hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen.</p>
     <table class="wp-list-table widefat striped">
-        <thead><tr><th>Straat</th><th>Nr</th><th>Postcode</th><th>Stad</th><th>Land</th><th>Van</th><th>Tot</th></tr></thead>
+        <thead><tr><th>Straat</th><th>Nr</th><th>Postcode</th><th>Stad</th><th>Land</th><th>Van</th><th>Tot</th><th></th></tr></thead>
         <tbody>
         <?php if (!$addresses) : ?>
-            <tr><td colspan="7">Geen adressen.</td></tr>
+            <tr><td colspan="8">Geen adressen.</td></tr>
         <?php else : foreach ($addresses as $a) : ?>
             <tr>
                 <td><?php echo esc_html($a->street); ?></td>
@@ -190,8 +195,24 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                 <td><?php echo esc_html($a->postal_code); ?></td>
                 <td><?php echo esc_html($a->city); ?></td>
                 <td><?php echo esc_html($a->country); ?></td>
-                <td><?php echo esc_html($a->valid_from ?: '—'); ?></td>
-                <td><?php echo esc_html($a->valid_until ?: 'huidig'); ?></td>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <?php wp_nonce_field('avpvh_update_address'); ?>
+                    <input type="hidden" name="action" value="avpvh_update_address">
+                    <input type="hidden" name="id" value="<?php echo esc_attr($a->id); ?>">
+                    <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                    <td><input type="date" name="valid_from" value="<?php echo esc_attr($a->valid_from); ?>" style="width:9.5em"></td>
+                    <td><input type="date" name="valid_until" value="<?php echo esc_attr($a->valid_until); ?>" style="width:9.5em"></td>
+                    <td>
+                        <button type="submit" class="button button-small">Opslaan</button>
+                </form>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
+                    <?php wp_nonce_field('avpvh_delete_address'); ?>
+                    <input type="hidden" name="action" value="avpvh_delete_address">
+                    <input type="hidden" name="id" value="<?php echo esc_attr($a->id); ?>">
+                    <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                    <button type="submit" class="button button-small" onclick="return confirm('Dit adres verwijderen?');">Verwijderen</button>
+                </form>
+                    </td>
             </tr>
         <?php endforeach; endif; ?>
         </tbody>
