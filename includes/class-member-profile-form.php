@@ -152,11 +152,15 @@ class AVPVH_Member_Profile_Form {
                         <?php endif; ?>
                     </div>
 
-                    <?php if ($is_admin_edit) : ?>
+                    <?php if ($is_admin_edit) :
+                        $birth_value = !empty($member->birth_date) ? $member->birth_date : (!empty($member->birth_year) ? (string) $member->birth_year : '');
+                        ?>
                         <div class="form-group">
                             <label for="birth_date">Geboortedatum</label>
-                            <input type="date" id="birth_date" name="birth_date"
-                                value="<?php echo esc_attr($member->birth_date); ?>">
+                            <input type="text" id="birth_date" name="birth_date" inputmode="numeric"
+                                pattern="\d{4}(-\d{2}-\d{2})?" placeholder="JJJJ-MM-DD of alleen JJJJ"
+                                value="<?php echo esc_attr($birth_value); ?>">
+                            <p class="avpvh-field-hint">Volledige datum (JJJJ-MM-DD), of alleen het geboortejaar als de exacte datum niet bekend is.</p>
                         </div>
                         <div class="form-group">
                             <label for="is_student">
@@ -840,11 +844,33 @@ class AVPVH_Member_Profile_Form {
         ];
 
         if ($is_admin) {
-            $fields['birth_date'] = sanitize_text_field($data['birth_date'] ?? '') ?: null;
+            [$fields['birth_date'], $fields['birth_year']] = self::parse_birth_date(sanitize_text_field($data['birth_date'] ?? ''));
             $fields['is_student'] = !empty($data['is_student']) ? 1 : 0;
         }
 
         return $fields;
+    }
+
+    /**
+     * The Geboortedatum field accepts either a full "JJJJ-MM-DD" or, when
+     * the exact date is genuinely unknown, just a year — real but
+     * imprecise beats avpvh-bookkeeping's "no birth date at all, assume
+     * adult" fallback. Returns [birth_date, birth_year], always exactly
+     * one of the two non-null (or both null for an empty/invalid input) —
+     * the two columns are mutually exclusive, never both set at once.
+     */
+    private static function parse_birth_date(string $raw): array {
+        $raw = trim($raw);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            return [$raw, null];
+        }
+        if (preg_match('/^(\d{4})$/', $raw, $m)) {
+            $year = (int) $m[1];
+            if ($year >= 1900 && $year <= (int) current_time('Y')) {
+                return [null, $year];
+            }
+        }
+        return [null, null];
     }
 
     private function role_label(\WP_User $user): string {
