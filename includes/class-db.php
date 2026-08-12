@@ -23,6 +23,7 @@ class AVPVH_DB {
             passport_name VARCHAR(200) NOT NULL DEFAULT '',
             initials VARCHAR(20) NOT NULL DEFAULT '',
             birth_date DATE NULL,
+            birth_year SMALLINT UNSIGNED NULL,
             is_student TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             phone VARCHAR(30) NOT NULL DEFAULT '',
             mobile VARCHAR(30) NOT NULL DEFAULT '',
@@ -423,6 +424,19 @@ class AVPVH_DB {
             }
             update_option('avpvh_db_version', '2.11');
         }
+        if (version_compare($version, '2.12', '<')) {
+            // Some members' exact birth date will genuinely never be known
+            // (old records, lost paperwork) but the year often is — a
+            // real, if imprecise, age beats avpvh-bookkeeping's
+            // no-date-at-all "assume adult" fallback. Only used when
+            // birth_date itself is empty (see the profile form's sanitizer).
+            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'birth_year'");
+            if (!$column_exists) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                    ADD COLUMN birth_year SMALLINT UNSIGNED NULL AFTER birth_date");
+            }
+            update_option('avpvh_db_version', '2.12');
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -702,7 +716,7 @@ class AVPVH_DB {
         $lldap = self::lldap();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
-                       m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.is_student,
+                       m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.birth_year, m.is_student,
                        m.phone, m.mobile, m.emergency_contact, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
