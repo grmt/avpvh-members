@@ -131,7 +131,18 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th>Telefoon</th><td><?php echo esc_html($member->phone); ?></td></tr>
         <tr><th>Mobiel</th><td><?php echo esc_html($member->mobile); ?></td></tr>
         <tr><th>Noodcontact</th><td><?php echo esc_html($member->emergency_contact); ?></td></tr>
-        <tr><th>Geboortedatum</th><td><?php echo esc_html($member->birth_date ?: '—'); ?></td></tr>
+        <tr>
+            <th>Geboortedatum</th>
+            <td>
+                <?php if (!empty($member->birth_date)) : ?>
+                    <?php echo esc_html($member->birth_date); ?>
+                <?php elseif (!empty($member->birth_year)) : ?>
+                    <?php echo esc_html($member->birth_year); ?> <span style="color:#777">(alleen geboortejaar bekend)</span>
+                <?php else : ?>
+                    &mdash;
+                <?php endif; ?>
+            </td>
+        </tr>
         <tr><th>Scholier/student</th><td><?php echo !empty($member->is_student) ? 'Ja' : 'Nee'; ?></td></tr>
         <tr><th>Lid sinds</th><td><?php echo esc_html($member->joined_year ?: '—'); ?></td></tr>
         <tr><th>Vertrokken</th><td><?php echo esc_html($member->left_year ?: '—'); ?></td></tr>
