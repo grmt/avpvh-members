@@ -30,10 +30,10 @@ class AVPVH_Member_Profile_Form {
 
         $is_admin_edit = current_user_can('manage_options') && !empty($_GET['member_id']);
         $is_household_edit = !$is_admin_edit && $own_member && (int) $member->id !== (int) $own_member->id;
-        $huisgenoten = $own_member ? AVPVH_DB::get_manageable_members((int) $own_member->id) : [];
-        // The family-relation picker must list $member's own household, which
-        // differs from $huisgenoten (the current user's household) when an
-        // admin edits someone else's profile.
+        // Used by both the summary card and the family-relation picker below
+        // — always $member's own household (the person being viewed/edited),
+        // never the viewer's, which differs whenever an admin edits someone
+        // else's profile.
         $member_household = AVPVH_DB::get_manageable_members((int) $member->id);
 
         // Get current address
@@ -63,10 +63,14 @@ class AVPVH_Member_Profile_Form {
             <?php if (is_user_logged_in()) : ?>
                 <?php
                 $user = wp_get_current_user();
-                $member_role = (string) get_user_meta($user->ID, 'avpvh_member_role', true);
+                // Badges describe $member (the profile being viewed), not the
+                // viewer — a real WP admin viewing someone else's profile must
+                // never see their own "Beheerder" badge appear on that person.
+                $target_user = !empty($member->wp_user_id) ? get_userdata((int) $member->wp_user_id) : false;
+                $member_role = $target_user ? (string) get_user_meta($target_user->ID, 'avpvh_member_role', true) : '';
                 $member_role_label = $this->member_role_label($member_role);
                 $status_label = $member->status === 'active' ? 'Actief lid' : ($member->status === 'inactive' ? 'Oud lid' : 'Bezoeker');
-                $badges = array_filter([$this->role_label($user), $member_role_label, $status_label]);
+                $badges = array_filter([$target_user ? $this->role_label($target_user) : '', $member_role_label, $status_label]);
 
                 $lldap_groups = [];
                 if (!empty($member->user_id)) {
@@ -93,10 +97,10 @@ class AVPVH_Member_Profile_Form {
                             <?php echo esc_html(implode(', ', wp_list_pluck($lldap_groups, 'displayName'))); ?>
                         </div>
                     <?php endif; ?>
-                    <?php if (count($huisgenoten) > 1) : ?>
+                    <?php if (count($member_household) > 1) : ?>
                         <div class="avpvh-summary-card__row">
                             <span class="avpvh-summary-card__label">Huisgenoten:</span>
-                            <?php foreach ($huisgenoten as $i => $hg) : ?>
+                            <?php foreach ($member_household as $i => $hg) : ?>
                                 <?php echo $i > 0 ? ', ' : ''; ?>
                                 <?php if ((int) $hg->id === (int) $member->id) : ?>
                                     <strong><?php echo esc_html(avpvh_format_name($hg)); ?></strong>
