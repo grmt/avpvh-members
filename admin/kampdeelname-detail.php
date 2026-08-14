@@ -11,7 +11,7 @@ if ($participation) {
 // Reached cold from the sidebar link (no camp_id/id) — default to the
 // most recent camp instead of a dead end, same default as the list page.
 if (!$camp_id) {
-    $current_camp = AVPVH_DB::get_current_camp();
+    $current_camp = AVPVH_DB::get_current_camp_activity();
     $camp_id = $current_camp->id ?? 0;
 }
 $camp = $camp_id ? AVPVH_DB::get_camp($camp_id) : null;

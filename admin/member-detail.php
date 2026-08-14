@@ -246,7 +246,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <?php elseif ($active_tab === 'camps') : ?>
     <h2>Kampledeelname</h2>
     <table class="wp-list-table widefat striped">
-        <thead><tr><th>Kamp</th><th>Jaar</th><th>Locatie</th><th>Nachten</th><th>Nawacht</th><th>Dieet</th><th>Notities</th></tr></thead>
+        <thead><tr><th>Kamp</th><th>Jaar</th><th>Locatie/kenmerk</th><th>Nachten</th><th>Nawacht</th><th>Dieet</th><th>Notities</th></tr></thead>
         <tbody>
         <?php if (!$camps) : ?>
             <tr><td colspan="7">Geen kampen.</td></tr>
@@ -254,7 +254,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             <tr>
                 <td><?php echo esc_html($c->name); ?></td>
                 <td><?php echo esc_html($c->year); ?></td>
-                <td><?php echo esc_html($c->location); ?></td>
+                <td><?php echo esc_html($c->kenmerk); ?></td>
                 <td><?php echo esc_html($c->nights ?? '—'); ?></td>
                 <td><?php echo $c->nawacht ? 'Ja' : 'Nee'; ?></td>
                 <td><?php echo esc_html($c->diet ?: '—'); ?></td>

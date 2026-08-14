@@ -60,19 +60,23 @@ class AVPVH_Admin {
             'avpvh-add-member', [$this, 'render_add_member']
         );
         add_submenu_page(
-            'avpvh-members', 'Kampdeelname', 'Kampdeelname', 'manage_options',
+            'avpvh-members', 'Activiteiten', 'Activiteiten', 'manage_options',
             'avpvh-kampdeelname', [$this, 'render_kampdeelname_list']
         );
-        // Registered but not shown in the sidebar — only reachable via the
-        // "Nieuwe deelname"/"Bewerken" links on the Kampdeelname list page,
-        // which always pass a camp_id (and usually an id). Landed on cold
-        // (no params), it can only ever offer "create new" — not useful as
-        // its own standalone menu entry.
+        // Not shown in the sidebar — only reachable via the "Nieuwe
+        // deelname"/"Bewerken" links on the Kampdeelname list page, which
+        // always pass a camp_id (and usually an id). Landed on cold (no
+        // params), it can only ever offer "create new" — not useful as its
+        // own standalone menu entry. Registering with a null parent (rather
+        // than add_submenu_page() + remove_submenu_page()) keeps the page
+        // itself reachable by URL — remove_submenu_page() strips the page
+        // from the $submenu registry that admin.php uses to dispatch the
+        // request, so a direct link 404s/"not allowed"s instead of just
+        // being hidden from the menu.
         add_submenu_page(
-            'avpvh-members', 'Kampdeelname bewerken', 'Kampdeelname bewerken', 'manage_options',
+            null, 'Kampdeelname bewerken', 'Kampdeelname bewerken', 'manage_options',
             'avpvh-kampdeelname-detail', [$this, 'render_kampdeelname_detail']
         );
-        remove_submenu_page('avpvh-members', 'avpvh-kampdeelname-detail');
         add_submenu_page(
             'avpvh-members', 'Loginpogingen', 'Loginpogingen', 'manage_options',
             'avpvh-login-attempts', [$this, 'render_login_attempts']
@@ -529,7 +533,7 @@ class AVPVH_Admin {
         $type_id = (int) ($_POST['type_id'] ?? 0);
         global $wpdb;
         $wpdb->update("{$wpdb->prefix}avm_camps", [
-            'location'   => sanitize_text_field(wp_unslash($_POST['location'] ?? '')),
+            'kenmerk'    => sanitize_text_field(wp_unslash($_POST['kenmerk'] ?? '')),
             'type_id'    => $type_id ?: null,
             'start_date' => sanitize_text_field($_POST['start_date'] ?? '') ?: null,
             'end_date'   => sanitize_text_field($_POST['end_date'] ?? '') ?: null,

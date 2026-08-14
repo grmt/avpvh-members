@@ -26,7 +26,7 @@ class AVPVH_Kampdeelname_Form {
             return '<p>Geen lidprofiel gevonden.</p>';
         }
 
-        $camp = AVPVH_DB::get_current_camp();
+        $camp = AVPVH_DB::get_current_camp_activity();
         if (!$camp) {
             return '<p>Er is nog geen kamp beschikbaar om je voor in te schrijven.</p>';
         }
