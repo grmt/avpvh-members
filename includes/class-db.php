@@ -77,7 +77,7 @@ class AVPVH_DB {
             name VARCHAR(150) NOT NULL DEFAULT '',
             type_id INT UNSIGNED NULL,
             year YEAR NOT NULL,
-            location VARCHAR(150) NOT NULL DEFAULT '',
+            kenmerk VARCHAR(150) NOT NULL DEFAULT '',
             start_date DATE NULL,
             end_date DATE NULL,
             PRIMARY KEY (id),
@@ -436,6 +436,31 @@ class AVPVH_DB {
                     ADD COLUMN birth_year SMALLINT UNSIGNED NULL AFTER birth_date");
             }
             update_option('avpvh_db_version', '2.12');
+        }
+        if (version_compare($version, '2.13', '<')) {
+            // "Everything you can be asked to contribute money for is an
+            // activity" — contribution, drank, t-shirts etc. join camps as
+            // named activity types, not just Kamp/Weekend/Uitje/Wandeling/
+            // Feest/Anders. Skip-if-exists, same pattern as the original
+            // seed in migrate_to_activity_types_table() below.
+            foreach (['Contributie', 'Drank', 'Eten', 'Boek', 'T-shirt', 'Congres'] as $name) {
+                $existing = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}avm_activity_types WHERE name = %s", $name
+                ));
+                if (!$existing) {
+                    $max_sort = (int) $wpdb->get_var("SELECT COALESCE(MAX(sort_order), 0) FROM {$wpdb->prefix}avm_activity_types");
+                    $wpdb->insert("{$wpdb->prefix}avm_activity_types", ['name' => $name, 'sort_order' => $max_sort + 1]);
+                }
+            }
+
+            // location -> kenmerk: not every activity has a physical
+            // location (contribution, a drank-tab) — kenmerk is a generic
+            // "whatever identifies this activity" field, still free text.
+            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_camps LIKE 'kenmerk'");
+            if (!$column_exists) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camps CHANGE location kenmerk VARCHAR(150) NOT NULL DEFAULT ''");
+            }
+            update_option('avpvh_db_version', '2.13');
         }
     }
 
@@ -1162,14 +1187,54 @@ class AVPVH_DB {
         ) !== false;
     }
 
-    /** Most recent camp by year — used as the default for new screens. */
-    public static function get_current_camp(): ?object {
+    /**
+     * Most recent activity by year — used as the default for new screens,
+     * and (with $type_id) to find e.g. "the current congress activity"
+     * without a separate setting pointing at it.
+     */
+    public static function get_current_camp(?int $type_id = null): ?object {
         global $wpdb;
-        $camp = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}avm_camps ORDER BY year DESC, id DESC LIMIT 1");
+        if ($type_id) {
+            $camp = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}avm_camps WHERE type_id = %d ORDER BY year DESC, id DESC LIMIT 1",
+                $type_id
+            ));
+        } else {
+            $camp = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}avm_camps ORDER BY year DESC, id DESC LIMIT 1");
+        }
         return $camp ?: null;
     }
 
-    public static function get_or_create_camp(string $name, int $year, string $location = '', ?string $start_date = null, ?string $end_date = null): int {
+    /**
+     * The most recent actual camp — unlike get_current_camp() (unfiltered
+     * "most recent activity", which can now just as easily resolve to
+     * "Contributie {year}" since that lives in the same table), this
+     * always means an actual Kamp-type activity. Needed wherever "the
+     * current camp" is specifically about participation/attendance, which
+     * doesn't apply to contribution or other non-participation activities.
+     */
+    public static function get_current_camp_activity(): ?object {
+        $kamp_type = current(array_filter(
+            self::get_activity_types(),
+            fn($t) => $t->name === 'Kamp'
+        ));
+        return $kamp_type ? self::get_current_camp((int) $kamp_type->id) : null;
+    }
+
+    /** Read-only lookup by name+year — unlike get_or_create_camp(), never creates one (e.g. avpvh-bookkeeping checking whether a "Contributie {year}" activity has been set up yet, without silently conjuring an empty one). */
+    public static function get_camp_by_name_year(string $name, int $year): ?object {
+        global $wpdb;
+        $camp = $wpdb->get_row($wpdb->prepare(
+            "SELECT c.*, t.name AS type_name
+             FROM {$wpdb->prefix}avm_camps c
+             LEFT JOIN {$wpdb->prefix}avm_activity_types t ON t.id = c.type_id
+             WHERE c.name = %s AND c.year = %d",
+            $name, $year
+        ));
+        return $camp ?: null;
+    }
+
+    public static function get_or_create_camp(string $name, int $year, string $kenmerk = '', ?string $start_date = null, ?string $end_date = null, int $type_id = 0): int {
         global $wpdb;
         $id = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$wpdb->prefix}avm_camps WHERE name = %s AND year = %d", $name, $year
@@ -1178,8 +1243,9 @@ class AVPVH_DB {
             return (int) $id;
         }
         $wpdb->insert("{$wpdb->prefix}avm_camps", [
-            'name' => $name, 'year' => $year, 'location' => $location,
+            'name' => $name, 'year' => $year, 'kenmerk' => $kenmerk,
             'start_date' => $start_date, 'end_date' => $end_date,
+            'type_id' => $type_id ?: null,
         ]);
         return (int) $wpdb->insert_id;
     }

@@ -8,10 +8,20 @@ if (!class_exists('WP_List_Table')) {
 class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
 
     private int $camp_id;
+    private bool $show_all_active_members;
 
-    public function __construct(int $camp_id) {
+    /**
+     * $show_all_active_members: for an activity like "Contributie {year}"
+     * nobody ever explicitly "signs up" — it applies automatically to
+     * every active member (see AVBK_Fee_Generation::generate_contribution_fees())
+     * — so avm_camp_participation is always empty for it. Without this,
+     * selecting such an activity here would misleadingly say "no
+     * participation found" instead of showing who it actually applies to.
+     */
+    public function __construct(int $camp_id, bool $show_all_active_members = false) {
         parent::__construct(['singular' => 'deelname', 'plural' => 'deelnames', 'ajax' => false]);
         $this->camp_id = $camp_id;
+        $this->show_all_active_members = $show_all_active_members;
     }
 
     public function get_columns(): array {
@@ -31,12 +41,31 @@ class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
     }
 
     public function no_items(): void {
-        echo 'Geen kampdeelname gevonden voor dit kamp.';
+        echo $this->show_all_active_members ? 'Geen actieve leden gevonden.' : 'Geen kampdeelname gevonden voor dit kamp.';
     }
 
     public function prepare_items(): void {
         $this->_column_headers = [$this->get_columns(), [], []];
-        $this->items = $this->camp_id ? AVPVH_DB::get_participation_for_camp($this->camp_id) : [];
+        if ($this->show_all_active_members) {
+            // id = 0 marks these as synthetic (no real avm_camp_participation
+            // row) — column_name()/column_days()/column_actions() branch on
+            // that instead of trying to link to a participation record that
+            // doesn't exist.
+            $this->items = array_map(fn($m) => (object) [
+                'id'            => 0,
+                'member_id'     => $m->id,
+                'nights'        => null,
+                'nawacht'       => 0,
+                'diet'          => '',
+                'notes'         => '',
+                'first_name'    => $m->first_name,
+                'suffix'        => $m->suffix,
+                'last_name'     => $m->last_name,
+                'member_status' => $m->status,
+            ], AVPVH_DB::get_members(['status' => 'active']));
+        } else {
+            $this->items = $this->camp_id ? AVPVH_DB::get_participation_for_camp($this->camp_id) : [];
+        }
     }
 
     public function column_default($item, $column_name) {
@@ -50,23 +79,29 @@ class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
     }
 
     public function column_name($item): string {
-        $url = add_query_arg([
-            'page' => 'avpvh-kampdeelname-detail',
-            'camp_id' => $this->camp_id,
-            'id' => $item->id,
-        ], admin_url('admin.php'));
         $name = trim($item->first_name . ' ' . ($item->suffix ? $item->suffix . ' ' : '') . $item->last_name);
         $muted = $item->member_status !== 'active' ? ' style="color:#a00"' : '';
+        // No participation record to open (synthetic "applies to every
+        // active member" row) — link to the member's own record instead.
+        $url = $item->id
+            ? add_query_arg(['page' => 'avpvh-kampdeelname-detail', 'camp_id' => $this->camp_id, 'id' => $item->id], admin_url('admin.php'))
+            : add_query_arg(['page' => 'avpvh-member-detail', 'id' => $item->member_id], admin_url('admin.php'));
         return '<a href="' . esc_url($url) . '"' . $muted . '><strong>' . esc_html($name) . '</strong></a>';
     }
 
     public function column_days($item): string {
+        if (!$item->id) {
+            return '—';
+        }
         $days = AVPVH_DB::get_participation_days((int) $item->id);
         $present = array_filter($days, fn($status) => $status !== '');
         return esc_html((string) count($present));
     }
 
     public function column_actions($item): string {
+        if (!$item->id) {
+            return '';
+        }
         $url = add_query_arg([
             'page' => 'avpvh-kampdeelname-detail',
             'camp_id' => $this->camp_id,
