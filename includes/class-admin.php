@@ -12,6 +12,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_delete_identity',[$this, 'handle_delete_identity']);
         add_action('admin_post_avpvh_primary_identity',[$this, 'handle_primary_identity']);
         add_action('admin_post_avpvh_save_participation', [$this, 'handle_save_participation']);
+        add_action('admin_post_avpvh_create_activity',    [$this, 'handle_create_activity']);
         add_action('admin_post_avpvh_save_activity',      [$this, 'handle_save_activity']);
         add_action('admin_post_avpvh_save_activity_types',[$this, 'handle_save_activity_types']);
         add_action('admin_post_avpvh_export_activity_participation', [$this, 'handle_export_activity_participation']);
@@ -531,6 +532,44 @@ class AVPVH_Admin {
 
         wp_safe_redirect(add_query_arg([
             'page' => 'avpvh-activity-participation-detail', 'id' => $participation_id, 'activity_id' => $activity_id, 'updated' => '1',
+        ], admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * The "Instellingen" form on the Activiteiten page only ever edits
+     * whichever activity is currently selected in the page's own dropdown
+     * — there was no way to create a new one at all, so someone trying to
+     * make e.g. a new "Contributie 2025" activity would silently overwrite
+     * whatever activity happened to be selected instead (discovered when
+     * this exact thing corrupted the live "Goeblange" kamp activity's type
+     * and dates). This is the missing "actually create a new row" path,
+     * a thin wrapper around the existing AVPVH_DB::get_or_create_activity()
+     * (already idempotent on name+year, so resubmitting is harmless).
+     */
+    public function handle_create_activity(): void {
+        check_admin_referer('avpvh_create_activity');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $name = sanitize_text_field(wp_unslash($_POST['name'] ?? ''));
+        $year = (int) ($_POST['year'] ?? 0);
+        if ($name === '' || !$year) {
+            wp_die('Naam en jaar zijn verplicht.', 400);
+        }
+
+        $activity_id = AVPVH_DB::get_or_create_activity(
+            $name,
+            $year,
+            sanitize_text_field(wp_unslash($_POST['kenmerk'] ?? '')),
+            sanitize_text_field($_POST['start_date'] ?? '') ?: null,
+            sanitize_text_field($_POST['end_date'] ?? '') ?: null,
+            (int) ($_POST['type_id'] ?? 0)
+        );
+
+        wp_safe_redirect(add_query_arg([
+            'page' => 'avpvh-activity-participation', 'activity_id' => $activity_id, 'activity_created' => '1',
         ], admin_url('admin.php')));
         exit;
     }
