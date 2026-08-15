@@ -35,6 +35,30 @@ class AVPVH_Member_Profile_Form {
         // never the viewer's, which differs whenever an admin edits someone
         // else's profile.
         $member_household = AVPVH_DB::get_manageable_members((int) $member->id);
+        // get_manageable_members() is "family OR same address" — split that
+        // back apart for display, so someone who moved out (e.g. a grown-up
+        // child) shows as family rather than misleadingly as a housemate.
+        // Both stay linked/editable — the split is cosmetic, not a change
+        // in who's manageable.
+        $housemates = [];
+        $family_elsewhere = [];
+        foreach ($member_household as $hg) {
+            if ((int) $hg->id === (int) $member->id || AVPVH_DB::has_same_address((int) $member->id, (int) $hg->id)) {
+                $housemates[] = $hg;
+            } else {
+                $family_elsewhere[] = $hg;
+            }
+        }
+        // One step further than the household itself: a housemate's own
+        // partner (e.g. a child's girlfriend), shown for awareness only —
+        // never linked, since that's not "editable family" the way an
+        // actual housemate is (see can_edit_member(), still gated on
+        // get_manageable_members() alone).
+        $household_ids = wp_list_pluck($member_household, 'id');
+        $extended_family = array_values(array_filter(
+            AVPVH_DB::get_extended_household((int) $member->id),
+            fn($m) => !in_array((int) $m->id, array_map('intval', $household_ids), true)
+        ));
 
         // Get current address
         $addresses = AVPVH_DB::get_addresses($member->id);
@@ -97,10 +121,10 @@ class AVPVH_Member_Profile_Form {
                             <?php echo esc_html(implode(', ', wp_list_pluck($lldap_groups, 'displayName'))); ?>
                         </div>
                     <?php endif; ?>
-                    <?php if (count($member_household) > 1) : ?>
+                    <?php if (count($housemates) > 1) : ?>
                         <div class="avpvh-summary-card__row">
                             <span class="avpvh-summary-card__label">Huisgenoten:</span>
-                            <?php foreach ($member_household as $i => $hg) : ?>
+                            <?php foreach ($housemates as $i => $hg) : ?>
                                 <?php echo $i > 0 ? ', ' : ''; ?>
                                 <?php if ((int) $hg->id === (int) $member->id) : ?>
                                     <strong><?php echo esc_html(avpvh_format_name($hg)); ?></strong>
@@ -108,6 +132,21 @@ class AVPVH_Member_Profile_Form {
                                     <a href="<?php echo esc_url(add_query_arg('member_id', $hg->id)); ?>"><?php echo esc_html(avpvh_format_name($hg)); ?></a>
                                 <?php endif; ?>
                             <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($family_elsewhere) : ?>
+                        <div class="avpvh-summary-card__row">
+                            <span class="avpvh-summary-card__label">Familie (elders wonend):</span>
+                            <?php foreach ($family_elsewhere as $i => $hg) : ?>
+                                <?php echo $i > 0 ? ', ' : ''; ?>
+                                <a href="<?php echo esc_url(add_query_arg('member_id', $hg->id)); ?>"><?php echo esc_html(avpvh_format_name($hg)); ?></a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($extended_family) : ?>
+                        <div class="avpvh-summary-card__row">
+                            <span class="avpvh-summary-card__label">Ook verbonden (partner van familielid):</span>
+                            <?php echo esc_html(implode(', ', array_map('avpvh_format_name', $extended_family))); ?>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -360,7 +399,7 @@ class AVPVH_Member_Profile_Form {
             fn($m) => (int) $m->id !== (int) $member->id
         );
         usort($all_members, fn($a, $b) => strcasecmp($a->last_name, $b->last_name) ?: strcasecmp($a->first_name, $b->first_name));
-        $camps = AVPVH_DB::get_camps();
+        $activities = AVPVH_DB::get_activities();
         ?>
         <fieldset class="avpvh-relationships">
             <legend>Relaties</legend>
@@ -369,6 +408,8 @@ class AVPVH_Member_Profile_Form {
                 <p class="avpvh-identity-notice">Relatie toegevoegd.</p>
             <?php elseif (!empty($_GET['relationship_removed'])) : ?>
                 <p class="avpvh-identity-notice">Relatie verwijderd.</p>
+            <?php elseif (!empty($_GET['relationship_duplicate'])) : ?>
+                <p class="avpvh-identity-notice avpvh-identity-notice--error">Deze relatie staat al hieronder — niet nogmaals toegevoegd.</p>
             <?php elseif (!empty($_GET['relationship_error'])) : ?>
                 <p class="avpvh-identity-notice avpvh-identity-notice--error">Opslaan is niet gelukt — probeer het opnieuw.</p>
             <?php endif; ?>
@@ -429,12 +470,12 @@ class AVPVH_Member_Profile_Form {
                 </div>
 
                 <div class="form-group">
-                    <label for="rel_camp_id">Periode: activiteit (optioneel — bijv. tijdelijke voogdij tijdens een kamp)</label>
-                    <select id="rel_camp_id" name="camp_id">
+                    <label for="rel_activity_id">Periode: activiteit (optioneel — bijv. tijdelijke voogdij tijdens een kamp)</label>
+                    <select id="rel_activity_id" name="activity_id">
                         <option value="">— Geen, handmatige data hieronder —</option>
-                        <?php foreach ($camps as $camp) : ?>
-                            <option value="<?php echo esc_attr($camp->id); ?>">
-                                <?php echo esc_html(($camp->type_name ? $camp->type_name . ': ' : '') . $camp->name . ' (' . $camp->year . ')'); ?>
+                        <?php foreach ($activities as $activity) : ?>
+                            <option value="<?php echo esc_attr($activity->id); ?>">
+                                <?php echo esc_html(($activity->type_name ? $activity->type_name . ': ' : '') . $activity->name . ' (' . $activity->year . ')'); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -731,13 +772,13 @@ class AVPVH_Member_Profile_Form {
         // Picking an activity ("een kamp of weekend") is an alternative to
         // typing dates by hand — its real start/end date becomes the
         // relationship's validity period (e.g. temporary voogdij for the
-        // camp's duration), overriding whatever was typed manually.
-        $camp_id = (int) ($_POST['camp_id'] ?? 0);
-        if ($camp_id) {
-            $camp = AVPVH_DB::get_camp($camp_id);
-            if ($camp) {
-                $valid_from  = $camp->start_date ?: $valid_from;
-                $valid_until = $camp->end_date ?: $valid_until;
+        // activity's duration), overriding whatever was typed manually.
+        $activity_id = (int) ($_POST['activity_id'] ?? 0);
+        if ($activity_id) {
+            $activity = AVPVH_DB::get_activity($activity_id);
+            if ($activity) {
+                $valid_from  = $activity->start_date ?: $valid_from;
+                $valid_until = $activity->end_date ?: $valid_until;
             }
         }
 
@@ -750,13 +791,15 @@ class AVPVH_Member_Profile_Form {
             wp_die('Ongeldige relatie.', 'Fout', ['response' => 400]);
         }
 
-        $saved = AVPVH_DB::add_relationship(
+        $duplicate = AVPVH_DB::relationship_exists($member_id, $related_member_id, $label_id, $valid_from, $valid_until);
+        $saved = !$duplicate && AVPVH_DB::add_relationship(
             $member_id, $related_member_id, $label_id,
             $valid_from, $valid_until, '', get_current_user_id()
         );
 
+        $status = $saved ? 'relationship_added' : ($duplicate ? 'relationship_duplicate' : 'relationship_error');
         wp_safe_redirect(add_query_arg(
-            ['member_id' => $member_id, $saved ? 'relationship_added' : 'relationship_error' => '1'],
+            ['member_id' => $member_id, $status => '1'],
             wp_get_referer() ?: home_url('/member-profile/')
         ));
         exit;

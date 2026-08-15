@@ -5,22 +5,22 @@ if (!class_exists('WP_List_Table')) {
     require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
-class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
+class AVPVH_Activity_Participation_List_Table extends WP_List_Table {
 
-    private int $camp_id;
+    private int $activity_id;
     private bool $show_all_active_members;
 
     /**
      * $show_all_active_members: for an activity like "Contributie {year}"
      * nobody ever explicitly "signs up" — it applies automatically to
      * every active member (see AVBK_Fee_Generation::generate_contribution_fees())
-     * — so avm_camp_participation is always empty for it. Without this,
+     * — so avm_activity_participation is always empty for it. Without this,
      * selecting such an activity here would misleadingly say "no
      * participation found" instead of showing who it actually applies to.
      */
-    public function __construct(int $camp_id, bool $show_all_active_members = false) {
+    public function __construct(int $activity_id, bool $show_all_active_members = false) {
         parent::__construct(['singular' => 'deelname', 'plural' => 'deelnames', 'ajax' => false]);
-        $this->camp_id = $camp_id;
+        $this->activity_id = $activity_id;
         $this->show_all_active_members = $show_all_active_members;
     }
 
@@ -41,13 +41,13 @@ class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
     }
 
     public function no_items(): void {
-        echo $this->show_all_active_members ? 'Geen actieve leden gevonden.' : 'Geen kampdeelname gevonden voor dit kamp.';
+        echo $this->show_all_active_members ? 'Geen actieve leden gevonden.' : 'Geen deelname gevonden voor deze activiteit.';
     }
 
     public function prepare_items(): void {
         $this->_column_headers = [$this->get_columns(), [], []];
         if ($this->show_all_active_members) {
-            // id = 0 marks these as synthetic (no real avm_camp_participation
+            // id = 0 marks these as synthetic (no real avm_activity_participation
             // row) — column_name()/column_days()/column_actions() branch on
             // that instead of trying to link to a participation record that
             // doesn't exist.
@@ -64,7 +64,7 @@ class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
                 'member_status' => $m->status,
             ], AVPVH_DB::get_members(['status' => 'active']));
         } else {
-            $this->items = $this->camp_id ? AVPVH_DB::get_participation_for_camp($this->camp_id) : [];
+            $this->items = $this->activity_id ? AVPVH_DB::get_participation_for_activity($this->activity_id) : [];
         }
     }
 
@@ -84,7 +84,7 @@ class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
         // No participation record to open (synthetic "applies to every
         // active member" row) — link to the member's own record instead.
         $url = $item->id
-            ? add_query_arg(['page' => 'avpvh-kampdeelname-detail', 'camp_id' => $this->camp_id, 'id' => $item->id], admin_url('admin.php'))
+            ? add_query_arg(['page' => 'avpvh-activity-participation-detail', 'activity_id' => $this->activity_id, 'id' => $item->id], admin_url('admin.php'))
             : add_query_arg(['page' => 'avpvh-member-detail', 'id' => $item->member_id], admin_url('admin.php'));
         return '<a href="' . esc_url($url) . '"' . $muted . '><strong>' . esc_html($name) . '</strong></a>';
     }
@@ -103,8 +103,8 @@ class AVPVH_Kampdeelname_List_Table extends WP_List_Table {
             return '';
         }
         $url = add_query_arg([
-            'page' => 'avpvh-kampdeelname-detail',
-            'camp_id' => $this->camp_id,
+            'page' => 'avpvh-activity-participation-detail',
+            'activity_id' => $this->activity_id,
             'id' => $item->id,
         ], admin_url('admin.php'));
         return '<a href="' . esc_url($url) . '" class="button button-small">Bewerken</a>';

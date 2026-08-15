@@ -4,8 +4,8 @@ defined('ABSPATH') || exit;
 /**
  * Minimal, dependency-free .xlsx writer for a single flat grid of cells
  * (value + bold + background color). Built by hand instead of pulling in
- * PhpSpreadsheet, since that's all the camp participation export needs —
- * no formulas, no multi-sheet workbooks, no rich number formats.
+ * PhpSpreadsheet, since that's all the activity participation export needs
+ * — no formulas, no multi-sheet workbooks, no rich number formats.
  *
  * Usage:
  *   $bytes = AVPVH_Xlsx_Writer::build($rows, ['A' => 24, 'B' => 12]);
@@ -14,7 +14,7 @@ defined('ABSPATH') || exit;
  */
 class AVPVH_Xlsx_Writer {
 
-    public static function build(array $rows, array $col_widths = []): string {
+    public static function build(array $rows, array $col_widths = [], string $sheet_name = 'Blad1'): string {
         [$styles_xml, $style_index] = self::build_styles($rows);
         $sheet_xml = self::build_sheet($rows, $col_widths, $style_index);
 
@@ -57,7 +57,7 @@ class AVPVH_Xlsx_Writer {
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
             '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' .
             'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' .
-            '<sheets><sheet name="Kampdeelname" sheetId="1" r:id="rId1"/></sheets>' .
+            '<sheets><sheet name="' . htmlspecialchars($sheet_name, ENT_XML1 | ENT_QUOTES) . '" sheetId="1" r:id="rId1"/></sheets>' .
             '</workbook>'
         );
 

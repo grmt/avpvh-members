@@ -1,10 +1,10 @@
 <?php
 defined('ABSPATH') || exit;
 
-class AVPVH_Kamp_Overzicht {
+class AVPVH_Activity_Overview {
 
     public function __construct() {
-        add_shortcode('avpvh_kamp_overzicht', [$this, 'render']);
+        add_shortcode('avpvh_activiteit_overzicht', [$this, 'render']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue']);
     }
 
@@ -13,8 +13,8 @@ class AVPVH_Kamp_Overzicht {
             return;
         }
         global $post;
-        if ($post && has_shortcode($post->post_content, 'avpvh_kamp_overzicht')) {
-            wp_enqueue_style('avpvh-kamp-overzicht', plugin_dir_url(dirname(__FILE__)) . 'assets/kamp-overzicht.css', [], avpvh_asset_version('assets/kamp-overzicht.css'));
+        if ($post && has_shortcode($post->post_content, 'avpvh_activiteit_overzicht')) {
+            wp_enqueue_style('avpvh-activity-overview', plugin_dir_url(dirname(__FILE__)) . 'assets/activity-overview.css', [], avpvh_asset_version('assets/activity-overview.css'));
         }
     }
 
@@ -28,20 +28,20 @@ class AVPVH_Kamp_Overzicht {
             return '<p>Dit overzicht is alleen beschikbaar voor actieve leden.</p>';
         }
 
-        $camp = AVPVH_DB::get_current_camp_activity();
-        if (!$camp) {
+        $activity = AVPVH_DB::get_current_activity();
+        if (!$activity) {
             return '<p>Er is nog geen overzicht beschikbaar.</p>';
         }
 
-        $participations = AVPVH_DB::get_participation_for_camp((int) $camp->id);
+        $participations = AVPVH_DB::get_participation_for_activity((int) $activity->id);
         if (!$participations) {
             return '<p>Er is nog geen overzicht beschikbaar.</p>';
         }
 
         $date_range = [];
-        if ($camp->start_date && $camp->end_date) {
-            $cursor = new DateTime($camp->start_date);
-            $end = new DateTime($camp->end_date);
+        if ($activity->start_date && $activity->end_date) {
+            $cursor = new DateTime($activity->start_date);
+            $end = new DateTime($activity->end_date);
             while ($cursor <= $end) {
                 $date_range[] = $cursor->format('Y-m-d');
                 $cursor->modify('+1 day');
@@ -50,11 +50,11 @@ class AVPVH_Kamp_Overzicht {
 
         ob_start();
         ?>
-        <div class="avpvh-kamp-overzicht">
-            <h2><?php echo esc_html($camp->name . ' ' . $camp->year); ?></h2>
-            <p class="avpvh-kamp-overzicht-meta">Laatst bijgewerkt: <?php echo esc_html(date_i18n('j-m-Y')); ?></p>
-            <div class="avpvh-kamp-overzicht-scroll">
-                <table class="avpvh-kamp-overzicht-tabel">
+        <div class="avpvh-activiteit-overzicht">
+            <h2><?php echo esc_html($activity->name . ' ' . $activity->year); ?></h2>
+            <p class="avpvh-activiteit-overzicht-meta">Laatst bijgewerkt: <?php echo esc_html(date_i18n('j-m-Y')); ?></p>
+            <div class="avpvh-activiteit-overzicht-scroll">
+                <table class="avpvh-activiteit-overzicht-tabel">
                     <tr>
                         <td><strong>Naam</strong></td>
                         <td><strong>Nachten</strong></td>
