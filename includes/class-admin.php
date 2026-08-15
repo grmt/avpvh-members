@@ -12,9 +12,9 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_delete_identity',[$this, 'handle_delete_identity']);
         add_action('admin_post_avpvh_primary_identity',[$this, 'handle_primary_identity']);
         add_action('admin_post_avpvh_save_participation', [$this, 'handle_save_participation']);
-        add_action('admin_post_avpvh_save_camp',          [$this, 'handle_save_camp']);
+        add_action('admin_post_avpvh_save_activity',      [$this, 'handle_save_activity']);
         add_action('admin_post_avpvh_save_activity_types',[$this, 'handle_save_activity_types']);
-        add_action('admin_post_avpvh_export_kampdeelname',[$this, 'handle_export_kampdeelname']);
+        add_action('admin_post_avpvh_export_activity_participation', [$this, 'handle_export_activity_participation']);
         add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
@@ -61,21 +61,21 @@ class AVPVH_Admin {
         );
         add_submenu_page(
             'avpvh-members', 'Activiteiten', 'Activiteiten', 'manage_options',
-            'avpvh-kampdeelname', [$this, 'render_kampdeelname_list']
+            'avpvh-activity-participation', [$this, 'render_activity_participation_list']
         );
         // Not shown in the sidebar — only reachable via the "Nieuwe
-        // deelname"/"Bewerken" links on the Kampdeelname list page, which
-        // always pass a camp_id (and usually an id). Landed on cold (no
-        // params), it can only ever offer "create new" — not useful as its
-        // own standalone menu entry. Registering with a null parent (rather
-        // than add_submenu_page() + remove_submenu_page()) keeps the page
-        // itself reachable by URL — remove_submenu_page() strips the page
-        // from the $submenu registry that admin.php uses to dispatch the
-        // request, so a direct link 404s/"not allowed"s instead of just
-        // being hidden from the menu.
+        // deelname"/"Bewerken" links on the Activiteiten list page, which
+        // always pass an activity_id (and usually an id). Landed on cold
+        // (no params), it can only ever offer "create new" — not useful as
+        // its own standalone menu entry. Registering with a null parent
+        // (rather than add_submenu_page() + remove_submenu_page()) keeps
+        // the page itself reachable by URL — remove_submenu_page() strips
+        // the page from the $submenu registry that admin.php uses to
+        // dispatch the request, so a direct link 404s/"not allowed"s
+        // instead of just being hidden from the menu.
         add_submenu_page(
-            null, 'Kampdeelname bewerken', 'Kampdeelname bewerken', 'manage_options',
-            'avpvh-kampdeelname-detail', [$this, 'render_kampdeelname_detail']
+            null, 'Deelname bewerken', 'Deelname bewerken', 'manage_options',
+            'avpvh-activity-participation-detail', [$this, 'render_activity_participation_detail']
         );
         add_submenu_page(
             'avpvh-members', 'Loginpogingen', 'Loginpogingen', 'manage_options',
@@ -114,12 +114,12 @@ class AVPVH_Admin {
         require AVPVH_PLUGIN_DIR . 'admin/login-attempts.php';
     }
 
-    public function render_kampdeelname_list(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/kampdeelname-list.php';
+    public function render_activity_participation_list(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/activity-participation-list.php';
     }
 
-    public function render_kampdeelname_detail(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/kampdeelname-detail.php';
+    public function render_activity_participation_detail(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/activity-participation-detail.php';
     }
 
     public function render_roles(): void {
@@ -494,19 +494,11 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $camp_id   = (int) ($_POST['camp_id'] ?? 0);
-        $member_id = (int) ($_POST['member_id'] ?? 0);
-        if (!$camp_id || !$member_id) {
-            wp_die('Kamp of lid ontbreekt.', 400);
+        $activity_id = (int) ($_POST['activity_id'] ?? 0);
+        $member_id   = (int) ($_POST['member_id'] ?? 0);
+        if (!$activity_id || !$member_id) {
+            wp_die('Activiteit of lid ontbreekt.', 400);
         }
-
-        $fields = [
-            'nights'  => $_POST['nights'] !== '' ? (int) $_POST['nights'] : '',
-            'nawacht' => !empty($_POST['nawacht']),
-            'diet'    => sanitize_text_field(wp_unslash($_POST['diet'] ?? '')),
-            'notes'   => sanitize_textarea_field(wp_unslash($_POST['notes'] ?? '')),
-        ];
-        $participation_id = AVPVH_DB::save_participation($member_id, $camp_id, $fields);
 
         $days = [];
         foreach ((array) ($_POST['day'] ?? []) as $date => $status) {
@@ -515,32 +507,52 @@ class AVPVH_Admin {
                 $days[$date] = sanitize_text_field(wp_unslash($status));
             }
         }
+
+        // Nachten is derived from the dagen grid (count of 'n' days), not a
+        // separately typed number — the two used to drift apart (a day
+        // corrected without the treasurer noticing the total needed
+        // updating too, or vice versa) and only the day grid is the real
+        // record of who was actually there. Only an activity with no
+        // start/end date (so no day grid to derive from at all — see
+        // admin/activity-participation-detail.php) falls back to a manual
+        // 'nights' field.
+        $nights = isset($_POST['day'])
+            ? count(array_filter($days, fn($status) => $status === 'n'))
+            : ($_POST['nights'] !== '' ? (int) $_POST['nights'] : '');
+
+        $fields = [
+            'nights'  => $nights,
+            'nawacht' => !empty($_POST['nawacht']),
+            'diet'    => sanitize_text_field(wp_unslash($_POST['diet'] ?? '')),
+            'notes'   => sanitize_textarea_field(wp_unslash($_POST['notes'] ?? '')),
+        ];
+        $participation_id = AVPVH_DB::save_participation($member_id, $activity_id, $fields);
         AVPVH_DB::save_participation_days($participation_id, $days);
 
         wp_safe_redirect(add_query_arg([
-            'page' => 'avpvh-kampdeelname-detail', 'id' => $participation_id, 'camp_id' => $camp_id, 'updated' => '1',
+            'page' => 'avpvh-activity-participation-detail', 'id' => $participation_id, 'activity_id' => $activity_id, 'updated' => '1',
         ], admin_url('admin.php')));
         exit;
     }
 
-    public function handle_save_camp(): void {
-        check_admin_referer('avpvh_save_camp');
+    public function handle_save_activity(): void {
+        check_admin_referer('avpvh_save_activity');
         if (!current_user_can('manage_options')) {
             wp_die('Geen toegang.', 403);
         }
 
-        $camp_id = (int) ($_POST['camp_id'] ?? 0);
+        $activity_id = (int) ($_POST['activity_id'] ?? 0);
         $type_id = (int) ($_POST['type_id'] ?? 0);
         global $wpdb;
-        $wpdb->update("{$wpdb->prefix}avm_camps", [
+        $wpdb->update("{$wpdb->prefix}avm_activities", [
             'kenmerk'    => sanitize_text_field(wp_unslash($_POST['kenmerk'] ?? '')),
             'type_id'    => $type_id ?: null,
             'start_date' => sanitize_text_field($_POST['start_date'] ?? '') ?: null,
             'end_date'   => sanitize_text_field($_POST['end_date'] ?? '') ?: null,
-        ], ['id' => $camp_id]);
+        ], ['id' => $activity_id]);
 
         wp_safe_redirect(add_query_arg([
-            'page' => 'avpvh-kampdeelname', 'camp_id' => $camp_id, 'camp_saved' => '1',
+            'page' => 'avpvh-activity-participation', 'activity_id' => $activity_id, 'activity_saved' => '1',
         ], admin_url('admin.php')));
         exit;
     }
@@ -560,29 +572,29 @@ class AVPVH_Admin {
             AVPVH_DB::add_activity_type($new_name);
         }
 
-        $camp_id = (int) ($_POST['camp_id'] ?? 0);
+        $activity_id = (int) ($_POST['activity_id'] ?? 0);
         wp_safe_redirect(add_query_arg([
-            'page' => 'avpvh-kampdeelname', 'camp_id' => $camp_id, 'types_saved' => '1',
+            'page' => 'avpvh-activity-participation', 'activity_id' => $activity_id, 'types_saved' => '1',
         ], admin_url('admin.php')));
         exit;
     }
 
-    public function handle_export_kampdeelname(): void {
-        check_admin_referer('avpvh_export_kampdeelname');
+    public function handle_export_activity_participation(): void {
+        check_admin_referer('avpvh_export_activity_participation');
         if (!current_user_can('manage_options')) {
             wp_die('Geen toegang.', 403);
         }
 
-        $camp_id = (int) ($_GET['camp_id'] ?? 0);
-        $camp = AVPVH_DB::get_camp($camp_id);
-        if (!$camp) {
-            wp_die('Kamp niet gevonden.', 404);
+        $activity_id = (int) ($_GET['activity_id'] ?? 0);
+        $activity = AVPVH_DB::get_activity($activity_id);
+        if (!$activity) {
+            wp_die('Activiteit niet gevonden.', 404);
         }
 
-        require_once AVPVH_PLUGIN_DIR . 'includes/class-kampdeelname-export.php';
-        $bytes = AVPVH_Kampdeelname_Export::build($camp);
+        require_once AVPVH_PLUGIN_DIR . 'includes/class-activity-participation-export.php';
+        $bytes = AVPVH_Activity_Participation_Export::build($activity);
 
-        $filename = sanitize_file_name('kampdeelname-' . $camp->name . '-' . $camp->year . '-' . date('Y-m-d') . '.xlsx');
+        $filename = sanitize_file_name('deelname-' . $activity->name . '-' . $activity->year . '-' . date('Y-m-d') . '.xlsx');
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Content-Length: ' . strlen($bytes));
