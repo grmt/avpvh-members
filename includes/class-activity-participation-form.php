@@ -2,23 +2,23 @@
 defined('ABSPATH') || exit;
 
 /**
- * Self-service camp participation editing for the current camp.
- * Usage: [avpvh_kamp_deelname]
+ * Self-service participation editing for the current camp.
+ * Usage: [avpvh_activiteit_deelname]
  *
  * Same household-edit authorization model as AVPVH_Member_Profile_Form:
  * a member may edit their own participation, or that of anyone in their
  * household, via a ?member_id= query param.
  */
-class AVPVH_Kampdeelname_Form {
+class AVPVH_Activity_Participation_Form {
 
     public function __construct() {
-        add_shortcode('avpvh_kamp_deelname', [$this, 'render_shortcode']);
+        add_shortcode('avpvh_activiteit_deelname', [$this, 'render_shortcode']);
         add_action('admin_post_avpvh_save_own_participation', [$this, 'handle_save']);
     }
 
     public function render_shortcode(): string {
         if (!is_user_logged_in()) {
-            return '<p>Je moet ingelogd zijn om je kampdeelname te wijzigen.</p>';
+            return '<p>Je moet ingelogd zijn om je deelname te wijzigen.</p>';
         }
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
@@ -26,38 +26,38 @@ class AVPVH_Kampdeelname_Form {
             return '<p>Geen lidprofiel gevonden.</p>';
         }
 
-        $camp = AVPVH_DB::get_current_camp_activity();
-        if (!$camp) {
-            return '<p>Er is nog geen kamp beschikbaar om je voor in te schrijven.</p>';
+        $activity = AVPVH_DB::get_current_camp_activity();
+        if (!$activity) {
+            return '<p>Er is nog geen activiteit beschikbaar om je voor in te schrijven.</p>';
         }
 
         $member = $this->get_target_member($own_member);
         $huisgenoten = AVPVH_DB::get_manageable_members((int) $own_member->id);
 
-        $participation = AVPVH_DB::get_participation((int) $member->id, (int) $camp->id);
+        $participation = AVPVH_DB::get_participation((int) $member->id, (int) $activity->id);
         $days = $participation ? AVPVH_DB::get_participation_days((int) $participation->id) : [];
 
         $date_range = [];
-        if ($camp->start_date && $camp->end_date) {
-            $cursor = new DateTime($camp->start_date);
-            $end = new DateTime($camp->end_date);
+        if ($activity->start_date && $activity->end_date) {
+            $cursor = new DateTime($activity->start_date);
+            $end = new DateTime($activity->end_date);
             while ($cursor <= $end) {
                 $date_range[] = $cursor->format('Y-m-d');
                 $cursor->modify('+1 day');
             }
         }
 
-        $updated = !empty($_GET['kamp_updated']);
+        $updated = !empty($_GET['activiteit_updated']);
 
         ob_start();
         ?>
-        <div class="avpvh-kamp-deelname">
-            <h2><?php echo esc_html($camp->name . ' ' . $camp->year); ?></h2>
+        <div class="avpvh-activiteit-deelname">
+            <h2><?php echo esc_html($activity->name . ' ' . $activity->year); ?></h2>
 
             <?php if (count($huisgenoten) > 1) : ?>
                 <p>
-                    <label for="avpvh-kamp-member-select">Voor wie:</label>
-                    <select id="avpvh-kamp-member-select" onchange="location.href=this.value">
+                    <label for="avpvh-activiteit-member-select">Voor wie:</label>
+                    <select id="avpvh-activiteit-member-select" onchange="location.href=this.value">
                         <?php foreach ($huisgenoten as $h) :
                             $url = add_query_arg('member_id', $h->id);
                         ?>
@@ -70,15 +70,15 @@ class AVPVH_Kampdeelname_Form {
             <?php endif; ?>
 
             <?php if ($updated) : ?>
-                <p style="color:green">Je kampdeelname is opgeslagen.</p>
+                <p style="color:green">Je deelname is opgeslagen.</p>
             <?php endif; ?>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                 <?php wp_nonce_field('avpvh_save_own_participation'); ?>
                 <input type="hidden" name="action" value="avpvh_save_own_participation">
-                <input type="hidden" name="camp_id" value="<?php echo esc_attr($camp->id); ?>">
+                <input type="hidden" name="activity_id" value="<?php echo esc_attr($activity->id); ?>">
                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
-                <input type="hidden" name="_wp_http_referer" value="<?php echo esc_attr(remove_query_arg('kamp_updated')); ?>">
+                <input type="hidden" name="_wp_http_referer" value="<?php echo esc_attr(remove_query_arg('activiteit_updated')); ?>">
 
                 <p>
                     <label for="nights">Aantal nachten</label><br>
@@ -98,7 +98,7 @@ class AVPVH_Kampdeelname_Form {
 
                 <?php if ($date_range) : ?>
                     <p><strong>Welke dagen ben je aanwezig?</strong></p>
-                    <ul class="avpvh-kamp-deelname-dagen">
+                    <ul class="avpvh-activiteit-deelname-dagen">
                         <?php foreach ($date_range as $date) : ?>
                             <li>
                                 <label>
@@ -124,17 +124,17 @@ class AVPVH_Kampdeelname_Form {
             wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
         }
 
-        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-        $member_id  = (int) ($_POST['member_id'] ?? 0);
-        $camp_id    = (int) ($_POST['camp_id'] ?? 0);
+        $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
+        $member_id   = (int) ($_POST['member_id'] ?? 0);
+        $activity_id = (int) ($_POST['activity_id'] ?? 0);
 
         if (!$own_member || !$this->can_edit_member($own_member, $member_id)) {
             wp_die('Geen toegang.', 'Fout', ['response' => 403]);
         }
 
-        $camp = AVPVH_DB::get_camp($camp_id);
-        if (!$camp) {
-            wp_die('Kamp niet gevonden.', 'Fout', ['response' => 404]);
+        $activity = AVPVH_DB::get_activity($activity_id);
+        if (!$activity) {
+            wp_die('Activiteit niet gevonden.', 'Fout', ['response' => 404]);
         }
 
         $fields = [
@@ -143,7 +143,7 @@ class AVPVH_Kampdeelname_Form {
             'diet'    => sanitize_text_field(wp_unslash($_POST['diet'] ?? '')),
             'notes'   => sanitize_textarea_field(wp_unslash($_POST['notes'] ?? '')),
         ];
-        $participation_id = AVPVH_DB::save_participation($member_id, $camp_id, $fields);
+        $participation_id = AVPVH_DB::save_participation($member_id, $activity_id, $fields);
 
         $days = [];
         foreach ((array) ($_POST['day'] ?? []) as $date => $status) {
@@ -155,7 +155,7 @@ class AVPVH_Kampdeelname_Form {
         AVPVH_DB::save_participation_days($participation_id, $days);
 
         $redirect = wp_get_referer() ?: home_url('/');
-        wp_safe_redirect(add_query_arg('kamp_updated', '1', $redirect));
+        wp_safe_redirect(add_query_arg('activiteit_updated', '1', $redirect));
         exit;
     }
 

@@ -1,33 +1,33 @@
-.avpvh-kamp-overzicht {
+.avpvh-activiteit-overzicht {
     margin-top: 1rem;
     max-width: 100%;
 }
 
-.avpvh-kamp-overzicht-meta {
+.avpvh-activiteit-overzicht-meta {
     color: #555;
     font-size: .85rem;
     margin: 0 0 .5rem;
 }
 
-.avpvh-kamp-overzicht-scroll {
+.avpvh-activiteit-overzicht-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     max-width: 100%;
 }
 
-.avpvh-kamp-overzicht-tabel {
+.avpvh-activiteit-overzicht-tabel {
     border-collapse: collapse;
     font-size: .7rem;
     white-space: nowrap;
 }
 
-.avpvh-kamp-overzicht-tabel td {
+.avpvh-activiteit-overzicht-tabel td {
     border: 1px solid #ddd;
     padding: .2rem .4rem;
     text-align: center;
 }
 
-.avpvh-kamp-overzicht-tabel td:first-child {
+.avpvh-activiteit-overzicht-tabel td:first-child {
     text-align: left;
     white-space: nowrap;
     /* Keep the name visible while scrolling horizontally through the dates. */
@@ -38,11 +38,11 @@
 }
 
 @media (max-width: 600px) {
-    .avpvh-kamp-overzicht-tabel {
+    .avpvh-activiteit-overzicht-tabel {
         font-size: .6rem;
     }
 
-    .avpvh-kamp-overzicht-tabel td {
+    .avpvh-activiteit-overzicht-tabel td {
         padding: .15rem .3rem;
     }
 }

@@ -37,7 +37,7 @@ class AVPVH_DB {
             share_email TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
             share_phone TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
             share_address TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
-            share_camp_history TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+            share_activity_history TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -72,7 +72,7 @@ class AVPVH_DB {
             UNIQUE KEY name (name)
         ) $charset;");
 
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_camps (
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_activities (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(150) NOT NULL DEFAULT '',
             type_id INT UNSIGNED NULL,
@@ -85,24 +85,24 @@ class AVPVH_DB {
             KEY type_id (type_id)
         ) $charset;");
 
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_camp_participation (
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_activity_participation (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             member_id INT UNSIGNED NOT NULL,
-            camp_id INT UNSIGNED NOT NULL,
+            activity_id INT UNSIGNED NOT NULL,
             nights TINYINT UNSIGNED NULL,
             nawacht TINYINT UNSIGNED NOT NULL DEFAULT 0,
             diet TEXT NULL,
             notes TEXT NULL,
             PRIMARY KEY (id),
-            UNIQUE KEY member_camp (member_id, camp_id),
-            KEY camp_id (camp_id)
+            UNIQUE KEY member_activity (member_id, activity_id),
+            KEY activity_id (activity_id)
         ) $charset;");
 
         // Day-by-day attendance per participation record — one row per date
         // a member is (or might be) present. Replaces the old, unlinked
         // avm_registration_attendance (which tracked a raw e-mail, not a
         // real member) with the same idea properly tied to a member.
-        dbDelta("CREATE TABLE {$wpdb->prefix}avm_camp_participation_days (
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_activity_participation_days (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             participation_id INT UNSIGNED NOT NULL,
             date DATE NOT NULL,
@@ -309,13 +309,16 @@ class AVPVH_DB {
             update_option('avpvh_db_version', '2.2');
         }
         if (version_compare($version, '2.3', '<')) {
-            // avm_camp_participation_days was added to install() alongside
-            // avm_camp_participation, but install() only runs on activation
-            // — already-active sites never got it. dbDelta is safe to call
-            // standalone for one table.
+            // avm_activity_participation_days was added to install()
+            // alongside avm_activity_participation, but install() only runs
+            // on activation — already-active sites never got it. dbDelta is
+            // safe to call standalone for one table. (Table was originally
+            // named avm_camp_participation_days; a fresh install created
+            // after the 2.14 rename never hits this branch with the old
+            // name since install() already creates the current name.)
             $charset = $wpdb->get_charset_collate();
             require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-            dbDelta("CREATE TABLE {$wpdb->prefix}avm_camp_participation_days (
+            dbDelta("CREATE TABLE {$wpdb->prefix}avm_activity_participation_days (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 participation_id INT UNSIGNED NOT NULL,
                 date DATE NOT NULL,
@@ -461,6 +464,34 @@ class AVPVH_DB {
                 $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camps CHANGE location kenmerk VARCHAR(150) NOT NULL DEFAULT ''");
             }
             update_option('avpvh_db_version', '2.13');
+        }
+        if (version_compare($version, '2.14', '<')) {
+            // The "camp" naming had been stale since 2.6 (avm_camps holds
+            // every activity type — Kamp, Contributie, Congres, ... —
+            // "camp" was never accurate for most rows). Renames only:
+            // RENAME TABLE / CHANGE COLUMN preserve all existing data,
+            // nothing is recreated. avpvh-bookkeeping (a separate plugin
+            // that reads avm_activities and listens for the participation-
+            // saved hook) is updated and deployed together with this.
+            if ($wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}avm_camps'")) {
+                $wpdb->query("RENAME TABLE {$wpdb->prefix}avm_camps TO {$wpdb->prefix}avm_activities");
+            }
+            if ($wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}avm_camp_participation'")) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camp_participation
+                    CHANGE COLUMN camp_id activity_id INT UNSIGNED NOT NULL");
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camp_participation
+                    RENAME INDEX member_camp TO member_activity,
+                    RENAME INDEX camp_id TO activity_id");
+                $wpdb->query("RENAME TABLE {$wpdb->prefix}avm_camp_participation TO {$wpdb->prefix}avm_activity_participation");
+            }
+            if ($wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}avm_camp_participation_days'")) {
+                $wpdb->query("RENAME TABLE {$wpdb->prefix}avm_camp_participation_days TO {$wpdb->prefix}avm_activity_participation_days");
+            }
+            if ($wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'share_camp_history'")) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
+                    CHANGE COLUMN share_camp_history share_activity_history TINYINT(1) UNSIGNED NOT NULL DEFAULT 1");
+            }
+            update_option('avpvh_db_version', '2.14');
         }
     }
 
@@ -745,7 +776,7 @@ class AVPVH_DB {
                        m.phone, m.mobile, m.emergency_contact, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
-                       m.share_email, m.share_phone, m.share_address, m.share_camp_history,
+                       m.share_email, m.share_phone, m.share_address, m.share_activity_history,
                        m.created_at, m.updated_at
                 FROM {$lldap}.users u
                 JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id";
@@ -996,7 +1027,7 @@ class AVPVH_DB {
             }
         }
 
-        $allowed_order = ['last_name', 'suffix_last_name', 'first_name', 'status', 'joined_year', 'fee_status', 'camp_count'];
+        $allowed_order = ['last_name', 'suffix_last_name', 'first_name', 'status', 'joined_year', 'fee_status', 'activity_count'];
         $orderby = in_array($args['orderby'] ?? '', $allowed_order, true) ? $args['orderby'] : 'last_name';
         $order   = strtoupper($args['order'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 
@@ -1012,7 +1043,7 @@ class AVPVH_DB {
             'status'      => "m.status $order, m.last_name ASC",
             'joined_year' => "m.joined_year $order, m.last_name ASC",
             'fee_status'  => "f.status $order, m.last_name ASC",
-            'camp_count'  => "(SELECT COUNT(*) FROM {$wpdb->prefix}avm_camp_participation WHERE member_id = m.id) $order, m.last_name ASC",
+            'activity_count' => "(SELECT COUNT(*) FROM {$wpdb->prefix}avm_activity_participation WHERE member_id = m.id) $order, m.last_name ASC",
             default       => "m.last_name ASC, m.first_name ASC",
         };
 
@@ -1034,7 +1065,7 @@ class AVPVH_DB {
     }
 
     // -------------------------------------------------------------------
-    // Address / camp / fee helpers — unchanged from original
+    // Address / activity / fee helpers — unchanged from original
     // -------------------------------------------------------------------
 
     public static function get_members_with_address(int $viewer_member_id = 0, bool $viewer_sees_minors = false): array {
@@ -1109,12 +1140,12 @@ class AVPVH_DB {
         $wpdb->delete("{$wpdb->prefix}avm_addresses", ['id' => $id, 'member_id' => $member_id], ['%d', '%d']);
     }
 
-    public static function get_camps_for_member(int $member_id): array {
+    public static function get_activities_for_member(int $member_id): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
             "SELECT c.*, p.nights, p.nawacht, p.diet, p.notes
-             FROM {$wpdb->prefix}avm_camp_participation p
-             JOIN {$wpdb->prefix}avm_camps c ON c.id = p.camp_id
+             FROM {$wpdb->prefix}avm_activity_participation p
+             JOIN {$wpdb->prefix}avm_activities c ON c.id = p.activity_id
              WHERE p.member_id = %d
              ORDER BY c.year DESC",
             $member_id
@@ -1122,33 +1153,33 @@ class AVPVH_DB {
     }
 
     // -------------------------------------------------------------------
-    // Camp participation ("Kampdeelname")
+    // Activity participation ("Activiteitdeelname")
     // -------------------------------------------------------------------
 
-    public static function get_camps(): array {
+    public static function get_activities(): array {
         global $wpdb;
         return $wpdb->get_results(
             "SELECT c.*, t.name AS type_name
-             FROM {$wpdb->prefix}avm_camps c
+             FROM {$wpdb->prefix}avm_activities c
              LEFT JOIN {$wpdb->prefix}avm_activity_types t ON t.id = c.type_id
              ORDER BY c.year DESC, c.name ASC"
         ) ?: [];
     }
 
-    public static function get_camp(int $camp_id): ?object {
+    public static function get_activity(int $activity_id): ?object {
         global $wpdb;
-        $camp = $wpdb->get_row($wpdb->prepare(
+        $activity = $wpdb->get_row($wpdb->prepare(
             "SELECT c.*, t.name AS type_name
-             FROM {$wpdb->prefix}avm_camps c
+             FROM {$wpdb->prefix}avm_activities c
              LEFT JOIN {$wpdb->prefix}avm_activity_types t ON t.id = c.type_id
              WHERE c.id = %d",
-            $camp_id
+            $activity_id
         ));
-        return $camp ?: null;
+        return $activity ?: null;
     }
 
     // -------------------------------------------------------------------
-    // Activity types — admin-editable list backing avm_camps.type_id
+    // Activity types — admin-editable list backing avm_activities.type_id
     // -------------------------------------------------------------------
 
     public static function get_activity_types(): array {
@@ -1192,24 +1223,24 @@ class AVPVH_DB {
      * and (with $type_id) to find e.g. "the current congress activity"
      * without a separate setting pointing at it.
      */
-    public static function get_current_camp(?int $type_id = null): ?object {
+    public static function get_current_activity(?int $type_id = null): ?object {
         global $wpdb;
         if ($type_id) {
-            $camp = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}avm_camps WHERE type_id = %d ORDER BY year DESC, id DESC LIMIT 1",
+            $activity = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}avm_activities WHERE type_id = %d ORDER BY year DESC, id DESC LIMIT 1",
                 $type_id
             ));
         } else {
-            $camp = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}avm_camps ORDER BY year DESC, id DESC LIMIT 1");
+            $activity = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}avm_activities ORDER BY year DESC, id DESC LIMIT 1");
         }
-        return $camp ?: null;
+        return $activity ?: null;
     }
 
     /**
-     * The most recent actual camp — unlike get_current_camp() (unfiltered
-     * "most recent activity", which can now just as easily resolve to
-     * "Contributie {year}" since that lives in the same table), this
-     * always means an actual Kamp-type activity. Needed wherever "the
+     * The most recent actual camp — unlike get_current_activity()
+     * (unfiltered "most recent activity", which can now just as easily
+     * resolve to "Contributie {year}" since that lives in the same table),
+     * this always means an actual Kamp-type activity. Needed wherever "the
      * current camp" is specifically about participation/attendance, which
      * doesn't apply to contribution or other non-participation activities.
      */
@@ -1218,31 +1249,31 @@ class AVPVH_DB {
             self::get_activity_types(),
             fn($t) => $t->name === 'Kamp'
         ));
-        return $kamp_type ? self::get_current_camp((int) $kamp_type->id) : null;
+        return $kamp_type ? self::get_current_activity((int) $kamp_type->id) : null;
     }
 
-    /** Read-only lookup by name+year — unlike get_or_create_camp(), never creates one (e.g. avpvh-bookkeeping checking whether a "Contributie {year}" activity has been set up yet, without silently conjuring an empty one). */
-    public static function get_camp_by_name_year(string $name, int $year): ?object {
+    /** Read-only lookup by name+year — unlike get_or_create_activity(), never creates one (e.g. avpvh-bookkeeping checking whether a "Contributie {year}" activity has been set up yet, without silently conjuring an empty one). */
+    public static function get_activity_by_name_year(string $name, int $year): ?object {
         global $wpdb;
-        $camp = $wpdb->get_row($wpdb->prepare(
+        $activity = $wpdb->get_row($wpdb->prepare(
             "SELECT c.*, t.name AS type_name
-             FROM {$wpdb->prefix}avm_camps c
+             FROM {$wpdb->prefix}avm_activities c
              LEFT JOIN {$wpdb->prefix}avm_activity_types t ON t.id = c.type_id
              WHERE c.name = %s AND c.year = %d",
             $name, $year
         ));
-        return $camp ?: null;
+        return $activity ?: null;
     }
 
-    public static function get_or_create_camp(string $name, int $year, string $kenmerk = '', ?string $start_date = null, ?string $end_date = null, int $type_id = 0): int {
+    public static function get_or_create_activity(string $name, int $year, string $kenmerk = '', ?string $start_date = null, ?string $end_date = null, int $type_id = 0): int {
         global $wpdb;
         $id = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}avm_camps WHERE name = %s AND year = %d", $name, $year
+            "SELECT id FROM {$wpdb->prefix}avm_activities WHERE name = %s AND year = %d", $name, $year
         ));
         if ($id) {
             return (int) $id;
         }
-        $wpdb->insert("{$wpdb->prefix}avm_camps", [
+        $wpdb->insert("{$wpdb->prefix}avm_activities", [
             'name' => $name, 'year' => $year, 'kenmerk' => $kenmerk,
             'start_date' => $start_date, 'end_date' => $end_date,
             'type_id' => $type_id ?: null,
@@ -1250,24 +1281,24 @@ class AVPVH_DB {
         return (int) $wpdb->insert_id;
     }
 
-    /** All participation rows for one camp, joined with member name/status. */
-    public static function get_participation_for_camp(int $camp_id): array {
+    /** All participation rows for one activity, joined with member name/status. */
+    public static function get_participation_for_activity(int $activity_id): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
             "SELECT p.*, m.first_name, m.suffix, m.last_name, m.status AS member_status
-             FROM {$wpdb->prefix}avm_camp_participation p
+             FROM {$wpdb->prefix}avm_activity_participation p
              JOIN {$wpdb->prefix}avm_members m ON m.id = p.member_id
-             WHERE p.camp_id = %d
+             WHERE p.activity_id = %d
              ORDER BY m.last_name ASC, m.first_name ASC",
-            $camp_id
+            $activity_id
         )) ?: [];
     }
 
-    public static function get_participation(int $member_id, int $camp_id): ?object {
+    public static function get_participation(int $member_id, int $activity_id): ?object {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}avm_camp_participation WHERE member_id = %d AND camp_id = %d",
-            $member_id, $camp_id
+            "SELECT * FROM {$wpdb->prefix}avm_activity_participation WHERE member_id = %d AND activity_id = %d",
+            $member_id, $activity_id
         ));
         return $row ?: null;
     }
@@ -1275,7 +1306,7 @@ class AVPVH_DB {
     public static function get_participation_by_id(int $participation_id): ?object {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}avm_camp_participation WHERE id = %d", $participation_id
+            "SELECT * FROM {$wpdb->prefix}avm_activity_participation WHERE id = %d", $participation_id
         ));
         return $row ?: null;
     }
@@ -1284,7 +1315,7 @@ class AVPVH_DB {
     public static function get_participation_days(int $participation_id): array {
         global $wpdb;
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT date, status FROM {$wpdb->prefix}avm_camp_participation_days WHERE participation_id = %d",
+            "SELECT date, status FROM {$wpdb->prefix}avm_activity_participation_days WHERE participation_id = %d",
             $participation_id
         )) ?: [];
         $days = [];
@@ -1295,10 +1326,10 @@ class AVPVH_DB {
     }
 
     /**
-     * Create or update a member's participation record for a camp. Returns
-     * the participation id.
+     * Create or update a member's participation record for an activity.
+     * Returns the participation id.
      */
-    public static function save_participation(int $member_id, int $camp_id, array $fields): int {
+    public static function save_participation(int $member_id, int $activity_id, array $fields): int {
         global $wpdb;
         $data = [
             'nights'  => $fields['nights'] !== '' && $fields['nights'] !== null ? (int) $fields['nights'] : null,
@@ -1306,24 +1337,24 @@ class AVPVH_DB {
             'diet'    => $fields['diet'] ?? '',
             'notes'   => $fields['notes'] ?? '',
         ];
-        $existing = self::get_participation($member_id, $camp_id);
+        $existing = self::get_participation($member_id, $activity_id);
         if ($existing) {
-            $wpdb->update("{$wpdb->prefix}avm_camp_participation", $data, ['id' => $existing->id]);
-            do_action('avpvh_camp_participation_saved', $member_id, $camp_id, (int) $existing->id);
+            $wpdb->update("{$wpdb->prefix}avm_activity_participation", $data, ['id' => $existing->id]);
+            do_action('avpvh_activity_participation_saved', $member_id, $activity_id, (int) $existing->id);
             return (int) $existing->id;
         }
-        $wpdb->insert("{$wpdb->prefix}avm_camp_participation", [
-            'member_id' => $member_id, 'camp_id' => $camp_id,
+        $wpdb->insert("{$wpdb->prefix}avm_activity_participation", [
+            'member_id' => $member_id, 'activity_id' => $activity_id,
         ] + $data);
         $participation_id = (int) $wpdb->insert_id;
-        do_action('avpvh_camp_participation_saved', $member_id, $camp_id, $participation_id);
+        do_action('avpvh_activity_participation_saved', $member_id, $activity_id, $participation_id);
         return $participation_id;
     }
 
     /** Replace all day rows for a participation record with $days (date => status). */
     public static function save_participation_days(int $participation_id, array $days): void {
         global $wpdb;
-        $table = "{$wpdb->prefix}avm_camp_participation_days";
+        $table = "{$wpdb->prefix}avm_activity_participation_days";
         $wpdb->delete($table, ['participation_id' => $participation_id]);
         foreach ($days as $date => $status) {
             if ($status === '' || $status === null) {
@@ -1339,8 +1370,8 @@ class AVPVH_DB {
 
     public static function delete_participation(int $participation_id): void {
         global $wpdb;
-        $wpdb->delete("{$wpdb->prefix}avm_camp_participation_days", ['participation_id' => $participation_id]);
-        $wpdb->delete("{$wpdb->prefix}avm_camp_participation", ['id' => $participation_id]);
+        $wpdb->delete("{$wpdb->prefix}avm_activity_participation_days", ['participation_id' => $participation_id]);
+        $wpdb->delete("{$wpdb->prefix}avm_activity_participation", ['id' => $participation_id]);
     }
 
     public static function get_fees_for_member(int $member_id): array {
@@ -1447,12 +1478,57 @@ class AVPVH_DB {
         return $rows;
     }
 
+    /**
+     * True if this exact relationship — or its mirror image from the other
+     * person's side, via the label's inverse_id ("Olaf is kind van Garmt"
+     * and "Garmt is ouder van Olaf" are the same fact, just stored from
+     * opposite ends) — is already recorded with the same validity period.
+     * A DB-level UNIQUE constraint can't express the mirror case, and
+     * wouldn't even catch the plain duplicate here: MySQL treats
+     * NULL <> NULL, so two open-ended (valid_from/valid_until both NULL)
+     * rows for the same pair+label already sail through one. Date range is
+     * part of the match on purpose — a genuinely new, differently-dated
+     * instance of the same two people/label (e.g. temporary voogdij for
+     * one kamp, then again for a later one) is not a duplicate.
+     */
+    public static function relationship_exists(
+        int $member_id, int $related_member_id, int $label_id,
+        ?string $valid_from, ?string $valid_until
+    ): bool {
+        global $wpdb;
+        $inverse_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT inverse_id FROM {$wpdb->prefix}avm_relationship_labels WHERE id = %d", $label_id
+        ));
+
+        $sql = "SELECT COUNT(*) FROM {$wpdb->prefix}avm_relationships
+                WHERE ((member_id = %d AND related_member_id = %d AND label_id = %d)";
+        $params = [$member_id, $related_member_id, $label_id];
+        if ($inverse_id) {
+            $sql .= " OR (member_id = %d AND related_member_id = %d AND label_id = %d)";
+            array_push($params, $related_member_id, $member_id, $inverse_id);
+        }
+        $sql .= ') AND ' . ($valid_from ? 'valid_from = %s' : 'valid_from IS NULL');
+        if ($valid_from) {
+            $params[] = $valid_from;
+        }
+        $sql .= ' AND ' . ($valid_until ? 'valid_until = %s' : 'valid_until IS NULL');
+        if ($valid_until) {
+            $params[] = $valid_until;
+        }
+
+        return (int) $wpdb->get_var($wpdb->prepare($sql, $params)) > 0;
+    }
+
+    /** Returns false both on a genuine insert failure and when this relationship (or its mirror) already exists — see relationship_exists(). */
     public static function add_relationship(
         int $member_id, int $related_member_id, int $label_id,
         ?string $valid_from = null, ?string $valid_until = null,
         string $note = '', int $created_by = 0
     ): bool {
         global $wpdb;
+        if (self::relationship_exists($member_id, $related_member_id, $label_id, $valid_from, $valid_until)) {
+            return false;
+        }
         $result = $wpdb->insert(
             "{$wpdb->prefix}avm_relationships",
             [
@@ -1517,7 +1593,17 @@ class AVPVH_DB {
         if (self::is_family_member($member_id_1, $member_id_2)) {
             return true;
         }
+        return self::has_same_address($member_id_1, $member_id_2);
+    }
 
+    /**
+     * Literal same-address check, split out of is_same_household() so
+     * callers can tell "family" and "actually lives there" apart — e.g. the
+     * profile summary card's "Huisgenoten:" vs "Familie (elders wonend):"
+     * grouping, once a child has moved out but is still manageable via the
+     * family branch above.
+     */
+    public static function has_same_address(int $member_id_1, int $member_id_2): bool {
         $addr_1 = self::current_address($member_id_1);
         $addr_2 = self::current_address($member_id_2);
         if (!$addr_1 || !$addr_2 || !$addr_1->street || !$addr_2->street) {
@@ -1552,6 +1638,55 @@ class AVPVH_DB {
             }
         }
         return $manageable;
+    }
+
+    /**
+     * Wider than get_manageable_members() — also includes each household
+     * member's own partner ("vriend(in)/partner/man/vrouw van", the
+     * 'partner' relationship category), even when that partner isn't
+     * $member_id's own direct family or housemate (e.g. a child's
+     * girlfriend, who lives elsewhere, and may not even be a full member —
+     * often just a visitor). A partner isn't a blood/adoptive relative, so
+     * this started out suggestion-only (avpvh-bookkeeping's review queue),
+     * but is now also used for real access control in avpvh-bookkeeping's
+     * balance shortcode (viewing/paying a household member's partner's
+     * open items from the profile page) — an explicit, deliberate choice:
+     * someone able to manage their own household's finances can reasonably
+     * manage a housemate's partner's too, since that partner often has no
+     * one else to do it for them. Excludes inactive (former) members, same
+     * as get_manageable_members() effectively does, but does include
+     * visitors.
+     */
+    public static function get_extended_household(int $member_id): array {
+        $household = self::get_manageable_members($member_id);
+        $extended = [];
+        foreach ($household as $m) {
+            $extended[(int) $m->id] = $m;
+        }
+
+        $today = current_time('Y-m-d');
+        foreach ($household as $m) {
+            foreach (self::get_relationships((int) $m->id) as $rel) {
+                if ($rel->category !== 'partner') {
+                    continue;
+                }
+                if ($rel->valid_from && $rel->valid_from > $today) {
+                    continue;
+                }
+                if ($rel->valid_until && $rel->valid_until < $today) {
+                    continue;
+                }
+                $other_id = (int) $rel->other_id;
+                if (isset($extended[$other_id])) {
+                    continue;
+                }
+                $partner = self::get_member($other_id);
+                if ($partner && $partner->status !== 'inactive') {
+                    $extended[$other_id] = $partner;
+                }
+            }
+        }
+        return array_values($extended);
     }
 
 
