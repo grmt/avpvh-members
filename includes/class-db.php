@@ -416,7 +416,7 @@ class AVPVH_DB {
         }
         if (version_compare($version, '2.11', '<')) {
             // Bank-account holder names are routinely printed as initials +
-            // surname ("A B C Voorbeeld", "D E F Voorbeeld") — a separate field
+            // surname ("S J M Jansen", "P M H Bakker") — a separate field
             // from passport_name (a full legal name, mostly still unfilled)
             // gives avpvh-bookkeeping's matcher a direct, reliable target,
             // and can be auto-backfilled from confirmed bank transactions.
@@ -614,58 +614,14 @@ class AVPVH_DB {
             }
         }
 
-        // The 5 rows in the old untyped family_relation_member_id column,
-        // manually confirmed with the club 2026-07-25 (surname-guessing
-        // alone got Sanne de Vries and Fenna/Dirk's actual parents wrong):
-        //   Anna Bakker        -> vriendin van Peter Jansen
-        //   Sanne de Vries   -> vrouw van Jan de Vries (=Sanne Willems)
-        //   Marieke Peters    -> ouder van Tom Peters
-        //   Willem & Anke    -> ouder van Lisa Smit AND Mark Smit (siblings
-        //                        via shared parents, not stored directly)
-        //   Willem Smit          -> man van Anke Bosman
-        // Willem Smit (not a club member) was created separately as a
-        // 'visitor' before this migration ran. Kees Mulder/Piet Mulder'
-        // relationship was never confirmed — deliberately left unmigrated;
-        // add it manually via the profile page once known.
-        $manual_map = [
-            // subject_id => [related_id, label_code]
-            32  => [128, 'vriendin'],  // Peter Jansen      -> Anna Bakker
-            51  => [130, 'vrouw'],     // Jan de Vries -> Sanne de Vries
-            132 => [80,  'ouder'],     // Tom Peters     -> Marieke Peters
-            127 => [134, 'ouder'],     // Lisa Smit          -> Willem Smit
-            118 => [134, 'ouder'],     // Mark Smit           -> Willem Smit
-        ];
-        $manual_map_extra = [
-            127 => 54, // Lisa Smit -> Anke Bosman
-            118 => 54, // Mark Smit  -> Anke Bosman
-        ];
-        foreach ($manual_map as $subject_id => [$related_id, $label_code]) {
-            // Only insert if both members actually exist (harmless no-op
-            // if this migration re-runs against a DB that never had them,
-            // e.g. a fresh dev/staging copy).
-            $both_exist = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}avm_members WHERE id IN (%d, %d)",
-                $subject_id, $related_id
-            ));
-            if ((int) $both_exist === 2) {
-                self::add_relationship($subject_id, $related_id, $ids[$label_code]);
-            }
-        }
-        foreach ($manual_map_extra as $subject_id => $related_id) {
-            $both_exist = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}avm_members WHERE id IN (%d, %d)",
-                $subject_id, $related_id
-            ));
-            if ((int) $both_exist === 2) {
-                self::add_relationship($subject_id, $related_id, $ids['ouder']);
-            }
-        }
-        // Mariska is Henk's partner too (was only captured as Garmt/Germie
-        // in the old avm_partners table; Willem/Anke never had a row).
-        $henk = $wpdb->get_var("SELECT id FROM {$wpdb->prefix}avm_members WHERE lldap_user_id = 'willem.smit'");
-        if ($henk) {
-            self::add_relationship(54, (int) $henk, $ids['man']);
-        }
+        // A handful of rows from the old untyped family_relation_member_id
+        // column needed manually confirming with the club (surname-
+        // guessing alone got some wrong) and were backfilled by a one-time
+        // migration here. That migration already ran against the live
+        // site — $old_tables_exist above is permanently false now that the
+        // old tables are dropped below — so it's been removed entirely
+        // rather than left in place as dead code encoding real members'
+        // relationship facts by ID.
 
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_family_members");
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_families");
@@ -1480,9 +1436,9 @@ class AVPVH_DB {
 
     /**
      * True if this exact relationship — or its mirror image from the other
-     * person's side, via the label's inverse_id ("Olaf is kind van Garmt"
-     * and "Garmt is ouder van Olaf" are the same fact, just stored from
-     * opposite ends) — is already recorded with the same validity period.
+     * person's side, via the label's inverse_id ("A is kind van B" and
+     * "B is ouder van A" are the same fact, just stored from opposite
+     * ends) — is already recorded with the same validity period.
      * A DB-level UNIQUE constraint can't express the mirror case, and
      * wouldn't even catch the plain duplicate here: MySQL treats
      * NULL <> NULL, so two open-ended (valid_from/valid_until both NULL)
@@ -1793,9 +1749,9 @@ function avpvh_get_member_by_wp_user(int $user_id): ?object {
 /**
  * Format a member's full name.
  *
- * 'full'         → "Germie van den Berg"
- * 'list'         → "Berg, Germie"          (sort/display by last name)
- * 'list_suffix'  → "van den Berg, Germie"  (sort/display by suffix + last name)
+ * 'full'         → "Marie van der Berg"
+ * 'list'         → "Berg, Marie"          (sort/display by last name)
+ * 'list_suffix'  → "van der Berg, Marie"  (sort/display by suffix + last name)
  */
 function avpvh_format_name(object $member, string $format = 'full'): string {
     $first  = $member->first_name;
