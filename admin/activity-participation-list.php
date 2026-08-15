@@ -10,6 +10,7 @@ $activity_id = (int) ($_GET['activity_id'] ?? ($current_activity->id ?? 0));
 $activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
 $activity_saved = !empty($_GET['activity_saved']);
 $types_saved = !empty($_GET['types_saved']);
+$activity_created = !empty($_GET['activity_created']);
 $activity_types = AVPVH_DB::get_activity_types();
 
 $is_contribution = $activity && ($activity->type_name ?? '') === 'Contributie';
@@ -44,6 +45,56 @@ $export_url = wp_nonce_url(
         </label>
         <noscript><button type="submit" class="button">Bekijken</button></noscript>
     </form>
+
+    <?php if ($activity_created) : ?>
+        <div class="notice notice-success"><p>
+            Activiteit aangemaakt.
+            <a href="<?php echo esc_url(add_query_arg(['page' => 'avbk-rates', 'activity_id' => $activity_id], admin_url('admin.php'))); ?>">Tarieven instellen voor deze activiteit &rarr;</a>
+        </p></div>
+    <?php endif; ?>
+
+    <details style="margin-bottom:1rem;">
+        <summary>Nieuwe activiteit aanmaken</summary>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:.5rem;">
+            <?php wp_nonce_field('avpvh_create_activity'); ?>
+            <input type="hidden" name="action" value="avpvh_create_activity">
+            <table class="form-table">
+                <tr>
+                    <th><label for="new_name">Naam</label></th>
+                    <td><input type="text" id="new_name" name="name" class="regular-text" required placeholder="bijv. Contributie, of een locatienaam voor een kamp"></td>
+                </tr>
+                <tr>
+                    <th><label for="new_year">Jaar</label></th>
+                    <td><input type="number" id="new_year" name="year" required min="2000" max="2100" value="<?php echo esc_attr(current_time('Y')); ?>" style="width:6em"></td>
+                </tr>
+                <tr>
+                    <th><label for="new_type_id">Type</label></th>
+                    <td>
+                        <select id="new_type_id" name="type_id">
+                            <option value="">&mdash; geen &mdash;</option>
+                            <?php foreach ($activity_types as $activity_type) : ?>
+                                <option value="<?php echo esc_attr($activity_type->id); ?>"><?php echo esc_html($activity_type->name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="new_kenmerk">Locatie/kenmerk</label></th>
+                    <td><input type="text" id="new_kenmerk" name="kenmerk" class="regular-text"></td>
+                </tr>
+                <tr>
+                    <th><label for="new_start_date">Startdatum</label></th>
+                    <td><input type="date" id="new_start_date" name="start_date"></td>
+                </tr>
+                <tr>
+                    <th><label for="new_end_date">Einddatum</label></th>
+                    <td><input type="date" id="new_end_date" name="end_date"></td>
+                </tr>
+            </table>
+            <p class="description">Bestaat er al een activiteit met deze naam en dit jaar, dan wordt die geopend in plaats van een dubbele aan te maken.</p>
+            <p class="submit"><button type="submit" class="button button-primary">Activiteit aanmaken</button></p>
+        </form>
+    </details>
 
     <?php if ($activity) : ?>
         <?php if ($activity_saved) : ?>
