@@ -45,7 +45,7 @@ $household_cases = [
         'label' => 'matching address (case/space insensitive)',
         'id1' => 1, 'id2' => 3, 'family' => false,
         'a1' => ['street' => 'Molenstraat', 'house_number' => '62', 'postal_code' => '1234 AB'],
-        'a2' => ['street' => ' fleskensstraat ', 'house_number' => '62', 'postal_code' => '1234 ab'],
+        'a2' => ['street' => ' molenstraat ', 'house_number' => '62', 'postal_code' => '1234 ab'],
         'expected' => true,
     ],
     [
