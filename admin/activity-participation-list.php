@@ -2,42 +2,42 @@
 defined('ABSPATH') || exit;
 if (!current_user_can('manage_options')) wp_die('Geen toegang.');
 
-require_once AVPVH_PLUGIN_DIR . 'admin/class-kampdeelname-list-table.php';
+require_once AVPVH_PLUGIN_DIR . 'admin/class-activity-participation-list-table.php';
 
-$camps = AVPVH_DB::get_camps();
-$current_camp = AVPVH_DB::get_current_camp_activity();
-$camp_id = (int) ($_GET['camp_id'] ?? ($current_camp->id ?? 0));
-$camp = $camp_id ? AVPVH_DB::get_camp($camp_id) : null;
-$camp_saved = !empty($_GET['camp_saved']);
+$activities = AVPVH_DB::get_activities();
+$current_activity = AVPVH_DB::get_current_camp_activity();
+$activity_id = (int) ($_GET['activity_id'] ?? ($current_activity->id ?? 0));
+$activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
+$activity_saved = !empty($_GET['activity_saved']);
 $types_saved = !empty($_GET['types_saved']);
 $activity_types = AVPVH_DB::get_activity_types();
 
-$is_contribution = $camp && ($camp->type_name ?? '') === 'Contributie';
-$table = new AVPVH_Kampdeelname_List_Table($camp_id, $is_contribution);
+$is_contribution = $activity && ($activity->type_name ?? '') === 'Contributie';
+$table = new AVPVH_Activity_Participation_List_Table($activity_id, $is_contribution);
 $table->prepare_items();
 
-$new_url = add_query_arg(['page' => 'avpvh-kampdeelname-detail', 'camp_id' => $camp_id], admin_url('admin.php'));
+$new_url = add_query_arg(['page' => 'avpvh-activity-participation-detail', 'activity_id' => $activity_id], admin_url('admin.php'));
 $export_url = wp_nonce_url(
-    add_query_arg(['action' => 'avpvh_export_kampdeelname', 'camp_id' => $camp_id], admin_url('admin-post.php')),
-    'avpvh_export_kampdeelname'
+    add_query_arg(['action' => 'avpvh_export_activity_participation', 'activity_id' => $activity_id], admin_url('admin-post.php')),
+    'avpvh_export_activity_participation'
 );
 ?>
 <div class="wrap">
     <h1 class="wp-heading-inline">Activiteiten</h1>
     <?php if (!$is_contribution) : ?>
         <a href="<?php echo esc_url($new_url); ?>" class="page-title-action">Nieuwe deelname</a>
-        <?php if ($camp_id) : ?>
+        <?php if ($activity_id) : ?>
             <a href="<?php echo esc_url($export_url); ?>" class="page-title-action">Exporteer naar Excel</a>
         <?php endif; ?>
     <?php endif; ?>
 
     <form method="get" style="margin: 1rem 0;">
-        <input type="hidden" name="page" value="avpvh-kampdeelname">
+        <input type="hidden" name="page" value="avpvh-activity-participation">
         <label>Activiteit:
-            <select name="camp_id" onchange="this.form.submit()">
-                <?php foreach ($camps as $camp) : ?>
-                    <option value="<?php echo esc_attr($camp->id); ?>" <?php selected($camp->id, $camp_id); ?>>
-                        <?php echo esc_html($camp->name . ' (' . $camp->year . ')'); ?>
+            <select name="activity_id" onchange="this.form.submit()">
+                <?php foreach ($activities as $activity_option) : ?>
+                    <option value="<?php echo esc_attr($activity_option->id); ?>" <?php selected($activity_option->id, $activity_id); ?>>
+                        <?php echo esc_html($activity_option->name . ' (' . $activity_option->year . ')'); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -45,9 +45,9 @@ $export_url = wp_nonce_url(
         <noscript><button type="submit" class="button">Bekijken</button></noscript>
     </form>
 
-    <?php if ($camp) : ?>
-        <?php if ($camp_saved) : ?>
-            <div class="notice notice-success"><p>Kampinstellingen opgeslagen.</p></div>
+    <?php if ($activity) : ?>
+        <?php if ($activity_saved) : ?>
+            <div class="notice notice-success"><p>Instellingen opgeslagen.</p></div>
         <?php endif; ?>
         <?php if ($types_saved) : ?>
             <div class="notice notice-success"><p>Activiteitstypes opgeslagen.</p></div>
@@ -55,16 +55,16 @@ $export_url = wp_nonce_url(
         <details style="margin-bottom:1rem;">
             <summary>Instellingen (type, locatie/kenmerk, start-/einddatum)</summary>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:.5rem;">
-                <?php wp_nonce_field('avpvh_save_camp'); ?>
-                <input type="hidden" name="action" value="avpvh_save_camp">
-                <input type="hidden" name="camp_id" value="<?php echo esc_attr($camp->id); ?>">
+                <?php wp_nonce_field('avpvh_save_activity'); ?>
+                <input type="hidden" name="action" value="avpvh_save_activity">
+                <input type="hidden" name="activity_id" value="<?php echo esc_attr($activity->id); ?>">
                 <table class="form-table">
                     <tr>
                         <th><label for="type_id">Type</label></th>
                         <td>
                             <select id="type_id" name="type_id">
                                 <?php foreach ($activity_types as $activity_type) : ?>
-                                    <option value="<?php echo esc_attr($activity_type->id); ?>" <?php selected($camp->type_id ?? 0, $activity_type->id); ?>>
+                                    <option value="<?php echo esc_attr($activity_type->id); ?>" <?php selected($activity->type_id ?? 0, $activity_type->id); ?>>
                                         <?php echo esc_html($activity_type->name); ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -73,15 +73,15 @@ $export_url = wp_nonce_url(
                     </tr>
                     <tr>
                         <th><label for="kenmerk">Locatie/kenmerk</label></th>
-                        <td><input type="text" id="kenmerk" name="kenmerk" class="regular-text" value="<?php echo esc_attr($camp->kenmerk); ?>"></td>
+                        <td><input type="text" id="kenmerk" name="kenmerk" class="regular-text" value="<?php echo esc_attr($activity->kenmerk); ?>"></td>
                     </tr>
                     <tr>
                         <th><label for="start_date">Startdatum</label></th>
-                        <td><input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($camp->start_date); ?>"></td>
+                        <td><input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($activity->start_date); ?>"></td>
                     </tr>
                     <tr>
                         <th><label for="end_date">Einddatum</label></th>
-                        <td><input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($camp->end_date); ?>"></td>
+                        <td><input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($activity->end_date); ?>"></td>
                     </tr>
                 </table>
                 <p class="submit"><button type="submit" class="button">Opslaan</button></p>
@@ -93,7 +93,7 @@ $export_url = wp_nonce_url(
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:.5rem;">
                 <?php wp_nonce_field('avpvh_save_activity_types'); ?>
                 <input type="hidden" name="action" value="avpvh_save_activity_types">
-                <input type="hidden" name="camp_id" value="<?php echo esc_attr($camp->id); ?>">
+                <input type="hidden" name="activity_id" value="<?php echo esc_attr($activity->id); ?>">
                 <table class="form-table">
                     <?php foreach ($activity_types as $activity_type) : ?>
                         <tr>

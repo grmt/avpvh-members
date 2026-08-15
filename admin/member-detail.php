@@ -41,7 +41,7 @@ if (!$member) {
 }
 
 $addresses  = AVPVH_DB::get_addresses($member_id);
-$camps      = AVPVH_DB::get_camps_for_member($member_id);
+$activities = AVPVH_DB::get_activities_for_member($member_id);
 $fees       = AVPVH_DB::get_fees_for_member($member_id);
 $identities = AVPVH_DB::get_member_identities($member_id);
 $active_tab = sanitize_key($_GET['tab'] ?? 'contact');
@@ -104,7 +104,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
 
     <nav class="nav-tab-wrapper" style="margin-top:1em">
         <a href="<?php echo esc_url($tab_url('contact')); ?>" class="nav-tab <?php echo $active_tab === 'contact' ? 'nav-tab-active' : ''; ?>">Contact & Adressen</a>
-        <a href="<?php echo esc_url($tab_url('camps')); ?>"   class="nav-tab <?php echo $active_tab === 'camps'   ? 'nav-tab-active' : ''; ?>">Kampen</a>
+        <a href="<?php echo esc_url($tab_url('activities')); ?>" class="nav-tab <?php echo $active_tab === 'activities' ? 'nav-tab-active' : ''; ?>">Activiteiten</a>
         <a href="<?php echo esc_url($tab_url('fees')); ?>"    class="nav-tab <?php echo $active_tab === 'fees'    ? 'nav-tab-active' : ''; ?>">Contributie</a>
     </nav>
 
@@ -243,14 +243,14 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         </tbody>
     </table>
 
-    <?php elseif ($active_tab === 'camps') : ?>
-    <h2>Kampledeelname</h2>
+    <?php elseif ($active_tab === 'activities') : ?>
+    <h2>Deelname</h2>
     <table class="wp-list-table widefat striped">
-        <thead><tr><th>Kamp</th><th>Jaar</th><th>Locatie/kenmerk</th><th>Nachten</th><th>Nawacht</th><th>Dieet</th><th>Notities</th></tr></thead>
+        <thead><tr><th>Activiteit</th><th>Jaar</th><th>Locatie/kenmerk</th><th>Nachten</th><th>Nawacht</th><th>Dieet</th><th>Notities</th></tr></thead>
         <tbody>
-        <?php if (!$camps) : ?>
-            <tr><td colspan="7">Geen kampen.</td></tr>
-        <?php else : foreach ($camps as $c) : ?>
+        <?php if (!$activities) : ?>
+            <tr><td colspan="7">Geen activiteiten.</td></tr>
+        <?php else : foreach ($activities as $c) : ?>
             <tr>
                 <td><?php echo esc_html($c->name); ?></td>
                 <td><?php echo esc_html($c->year); ?></td>

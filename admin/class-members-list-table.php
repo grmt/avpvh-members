@@ -34,7 +34,7 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             'status'      => 'Status',
             'joined_year' => 'Lid sinds',
             'fee_status'  => 'Contributie ' . $this->current_year,
-            'camp_count'  => 'Kampen',
+            'activity_count' => 'Activiteiten',
             'actions'     => '',
         ];
     }
@@ -46,7 +46,7 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             'status'      => ['status', false],
             'joined_year' => ['joined_year', false],
             'fee_status'  => ['fee_status', false],
-            'camp_count'  => ['camp_count', false],
+            'activity_count' => ['activity_count', false],
         ];
     }
 
@@ -118,10 +118,10 @@ class AVPVH_Members_List_Table extends WP_List_Table {
         return $fee ? esc_html($fee->status) : '—';
     }
 
-    public function column_camp_count($item): string {
+    public function column_activity_count($item): string {
         global $wpdb;
         $count = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}avm_camp_participation WHERE member_id = %d",
+            "SELECT COUNT(*) FROM {$wpdb->prefix}avm_activity_participation WHERE member_id = %d",
             $item->id
         ));
         return esc_html((string) $count);

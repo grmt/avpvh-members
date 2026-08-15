@@ -5,12 +5,12 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-xlsx-writer.php';
 
 /**
  * Builds the "totaal inschrijvingen"-style .xlsx export from the live
- * avm_camp_participation(_days) data, in the same visual style as the
+ * avm_activity_participation(_days) data, in the same visual style as the
  * original hand-maintained sheet (bold header, colored attendance cells) —
  * regenerated fresh from the database rather than edited by hand, so the
  * "last updated" stamp is always today's date.
  */
-class AVPVH_Kampdeelname_Export {
+class AVPVH_Activity_Participation_Export {
 
     private const COLOR_HEADER  = 'D9D9D9';
     private const COLOR_WEEKEND = 'F2F2F2';
@@ -18,13 +18,13 @@ class AVPVH_Kampdeelname_Export {
     private const COLOR_NAWACHT = 'FFEB9C'; // 'on'
     private const COLOR_MAYBE   = 'E0E0E0'; // '?'
 
-    public static function build(object $camp): string {
-        $participations = AVPVH_DB::get_participation_for_camp((int) $camp->id);
+    public static function build(object $activity): string {
+        $participations = AVPVH_DB::get_participation_for_activity((int) $activity->id);
 
         $date_range = [];
-        if ($camp->start_date && $camp->end_date) {
-            $cursor = new DateTime($camp->start_date);
-            $end = new DateTime($camp->end_date);
+        if ($activity->start_date && $activity->end_date) {
+            $cursor = new DateTime($activity->start_date);
+            $end = new DateTime($activity->end_date);
             while ($cursor <= $end) {
                 $date_range[] = $cursor->format('Y-m-d');
                 $cursor->modify('+1 day');
@@ -34,7 +34,7 @@ class AVPVH_Kampdeelname_Export {
         $rows = [];
 
         $rows[] = [
-            ['v' => $camp->name . ' ' . $camp->year, 'bold' => true],
+            ['v' => $activity->name . ' ' . $activity->year, 'bold' => true],
             ['v' => 'Laatst bijgewerkt: ' . date_i18n('j-m-Y')],
         ];
         $rows[] = [];
@@ -85,6 +85,6 @@ class AVPVH_Kampdeelname_Export {
         }
 
         $col_widths = array_merge([22, 9, 9, 14], array_fill(0, count($date_range), 6), [30]);
-        return AVPVH_Xlsx_Writer::build($rows, $col_widths);
+        return AVPVH_Xlsx_Writer::build($rows, $col_widths, 'Deelname');
     }
 }

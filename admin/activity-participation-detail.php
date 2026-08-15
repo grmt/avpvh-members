@@ -3,32 +3,32 @@ defined('ABSPATH') || exit;
 if (!current_user_can('manage_options')) wp_die('Geen toegang.');
 
 $participation_id = (int) ($_GET['id'] ?? 0);
-$camp_id = (int) ($_GET['camp_id'] ?? 0);
+$activity_id = (int) ($_GET['activity_id'] ?? 0);
 $participation = $participation_id ? AVPVH_DB::get_participation_by_id($participation_id) : null;
 if ($participation) {
-    $camp_id = (int) $participation->camp_id;
+    $activity_id = (int) $participation->activity_id;
 }
-// Reached cold from the sidebar link (no camp_id/id) — default to the
-// most recent camp instead of a dead end, same default as the list page.
-if (!$camp_id) {
-    $current_camp = AVPVH_DB::get_current_camp_activity();
-    $camp_id = $current_camp->id ?? 0;
+// Reached cold from the sidebar link (no activity_id/id) — default to the
+// most recent activity instead of a dead end, same default as the list page.
+if (!$activity_id) {
+    $current_activity = AVPVH_DB::get_current_camp_activity();
+    $activity_id = $current_activity->id ?? 0;
 }
-$camp = $camp_id ? AVPVH_DB::get_camp($camp_id) : null;
-if (!$camp) {
-    wp_die('Geen kamp gevonden. Maak eerst een kamp aan via <a href="' . esc_url(add_query_arg(['page' => 'avpvh-kampdeelname'], admin_url('admin.php'))) . '">Kampdeelname</a>.');
+$activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
+if (!$activity) {
+    wp_die('Geen activiteit gevonden. Maak eerst een activiteit aan via <a href="' . esc_url(add_query_arg(['page' => 'avpvh-activity-participation'], admin_url('admin.php'))) . '">Activiteiten</a>.');
 }
 
 $member = $participation ? AVPVH_DB::get_member((int) $participation->member_id) : null;
 $days   = $participation ? AVPVH_DB::get_participation_days((int) $participation->id) : [];
 $updated = !empty($_GET['updated']);
 
-$list_url = add_query_arg(['page' => 'avpvh-kampdeelname', 'camp_id' => $camp_id], admin_url('admin.php'));
+$list_url = add_query_arg(['page' => 'avpvh-activity-participation', 'activity_id' => $activity_id], admin_url('admin.php'));
 
 $date_range = [];
-if ($camp->start_date && $camp->end_date) {
-    $cursor = new DateTime($camp->start_date);
-    $end = new DateTime($camp->end_date);
+if ($activity->start_date && $activity->end_date) {
+    $cursor = new DateTime($activity->start_date);
+    $end = new DateTime($activity->end_date);
     while ($cursor <= $end) {
         $date_range[] = $cursor->format('Y-m-d');
         $cursor->modify('+1 day');
@@ -36,7 +36,7 @@ if ($camp->start_date && $camp->end_date) {
 }
 ?>
 <div class="wrap">
-    <h1><?php echo $participation ? 'Kampdeelname bewerken' : 'Nieuwe kampdeelname'; ?></h1>
+    <h1><?php echo $participation ? 'Deelname bewerken' : 'Nieuwe deelname'; ?></h1>
     <p><a href="<?php echo esc_url($list_url); ?>">&larr; Terug naar overzicht</a></p>
 
     <?php if ($updated) : ?>
@@ -46,7 +46,7 @@ if ($camp->start_date && $camp->end_date) {
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <?php wp_nonce_field('avpvh_save_participation'); ?>
         <input type="hidden" name="action" value="avpvh_save_participation">
-        <input type="hidden" name="camp_id" value="<?php echo esc_attr($camp_id); ?>">
+        <input type="hidden" name="activity_id" value="<?php echo esc_attr($activity_id); ?>">
         <?php if ($participation) : ?>
             <input type="hidden" name="participation_id" value="<?php echo esc_attr($participation->id); ?>">
         <?php endif; ?>
@@ -72,7 +72,15 @@ if ($camp->start_date && $camp->end_date) {
             </tr>
             <tr>
                 <th><label for="nights">Nachten</label></th>
-                <td><input type="number" id="nights" name="nights" min="0" value="<?php echo esc_attr($participation->nights ?? ''); ?>"></td>
+                <td>
+                    <?php if ($date_range) : ?>
+                        <strong id="nights-computed"><?php echo esc_html((string) ($participation->nights ?? 0)); ?></strong>
+                        <p class="description">Berekend uit de dagen hieronder (aantal dagen met code <code>n</code>) &mdash; pas de dagen aan om dit te wijzigen.</p>
+                    <?php else : ?>
+                        <input type="number" id="nights" name="nights" min="0" value="<?php echo esc_attr($participation->nights ?? ''); ?>">
+                        <p class="description">Geen datumbereik ingesteld voor deze activiteit, dus geen dagen om uit te berekenen &mdash; hier handmatig invullen.</p>
+                    <?php endif; ?>
+                </td>
             </tr>
             <tr>
                 <th><label for="nawacht">Nawacht</label></th>
@@ -104,9 +112,26 @@ if ($camp->start_date && $camp->end_date) {
                 </tbody>
             </table>
         <?php else : ?>
-            <p class="description">Stel eerst een start- en einddatum in voor dit kamp om dagen te kunnen registreren.</p>
+            <p class="description">Stel eerst een start- en einddatum in voor deze activiteit om dagen te kunnen registreren.</p>
         <?php endif; ?>
 
         <p class="submit"><button type="submit" class="button button-primary">Opslaan</button></p>
     </form>
 </div>
+<?php if ($date_range) : ?>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var display = document.getElementById('nights-computed');
+    var dayInputs = document.querySelectorAll('input[name^="day["]');
+    if (!display || !dayInputs.length) return;
+    function recompute() {
+        var count = 0;
+        dayInputs.forEach(function (input) {
+            if (input.value.trim() === 'n') count++;
+        });
+        display.textContent = count;
+    }
+    dayInputs.forEach(function (input) { input.addEventListener('input', recompute); });
+});
+</script>
+<?php endif; ?>

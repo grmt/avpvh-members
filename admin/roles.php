@@ -26,7 +26,12 @@ $role_label = [
     <?php endif; ?>
 
     <h2>Huidige rolhouders (LLDAP)</h2>
-    <p class="description">Rollen worden beheerd in LLDAP-groepen. Voorzitter, secretaris en penningmeester tellen automatisch ook als bestuur.</p>
+    <p class="description">
+        Rollen worden beheerd in LLDAP-groepen. Voorzitter, secretaris en penningmeester tellen automatisch ook als bestuur.
+        Iemand toevoegen aan of verwijderen uit een rol kan hier niet — dat doe je in
+        <a href="https://leden-admin.avphilipsvanhorne.nl" target="_blank" rel="noopener">het LLDAP-beheer (leden-admin.avphilipsvanhorne.nl)</a>,
+        bij de groepen "voorzitter", "secretaris" en "penningmeester".
+    </p>
     <table class="wp-list-table widefat striped" style="max-width:600px">
         <thead><tr><th>Rol</th><th>Leden</th></tr></thead>
         <tbody>
