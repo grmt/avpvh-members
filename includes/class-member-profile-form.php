@@ -8,6 +8,7 @@ class AVPVH_Member_Profile_Form {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('wp_ajax_avpvh_save_member_profile', [$this, 'handle_save_profile']);
         add_action('admin_post_avpvh_remove_identity', [$this, 'handle_remove_identity']);
+        add_action('admin_post_avpvh_request_identity', [$this, 'handle_request_identity']);
         add_action('admin_post_avpvh_add_relationship', [$this, 'handle_add_relationship']);
         add_action('admin_post_avpvh_remove_relationship', [$this, 'handle_remove_relationship']);
     }
@@ -22,13 +23,39 @@ class AVPVH_Member_Profile_Form {
         }
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-        $member = $this->get_target_member();
+        $requested_id = (int) ($_GET['member_id'] ?? 0);
+        $is_admin_edit = current_user_can('manage_options') && $requested_id > 0;
+
+        $is_identity_request_only = false;
+        if ($is_admin_edit) {
+            $member = AVPVH_DB::get_member($requested_id);
+        } elseif ($requested_id > 0 && $own_member && $this->can_edit_member($own_member, $requested_id)) {
+            $member = AVPVH_DB::get_member($requested_id);
+        } elseif ($requested_id > 0 && $own_member && $this->can_request_identity_only($own_member, $requested_id)) {
+            $member = AVPVH_DB::get_member($requested_id);
+            $is_identity_request_only = true;
+        } else {
+            $member = $own_member;
+        }
 
         if (!$member) {
             return '<p style="color: red;">Member profile not found.</p>';
         }
 
-        $is_admin_edit = current_user_can('manage_options') && !empty($_GET['member_id']);
+        if ($is_identity_request_only) {
+            ob_start();
+            ?>
+            <div class="avpvh-member-profile-form avpvh-member-profile-form--no-banner">
+                <p class="avpvh-profile-note">
+                    Je kunt hier een verzoek sturen aan <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong>
+                    om een e-mailadres te verifiëren. Andere gegevens van dit profiel kun je niet bewerken.
+                </p>
+                <?php $this->render_identity_request_only($member); ?>
+            </div>
+            <?php
+            return ob_get_clean();
+        }
+
         $is_household_edit = !$is_admin_edit && $own_member && (int) $member->id !== (int) $own_member->id;
         // Used by both the summary card and the family-relation picker below
         // — always $member's own household (the person being viewed/edited),
@@ -50,10 +77,10 @@ class AVPVH_Member_Profile_Form {
             }
         }
         // One step further than the household itself: a housemate's own
-        // partner (e.g. a child's girlfriend), shown for awareness only —
-        // never linked, since that's not "editable family" the way an
-        // actual housemate is (see can_edit_member(), still gated on
-        // get_manageable_members() alone).
+        // partner (e.g. a child's girlfriend). Not "editable family" the way
+        // an actual housemate is (can_edit_member() is still gated on
+        // get_manageable_members() alone) — linking through here only reaches
+        // the identity-request-only view (can_request_identity_only()).
         $household_ids = wp_list_pluck($member_household, 'id');
         $extended_family = array_values(array_filter(
             AVPVH_DB::get_extended_household((int) $member->id),
@@ -146,7 +173,10 @@ class AVPVH_Member_Profile_Form {
                     <?php if ($extended_family) : ?>
                         <div class="avpvh-summary-card__row">
                             <span class="avpvh-summary-card__label">Ook verbonden (partner van familielid):</span>
-                            <?php echo esc_html(implode(', ', array_map('avpvh_format_name', $extended_family))); ?>
+                            <?php foreach ($extended_family as $i => $ef) : ?>
+                                <?php echo $i > 0 ? ', ' : ''; ?>
+                                <a href="<?php echo esc_url(add_query_arg('member_id', $ef->id)); ?>" title="E-mailverificatie aanvragen"><?php echo esc_html(avpvh_format_name($ef)); ?></a>
+                            <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -281,13 +311,14 @@ class AVPVH_Member_Profile_Form {
             </form>
 
             <?php if (!$is_admin_edit) : ?>
-                <?php $this->render_identities($member); ?>
+                <?php $this->render_identities($member, $is_household_edit); ?>
             <?php endif; ?>
 
             <?php $this->render_relationships($member); ?>
 
             <?php if (!$is_admin_edit) : ?>
                 <?php $this->render_directory_consent($member); ?>
+                <?php $this->render_newsletter_consent($member); ?>
             <?php endif; ?>
 
             <!-- Audit Trail -->
@@ -302,14 +333,27 @@ class AVPVH_Member_Profile_Form {
      * Self-service e-mail/identity management: shows the member's login
      * identities (up to 3 in total, any mix of providers — e.g. two
      * Google-verified addresses is fine), lets them verify-and-add a
-     * Google/Microsoft account, and remove one (with a warning if it's the
-     * address they're currently logged in with).
+     * Google/Microsoft account or a plain e-mail address (via a one-time
+     * confirmation link — see class-email-identity.php), and remove one
+     * (with a warning if it's the address they're currently logged in
+     * with). Removing is only allowed while at least 2 *verified*
+     * identities remain — an admin-added, never-verified extra doesn't
+     * count as a safe fallback (see AVPVH_DB::ensure_identity()'s
+     * $verified param).
+     *
+     * The "verify and add" links are self-only: completing an add is only
+     * proof of *whoever completes it*, not proof that it's actually
+     * $member. A household member editing someone else's profile (e.g. a
+     * spouse) could otherwise attach their own account as a valid login for
+     * that person. Household members can still remove an existing identity
+     * here (that's just as visible either way, since it e-mails both
+     * parties), just not add a new one on someone else's behalf.
      */
-    private function render_identities($member): void {
+    private function render_identities($member, bool $is_household_edit = false): void {
         $identities = AVPVH_DB::get_member_identities((int) $member->id);
         $current_user = wp_get_current_user();
         $provider_labels = [
-            'email'     => 'Alleen wachtwoord',
+            'email'     => 'E-mail (link)',
             'google'    => 'Google',
             'microsoft' => 'Microsoft',
         ];
@@ -331,15 +375,21 @@ class AVPVH_Member_Profile_Form {
                         'in_use'        => 'Dat e-mailadres is al aan een ander lid gekoppeld.',
                         'not_you'       => 'Er ging iets mis met de verificatie — probeer het opnieuw.',
                         'limit'         => 'Dit adres kon niet worden toegevoegd (maximaal drie).',
-                        'last_identity' => 'Dit is je enige inlog-e-mailadres — je kunt het pas verwijderen nadat je een ander adres hebt toegevoegd.',
+                        'invalid_email' => 'Dat is geen geldig e-mailadres.',
+                        'last_identity' => 'Je hebt maar één geverifieerd inlog-e-mailadres — verifieer en voeg eerst een tweede toe voordat je iets verwijdert.',
                     ];
                     echo esc_html($errors[$_GET['identity_error']] ?? 'Er ging iets mis.');
                     ?>
                 </p>
             <?php elseif (!empty($_GET['identity_removed'])) : ?>
                 <p class="avpvh-identity-notice">E-mailadres verwijderd.</p>
+            <?php elseif (!empty($_GET['identity_requested'])) : ?>
+                <p class="avpvh-identity-notice">Verzoek verstuurd — <?php echo esc_html($member->first_name); ?> heeft een e-mail gekregen met instructies.</p>
+            <?php elseif (!empty($_GET['identity_email_sent'])) : ?>
+                <p class="avpvh-identity-notice">Bevestigingslink verstuurd — check je inbox om het adres te koppelen.</p>
             <?php endif; ?>
 
+            <?php $verified_count = count(array_filter($identities, fn($i) => !empty($i->verified_at))); ?>
             <table class="avpvh-identities-table">
                 <?php foreach ($identities as $identity) :
                     $is_current_login = strcasecmp($identity->email, $current_user->user_email) === 0;
@@ -349,7 +399,12 @@ class AVPVH_Member_Profile_Form {
                         <td><?php echo esc_html($identity->email); ?></td>
                         <td><?php echo esc_html($label); ?></td>
                         <td>
-                            <?php if (count($identities) > 1) : ?>
+                            <?php if (empty($identity->verified_at)) : ?>
+                                <span class="avpvh-identity-unverified" title="Toegevoegd door een beheerder, niet zelf geverifieerd">Niet geverifieerd</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ($verified_count > 1) : ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
                                 onsubmit="return confirm('<?php echo $is_current_login
                                     ? esc_js('Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?')
@@ -361,17 +416,33 @@ class AVPVH_Member_Profile_Form {
                                 <button type="submit" class="button">Verwijderen</button>
                             </form>
                             <?php else : ?>
-                            <span title="Voeg eerst een ander adres toe om dit te kunnen verwijderen">—</span>
+                            <span title="Je hebt maar één geverifieerd adres — voeg eerst een tweede toe om te kunnen verwijderen">—</span>
                             <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$identities) : ?>
-                    <tr><td colspan="3"><em>Nog geen e-mailadressen gekoppeld.</em></td></tr>
+                    <tr><td colspan="4"><em>Nog geen e-mailadressen gekoppeld.</em></td></tr>
                 <?php endif; ?>
             </table>
 
-            <?php if (count($identities) < 3) :
+            <?php if ($is_household_edit) : ?>
+                <?php if (count($identities) < 3) : ?>
+                <p class="avpvh-identities-add">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <?php wp_nonce_field('avpvh_request_identity'); ?>
+                        <input type="hidden" name="action" value="avpvh_request_identity">
+                        <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                        <button type="submit" class="button">Vraag <?php echo esc_html($member->first_name); ?> om een e-mailadres te verifiëren</button>
+                    </form>
+                    <small>
+                        Toevoegen kan alleen door <?php echo esc_html($member->first_name); ?> zelf (moet zelf
+                        inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met
+                        instructies.
+                    </small>
+                </p>
+                <?php endif; ?>
+            <?php elseif (count($identities) < 3) :
                 $configured = AVPVH_OAuth::configured_providers();
             ?>
                 <p class="avpvh-identities-add">
@@ -381,6 +452,54 @@ class AVPVH_Member_Profile_Form {
                         </a>
                     <?php endforeach; ?>
                 </p>
+                <p class="avpvh-identities-add">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <?php wp_nonce_field('avpvh_start_email_identity'); ?>
+                        <input type="hidden" name="action" value="avpvh_start_email_identity">
+                        <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                        <input type="email" name="email" placeholder="naam@voorbeeld.nl" required>
+                        <button type="submit" class="button">Verifieer en voeg e-mailadres toe</button>
+                    </form>
+                    <small>Voor adressen zonder Google/Microsoft-account — je krijgt een bevestigingslink toegestuurd.</small>
+                </p>
+            <?php endif; ?>
+        </fieldset>
+        <?php
+    }
+
+    /**
+     * Stripped-down version of render_identities() for the extended-household
+     * case (can_request_identity_only(), e.g. a housemate's partner living
+     * elsewhere): just the request button, no identities table — someone
+     * outside the household proper shouldn't see the member's existing
+     * verified e-mail addresses, only be able to ask for a new one.
+     */
+    private function render_identity_request_only(object $member): void {
+        $identities = AVPVH_DB::get_member_identities((int) $member->id);
+        ?>
+        <fieldset class="avpvh-identities">
+            <legend>Inlog-e-mailadres verifiëren</legend>
+
+            <?php if (!empty($_GET['identity_requested'])) : ?>
+                <p class="avpvh-identity-notice">Verzoek verstuurd — <?php echo esc_html($member->first_name); ?> heeft een e-mail gekregen met instructies.</p>
+            <?php endif; ?>
+
+            <?php if (count($identities) < 3) : ?>
+                <p class="avpvh-identities-add">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <?php wp_nonce_field('avpvh_request_identity'); ?>
+                        <input type="hidden" name="action" value="avpvh_request_identity">
+                        <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                        <button type="submit" class="button">Vraag <?php echo esc_html($member->first_name); ?> om een e-mailadres te verifiëren</button>
+                    </form>
+                    <small>
+                        Toevoegen kan alleen door <?php echo esc_html($member->first_name); ?> zelf (moet zelf
+                        inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met
+                        instructies.
+                    </small>
+                </p>
+            <?php else : ?>
+                <p><em><?php echo esc_html($member->first_name); ?> heeft al het maximum van drie inlog-e-mailadressen.</em></p>
             <?php endif; ?>
         </fieldset>
         <?php
@@ -554,6 +673,41 @@ class AVPVH_Member_Profile_Form {
     }
 
     /**
+     * Self-service opt-in for activity/newsletter e-mails — a real
+     * AVPVH_DB member flag under the hood ('nieuwsbrief', see class-db.php's
+     * "Member flags" section), not a dedicated column, so the same flag can
+     * also be filtered on in the admin Ledenbeheer list and targeted by
+     * AVPVH_Admin::handle_send_newsletter().
+     */
+    private function render_newsletter_consent($member): void {
+        $has_flag = AVPVH_DB::member_has_flag((int) $member->id, 'nieuwsbrief');
+        ?>
+        <fieldset class="avpvh-newsletter-consent">
+            <legend>Nieuwsbrief &amp; activiteiten-mail</legend>
+
+            <?php if (!empty($_GET['newsletter_saved'])) : ?>
+                <p>Je voorkeur is opgeslagen.</p>
+            <?php endif; ?>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('avpvh_set_newsletter_consent'); ?>
+                <input type="hidden" name="action" value="avpvh_set_newsletter_consent">
+                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="newsletter" value="1" <?php checked($has_flag); ?>>
+                        Ik wil e-mail ontvangen over activiteiten en de nieuwsbrief
+                    </label>
+                </div>
+
+                <button type="submit" class="button button-primary">Voorkeur opslaan</button>
+            </form>
+        </fieldset>
+        <?php
+    }
+
+    /**
      * Show audit trail of changes.
      */
     private function render_audit_trail($member): void {
@@ -662,18 +816,6 @@ class AVPVH_Member_Profile_Form {
         }
     }
 
-    private function get_target_member(): ?object {
-        $wp_user = wp_get_current_user();
-        $own_member = AVPVH_DB::get_member_by_wp_user($wp_user->ID);
-
-        $member_id = (int) ($_GET['member_id'] ?? 0);
-        if ($member_id > 0 && $this->can_edit_member($own_member, $member_id)) {
-            return AVPVH_DB::get_member($member_id);
-        }
-
-        return $own_member;
-    }
-
     private function get_target_member_for_save(): ?object {
         $wp_user = wp_get_current_user();
         $own_member = AVPVH_DB::get_member_by_wp_user($wp_user->ID);
@@ -698,6 +840,26 @@ class AVPVH_Member_Profile_Form {
             return false;
         }
         foreach (AVPVH_DB::get_manageable_members((int) $own_member->id) as $m) {
+            if ((int) $m->id === $target_member_id) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Wider than can_edit_member() — also reaches a housemate's own partner
+     * (AVPVH_DB::get_extended_household(), e.g. a child's girlfriend who
+     * lives elsewhere), but only for requesting identity verification, not
+     * for editing anything else. Deliberately kept separate from
+     * can_edit_member() rather than widening it, since that would also open
+     * up name/address/relationship editing for that wider circle.
+     */
+    private function can_request_identity_only(?object $own_member, int $target_member_id): bool {
+        if (!$own_member) {
+            return false;
+        }
+        foreach (AVPVH_DB::get_extended_household((int) $own_member->id) as $m) {
             if ((int) $m->id === $target_member_id) {
                 return true;
             }
@@ -732,7 +894,10 @@ class AVPVH_Member_Profile_Form {
         }
 
         $identities = AVPVH_DB::get_member_identities($member_id);
-        if (count($identities) <= 1) {
+        // Gated on *verified* identities, not the raw count — an admin-added,
+        // unverified extra shouldn't count as a safe fallback to remove down to.
+        $verified_count = count(array_filter($identities, fn($i) => !empty($i->verified_at)));
+        if ($verified_count <= 1) {
             wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'last_identity'], wp_get_referer() ?: home_url('/member-profile/')));
             exit;
         }
@@ -753,6 +918,55 @@ class AVPVH_Member_Profile_Form {
         }
 
         wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_removed' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
+        exit;
+    }
+
+    /**
+     * A household member (e.g. a spouse) asks another household member to
+     * verify-and-add a new login e-mail. This only sends a request e-mail —
+     * it never starts the OAuth flow itself, since only the target member
+     * can complete that (see class-oauth.php). The link in the e-mail just
+     * points at their own profile, where the real "Verifieer en voeg toe"
+     * buttons render fresh for their own session once they're logged in.
+     */
+    public function handle_request_identity(): void {
+        check_admin_referer('avpvh_request_identity');
+
+        if (!is_user_logged_in()) {
+            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+        }
+
+        $member_id  = (int) ($_POST['member_id'] ?? 0);
+        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
+
+        $has_access = $member_id && (
+            $this->can_edit_member($own_member, $member_id)
+            || $this->can_request_identity_only($own_member, $member_id)
+        );
+        if (!$has_access) {
+            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+        }
+
+        $member = AVPVH_DB::get_member($member_id);
+        if (!$member) {
+            wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
+        }
+
+        if ((int) $member->id === (int) $own_member->id) {
+            wp_die('Je kunt geen verzoek naar jezelf sturen.', 'Fout', ['response' => 400]);
+        }
+
+        $requester_user = wp_get_current_user();
+        $requester_name = $requester_user->display_name ?: $requester_user->user_login;
+        $subject = 'AV Philips van Horne — vraag om e-mailadres te verifiëren';
+        $body = esc_html($requester_name) . " vraagt of je een e-mailadres wilt verifiëren en toevoegen als "
+            . "inlogmethode bij AV Philips van Horne.\n\n"
+            . "Log in en ga naar je profiel om dit zelf te doen:\n" . home_url('/member-profile/') . "\n\n"
+            . "Was dit geen terecht verzoek? Dan hoef je niets te doen.";
+        wp_mail($member->email, $subject, $body);
+        set_transient(self::identity_request_transient_key($member_id), get_current_user_id(), 3 * DAY_IN_SECONDS);
+
+        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_requested' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
         exit;
     }
 
@@ -831,7 +1045,11 @@ class AVPVH_Member_Profile_Form {
     /**
      * E-mails everyone who should know an identity changed: the person who
      * made the change, and — only when they edited someone else's profile —
-     * the affected member as well, at their remaining identities.
+     * the affected member as well, at their remaining identities. For a
+     * successful *add* specifically, also notifies whoever requested it via
+     * handle_request_identity() (if anyone did, within the request's 3-day
+     * window) — adding is self-only (see class-oauth.php), so that's the
+     * only way a requester learns it actually happened.
      */
     public static function notify_identity_change(object $member, ?object $actor_member, string $action, string $provider, string $email, ?\WP_User $actor_user = null): void {
         $provider_labels = ['email' => 'e-mailadres', 'google' => 'Google-account', 'microsoft' => 'Microsoft-account'];
@@ -854,6 +1072,23 @@ class AVPVH_Member_Profile_Form {
                 wp_mail($identity->email, $subject, $body_member);
             }
         }
+
+        if ($action === 'toegevoegd') {
+            $requester_id = get_transient(self::identity_request_transient_key((int) $member->id));
+            if ($requester_id && (int) $requester_id !== (int) $actor_user->ID) {
+                delete_transient(self::identity_request_transient_key((int) $member->id));
+                $requester_user = get_userdata((int) $requester_id);
+                if ($requester_user) {
+                    $body_requester = "Je verzoek is opgevolgd: er is zojuist een {$provider_label} ({$email}) "
+                        . "toegevoegd aan het profiel van {$member_name}.";
+                    wp_mail($requester_user->user_email, $subject, $body_requester);
+                }
+            }
+        }
+    }
+
+    private static function identity_request_transient_key(int $member_id): string {
+        return 'avpvh_identity_request_' . $member_id;
     }
 
     /**

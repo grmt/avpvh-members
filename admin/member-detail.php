@@ -1,6 +1,6 @@
 <?php
 defined('ABSPATH') || exit;
-if (!current_user_can('manage_options')) wp_die('Geen toegang.');
+if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) wp_die('Geen toegang.');
 
 $member_id = (int) ($_GET['id'] ?? 0);
 $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
@@ -44,6 +44,8 @@ $addresses  = AVPVH_DB::get_addresses($member_id);
 $activities = AVPVH_DB::get_activities_for_member($member_id);
 $fees       = AVPVH_DB::get_fees_for_member($member_id);
 $identities = AVPVH_DB::get_member_identities($member_id);
+$all_flags  = AVPVH_DB::get_all_flags();
+$member_flag_ids = wp_list_pluck(AVPVH_DB::get_flags_for_member($member_id), 'id');
 $active_tab = sanitize_key($_GET['tab'] ?? 'contact');
 $updated    = !empty($_GET['updated']);
 $created    = !empty($_GET['created']);
@@ -97,6 +99,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-success is-dismissible"><p>Adres bijgewerkt.</p></div>
     <?php elseif (!empty($_GET['address_deleted'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Adres verwijderd.</p></div>
+    <?php elseif (!empty($_GET['flags_saved'])) : ?>
+        <div class="notice notice-success is-dismissible"><p>Kenmerken opgeslagen.</p></div>
     <?php endif; ?>
     <?php if ($sync_msg) : ?>
         <div class="notice notice-<?php echo str_contains($sync_msg, 'LLDAP') && !str_contains($sync_msg, 'fout') ? 'success' : 'error'; ?> is-dismissible"><p><?php echo esc_html($sync_msg); ?></p></div>
@@ -150,14 +154,25 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
 
     <h2>Inlogadressen</h2>
     <table class="wp-list-table widefat striped">
-        <thead><tr><th>Provider</th><th>E-mail</th><th>Primair</th><th>Actie</th></tr></thead>
+        <thead><tr><th>Provider</th><th>E-mail</th><th>Geverifieerd</th><th>Eerste login</th><th>Laatste login</th><th>Primair</th><th>Actie</th></tr></thead>
         <tbody>
         <?php if (!$identities) : ?>
-            <tr><td colspan="4">Geen gekoppelde adressen.</td></tr>
-        <?php else : foreach ($identities as $identity) : ?>
+            <tr><td colspan="7">Geen gekoppelde adressen.</td></tr>
+        <?php else : foreach ($identities as $identity) :
+            $login_stats = AVPVH_DB::get_login_stats_for_email($identity->email);
+        ?>
             <tr>
                 <td><?php echo esc_html(ucfirst($identity->provider)); ?></td>
                 <td><?php echo esc_html($identity->email); ?></td>
+                <td>
+                    <?php if ($identity->verified_at) : ?>
+                        Ja
+                    <?php else : ?>
+                        <span style="color:#b32d2e;font-weight:600">Nee (door beheerder toegevoegd)</span>
+                    <?php endif; ?>
+                </td>
+                <td><?php echo $login_stats->first_login ? esc_html(wp_date('d-m-Y H:i', strtotime($login_stats->first_login))) : '—'; ?></td>
+                <td><?php echo $login_stats->last_login ? esc_html(wp_date('d-m-Y H:i', strtotime($login_stats->last_login))) : '—'; ?></td>
                 <td><?php echo $identity->is_primary ? 'Ja' : 'Nee'; ?></td>
                 <td>
                     <?php if (!$identity->is_primary) : ?>
@@ -205,6 +220,38 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         </table>
         <?php submit_button('Koppelen', 'secondary'); ?>
     </form>
+
+    <h2>Kenmerken</h2>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <?php wp_nonce_field('avpvh_save_member_flags'); ?>
+        <input type="hidden" name="action" value="avpvh_save_member_flags">
+        <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+        <?php if (!$all_flags) : ?>
+            <p class="description">Nog geen kenmerken aangemaakt.</p>
+        <?php else : ?>
+            <ul style="margin:0 0 1em">
+                <?php foreach ($all_flags as $flag) : ?>
+                    <li>
+                        <label>
+                            <input type="checkbox" name="flag_ids[]" value="<?php echo esc_attr($flag->id); ?>"
+                                <?php checked(in_array((int) $flag->id, $member_flag_ids, true)); ?>>
+                            <?php echo esc_html($flag->label); ?>
+                            <?php if ($flag->affects_fees) : ?>
+                                <span title="Vrijgesteld van contributie" style="color:#787c82">(vrijgesteld van contributie)</span>
+                            <?php endif; ?>
+                            <?php if ($flag->sets_inactive) : ?>
+                                <span title="Zet status automatisch op inactief" style="color:#b32d2e">(zet op inactief)</span>
+                            <?php endif; ?>
+                        </label>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+        <?php submit_button('Kenmerken opslaan', 'secondary'); ?>
+    </form>
+    <p class="description">
+        Nieuw kenmerk nodig? <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-settings'], admin_url('admin.php'))); ?>">Beheer de lijst met kenmerken</a> bij Instellingen.
+    </p>
 
     <h2>Adreshistorie</h2>
     <p class="description">Elke keer dat een adres wordt opgeslagen via het profiel komt er een nieuwe rij bij (nooit een wijziging van een bestaande) — hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen.</p>

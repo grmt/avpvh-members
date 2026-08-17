@@ -35,6 +35,7 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             'joined_year' => 'Lid sinds',
             'fee_status'  => 'Contributie ' . $this->current_year,
             'activity_count' => 'Activiteiten',
+            'flags'       => 'Kenmerken',
             'actions'     => '',
         ];
     }
@@ -66,9 +67,10 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             'first_name'  => sanitize_text_field($_GET['f_first_name'] ?? ''),
             'suffix'      => sanitize_text_field($_GET['f_suffix'] ?? ''),
             'last_name'   => sanitize_text_field($_GET['f_last_name'] ?? ''),
-            'status'      => sanitize_key($_GET['status'] ?? ''),
+            'status'      => array_map('sanitize_key', (array) ($_GET['status'] ?? [])),
             'joined_year' => sanitize_text_field($_GET['joined_year'] ?? ''),
-            'fee_status'  => sanitize_key($_GET['fee_status'] ?? ''),
+            'fee_status'  => array_map('sanitize_key', (array) ($_GET['fee_status'] ?? [])),
+            'flag_id'     => array_map('intval', (array) ($_GET['flag_id'] ?? [])),
             'orderby'     => sanitize_key($_GET['orderby'] ?? 'last_name'),
             'order'       => sanitize_key($_GET['order'] ?? 'asc'),
         ];
@@ -108,7 +110,10 @@ class AVPVH_Members_List_Table extends WP_List_Table {
         foreach ($identities as $identity) {
             $is_placeholder = str_ends_with(strtolower($identity->email), '@avpvh.local');
             $style = $is_placeholder ? ' style="color:#d63638"' : '';
-            $rows[] = '<div' . $style . '>' . esc_html($identity->email) . '</div>';
+            $unverified = empty($identity->verified_at)
+                ? ' <span style="color:#b32d2e;font-size:.85em;font-weight:600" title="Toegevoegd door een beheerder, niet zelf geverifieerd">(niet geverifieerd)</span>'
+                : '';
+            $rows[] = '<div' . $style . '>' . esc_html($identity->email) . $unverified . '</div>';
         }
         return implode('', $rows);
     }
@@ -125,6 +130,14 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             $item->id
         ));
         return esc_html((string) $count);
+    }
+
+    public function column_flags($item): string {
+        $flags = AVPVH_DB::get_flags_for_member((int) $item->id);
+        if (!$flags) {
+            return '';
+        }
+        return esc_html(implode(', ', wp_list_pluck($flags, 'label')));
     }
 
     public function column_actions($item): string {

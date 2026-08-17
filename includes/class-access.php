@@ -119,10 +119,11 @@ class AVPVH_Access {
         );
 
         $login_config = wp_json_encode([
-            'autheliaUrl'  => 'https://auth.avphilipsvanhorne.nl',
-            'loginUrls'    => $login_urls,
-            'hasGoogle'    => isset($providers['google']),
-            'hasMicrosoft' => isset($providers['microsoft']),
+            'autheliaUrl'    => 'https://auth.avphilipsvanhorne.nl',
+            'loginUrls'      => $login_urls,
+            'hasGoogle'      => isset($providers['google']),
+            'hasMicrosoft'   => isset($providers['microsoft']),
+            'emailLoginUrl'  => rest_url('avpvh/v1/email-identity/login'),
         ]);
         add_action('wp_footer', function () use ($login_config) {
             echo '<script type="application/json" id="avpvh-login-config">' . $login_config . '</script>';

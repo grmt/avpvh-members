@@ -52,8 +52,11 @@ class AVPVH_OAuth {
             if (!is_user_logged_in()) {
                 wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
             }
+            // Self only — a household member must not be able to start this
+            // flow on someone else's behalf (see handle_add_identity_callback()
+            // for why the completing check is also self-only, not household-wide).
             $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-            if (!$own_member || !$this->can_manage_member((int) $own_member->id, $add_member_id)) {
+            if (!$own_member || (int) $own_member->id !== $add_member_id) {
                 wp_die('Geen toegang.', 'Fout', ['response' => 403]);
             }
             set_transient('avpvh_oauth_state_' . $state, wp_json_encode([
@@ -77,15 +80,6 @@ class AVPVH_OAuth {
 
         wp_redirect($config['auth_url'] . '?' . http_build_query($params));
         exit;
-    }
-
-    private function can_manage_member(int $own_member_id, int $target_member_id): bool {
-        foreach (AVPVH_DB::get_manageable_members($own_member_id) as $m) {
-            if ((int) $m->id === $target_member_id) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private function get_client_ip(): string {
@@ -163,11 +157,11 @@ class AVPVH_OAuth {
             exit;
         }
 
-        if (!$member_identity && !AVPVH_DB::ensure_identity((int) $member->id, $provider, $email)) {
+        if (!$member_identity && !AVPVH_DB::ensure_identity((int) $member->id, $provider, $email, false, true)) {
             error_log("AVPVH_OAuth: failed to link {$provider} identity ({$email}) for member {$member->id} — at 3-identity limit or invalid provider.");
         }
 
-        $user = $this->get_or_create_wp_user($email, $member);
+        $user = AVPVH_DB::get_or_create_wp_user($email, $member);
         if (!$user) {
             wp_die('Kon WordPress-gebruiker niet aanmaken.', 'Fout', ['response' => 500]);
         }
@@ -207,8 +201,12 @@ class AVPVH_OAuth {
             exit;
         }
 
+        // Self only. The OAuth round-trip only proves who completed it, not
+        // that it's actually $member_id, so a household member (e.g. a
+        // spouse) must not be able to attach their own account as a login
+        // identity for someone else's profile.
         $own_member = AVPVH_DB::get_member_by_wp_user($user_id);
-        if (!$own_member || !$this->can_manage_member((int) $own_member->id, $member_id)) {
+        if (!$own_member || (int) $own_member->id !== $member_id) {
             wp_die('Geen toegang.', 'Fout', ['response' => 403]);
         }
 
@@ -225,7 +223,7 @@ class AVPVH_OAuth {
         }
 
         $member = AVPVH_DB::get_member($member_id);
-        if (!$member || !AVPVH_DB::ensure_identity($member_id, $provider, $email)) {
+        if (!$member || !AVPVH_DB::ensure_identity($member_id, $provider, $email, false, true)) {
             wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'limit'], $profile_url));
             exit;
         }
@@ -272,37 +270,6 @@ class AVPVH_OAuth {
         // Google → 'email'; Microsoft → 'mail' or 'userPrincipalName'
         $email = $info['email'] ?? $info['mail'] ?? $info['userPrincipalName'] ?? null;
         return $email ? strtolower(sanitize_email($email)) : null;
-    }
-
-    private function get_or_create_wp_user(string $email, object $member): ?\WP_User {
-        if ($member->wp_user_id) {
-            $user = get_user_by('id', (int) $member->wp_user_id);
-            if ($user) {
-                return $user;
-            }
-        }
-
-        $user = get_user_by('email', $email);
-        if (!$user) {
-            $uid = wp_create_user(
-                sanitize_user(strstr($email, '@', true)),
-                wp_generate_password(64),
-                $email
-            );
-            if (is_wp_error($uid)) {
-                return null;
-            }
-            wp_update_user([
-                'ID'           => $uid,
-                'display_name' => avpvh_format_name($member),
-            ]);
-            AVPVH_DB::set_wp_user_id((int) $member->id, $uid);
-            $user = get_user_by('id', $uid);
-        } else {
-            AVPVH_DB::set_wp_user_id((int) $member->id, $user->ID);
-        }
-
-        return $user ?: null;
     }
 
     private function callback_url(string $provider): string {

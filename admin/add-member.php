@@ -1,6 +1,6 @@
 <?php
 defined('ABSPATH') || exit;
-if (!current_user_can('manage_options')) {
+if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
     wp_die('Geen toegang.');
 }
 

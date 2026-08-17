@@ -21,6 +21,10 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_delete_address',     [$this, 'handle_delete_address']);
         add_action('admin_post_avpvh_add_member',         [$this, 'handle_add_member']);
+        add_action('admin_post_avpvh_save_member_flags',  [$this, 'handle_save_member_flags']);
+        add_action('admin_post_avpvh_create_flag',        [$this, 'handle_create_flag']);
+        add_action('admin_post_avpvh_delete_flag',        [$this, 'handle_delete_flag']);
+        add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
     }
 
     // manage_options (real WP admins) or bestuur (incl. voorzitter/
@@ -32,14 +36,31 @@ class AVPVH_Admin {
         return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('bestuur');
     }
 
+    // secretaris (real LLDAP group membership, or a temporary delegation —
+    // see AVPVH_Roles and admin/roles.php's "Nieuwe delegatie" form) is
+    // traditionally the membership registrar, so gets the same member-
+    // management access as a real WP admin: Ledenbeheer/Ledendetail/Nieuw
+    // lid only, not the rest of this menu (Activiteiten, Instellingen,
+    // Nieuwsbrief, Loginpogingen stay manage_options-only).
+    private function can_manage_members(): bool {
+        return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('secretaris');
+    }
+
     public function register_menus(): void {
+        // add_menu_page()/add_submenu_page()'s capability must be a real WP
+        // capability string, not a club role — 'read' (every logged-in user
+        // has it) stands in for "yes" here, since register_menus() itself
+        // re-runs per admin pageview for whoever's viewing, same trick
+        // already used below for can_manage_roles()/'Rollen & delegatie'.
+        $members_cap = $this->can_manage_members() ? 'read' : 'manage_options';
+
         $hook = add_menu_page(
-            'AV-PvH Leden', 'AV-PvH Leden', 'manage_options',
+            'AV-PvH Leden', 'AV-PvH Leden', $members_cap,
             'avpvh-members', [$this, 'render_members_list'],
             'dashicons-groups', 30
         );
         add_submenu_page(
-            'avpvh-members', 'Ledenbeheer', 'Ledenbeheer', 'manage_options',
+            'avpvh-members', 'Ledenbeheer', 'Ledenbeheer', $members_cap,
             'avpvh-members', [$this, 'render_members_list']
         );
 
@@ -53,11 +74,11 @@ class AVPVH_Admin {
             });
         });
         add_submenu_page(
-            'avpvh-members', 'Ledendetail', 'Ledendetail', 'manage_options',
+            'avpvh-members', 'Ledendetail', 'Ledendetail', $members_cap,
             'avpvh-member-detail', [$this, 'render_member_detail']
         );
         add_submenu_page(
-            'avpvh-members', 'Nieuw lid', 'Nieuw lid', 'manage_options',
+            'avpvh-members', 'Nieuw lid', 'Nieuw lid', $members_cap,
             'avpvh-add-member', [$this, 'render_add_member']
         );
         add_submenu_page(
@@ -81,6 +102,10 @@ class AVPVH_Admin {
         add_submenu_page(
             'avpvh-members', 'Loginpogingen', 'Loginpogingen', 'manage_options',
             'avpvh-login-attempts', [$this, 'render_login_attempts']
+        );
+        add_submenu_page(
+            'avpvh-members', 'Nieuwsbrief', 'Nieuwsbrief', 'manage_options',
+            'avpvh-newsletter', [$this, 'render_newsletter']
         );
         add_submenu_page(
             'avpvh-members', 'Instellingen', 'Instellingen', 'manage_options',
@@ -113,6 +138,10 @@ class AVPVH_Admin {
 
     public function render_login_attempts(): void {
         require AVPVH_PLUGIN_DIR . 'admin/login-attempts.php';
+    }
+
+    public function render_newsletter(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/newsletter.php';
     }
 
     public function render_activity_participation_list(): void {
@@ -204,6 +233,62 @@ class AVPVH_Admin {
                     </tr>
                 </table>
                 <?php submit_button('Opslaan'); ?>
+            </form>
+
+            <hr>
+            <h2>Kenmerken</h2>
+            <p class="description">Vrij uitbreidbare lijst met kenmerken die aan een lid toegekend kunnen worden (Ledendetail &rarr; Kenmerken), en waarop de ledenlijst gefilterd kan worden. "Vrijgesteld van contributie" (bijv. ere-lid) zorgt dat er nooit een contributie-item voor dat lid wordt aangemaakt. "Zet lid op inactief" (bijv. geroyeerd) zet de status van een lid automatisch op inactief zodra dit kenmerk wordt toegekend (nooit andersom bij het weghalen).</p>
+            <?php if (!empty($_GET['flag_created'])) : ?>
+                <div class="notice notice-success is-dismissible"><p>Kenmerk aangemaakt.</p></div>
+            <?php elseif (!empty($_GET['flag_error'])) : ?>
+                <div class="notice notice-error is-dismissible"><p>Kon kenmerk niet aanmaken (naam al in gebruik?).</p></div>
+            <?php elseif (!empty($_GET['flag_deleted'])) : ?>
+                <div class="notice notice-success is-dismissible"><p>Kenmerk verwijderd.</p></div>
+            <?php endif; ?>
+            <table class="wp-list-table widefat striped" style="max-width:600px">
+                <thead><tr><th>Label</th><th>Vrijgesteld van contributie</th><th>Zet op inactief</th><th></th></tr></thead>
+                <tbody>
+                <?php $flags = AVPVH_DB::get_all_flags(); ?>
+                <?php if (!$flags) : ?>
+                    <tr><td colspan="4">Nog geen kenmerken.</td></tr>
+                <?php else : foreach ($flags as $flag) : ?>
+                    <tr>
+                        <td><?php echo esc_html($flag->label); ?></td>
+                        <td><?php echo $flag->affects_fees ? 'Ja' : 'Nee'; ?></td>
+                        <td><?php echo $flag->sets_inactive ? 'Ja' : 'Nee'; ?></td>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                onsubmit="return confirm('Kenmerk &quot;<?php echo esc_js($flag->label); ?>&quot; verwijderen? Dit haalt het ook weg bij alle leden die het hebben.');">
+                                <?php wp_nonce_field('avpvh_delete_flag'); ?>
+                                <input type="hidden" name="action" value="avpvh_delete_flag">
+                                <input type="hidden" name="flag_id" value="<?php echo esc_attr($flag->id); ?>">
+                                <button type="submit" class="button button-small">Verwijder</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; endif; ?>
+                </tbody>
+            </table>
+
+            <h3 style="margin-top:1rem">Nieuw kenmerk</h3>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('avpvh_create_flag'); ?>
+                <input type="hidden" name="action" value="avpvh_create_flag">
+                <table class="form-table">
+                    <tr>
+                        <th><label for="flag_label">Naam</label></th>
+                        <td><input type="text" id="flag_label" name="label" class="regular-text" placeholder="bv. Belangrijk voor opgraving X"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="flag_affects_fees">Vrijgesteld van contributie</label></th>
+                        <td><input type="checkbox" id="flag_affects_fees" name="affects_fees" value="1"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="flag_sets_inactive">Zet lid op inactief</label></th>
+                        <td><input type="checkbox" id="flag_sets_inactive" name="sets_inactive" value="1"></td>
+                    </tr>
+                </table>
+                <?php submit_button('Kenmerk aanmaken', 'secondary'); ?>
             </form>
 
             <hr>
@@ -322,9 +407,14 @@ class AVPVH_Admin {
         exit;
     }
 
+    /**
+     * Deliberately doesn't pass $verified=true to ensure_identity() below —
+     * an admin typing an address in has no proof the member actually
+     * controls it, unlike the self-service OAuth/e-mail-link flows.
+     */
     public function handle_add_identity(): void {
         check_admin_referer('avpvh_add_identity');
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -348,7 +438,7 @@ class AVPVH_Admin {
 
     public function handle_delete_identity(): void {
         check_admin_referer('avpvh_delete_identity');
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -362,7 +452,7 @@ class AVPVH_Admin {
 
     public function handle_primary_identity(): void {
         check_admin_referer('avpvh_primary_identity');
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -374,9 +464,98 @@ class AVPVH_Admin {
         exit;
     }
 
+    public function handle_save_member_flags(): void {
+        check_admin_referer('avpvh_save_member_flags');
+        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $member_id = (int) ($_POST['member_id'] ?? 0);
+        $flag_ids  = array_map('intval', (array) ($_POST['flag_ids'] ?? []));
+        if ($member_id) {
+            AVPVH_DB::set_member_flags($member_id, $flag_ids);
+        }
+
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'flags_saved' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_create_flag(): void {
+        check_admin_referer('avpvh_create_flag');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $label         = sanitize_text_field(wp_unslash($_POST['label'] ?? ''));
+        $affects_fees  = !empty($_POST['affects_fees']);
+        $sets_inactive = !empty($_POST['sets_inactive']);
+        $ok = $label && AVPVH_DB::create_flag($label, $label, $affects_fees, $sets_inactive);
+
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-settings', $ok ? 'flag_created' : 'flag_error' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_delete_flag(): void {
+        check_admin_referer('avpvh_delete_flag');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $flag_id = (int) ($_POST['flag_id'] ?? 0);
+        if ($flag_id) {
+            AVPVH_DB::delete_flag($flag_id);
+        }
+
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-settings', 'flag_deleted' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Sends individually (not one big BCC) so nobody sees the rest of the
+     * recipient list, to every active member with the 'nieuwsbrief' flag —
+     * see AVPVH_DB's "Member flags" section and
+     * AVPVH_Newsletter_Consent for the self-service opt-in checkbox.
+     * No send history/log is kept — this is intentionally a thin, direct
+     * "send it now" tool, not a mailing campaign manager.
+     */
+    public function handle_send_newsletter(): void {
+        check_admin_referer('avpvh_send_newsletter');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $subject = sanitize_text_field(wp_unslash($_POST['subject'] ?? ''));
+        $body    = sanitize_textarea_field(wp_unslash($_POST['body'] ?? ''));
+        if (!$subject || !$body) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-newsletter', 'newsletter_error' => '1'], admin_url('admin.php')));
+            exit;
+        }
+
+        $flags = AVPVH_DB::get_all_flags();
+        $flag_id = 0;
+        foreach ($flags as $flag) {
+            if ($flag->slug === 'nieuwsbrief') {
+                $flag_id = (int) $flag->id;
+                break;
+            }
+        }
+
+        $sent = 0;
+        if ($flag_id) {
+            foreach (AVPVH_DB::get_members(['status' => 'active', 'flag_id' => $flag_id]) as $member) {
+                if ($member->email && wp_mail($member->email, $subject, $body)) {
+                    $sent++;
+                }
+            }
+        }
+
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-newsletter', 'newsletter_sent' => $sent], admin_url('admin.php')));
+        exit;
+    }
+
     public function handle_update_address(): void {
         check_admin_referer('avpvh_update_address');
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
             wp_die('Geen toegang.', 403);
         }
         $id = (int) ($_POST['id'] ?? 0);
@@ -392,7 +571,7 @@ class AVPVH_Admin {
 
     public function handle_delete_address(): void {
         check_admin_referer('avpvh_delete_address');
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
             wp_die('Geen toegang.', 403);
         }
         $id = (int) ($_POST['id'] ?? 0);
@@ -415,7 +594,7 @@ class AVPVH_Admin {
      */
     public function handle_add_member(): void {
         check_admin_referer('avpvh_add_member');
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
             wp_die('Geen toegang.', 403);
         }
 

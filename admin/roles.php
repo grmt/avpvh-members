@@ -79,7 +79,7 @@ $role_label = [
     </table>
 
     <h2>Nieuwe delegatie</h2>
-    <p class="description">Alleen voorzitter en penningmeester kunnen tijdelijk worden gedelegeerd (bijv. tijdens kamp). Laat "Tot" leeg voor onbepaalde tijd.</p>
+    <p class="description">Tijdelijk delegeren (bijv. tijdens kamp, of secretariaat overdragen aan een ander bestuurslid). Laat "Tot" leeg voor onbepaalde tijd.</p>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <?php wp_nonce_field('avpvh_delegate_role'); ?>
         <input type="hidden" name="action" value="avpvh_delegate_role">
@@ -89,6 +89,7 @@ $role_label = [
                 <td>
                     <select name="role" id="role" required>
                         <option value="voorzitter">Voorzitter</option>
+                        <option value="secretaris">Secretaris</option>
                         <option value="penningmeester">Penningmeester</option>
                     </select>
                 </td>

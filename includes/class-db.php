@@ -115,8 +115,8 @@ class AVPVH_DB {
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             attempted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             email VARCHAR(255) NOT NULL DEFAULT '',
-            method ENUM('proxy','google','microsoft','password_reset') NOT NULL,
-            result ENUM('success','no_member','hibp_warned') NOT NULL,
+            method ENUM('proxy','google','microsoft','password_reset','email') NOT NULL,
+            result ENUM('success','no_member','hibp_warned','link_sent') NOT NULL,
             ip VARCHAR(45) NOT NULL DEFAULT '',
             PRIMARY KEY (id),
             KEY attempted_at (attempted_at),
@@ -142,11 +142,44 @@ class AVPVH_DB {
             provider ENUM('email','google','microsoft') NOT NULL DEFAULT 'email',
             email VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
             is_primary TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            verified_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY email (email(191)),
             KEY member_id (member_id)
+        ) $charset;");
+
+        // Member flags — a general-purpose, admin-extendable tag catalog
+        // (ere-lid, archeoloog, belangstellende, nieuwsbrief, donateur, ...
+        // and whatever ad-hoc categories come up later, e.g. "belangrijk
+        // voor opgraving X"). Deliberately not a fixed ENUM on avm_members,
+        // same reasoning as avm_activity_types above. affects_fees is read
+        // by avpvh-bookkeeping's contribution generation — a member with
+        // any affects_fees flag (ere-lid) never gets a contribution fee
+        // item created in the first place. Seeded with the initial 5 flags
+        // in the 2.17 migration below (install() alone can't seed rows
+        // safely on repeat activation).
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_member_flags (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            slug VARCHAR(50) NOT NULL,
+            label VARCHAR(100) NOT NULL,
+            affects_fees TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            sets_inactive TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY slug (slug)
+        ) $charset;");
+
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_member_flag_assignments (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            member_id INT UNSIGNED NOT NULL,
+            flag_id INT UNSIGNED NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY member_flag (member_id, flag_id),
+            KEY flag_id (flag_id)
         ) $charset;");
 
         // Relationships — see the "Relationships" section below for the
@@ -493,6 +526,73 @@ class AVPVH_DB {
             }
             update_option('avpvh_db_version', '2.14');
         }
+
+        if (version_compare($version, '2.15', '<')) {
+            // Distinguishes an identity actually proven by its owner (OAuth
+            // round-trip, or the e-mail-link flow) from one an admin typed
+            // in directly via the "Nieuw e-mailadres koppelen" form with no
+            // proof at all. There's no way to tell which mechanism created
+            // an existing row after the fact, so existing rows are backfilled
+            // as verified — the admin-direct-add path was always the rare
+            // exception, and most rows on the live site came from a real
+            // OAuth login/add. New admin-direct additions from this point on
+            // are the only ones that land unverified (see class-admin.php).
+            if (!$wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_member_identities LIKE 'verified_at'")) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_member_identities
+                    ADD COLUMN verified_at TIMESTAMP NULL DEFAULT NULL AFTER is_primary");
+                $wpdb->query("UPDATE {$wpdb->prefix}avm_member_identities SET verified_at = created_at");
+            }
+            update_option('avpvh_db_version', '2.15');
+        }
+
+        if (version_compare($version, '2.16', '<')) {
+            // The e-mail-link add/login flow (class-email-identity.php) logs
+            // attempts with method='email' and, while a link is outstanding,
+            // result='link_sent' — neither existed in these ENUMs yet, so
+            // every such log_attempt() call was failing silently before this.
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_login_attempts
+                MODIFY method ENUM('proxy','google','microsoft','password_reset','email') NOT NULL,
+                MODIFY result ENUM('success','no_member','hibp_warned','link_sent') NOT NULL");
+            update_option('avpvh_db_version', '2.16');
+        }
+
+        if (version_compare($version, '2.17', '<')) {
+            // install() alone can't seed rows safely on repeat activation —
+            // dbDelta only handles structure — so run it here to create the
+            // two new tables on already-active installs, then seed the
+            // initial flag catalog. 'ere-lid' is the only one with
+            // affects_fees=1 for now; see AVBK_Fee_Generation in
+            // avpvh-bookkeeping for where that's read.
+            self::install();
+            $flags = [
+                ['ere-lid',        'Ere-lid',        1],
+                ['archeoloog',     'Archeoloog',     0],
+                ['belangstellende','Belangstellende',0],
+                ['nieuwsbrief',    'Nieuwsbrief',    0],
+                ['donateur',       'Donateur',       0],
+            ];
+            foreach ($flags as $i => [$slug, $label, $affects_fees]) {
+                $wpdb->query($wpdb->prepare(
+                    "INSERT IGNORE INTO {$wpdb->prefix}avm_member_flags (slug, label, affects_fees, sort_order) VALUES (%s, %s, %d, %d)",
+                    $slug, $label, $affects_fees, $i
+                ));
+            }
+            update_option('avpvh_db_version', '2.17');
+        }
+
+        if (version_compare($version, '2.18', '<')) {
+            // A flag like 'geroyeerd' (expelled) should force the member's
+            // status to 'inactive' the moment it's assigned — see
+            // set_member_flags(). Generalized as a per-flag catalog column
+            // (same shape as affects_fees) rather than hardcoding the
+            // 'geroyeerd' slug in application logic, so any future flag can
+            // opt into the same behavior without a code change.
+            if (!$wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_member_flags LIKE 'sets_inactive'")) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_member_flags
+                    ADD COLUMN sets_inactive TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER affects_fees");
+            }
+            update_option('avpvh_db_version', '2.18');
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -719,6 +819,25 @@ class AVPVH_DB {
         ) ?: [];
     }
 
+    /**
+     * First/most recent *successful* login logged for one specific address
+     * (avm_login_attempts.email — proxy/Google/Microsoft/e-mail-link all
+     * log under the address that was actually used, so this is per
+     * identity, not per member). Null fields mean no successful login was
+     * ever logged for that address — e.g. it was only ever admin-added, or
+     * added but never actually used to log in yet.
+     */
+    public static function get_login_stats_for_email(string $email): object {
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT MIN(attempted_at) AS first_login, MAX(attempted_at) AS last_login
+             FROM {$wpdb->prefix}avm_login_attempts
+             WHERE email = %s AND result = 'success'",
+            $email
+        ));
+        return $row ?: (object) ['first_login' => null, 'last_login' => null];
+    }
+
     // -------------------------------------------------------------------
     // Member lookups — all JOIN with lldap.users for email
     // -------------------------------------------------------------------
@@ -813,13 +932,14 @@ class AVPVH_DB {
         ));
 
         if ($existing) {
-            $wpdb->update(
-                "{$wpdb->prefix}avm_member_identities",
-                ['email' => $email, 'is_primary' => 1],
-                ['id' => (int) $existing->id],
-                ['%s', '%d'],
-                ['%d']
-            );
+            // Authelia/LLDAP proxy auth is a real, trusted login — same as
+            // upgrading unverified → verified in ensure_identity(), never downgrade.
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}avm_member_identities
+                 SET email = %s, is_primary = 1, verified_at = COALESCE(verified_at, %s)
+                 WHERE id = %d",
+                $email, current_time('mysql'), (int) $existing->id
+            ));
             return;
         }
 
@@ -830,8 +950,9 @@ class AVPVH_DB {
                 'provider'    => 'email',
                 'email'       => $email,
                 'is_primary'  => 1,
+                'verified_at' => current_time('mysql'),
             ],
-            ['%d', '%s', '%s', '%d']
+            ['%d', '%s', '%s', '%d', '%s']
         );
     }
 
@@ -843,8 +964,13 @@ class AVPVH_DB {
      * gets its provider/primary flag updated (e.g. a plain "email" entry
      * later confirmed via Google); the email column's global uniqueness
      * constraint prevents it ever being claimed by a different member.
+     *
+     * $verified must only be true when the caller actually proved ownership
+     * (a completed OAuth round-trip, or a clicked e-mail confirmation link)
+     * — never for the admin's direct "Nieuw e-mailadres koppelen" form,
+     * which is why it defaults to false and that call site doesn't pass it.
      */
-    public static function ensure_identity(int $member_id, string $provider, string $email, bool $primary = false): bool {
+    public static function ensure_identity(int $member_id, string $provider, string $email, bool $primary = false, bool $verified = false): bool {
         global $wpdb;
         $provider = sanitize_key($provider);
         $email    = self::normalize_identity_email($email);
@@ -853,7 +979,7 @@ class AVPVH_DB {
         }
 
         $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT id, member_id FROM {$wpdb->prefix}avm_member_identities WHERE email = %s",
+            "SELECT id, member_id, verified_at FROM {$wpdb->prefix}avm_member_identities WHERE email = %s",
             $email
         ));
         if ($existing && (int) $existing->member_id !== $member_id) {
@@ -872,11 +998,18 @@ class AVPVH_DB {
         }
 
         if ($existing) {
+            $data   = ['provider' => $provider, 'is_primary' => $primary ? 1 : 0];
+            $format = ['%s', '%d'];
+            // Upgrade unverified → verified when proof shows up later; never downgrade.
+            if ($verified && !$existing->verified_at) {
+                $data['verified_at'] = current_time('mysql');
+                $format[] = '%s';
+            }
             return (bool) $wpdb->update(
                 "{$wpdb->prefix}avm_member_identities",
-                ['provider' => $provider, 'is_primary' => $primary ? 1 : 0],
+                $data,
                 ['id' => (int) $existing->id],
-                ['%s', '%d'],
+                $format,
                 ['%d']
             );
         }
@@ -884,12 +1017,13 @@ class AVPVH_DB {
         return (bool) $wpdb->insert(
             "{$wpdb->prefix}avm_member_identities",
             [
-                'member_id'  => $member_id,
-                'provider'   => $provider,
-                'email'      => $email,
-                'is_primary' => $primary ? 1 : 0,
+                'member_id'   => $member_id,
+                'provider'    => $provider,
+                'email'       => $email,
+                'is_primary'  => $primary ? 1 : 0,
+                'verified_at' => $verified ? current_time('mysql') : null,
             ],
-            ['%d', '%s', '%s', '%d']
+            ['%d', '%s', '%s', '%d', '%s']
         );
     }
 
@@ -962,25 +1096,48 @@ class AVPVH_DB {
                 $params[] = '%' . $wpdb->esc_like($args[$arg_key]) . '%';
             }
         }
-        if (!empty($args['status'])) {
-            $where .= ' AND m.status = %s';
-            $params[] = $args['status'];
+        // (array) on a plain string (e.g. the many existing get_members(['status'
+        // => 'active']) call sites elsewhere) wraps it to a 1-item array, so this
+        // stays backward compatible with a single value as well as a checkbox list.
+        $statuses = array_values(array_intersect((array) ($args['status'] ?? []), ['active', 'inactive', 'visitor']));
+        if ($statuses) {
+            $placeholders = implode(',', array_fill(0, count($statuses), '%s'));
+            $where .= " AND m.status IN ($placeholders)";
+            array_push($params, ...$statuses);
         }
         if (!empty($args['joined_year'])) {
             $where .= ' AND m.joined_year = %d';
             $params[] = (int) $args['joined_year'];
         }
+        // Any-of match — a member showing up under any one of the checked
+        // flags is enough, same OR semantics as the fee_status checkboxes below.
+        $flag_ids = array_values(array_filter(array_map('intval', (array) ($args['flag_id'] ?? []))));
+        if ($flag_ids) {
+            $placeholders = implode(',', array_fill(0, count($flag_ids), '%d'));
+            $where .= " AND EXISTS (SELECT 1 FROM {$wpdb->prefix}avm_member_flag_assignments fa WHERE fa.member_id = m.id AND fa.flag_id IN ($placeholders))";
+            array_push($params, ...$flag_ids);
+        }
         $fee_year = !empty($args['fee_year']) ? (int) $args['fee_year'] : (int) date('Y');
 
-        if (isset($args['fee_status']) && $args['fee_status'] !== '') {
-            if ($args['fee_status'] === 'none') {
-                $join  .= " LEFT JOIN {$wpdb->prefix}avm_fees f ON f.member_id = m.id AND f.year = $fee_year";
-                $where .= ' AND f.id IS NULL';
-            } else {
-                $join  .= " JOIN {$wpdb->prefix}avm_fees f ON f.member_id = m.id AND f.year = $fee_year";
-                $where .= ' AND f.status = %s';
-                $params[] = $args['fee_status'];
+        // Also any-of — e.g. "pending" + "none" together to find everyone
+        // who doesn't have a paid/waived record yet.
+        $fee_statuses = array_values(array_intersect(
+            (array) ($args['fee_status'] ?? []),
+            ['paid', 'pending', 'waived', 'none']
+        ));
+        if ($fee_statuses) {
+            $join .= " LEFT JOIN {$wpdb->prefix}avm_fees f ON f.member_id = m.id AND f.year = $fee_year";
+            $conditions = [];
+            $specific = array_diff($fee_statuses, ['none']);
+            if (in_array('none', $fee_statuses, true)) {
+                $conditions[] = 'f.id IS NULL';
             }
+            if ($specific) {
+                $placeholders = implode(',', array_fill(0, count($specific), '%s'));
+                $conditions[] = "f.status IN ($placeholders)";
+                array_push($params, ...array_values($specific));
+            }
+            $where .= ' AND (' . implode(' OR ', $conditions) . ')';
         }
 
         $allowed_order = ['last_name', 'suffix_last_name', 'first_name', 'status', 'joined_year', 'fee_status', 'activity_count'];
@@ -1018,6 +1175,43 @@ class AVPVH_DB {
             ['id' => $member_id],
             ['%d'], ['%d']
         );
+    }
+
+    /**
+     * Finds or provisions the WP_User a member logs in as — shared by every
+     * login path (Google/Microsoft OAuth, e-mail-link). WP users here exist
+     * solely so WordPress can maintain a session; members never set a WP
+     * password directly.
+     */
+    public static function get_or_create_wp_user(string $email, object $member): ?\WP_User {
+        if ($member->wp_user_id) {
+            $user = get_user_by('id', (int) $member->wp_user_id);
+            if ($user) {
+                return $user;
+            }
+        }
+
+        $user = get_user_by('email', $email);
+        if (!$user) {
+            $uid = wp_create_user(
+                sanitize_user(strstr($email, '@', true)),
+                wp_generate_password(64),
+                $email
+            );
+            if (is_wp_error($uid)) {
+                return null;
+            }
+            wp_update_user([
+                'ID'           => $uid,
+                'display_name' => avpvh_format_name($member),
+            ]);
+            self::set_wp_user_id((int) $member->id, $uid);
+            $user = get_user_by('id', $uid);
+        } else {
+            self::set_wp_user_id((int) $member->id, $user->ID);
+        }
+
+        return $user ?: null;
     }
 
     // -------------------------------------------------------------------
@@ -1739,6 +1933,137 @@ class AVPVH_DB {
             ['%s', '%s', '%s', '%s', '%s', '%s']
         );
         return (int) $wpdb->insert_id;
+    }
+
+    // -------------------------------------------------------------------
+    // Member flags — extendable tag catalog (ere-lid, archeoloog, ...)
+    // -------------------------------------------------------------------
+
+    public static function get_all_flags(): array {
+        global $wpdb;
+        return $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}avm_member_flags ORDER BY sort_order, label"
+        ) ?: [];
+    }
+
+    public static function get_flags_for_member(int $member_id): array {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT f.* FROM {$wpdb->prefix}avm_member_flags f
+             JOIN {$wpdb->prefix}avm_member_flag_assignments a ON a.flag_id = f.id
+             WHERE a.member_id = %d
+             ORDER BY f.sort_order, f.label",
+            $member_id
+        )) ?: [];
+    }
+
+    public static function member_has_flag(int $member_id, string $slug): bool {
+        global $wpdb;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT 1 FROM {$wpdb->prefix}avm_member_flag_assignments a
+             JOIN {$wpdb->prefix}avm_member_flags f ON f.id = a.flag_id
+             WHERE a.member_id = %d AND f.slug = %s LIMIT 1",
+            $member_id, $slug
+        ));
+    }
+
+    /** True if $member_id has any flag with affects_fees=1 (e.g. ere-lid) — read by avpvh-bookkeeping to skip contribution generation. */
+    public static function member_is_fee_exempt(int $member_id): bool {
+        global $wpdb;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT 1 FROM {$wpdb->prefix}avm_member_flag_assignments a
+             JOIN {$wpdb->prefix}avm_member_flags f ON f.id = a.flag_id
+             WHERE a.member_id = %d AND f.affects_fees = 1 LIMIT 1",
+            $member_id
+        ));
+    }
+
+    /** Replace-all save for a checkbox-group flags form. */
+    public static function set_member_flags(int $member_id, array $flag_ids): void {
+        global $wpdb;
+        $flag_ids = array_values(array_unique(array_map('intval', $flag_ids)));
+
+        $wpdb->delete("{$wpdb->prefix}avm_member_flag_assignments", ['member_id' => $member_id], ['%d']);
+        foreach ($flag_ids as $flag_id) {
+            if ($flag_id > 0) {
+                $wpdb->insert(
+                    "{$wpdb->prefix}avm_member_flag_assignments",
+                    ['member_id' => $member_id, 'flag_id' => $flag_id],
+                    ['%d', '%d']
+                );
+            }
+        }
+
+        // A flag like 'geroyeerd' forces status to 'inactive' the moment
+        // it's assigned (sets_inactive=1 on the flag itself — see the 2.18
+        // migration). Never the reverse: removing such a flag doesn't
+        // restore 'active', since that's a real membership decision an
+        // admin should make deliberately, not a side effect of unchecking
+        // a box.
+        if ($flag_ids) {
+            $placeholders = implode(',', array_fill(0, count($flag_ids), '%d'));
+            $forces_inactive = (bool) $wpdb->get_var($wpdb->prepare(
+                "SELECT 1 FROM {$wpdb->prefix}avm_member_flags WHERE id IN ($placeholders) AND sets_inactive = 1 LIMIT 1",
+                $flag_ids
+            ));
+            if ($forces_inactive) {
+                $member = self::get_member($member_id);
+                if ($member && $member->status !== 'inactive') {
+                    self::update_member_with_audit($member_id, ['status' => 'inactive'], ['%s']);
+                }
+            }
+        }
+    }
+
+    /** Toggles a single flag (by slug) for a member — used by the self-service nieuwsbrief checkbox, which shouldn't touch anyone else's flags. */
+    public static function set_member_flag_by_slug(int $member_id, string $slug, bool $on): void {
+        global $wpdb;
+        $flag_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_member_flags WHERE slug = %s", $slug
+        ));
+        if (!$flag_id) {
+            return;
+        }
+        if ($on) {
+            $wpdb->query($wpdb->prepare(
+                "INSERT IGNORE INTO {$wpdb->prefix}avm_member_flag_assignments (member_id, flag_id) VALUES (%d, %d)",
+                $member_id, $flag_id
+            ));
+        } else {
+            $wpdb->delete(
+                "{$wpdb->prefix}avm_member_flag_assignments",
+                ['member_id' => $member_id, 'flag_id' => $flag_id],
+                ['%d', '%d']
+            );
+        }
+    }
+
+    /** Adds a new flag to the catalog (admin UI, "extendable" per the club's own ad-hoc categories). Returns the new flag id, or 0 on failure (e.g. duplicate slug). */
+    public static function create_flag(string $slug, string $label, bool $affects_fees = false, bool $sets_inactive = false): int {
+        global $wpdb;
+        $slug = sanitize_title($slug);
+        if (!$slug || !$label) {
+            return 0;
+        }
+        $max_sort = (int) $wpdb->get_var("SELECT MAX(sort_order) FROM {$wpdb->prefix}avm_member_flags");
+        $inserted = $wpdb->insert(
+            "{$wpdb->prefix}avm_member_flags",
+            [
+                'slug'          => $slug,
+                'label'         => $label,
+                'affects_fees'  => $affects_fees ? 1 : 0,
+                'sets_inactive' => $sets_inactive ? 1 : 0,
+                'sort_order'    => $max_sort + 1,
+            ],
+            ['%s', '%s', '%d', '%d', '%d']
+        );
+        return $inserted ? (int) $wpdb->insert_id : 0;
+    }
+
+    public static function delete_flag(int $flag_id): void {
+        global $wpdb;
+        $wpdb->delete("{$wpdb->prefix}avm_member_flag_assignments", ['flag_id' => $flag_id], ['%d']);
+        $wpdb->delete("{$wpdb->prefix}avm_member_flags", ['id' => $flag_id], ['%d']);
     }
 }
 
