@@ -168,6 +168,40 @@
 .avpvh-login-options a.avpvh-login-password  { background: #555; }
 .avpvh-login-options a:hover { opacity: .88; color: #fff; }
 
+.avpvh-login-options form.avpvh-login-email {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+.avpvh-login-options form.avpvh-login-email input[type="email"] {
+    flex: 1 1 auto;
+    padding: .55rem .75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.avpvh-login-options form.avpvh-login-email button {
+    padding: .65rem 1rem;
+    border: 0;
+    border-radius: 4px;
+    background: #2a6b2a;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+.avpvh-login-options form.avpvh-login-email button:hover { opacity: .88; }
+.avpvh-login-email-status {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: .85rem;
+    color: #444;
+}
+
+.avpvh-identity-unverified {
+    color: #b32d2e;
+    font-size: .82rem;
+    font-weight: 600;
+}
+
 .avpvh-login-hint {
     font-size: .82rem;
     color: #666;
