@@ -41,18 +41,22 @@
 
 .avpvh-ledenlijst-zoek {
     flex: 1 1 240px;
+    min-height: 44px;
     padding: .5rem .75rem;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 1rem;
+    box-sizing: border-box;
 }
 
 .avpvh-ledenlijst-filter {
+    min-height: 44px;
     padding: .5rem .75rem;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 1rem;
     background: #fff;
+    box-sizing: border-box;
 }
 
 .avpvh-ledenlijst-dropdown {
@@ -237,6 +241,16 @@
     .avpvh-ledenlijst-dropdown-toggle {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    /* .avpvh-ledenlijst-zoek's flex: 1 1 240px (above) sets flex-basis:
+       240px for the desktop row layout, where the main axis is horizontal
+       so that's a minimum width. .avpvh-ledenlijst-controls switches to
+       flex-direction: column here, which flips the main axis to vertical —
+       without resetting flex-basis, that same 240px is inherited as a
+       *height* instead, rendering the search box roughly 240px tall. */
+    .avpvh-ledenlijst-zoek {
+        flex-basis: auto;
     }
 
     .avpvh-ledenlijst-zoek,
