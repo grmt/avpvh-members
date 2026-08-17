@@ -153,6 +153,17 @@ document.addEventListener('DOMContentLoaded', function () {
     // Sticky nav / admin bar can reflow slightly after webfonts/images load.
     window.addEventListener('load', updateStickyOffsets);
 
+    // --- full-bleed breakout width, measured instead of assumed ---
+    // 100vw in CSS doesn't reliably equal the actually-usable width on every
+    // mobile browser (confirmed broken on Pixel Chrome and iPad Safari —
+    // both showed a much bigger left margin than right). clientWidth is the
+    // real visible width free of that discrepancy.
+    function updateViewportWidth() {
+        document.documentElement.style.setProperty('--avpvh-viewport-width', document.documentElement.clientWidth + 'px');
+    }
+    updateViewportWidth();
+    window.addEventListener('resize', updateViewportWidth);
+
     // --- vCard download, built entirely from what's already on screen ---
     document.querySelectorAll('.avpvh-vcard-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
