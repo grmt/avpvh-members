@@ -138,11 +138,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // --- sticky search/filter bar + table header ---
-    // Offset is measured, not hardcoded, because what sits above this page
-    // varies: the theme's own sticky nav always, plus WordPress's own
-    // wp-admin toolbar on top of that for logged-in editors/admins. Reading
-    // the theme header's current bottom edge captures both automatically.
+    // --- sticky search box (mobile portrait only — see the media query in
+    // ledenlijst.css, which also hides the rest of the controls bar there
+    // to leave more room for the list itself). Offset is measured, not
+    // hardcoded, because what sits above this page varies: the theme's own
+    // sticky nav always, plus WordPress's own wp-admin toolbar on top of
+    // that for logged-in editors/admins. Reading the theme header's current
+    // bottom edge captures both automatically.
     function updateStickyOffsets() {
         const header = document.querySelector('header.wp-block-template-part, header');
         const topOffset = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
