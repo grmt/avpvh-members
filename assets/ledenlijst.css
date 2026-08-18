@@ -27,13 +27,6 @@
     align-items: center;
     gap: .5rem;
     margin-bottom: 1rem;
-    /* Stays put while scrolling, right below whatever sits above it (the
-       theme's own sticky nav, plus WordPress's admin toolbar when that's
-       showing) — the offset is measured in JS, not assumed. */
-    position: sticky;
-    top: var(--avpvh-sticky-top, 0px);
-    z-index: 30;
-    background: #fff;
     padding-top: .5rem;
     padding-bottom: .5rem;
 }
@@ -81,9 +74,6 @@
     position: absolute;
     right: 0;
     top: calc(100% + .25rem);
-    /* Must beat the sticky table header's z-index (20) and the sticky
-       controls bar's own (30) — otherwise an open popover renders behind
-       the header it's supposed to float over. */
     z-index: 40;
     display: flex;
     flex-direction: column;
@@ -268,8 +258,30 @@
     }
 }
 
+@media (max-width: 640px) and (orientation: portrait) {
+    /* Plaats/Groep/Kolommen/Exporteren would otherwise permanently eat
+       vertical space on a small portrait screen, where every row of the
+       member list matters more than filter access — only the search box
+       stays. Sticky goes on .avpvh-ledenlijst-controls itself (not the
+       <input>): position:sticky only stays pinned across its OWN parent's
+       box, and .avpvh-ledenlijst-controls' parent (.avpvh-ledenlijst) spans
+       the whole section including the table below, whereas the controls
+       bar's own box — once the other children are display:none — would be
+       barely taller than the search box, unsticking almost immediately. */
+    .avpvh-ledenlijst-dropdown,
+    .avpvh-ledenlijst-export {
+        display: none;
+    }
+
+    .avpvh-ledenlijst-controls {
+        position: sticky;
+        top: var(--avpvh-sticky-top, 0px);
+        z-index: 30;
+        background: #fff;
+    }
+}
+
 .avpvh-ledenlijst-uitleg {
-    max-width: 640px;
     margin-bottom: 1rem;
     font-size: .9rem;
     color: #555;
