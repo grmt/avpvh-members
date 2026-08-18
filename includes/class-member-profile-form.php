@@ -959,9 +959,18 @@ class AVPVH_Member_Profile_Form {
         $requester_user = wp_get_current_user();
         $requester_name = $requester_user->display_name ?: $requester_user->user_login;
         $subject = 'AV Philips van Horne — vraag om e-mailadres te verifiëren';
-        $body = esc_html($requester_name) . " vraagt of je een e-mailadres wilt verifiëren en toevoegen als "
-            . "inlogmethode bij AV Philips van Horne.\n\n"
-            . "Log in en ga naar je profiel om dit zelf te doen:\n" . home_url('/member-profile/') . "\n\n"
+        // Links straight into Authelia's own reset-password flow with the
+        // username field prefilled (see nginx-config: custom/authelia-custom.js
+        // prefillResetUsername() + njs/authelia-nonce.js) — the member only
+        // has to confirm the flow themselves, not first go find where to
+        // start it. Authelia's users_filter matches on username OR mail, so
+        // prefilling with the e-mail address works even though LLDAP's
+        // actual username differs from it.
+        $reset_url = add_query_arg('username', rawurlencode($member->email), AVPVH_Nav_Auth::AUTHELIA_URL . '/reset-password/step1');
+        $body = esc_html($requester_name) . " heeft dit e-mailadres (" . $member->email . ") toegevoegd aan jouw profiel "
+            . "bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n\n"
+            . "Alleen jij kunt dit zelf afronden — " . esc_html($requester_name) . " kan dit niet namens jou doen. "
+            . "Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n" . $reset_url . "\n\n"
             . "Was dit geen terecht verzoek? Dan hoef je niets te doen.";
         wp_mail($member->email, $subject, $body);
         set_transient(self::identity_request_transient_key($member_id), get_current_user_id(), 3 * DAY_IN_SECONDS);
