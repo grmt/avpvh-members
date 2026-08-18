@@ -123,7 +123,6 @@ class AVPVH_Access {
             'loginUrls'      => $login_urls,
             'hasGoogle'      => isset($providers['google']),
             'hasMicrosoft'   => isset($providers['microsoft']),
-            'emailLoginUrl'  => rest_url('avpvh/v1/email-identity/login'),
         ]);
         add_action('wp_footer', function () use ($login_config) {
             echo '<script type="application/json" id="avpvh-login-config">' . $login_config . '</script>';
