@@ -5,14 +5,15 @@ defined('ABSPATH') || exit;
  * Self-service e-mail-link verification: lets a member add a plain e-mail
  * address (no Google/Microsoft account needed, e.g. an ISP address) as a
  * login identity, proven by clicking a one-time confirmation link sent to
- * that address — and, once added, log in the same way. Mirrors
- * AVPVH_OAuth's add/login split, but there's no external IdP here: the
- * token round-trip through the inbox itself *is* the verification.
+ * that address. There used to be a matching "log in via e-mail link" mode
+ * here too, but it was redundant with Authelia's own reset-password/step1
+ * page (which also doubles as a passwordless login for anyone without a
+ * password yet) and has been removed — that page now also prefills the
+ * username from a ?username= param, see nginx-config's authelia-custom.js.
  */
 class AVPVH_Email_Identity {
 
-    const TOKEN_TTL_ADD   = HOUR_IN_SECONDS;
-    const TOKEN_TTL_LOGIN = 15 * MINUTE_IN_SECONDS;
+    const TOKEN_TTL_ADD = HOUR_IN_SECONDS;
 
     public function __construct() {
         add_action('rest_api_init', [$this, 'register_routes']);
@@ -23,11 +24,6 @@ class AVPVH_Email_Identity {
         register_rest_route('avpvh/v1', '/email-identity/confirm', [
             'methods'             => 'GET',
             'callback'            => [$this, 'handle_confirm'],
-            'permission_callback' => '__return_true',
-        ]);
-        register_rest_route('avpvh/v1', '/email-identity/login', [
-            'methods'             => 'POST',
-            'callback'            => [$this, 'handle_start_login'],
             'permission_callback' => '__return_true',
         ]);
     }
@@ -92,39 +88,7 @@ class AVPVH_Email_Identity {
     }
 
     // -------------------------------------------------------------------
-    // Login — from the /avpvh-login/ page's "log in met e-mail" form
-    // -------------------------------------------------------------------
-
-    public function handle_start_login(\WP_REST_Request $request): \WP_REST_Response {
-        // Same generic response either way — this endpoint must not become
-        // an oracle for "is this e-mail a member," and must not let someone
-        // mail-bomb an arbitrary inbox with confirmation links on demand.
-        if (!$this->check_ip_throttle()) {
-            $email = AVPVH_DB::normalize_identity_email(sanitize_email((string) $request->get_param('email')));
-            if (is_email($email)) {
-                $identity = AVPVH_DB::get_member_identity('email', $email);
-                if ($identity) {
-                    $token = $this->store_token(['mode' => 'login', 'email' => $email], self::TOKEN_TTL_LOGIN);
-                    wp_mail(
-                        $email,
-                        'AV Philips van Horne — inloggen',
-                        "Klik op deze link om in te loggen bij AV Philips van Horne:\n\n"
-                            . $this->confirm_url($token) . "\n\n"
-                            . "Deze link is 15 minuten geldig en eenmalig te gebruiken."
-                    );
-                    AVPVH_DB::log_attempt($email, 'email', 'link_sent');
-                } else {
-                    $this->record_ip_failure();
-                    AVPVH_DB::log_attempt($email, 'email', 'no_member');
-                }
-            }
-        }
-
-        return new \WP_REST_Response(['ok' => true], 200);
-    }
-
-    // -------------------------------------------------------------------
-    // Shared confirm endpoint (the clicked link lands here either way)
+    // Confirm endpoint (the clicked link from the add e-mail lands here)
     // -------------------------------------------------------------------
 
     public function handle_confirm(\WP_REST_Request $request): void {
@@ -135,17 +99,11 @@ class AVPVH_Email_Identity {
         }
 
         $payload = $stored ? json_decode((string) $stored, true) : null;
-        if (!is_array($payload) || empty($payload['mode'])) {
+        if (!is_array($payload) || ($payload['mode'] ?? '') !== 'add') {
             wp_die('Deze link is ongeldig of verlopen. Vraag een nieuwe aan.', 'Link verlopen', ['response' => 400]);
         }
 
-        if ($payload['mode'] === 'add') {
-            $this->confirm_add($payload);
-        } elseif ($payload['mode'] === 'login') {
-            $this->confirm_login($payload);
-        } else {
-            wp_die('Ongeldig verzoek.', 'Fout', ['response' => 400]);
-        }
+        $this->confirm_add($payload);
     }
 
     private function confirm_add(array $payload): void {
@@ -175,30 +133,6 @@ class AVPVH_Email_Identity {
         exit;
     }
 
-    private function confirm_login(array $payload): void {
-        $email = (string) ($payload['email'] ?? '');
-
-        $identity = $email ? AVPVH_DB::get_member_identity('email', $email) : null;
-        $member   = $identity ? AVPVH_DB::get_member((int) $identity->member_id) : null;
-        if (!$member) {
-            wp_redirect(home_url('/avpvh-login/?login_error=no_member'));
-            exit;
-        }
-
-        $user = AVPVH_DB::get_or_create_wp_user($email, $member);
-        if (!$user) {
-            wp_die('Kon WordPress-gebruiker niet aanmaken.', 'Fout', ['response' => 500]);
-        }
-
-        AVPVH_DB::log_attempt($email, 'email', 'success');
-        wp_set_current_user($user->ID);
-        wp_set_auth_cookie($user->ID, true);
-        do_action('wp_login', $user->user_login, $user);
-
-        wp_redirect(home_url('/'));
-        exit;
-    }
-
     // -------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------
@@ -220,25 +154,5 @@ class AVPVH_Email_Identity {
 
     private function confirm_url(string $token): string {
         return rest_url('avpvh/v1/email-identity/confirm') . '?token=' . $token;
-    }
-
-    private function get_client_ip(): string {
-        // Trust X-Forwarded-For only from our nginx proxy (runs on the same host).
-        $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
-        if ($forwarded) {
-            return trim(explode(',', $forwarded)[0]);
-        }
-        return $_SERVER['REMOTE_ADDR'] ?? '';
-    }
-
-    private function check_ip_throttle(): bool {
-        $key = 'avpvh_email_identity_fail_' . md5($this->get_client_ip());
-        return (int) get_transient($key) >= 5;
-    }
-
-    private function record_ip_failure(): void {
-        $key   = 'avpvh_email_identity_fail_' . md5($this->get_client_ip());
-        $count = (int) get_transient($key);
-        set_transient($key, $count + 1, 15 * MINUTE_IN_SECONDS);
     }
 }
