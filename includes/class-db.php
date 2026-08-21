@@ -898,6 +898,28 @@ class AVPVH_DB {
         )) ?: null;
     }
 
+    // Provider-agnostic lookup — an identity added by an admin (see
+    // handle_add_identity()) is stored with a placeholder provider ('email')
+    // since the admin has no way to know which one the member will actually
+    // verify with. get_member_identity() alone would then miss it once the
+    // member does verify via Google/Microsoft, wrongly reporting "no_member".
+    public static function get_identity_by_email(string $email): ?object {
+        global $wpdb;
+        $email = self::normalize_identity_email($email);
+        if (!$email) {
+            return null;
+        }
+
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT i.*, m.id AS member_id, m.lldap_user_id, m.wp_user_id
+             FROM {$wpdb->prefix}avm_member_identities i
+             JOIN {$wpdb->prefix}avm_members m ON m.id = i.member_id
+             WHERE LOWER(i.email) = LOWER(%s)
+             LIMIT 1",
+            $email
+        )) ?: null;
+    }
+
     public static function get_member_identities(int $member_id): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
