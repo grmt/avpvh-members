@@ -94,7 +94,9 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <?php elseif ($identity_error === 'limiet') : ?>
         <div class="notice notice-error is-dismissible"><p>Dit lid heeft al het maximale aantal van 3 e-mailadressen.</p></div>
     <?php elseif ($identity_error === 'onvolledig') : ?>
-        <div class="notice notice-error is-dismissible"><p>Vul provider en e-mailadres volledig in.</p></div>
+        <div class="notice notice-error is-dismissible"><p>Vul een e-mailadres in.</p></div>
+    <?php elseif ($identity_error === 'laatste') : ?>
+        <div class="notice notice-error is-dismissible"><p>Dit lid heeft nog maar één geverifieerd inlogadres — voeg eerst een tweede toe voordat je er een verwijdert.</p></div>
     <?php elseif (!empty($_GET['address_updated'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Adres bijgewerkt.</p></div>
     <?php elseif (!empty($_GET['address_deleted'])) : ?>
@@ -184,7 +186,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                         <button type="submit" class="button button-small">Maak primair</button>
                     </form>
                     <?php endif; ?>
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block"
+                        onsubmit="return confirm('Dit e-mailadres verwijderen?');">
                         <?php wp_nonce_field('avpvh_delete_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_delete_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
