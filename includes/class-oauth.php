@@ -146,7 +146,11 @@ class AVPVH_OAuth {
             return;
         }
 
-        $member_identity = AVPVH_DB::get_member_identity($provider, $email);
+        // An admin-added identity is stored under a placeholder provider (see
+        // handle_add_identity()), so an exact provider+email match can miss
+        // it — fall back to matching the email alone before giving up.
+        $member_identity = AVPVH_DB::get_member_identity($provider, $email)
+            ?? AVPVH_DB::get_identity_by_email($email);
         $member = $member_identity
             ? AVPVH_DB::get_member((int) $member_identity->member_id)
             : AVPVH_DB::get_member_by_email($email);
@@ -157,7 +161,11 @@ class AVPVH_OAuth {
             exit;
         }
 
-        if (!$member_identity && !AVPVH_DB::ensure_identity((int) $member->id, $provider, $email, false, true)) {
+        // Also runs when the matched row exists but under the wrong
+        // provider or still unverified — ensure_identity() upgrades it
+        // in place (by email) rather than adding a duplicate.
+        $needs_upgrade = !$member_identity || $member_identity->provider !== $provider || !$member_identity->verified_at;
+        if ($needs_upgrade && !AVPVH_DB::ensure_identity((int) $member->id, $provider, $email, false, true)) {
             error_log("AVPVH_OAuth: failed to link {$provider} identity ({$email}) for member {$member->id} — at 3-identity limit or invalid provider.");
         }
 
