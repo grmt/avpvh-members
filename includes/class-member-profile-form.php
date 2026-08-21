@@ -8,6 +8,7 @@ class AVPVH_Member_Profile_Form {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('wp_ajax_avpvh_save_member_profile', [$this, 'handle_save_profile']);
         add_action('admin_post_avpvh_remove_identity', [$this, 'handle_remove_identity']);
+        add_action('admin_post_avpvh_make_primary_identity', [$this, 'handle_make_primary_identity']);
         add_action('admin_post_avpvh_request_identity', [$this, 'handle_request_identity']);
         add_action('admin_post_avpvh_add_relationship', [$this, 'handle_add_relationship']);
         add_action('admin_post_avpvh_remove_relationship', [$this, 'handle_remove_relationship']);
@@ -383,6 +384,8 @@ class AVPVH_Member_Profile_Form {
                 </p>
             <?php elseif (!empty($_GET['identity_removed'])) : ?>
                 <p class="avpvh-identity-notice">E-mailadres verwijderd.</p>
+            <?php elseif (!empty($_GET['identity_primary'])) : ?>
+                <p class="avpvh-identity-notice">Primair e-mailadres gewijzigd.</p>
             <?php elseif (!empty($_GET['identity_requested'])) : ?>
                 <p class="avpvh-identity-notice">Verzoek verstuurd — <?php echo esc_html($member->first_name); ?> heeft een e-mail gekregen met instructies.</p>
             <?php elseif (!empty($_GET['identity_email_sent'])) : ?>
@@ -403,9 +406,20 @@ class AVPVH_Member_Profile_Form {
                                 <span class="avpvh-identity-unverified" title="Toegevoegd door een beheerder, niet zelf geverifieerd">Niet geverifieerd</span>
                             <?php endif; ?>
                         </td>
+                        <td><?php echo $identity->is_primary ? 'Primair' : ''; ?></td>
                         <td>
+                            <?php if (!$identity->is_primary) : ?>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block"
+                                title="Wordt ook het contactadres van je account, los van waarmee je inlogt.">
+                                <?php wp_nonce_field('avpvh_make_primary_identity'); ?>
+                                <input type="hidden" name="action" value="avpvh_make_primary_identity">
+                                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                                <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
+                                <button type="submit" class="button button-small">Maak primair</button>
+                            </form>
+                            <?php endif; ?>
                             <?php if ($verified_count > 1) : ?>
-                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block"
                                 onsubmit="return confirm('<?php echo $is_current_login
                                     ? esc_js('Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?')
                                     : esc_js('Dit e-mailadres verwijderen?'); ?>');">
@@ -422,7 +436,7 @@ class AVPVH_Member_Profile_Form {
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$identities) : ?>
-                    <tr><td colspan="4"><em>Nog geen e-mailadressen gekoppeld.</em></td></tr>
+                    <tr><td colspan="5"><em>Nog geen e-mailadressen gekoppeld.</em></td></tr>
                 <?php endif; ?>
             </table>
 
@@ -926,6 +940,55 @@ class AVPVH_Member_Profile_Form {
         }
 
         wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_removed' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
+        exit;
+    }
+
+    /**
+     * Designate one of the member's identities as primary — self-service
+     * equivalent of the admin's "Maak primair" button in Ledendetail. Also
+     * pushes that address to the LLDAP account's own contact e-mail
+     * (member-detail.php's "E-mail" field, used for correspondence, separate
+     * from Inlogadressen/login), replacing whatever was there before — e.g.
+     * an old address nobody uses for either purpose anymore.
+     */
+    public function handle_make_primary_identity(): void {
+        check_admin_referer('avpvh_make_primary_identity');
+
+        if (!is_user_logged_in()) {
+            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+        }
+
+        $member_id   = (int) ($_POST['member_id'] ?? 0);
+        $identity_id = (int) ($_POST['identity_id'] ?? 0);
+        $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
+
+        if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
+            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+        }
+
+        $member = AVPVH_DB::get_member($member_id);
+        if (!$member) {
+            wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
+        }
+
+        $target = null;
+        foreach (AVPVH_DB::get_member_identities($member_id) as $identity) {
+            if ((int) $identity->id === $identity_id) {
+                $target = $identity;
+                break;
+            }
+        }
+
+        if ($target) {
+            AVPVH_DB::set_primary_identity($member_id, $identity_id);
+            $result = AVPVH_LLDAP::update_user($member->lldap_user_id, ['email' => $target->email]);
+            if (is_wp_error($result)) {
+                error_log("AVPVH_Member_Profile_Form: failed to sync primary identity ({$target->email}) to LLDAP for member {$member_id}: " . $result->get_error_message());
+            }
+            self::notify_identity_change($member, $own_member, 'als primair adres ingesteld', $target->provider, $target->email);
+        }
+
+        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_primary' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
         exit;
     }
 
