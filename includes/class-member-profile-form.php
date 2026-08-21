@@ -445,23 +445,29 @@ class AVPVH_Member_Profile_Form {
             <?php elseif (count($identities) < 3) :
                 $configured = AVPVH_OAuth::configured_providers();
             ?>
-                <p class="avpvh-identities-add">
+                <div class="avpvh-identities-add">
+                    <p class="avpvh-identities-add-intro">Voeg een e-mailadres toe en verifieer het:</p>
+
                     <?php foreach ($configured as $key => $provider) : ?>
-                        <a class="button" href="<?php echo esc_url(AVPVH_OAuth::add_identity_url($key, (int) $member->id)); ?>">
-                            Verifieer en voeg <?php echo esc_html($provider['label']); ?> toe
-                        </a>
+                        <div class="avpvh-identities-add-option">
+                            <a class="button" href="<?php echo esc_url(AVPVH_OAuth::add_identity_url($key, (int) $member->id)); ?>">
+                                Met <?php echo esc_html($provider['label']); ?>
+                            </a>
+                            <small class="avpvh-field-hint">Handig als je browser al bij <?php echo esc_html($provider['label']); ?> is ingelogd — dan hoef je geen wachtwoord in te typen.</small>
+                        </div>
                     <?php endforeach; ?>
-                </p>
-                <p class="avpvh-identities-add">
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('avpvh_start_email_identity'); ?>
-                        <input type="hidden" name="action" value="avpvh_start_email_identity">
-                        <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
-                        <input type="email" name="email" placeholder="naam@voorbeeld.nl" required>
-                        <button type="submit" class="button">Verifieer en voeg e-mailadres toe</button>
-                    </form>
-                    <small>Voor adressen zonder Google/Microsoft-account — je krijgt een bevestigingslink toegestuurd.</small>
-                </p>
+
+                    <div class="avpvh-identities-add-option">
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                            <?php wp_nonce_field('avpvh_start_email_identity'); ?>
+                            <input type="hidden" name="action" value="avpvh_start_email_identity">
+                            <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                            <input type="email" name="email" placeholder="naam@voorbeeld.nl" required>
+                            <button type="submit" class="button">Met een e-maillink</button>
+                        </form>
+                        <small class="avpvh-field-hint">Voor adressen zonder Google- of Microsoft-account — je krijgt een bevestigingslink toegestuurd om te verifiëren.</small>
+                    </div>
+                </div>
             <?php endif; ?>
         </fieldset>
         <?php
@@ -725,38 +731,40 @@ class AVPVH_Member_Profile_Form {
             <legend>Change History</legend>
             <p style="font-size: 0.9em; color: #666;">All changes to your profile are tracked below:</p>
 
-            <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+            <div class="avpvh-audit-table-wrap">
+            <table class="avpvh-audit-table">
                 <thead>
-                    <tr style="background: #f0f0f0;">
-                        <th style="padding: 0.75rem; border: 1px solid #ddd; text-align: left;">Date</th>
-                        <th style="padding: 0.75rem; border: 1px solid #ddd; text-align: left;">Field</th>
-                        <th style="padding: 0.75rem; border: 1px solid #ddd; text-align: left;">Changed By</th>
-                        <th style="padding: 0.75rem; border: 1px solid #ddd; text-align: left;">Old Value</th>
-                        <th style="padding: 0.75rem; border: 1px solid #ddd; text-align: left;">New Value</th>
+                    <tr>
+                        <th>Date</th>
+                        <th>Field</th>
+                        <th>Changed By</th>
+                        <th>Old Value</th>
+                        <th>New Value</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($audit_log as $entry): ?>
                         <tr>
-                            <td style="padding: 0.75rem; border: 1px solid #ddd;">
-                                <?php echo esc_html(mysql2date('Y-m-d H:i', $entry->changed_at)); ?>
+                            <td class="avpvh-audit-date">
+                                <?php echo esc_html(mysql2date('Y-m-d', $entry->changed_at)); ?><br><?php echo esc_html(mysql2date('H:i', $entry->changed_at)); ?>
                             </td>
-                            <td style="padding: 0.75rem; border: 1px solid #ddd;">
+                            <td>
                                 <code><?php echo esc_html($entry->field_name); ?></code>
                             </td>
-                            <td style="padding: 0.75rem; border: 1px solid #ddd;">
+                            <td>
                                 <?php echo esc_html($entry->user_login ?? 'System'); ?>
                             </td>
-                            <td style="padding: 0.75rem; border: 1px solid #ddd; background: #ffe0e0;">
-                                <code style="font-size: 0.85em;"><?php echo esc_html($entry->old_value ?? '(empty)'); ?></code>
+                            <td class="avpvh-audit-old">
+                                <code><?php echo esc_html($entry->old_value ?? '(empty)'); ?></code>
                             </td>
-                            <td style="padding: 0.75rem; border: 1px solid #ddd; background: #e0ffe0;">
-                                <code style="font-size: 0.85em;"><?php echo esc_html($entry->new_value ?? '(empty)'); ?></code>
+                            <td class="avpvh-audit-new">
+                                <code><?php echo esc_html($entry->new_value ?? '(empty)'); ?></code>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
         </fieldset>
         <?php
     }
