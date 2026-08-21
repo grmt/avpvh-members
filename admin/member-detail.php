@@ -103,6 +103,10 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-success is-dismissible"><p>Adres verwijderd.</p></div>
     <?php elseif (!empty($_GET['flags_saved'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Kenmerken opgeslagen.</p></div>
+    <?php elseif (!empty($_GET['email_updated'])) : ?>
+        <div class="notice notice-success is-dismissible"><p>E-mailadres bijgewerkt.</p></div>
+    <?php elseif (!empty($_GET['email_error'])) : ?>
+        <div class="notice notice-error is-dismissible"><p>Kon e-mailadres niet bijwerken (ongeldig adres, of LLDAP-fout).</p></div>
     <?php endif; ?>
     <?php if ($sync_msg) : ?>
         <div class="notice notice-<?php echo str_contains($sync_msg, 'LLDAP') && !str_contains($sync_msg, 'fout') ? 'success' : 'error'; ?> is-dismissible"><p><?php echo esc_html($sync_msg); ?></p></div>
@@ -132,7 +136,20 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                 <?php endif; ?>
             </td>
         </tr>
-        <tr><th>E-mail</th><td><?php echo esc_html($member->email); ?></td></tr>
+        <tr>
+            <th>E-mail</th>
+            <td>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:.5rem;align-items:center"
+                    onsubmit="return confirm('LLDAP-e-mailadres wijzigen?');">
+                    <?php wp_nonce_field('avpvh_update_email'); ?>
+                    <input type="hidden" name="action" value="avpvh_update_email">
+                    <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                    <input type="email" name="email" value="<?php echo esc_attr($member->email); ?>" class="regular-text">
+                    <button type="submit" class="button button-small">Wijzigen</button>
+                </form>
+                <p class="description">Dit is het contactadres van het LLDAP-account zelf, los van de Inlogadressen hieronder. Leeg laten en opslaan zet het om naar een placeholder-adres (<?php echo esc_html($member->lldap_user_id); ?>@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.</p>
+            </td>
+        </tr>
         <tr><th>Status</th><td><?php echo esc_html($member->status); ?></td></tr>
         <tr><th>Telefoon</th><td><?php echo esc_html($member->phone); ?></td></tr>
         <tr><th>Mobiel</th><td><?php echo esc_html($member->mobile); ?></td></tr>
