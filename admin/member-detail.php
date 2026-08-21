@@ -147,7 +147,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <input type="email" name="email" value="<?php echo esc_attr($member->email); ?>" class="regular-text">
                     <button type="submit" class="button button-small">Wijzigen</button>
                 </form>
-                <p class="description">Dit is het contactadres van het LLDAP-account zelf, los van de Inlogadressen hieronder. Leeg laten en opslaan zet het om naar een placeholder-adres (<?php echo esc_html($member->lldap_user_id); ?>@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.</p>
+                <p class="description">Dit is het contactadres van het LLDAP-account zelf, los van de Inlogadressen hieronder — al wordt het automatisch bijgewerkt naar het adres dat daar als primair wordt ingesteld. Leeg laten en opslaan zet het om naar een placeholder-adres (<?php echo esc_html($member->lldap_user_id); ?>@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.</p>
             </td>
         </tr>
         <tr><th>Status</th><td><?php echo esc_html($member->status); ?></td></tr>
@@ -195,7 +195,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                 <td><?php echo $identity->is_primary ? 'Ja' : 'Nee'; ?></td>
                 <td>
                     <?php if (!$identity->is_primary) : ?>
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin-right:.5rem">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin-right:.5rem"
+                        title="Wordt ook het LLDAP-contactadres hierboven, los van waarmee wordt ingelogd.">
                         <?php wp_nonce_field('avpvh_primary_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_primary_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
