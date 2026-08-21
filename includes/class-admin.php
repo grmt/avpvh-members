@@ -448,6 +448,19 @@ class AVPVH_Admin {
 
         $member_id   = (int) ($_POST['member_id'] ?? 0);
         $identity_id = (int) ($_POST['identity_id'] ?? 0);
+
+        // Same rule as the self-service member-profile page: at least 2
+        // *verified* identities must remain, so nobody — including an admin
+        // editing their own record — can delete their way down to zero
+        // working logins. An admin-added, never-verified extra doesn't
+        // count as a safe fallback to remove down to.
+        $identities     = AVPVH_DB::get_member_identities($member_id);
+        $verified_count = count(array_filter($identities, fn($i) => !empty($i->verified_at)));
+        if ($verified_count <= 1) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_error' => 'laatste'], admin_url('admin.php')));
+            exit;
+        }
+
         AVPVH_DB::delete_identity_by_id($member_id, $identity_id);
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_deleted' => '1'], admin_url('admin.php')));
