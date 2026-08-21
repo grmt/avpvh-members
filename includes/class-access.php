@@ -155,10 +155,6 @@ class AVPVH_Access {
     }
 
     public function auto_login_from_proxy_header(): void {
-        if (is_user_logged_in()) {
-            return;
-        }
-
         // Authelia sends Remote-User = the LLDAP uid (e.g. "jan.jansen"), not an email.
         // nginx passes it via fastcgi_param HTTP_REMOTE_USER → $_SERVER['HTTP_REMOTE_USER'].
         $lldap_uid = sanitize_text_field(wp_unslash($_SERVER['HTTP_REMOTE_USER'] ?? ''));
@@ -169,6 +165,17 @@ class AVPVH_Access {
         $member = AVPVH_DB::get_member_by_lldap_uid($lldap_uid);
         if (!$member) {
             return;
+        }
+
+        if (is_user_logged_in()) {
+            if ((int) get_current_user_id() === (int) $member->wp_user_id) {
+                return;
+            }
+            // Authelia is now vouching for a different identity than the WP
+            // session on file (e.g. logged out and back in as someone else
+            // at the proxy) — a stale WP cookie must not keep overriding
+            // that, so swap the WP session to match.
+            wp_logout();
         }
 
         $email = $member->email;
