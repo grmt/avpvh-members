@@ -204,18 +204,11 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
         <table class="form-table">
             <tr>
-                <th><label for="provider">Provider</label></th>
-                <td>
-                    <select id="provider" name="provider">
-                        <option value="email">E-mail</option>
-                        <option value="google">Google</option>
-                        <option value="microsoft">Microsoft</option>
-                    </select>
-                </td>
-            </tr>
-            <tr>
                 <th><label for="identity_email">E-mail</label></th>
-                <td><input type="email" id="identity_email" name="email" class="regular-text" value=""></td>
+                <td>
+                    <input type="email" id="identity_email" name="email" class="regular-text" value="">
+                    <p class="description">Wordt als niet-geverifieerd toegevoegd — de daadwerkelijke inlogmethode (Google, Microsoft, of e-maillink) wordt vastgesteld zodra het lid er zelf mee inlogt.</p>
+                </td>
             </tr>
         </table>
         <?php submit_button('Koppelen', 'secondary'); ?>

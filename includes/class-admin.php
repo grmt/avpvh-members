@@ -419,7 +419,6 @@ class AVPVH_Admin {
         }
 
         $member_id = (int) ($_POST['member_id'] ?? 0);
-        $provider  = sanitize_key($_POST['provider'] ?? '');
         $email     = sanitize_email(wp_unslash($_POST['email'] ?? ''));
 
         if ($member_id <= 0 || !$email) {
@@ -427,7 +426,12 @@ class AVPVH_Admin {
             exit;
         }
 
-        if (!AVPVH_DB::ensure_identity($member_id, $provider, $email)) {
+        // Stored as a placeholder 'email' provider — an admin has no way to
+        // know which method (Google/Microsoft/e-maillink) the member will
+        // actually verify with. AVPVH_OAuth::handle_callback() and
+        // AVPVH_DB::get_identity_by_email() upgrade this to the real
+        // provider once the member does.
+        if (!AVPVH_DB::ensure_identity($member_id, 'email', $email)) {
             wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_error' => 'limiet'], admin_url('admin.php')));
             exit;
         }
