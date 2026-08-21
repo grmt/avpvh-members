@@ -147,7 +147,7 @@ class AVPVH_Access {
             <?php if (isset($error_messages[$error])): ?>
             <p class="avpvh-login-error"><?php echo esc_html($error_messages[$error]); ?></p>
             <?php endif; ?>
-            <p class="avpvh-login-intro">Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat ook wanneer je het laat valideren door Google of Microsoft. Heb je speciale rechten (bijv. bloggen), dan moet je een extra 2-staps verificatieprocedure doorlopen via &ldquo;Inloggen met wachtwoord&rdquo;.</p>
+            <p class="avpvh-login-intro">Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat ook wanneer je het laat valideren door Google of Microsoft. Als je al bij Google of Microsoft bent ingelogd, kun je zonder wachtwoord inloggen — al moet het e-mailadres waarmee je daar bent ingelogd dan wel bekend zijn bij deze website. Heb je speciale rechten (bijv. bloggen), dan moet je een extra 2-staps verificatieprocedure doorlopen via &ldquo;Inloggen met wachtwoord&rdquo;.</p>
             <div class="avpvh-login-options" id="avpvh-login-options"></div>
         </div>
         <?php
