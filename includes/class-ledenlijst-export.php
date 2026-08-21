@@ -20,9 +20,12 @@ class AVPVH_Ledenlijst_Export {
 
         foreach ($leden as $lid) {
             $groups = $group_map[$lid->lldap_user_id] ?? [];
+            // A placeholder LLDAP address (no real e-mail on file) isn't a
+            // real contact address — never export it, even with consent on.
+            $show_email = $lid->share_email && !str_ends_with(strtolower($lid->email ?? ''), '@avpvh.local');
             $rows[] = [
                 ['v' => avpvh_format_name($lid)],
-                ['v' => $lid->share_email ? $lid->email : ''],
+                ['v' => $show_email ? $lid->email : ''],
                 ['v' => $lid->share_phone ? $lid->mobile : ''],
                 ['v' => $lid->share_phone ? $lid->phone : ''],
                 ['v' => $lid->share_address ? $lid->street : ''],

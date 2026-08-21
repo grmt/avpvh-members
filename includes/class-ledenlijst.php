@@ -138,11 +138,17 @@ class AVPVH_Ledenlijst {
                         $naam = '<a href="' . esc_url(add_query_arg('member_id', $lid->id, home_url('/member-profile/'))) . '">' . $naam . '</a>';
                     }
 
+                    // A placeholder LLDAP address (members with no real
+                    // e-mail, e.g. under-16s — see handle_add_member()) isn't
+                    // a real contact address, so it's never shown here even
+                    // when share_email is on.
+                    $show_email = $lid->share_email && !str_ends_with(strtolower($lid->email ?? ''), '@avpvh.local');
+
                     // vCard download is generated client-side from these data
                     // attributes — only ever the fields already shown here,
                     // so it can never leak more than the visible row does.
                     $vcard_attrs = ' data-vcard-name="' . esc_attr($naam_text) . '"';
-                    if ($lid->share_email) {
+                    if ($show_email) {
                         $vcard_attrs .= ' data-vcard-email="' . esc_attr($lid->email) . '"';
                     }
                     if ($lid->share_phone) {
@@ -163,8 +169,8 @@ class AVPVH_Ledenlijst {
                             <?php echo $naam; ?>
                             <button type="button" class="avpvh-vcard-btn" title="Downloaden als contact (vCard)"<?php echo $vcard_attrs; ?>>📇</button>
                         </td>
-                        <td class="col-email" data-label="E-mail" data-sort-value="<?php echo esc_attr($lid->share_email ? strtolower($lid->email) : ''); ?>">
-                            <?php if ($lid->share_email) : ?>
+                        <td class="col-email" data-label="E-mail" data-sort-value="<?php echo esc_attr($show_email ? strtolower($lid->email) : ''); ?>">
+                            <?php if ($show_email) : ?>
                                 <a href="mailto:<?php echo esc_attr($lid->email); ?>"><?php echo esc_html($lid->email); ?></a>
                             <?php else : ?>
                                 —
