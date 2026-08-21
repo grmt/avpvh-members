@@ -19,6 +19,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
+        add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_delete_address',     [$this, 'handle_delete_address']);
         add_action('admin_post_avpvh_add_member',         [$this, 'handle_add_member']);
         add_action('admin_post_avpvh_save_member_flags',  [$this, 'handle_save_member_flags']);
@@ -583,6 +584,51 @@ class AVPVH_Admin {
             AVPVH_DB::update_address($id, $member_id, $valid_from, $valid_until);
         }
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'address_updated' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    // This edits the LLDAP account's own 'email' attribute directly — the
+    // "E-mail" contact field shown in Ledendetail (class-db.php's
+    // member_select() reads it straight from LLDAP via `u.email`, not from
+    // avm_members). It's unrelated to Inlogadressen (avm_member_identities):
+    // that table only reflects logins that have actually happened, while
+    // this is LLDAP's own contact record, and only this plugin's WP-admin
+    // side had no UI to change or clear it — the field itself always
+    // existed and was editable directly in LLDAP.
+    public function handle_update_email(): void {
+        check_admin_referer('avpvh_update_email');
+        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $member_id = (int) ($_POST['member_id'] ?? 0);
+        $email     = sanitize_email(wp_unslash($_POST['email'] ?? ''));
+        $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
+
+        if (!$member) {
+            wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
+        }
+
+        if ($email !== '' && !is_email($email)) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'email_error' => '1'], admin_url('admin.php')));
+            exit;
+        }
+
+        // Clearing the field means "remove it" — same placeholder convention
+        // handle_add_member() already uses for members with no real e-mail
+        // (e.g. under-16s), rather than relying on LLDAP accepting a blank
+        // 'mail' attribute, which its schema may not allow at all.
+        if ($email === '') {
+            $email = $member->lldap_user_id . '@avpvh.local';
+        }
+
+        $result = AVPVH_LLDAP::update_user($member->lldap_user_id, ['email' => $email]);
+        if (is_wp_error($result)) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'email_error' => '1'], admin_url('admin.php')));
+            exit;
+        }
+
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'email_updated' => '1'], admin_url('admin.php')));
         exit;
     }
 
