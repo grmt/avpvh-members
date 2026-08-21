@@ -478,6 +478,20 @@ class AVPVH_Admin {
         $identity_id = (int) ($_POST['identity_id'] ?? 0);
         AVPVH_DB::set_primary_identity($member_id, $identity_id);
 
+        // The LLDAP contact e-mail (this page's "E-mail" field, used for
+        // correspondence, separate from login) should follow whichever
+        // identity is now primary, replacing whatever was there before.
+        $member = AVPVH_DB::get_member($member_id);
+        foreach (AVPVH_DB::get_member_identities($member_id) as $identity) {
+            if ($member && (int) $identity->id === $identity_id) {
+                $result = AVPVH_LLDAP::update_user($member->lldap_user_id, ['email' => $identity->email]);
+                if (is_wp_error($result)) {
+                    error_log("AVPVH_Admin: failed to sync primary identity ({$identity->email}) to LLDAP for member {$member_id}: " . $result->get_error_message());
+                }
+                break;
+            }
+        }
+
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_primary' => '1'], admin_url('admin.php')));
         exit;
     }
