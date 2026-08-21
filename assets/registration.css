@@ -214,7 +214,20 @@ button.button-primary:active {
 
 .avpvh-identities-add {
     display: flex;
-    gap: .5rem;
+    flex-direction: column;
+    gap: .6rem;
+    margin-top: .5rem;
+}
+
+.avpvh-identities-add-intro {
+    margin: 0;
+    font-weight: 600;
+}
+
+.avpvh-identities-add-option {
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
     flex-wrap: wrap;
 }
 
@@ -349,4 +362,42 @@ button.button-primary:active {
         grid-template-columns: 1fr;
         padding: .85rem 1rem;
     }
+}
+
+.avpvh-audit-table-wrap {
+    overflow-x: auto;
+}
+
+.avpvh-audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: .8rem;
+}
+
+.avpvh-audit-table th,
+.avpvh-audit-table td {
+    padding: .35rem .5rem;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.avpvh-audit-table thead tr {
+    background: #f0f0f0;
+}
+
+.avpvh-audit-table .avpvh-audit-date {
+    white-space: nowrap;
+}
+
+.avpvh-audit-table .avpvh-audit-old {
+    background: #ffe0e0;
+}
+
+.avpvh-audit-table .avpvh-audit-new {
+    background: #e0ffe0;
+}
+
+.avpvh-audit-table code {
+    font-size: .9em;
 }
