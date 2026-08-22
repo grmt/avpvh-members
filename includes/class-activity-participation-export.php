@@ -46,7 +46,7 @@ class AVPVH_Activity_Participation_Export {
             ['v' => 'Dieet', 'bold' => true, 'color' => self::COLOR_HEADER],
         ];
         foreach ($date_range as $date) {
-            $is_weekend = in_array((int) date('N', strtotime($date)), [6, 7], true);
+            $is_weekend = in_array((int) wp_date('N', strtotime($date)), [6, 7], true);
             $header[] = [
                 'v' => date_i18n('D j-n', strtotime($date)),
                 'bold' => true,

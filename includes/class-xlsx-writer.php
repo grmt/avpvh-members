@@ -66,7 +66,7 @@ class AVPVH_Xlsx_Writer {
         $zip->close();
 
         $bytes = file_get_contents($tmp);
-        unlink($tmp);
+        wp_delete_file($tmp);
         return $bytes;
     }
 

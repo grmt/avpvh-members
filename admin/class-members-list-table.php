@@ -20,7 +20,7 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             'plural'   => 'members',
             'ajax'     => false,
         ]);
-        $this->current_year = (int) date('Y');
+        $this->current_year = (int) current_time('Y');
     }
 
     public function get_columns(): array {
@@ -63,10 +63,10 @@ class AVPVH_Members_List_Table extends WP_List_Table {
         $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns(), $this->get_default_primary_column_name()];
 
         $args = [
-            'search'      => sanitize_text_field($_GET['s'] ?? ''),
-            'first_name'  => sanitize_text_field($_GET['f_first_name'] ?? ''),
-            'suffix'      => sanitize_text_field($_GET['f_suffix'] ?? ''),
-            'last_name'   => sanitize_text_field($_GET['f_last_name'] ?? ''),
+            'search'      => sanitize_text_field(wp_unslash($_GET['s'] ?? '')),
+            'first_name'  => sanitize_text_field(wp_unslash($_GET['f_first_name'] ?? '')),
+            'suffix'      => sanitize_text_field(wp_unslash($_GET['f_suffix'] ?? '')),
+            'last_name'   => sanitize_text_field(wp_unslash($_GET['f_last_name'] ?? '')),
             'status'      => array_map('sanitize_key', (array) ($_GET['status'] ?? [])),
             'joined_year' => sanitize_text_field($_GET['joined_year'] ?? ''),
             'fee_status'  => array_map('sanitize_key', (array) ($_GET['fee_status'] ?? [])),

@@ -16,7 +16,7 @@ $joined_year = sanitize_text_field($_GET['joined_year'] ?? '');
 $fee_statuses = array_map('sanitize_key', (array) ($_GET['fee_status'] ?? []));
 $flag_ids     = array_map('intval', (array) ($_GET['flag_id'] ?? []));
 $all_flags    = AVPVH_DB::get_all_flags();
-$current_year = (int) date('Y');
+$current_year = (int) current_time('Y');
 $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $joined_year || $fee_statuses || $flag_ids;
 ?>
 <style>

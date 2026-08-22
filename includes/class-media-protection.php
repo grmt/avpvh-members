@@ -97,12 +97,16 @@ class AVPVH_Media_Protection {
             }
         }
 
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        WP_Filesystem();
+        global $wp_filesystem;
+
         wp_mkdir_p($dest_dir);
         foreach (array_unique($to_move) as $file) {
             $src  = $src_dir  . '/' . $file;
             $dest = $dest_dir . '/' . $file;
             if (file_exists($src) && !file_exists($dest)) {
-                rename($src, $dest);
+                $wp_filesystem->move($src, $dest);
             }
         }
 
@@ -118,7 +122,7 @@ class AVPVH_Media_Protection {
             $wpdb->update(
                 $wpdb->posts,
                 ['guid' => str_replace('/private/', '/public/', $wpdb->get_var(
-                    "SELECT guid FROM {$wpdb->posts} WHERE ID={$att_id}"
+                    "SELECT guid FROM {$wpdb->posts} WHERE ID={$att_id}" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $att_id is (int)-cast at declaration above and never reassigned
                 ))],
                 ['ID' => $att_id]
             );
