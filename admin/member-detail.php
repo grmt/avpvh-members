@@ -112,6 +112,10 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-success is-dismissible"><p>E-mailadres bijgewerkt.</p></div>
     <?php elseif (!empty($_GET['email_error'])) : ?>
         <div class="notice notice-error is-dismissible"><p>Kon e-mailadres niet bijwerken (ongeldig adres, of LLDAP-fout).</p></div>
+    <?php elseif (!empty($_GET['groups_saved'])) : ?>
+        <div class="notice notice-success is-dismissible"><p>Groepen bijgewerkt.</p></div>
+    <?php elseif (!empty($_GET['groups_error'])) : ?>
+        <div class="notice notice-error is-dismissible"><p>Groepen konden niet (volledig) worden bijgewerkt — zie het serverlog.</p></div>
     <?php endif; ?>
     <?php if ($sync_msg) : ?>
         <div class="notice notice-<?php echo str_contains($sync_msg, 'LLDAP') && !str_contains($sync_msg, 'fout') ? 'success' : 'error'; ?> is-dismissible"><p><?php echo esc_html($sync_msg); ?></p></div>
@@ -308,6 +312,37 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+
+    <h2>LLDAP-groepen</h2>
+    <p class="description">Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor "Zoeken in documenten") — los van de kenmerken hierboven, die alleen labels/filters zijn.</p>
+    <?php
+    $all_groups     = AVPVH_LLDAP::list_groups();
+    $current_groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
+    ?>
+    <?php if (is_wp_error($all_groups) || is_wp_error($current_groups)) : ?>
+        <p class="description">Kon groepen niet ophalen uit LLDAP.</p>
+    <?php else :
+        $current_group_ids = array_map('intval', array_column($current_groups, 'id'));
+    ?>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <?php wp_nonce_field('avpvh_save_groups'); ?>
+            <input type="hidden" name="action" value="avpvh_save_groups">
+            <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+            <p>
+                <?php foreach ($all_groups as $group) : ?>
+                    <label style="display:inline-block;margin-right:1.5rem">
+                        <input type="checkbox" name="groups[]" value="<?php echo esc_attr($group['id']); ?>"
+                            <?php checked(in_array((int) $group['id'], $current_group_ids, true)); ?>>
+                        <?php echo esc_html($group['displayName']); ?>
+                    </label>
+                <?php endforeach; ?>
+                <?php if (!$all_groups) : ?>
+                    <em>Geen groepen gevonden in LLDAP.</em>
+                <?php endif; ?>
+            </p>
+            <?php submit_button('Groepen opslaan', 'secondary'); ?>
+        </form>
+    <?php endif; ?>
 
     <?php elseif ($active_tab === 'activities') : ?>
     <h2>Deelname</h2>
