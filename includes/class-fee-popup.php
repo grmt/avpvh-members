@@ -59,7 +59,7 @@ class AVPVH_Fee_Popup {
         }
         $user_id = get_current_user_id();
         $popup_year = (int) get_user_meta($user_id, '_avpvh_show_fee_popup', true);
-        if ($popup_year !== (int) date('Y') || isset($_COOKIE['avpvh_fee_dismissed'])) {
+        if ($popup_year !== (int) current_time('Y') || isset($_COOKIE['avpvh_fee_dismissed'])) {
             return;
         }
         $base = plugin_dir_url(dirname(__FILE__));
