@@ -811,6 +811,20 @@ class AVPVH_Member_Profile_Form {
                     $member_data,
                     $formats
                 );
+
+                // sanitize_member_data() always includes first_name/suffix/
+                // last_name (unconditionally, whether or not they actually
+                // changed), so there's no cheap way to tell if the name
+                // specifically changed — just always re-sync displayName.
+                // It's the only place in the plugin that ever pushes a name
+                // to LLDAP, so without this, a name edit here would silently
+                // drift from LLDAP until someone remembered the manual
+                // "Sync naar LLDAP" button on Ledendetail.
+                $updated_member = (object) array_merge((array) $member, $member_data);
+                $result = AVPVH_LLDAP::update_user($member->lldap_user_id, ['displayName' => avpvh_format_name($updated_member)]);
+                if (is_wp_error($result)) {
+                    error_log("AVPVH_Member_Profile_Form: failed to sync displayName to LLDAP for member {$member->id}: " . $result->get_error_message());
+                }
             }
 
             // Update address if provided
