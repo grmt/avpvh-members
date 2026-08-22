@@ -67,12 +67,12 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             'first_name'  => sanitize_text_field(wp_unslash($_GET['f_first_name'] ?? '')),
             'suffix'      => sanitize_text_field(wp_unslash($_GET['f_suffix'] ?? '')),
             'last_name'   => sanitize_text_field(wp_unslash($_GET['f_last_name'] ?? '')),
-            'status'      => array_map('sanitize_key', (array) ($_GET['status'] ?? [])),
-            'joined_year' => sanitize_text_field($_GET['joined_year'] ?? ''),
-            'fee_status'  => array_map('sanitize_key', (array) ($_GET['fee_status'] ?? [])),
-            'flag_id'     => array_map('intval', (array) ($_GET['flag_id'] ?? [])),
-            'orderby'     => sanitize_key($_GET['orderby'] ?? 'last_name'),
-            'order'       => sanitize_key($_GET['order'] ?? 'asc'),
+            'status'      => array_map('sanitize_key', (array) wp_unslash($_GET['status'] ?? [])),
+            'joined_year' => sanitize_text_field(wp_unslash($_GET['joined_year'] ?? '')),
+            'fee_status'  => array_map('sanitize_key', (array) wp_unslash($_GET['fee_status'] ?? [])),
+            'flag_id'     => array_map('intval', (array) wp_unslash($_GET['flag_id'] ?? [])),
+            'orderby'     => sanitize_key(wp_unslash($_GET['orderby'] ?? 'last_name')),
+            'order'       => sanitize_key(wp_unslash($_GET['order'] ?? 'asc')),
         ];
 
         $this->items = AVPVH_DB::get_members($args);
