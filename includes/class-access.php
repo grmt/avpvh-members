@@ -125,7 +125,12 @@ class AVPVH_Access {
             'hasMicrosoft'   => isset($providers['microsoft']),
         ]);
         add_action('wp_footer', function () use ($login_config) {
-            echo '<script type="application/json" id="avpvh-login-config">' . $login_config . '</script>';
+            // wp_print_inline_script_tag() (WP core, 5.7+) is the standard
+            // way to output raw JSON/JS in a <script> tag — it escapes a
+            // literal "</script>" in the content so it can't prematurely
+            // close the tag, which a plain echo of json_encode() output
+            // doesn't guard against.
+            wp_print_inline_script_tag($login_config, ['type' => 'application/json', 'id' => 'avpvh-login-config']);
         });
 
         // Note: intentionally not named "error" — that collides with a
