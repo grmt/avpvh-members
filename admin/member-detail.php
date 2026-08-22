@@ -1,11 +1,12 @@
 <?php
 defined('ABSPATH') || exit;
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) wp_die('Geen toegang.');
 
-$member_id = (int) ($_GET['id'] ?? 0);
+$member_id = absint(wp_unslash($_GET['id'] ?? 0));
 $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
 if (!$member) {
-    $search  = sanitize_text_field($_GET['s'] ?? '');
+    $search  = sanitize_text_field(wp_unslash($_GET['s'] ?? ''));
     $results = $search ? AVPVH_DB::get_members(['search' => $search]) : [];
     ?>
     <div class="wrap">
@@ -46,13 +47,13 @@ $fees       = AVPVH_DB::get_fees_for_member($member_id);
 $identities = AVPVH_DB::get_member_identities($member_id);
 $all_flags  = AVPVH_DB::get_all_flags();
 $member_flag_ids = wp_list_pluck(AVPVH_DB::get_flags_for_member($member_id), 'id');
-$active_tab = sanitize_key($_GET['tab'] ?? 'contact');
+$active_tab = sanitize_key(wp_unslash($_GET['tab'] ?? 'contact'));
 $updated    = !empty($_GET['updated']);
 $created    = !empty($_GET['created']);
 $identity_ok = !empty($_GET['identity_ok']);
 $identity_deleted = !empty($_GET['identity_deleted']);
 $identity_primary = !empty($_GET['identity_primary']);
-$identity_error = sanitize_key($_GET['identity_error'] ?? '');
+$identity_error = sanitize_key(wp_unslash($_GET['identity_error'] ?? ''));
 
 $tab_url = fn(string $tab): string => add_query_arg(
     ['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $tab],

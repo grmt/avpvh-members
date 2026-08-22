@@ -24,7 +24,7 @@ class AVPVH_Member_Profile_Form {
         }
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-        $requested_id = (int) ($_GET['member_id'] ?? 0);
+        $requested_id = absint(wp_unslash($_GET['member_id'] ?? 0));
         $is_admin_edit = current_user_can('manage_options') && $requested_id > 0;
 
         $is_identity_request_only = false;
@@ -379,7 +379,7 @@ class AVPVH_Member_Profile_Form {
                         'invalid_email' => 'Dat is geen geldig e-mailadres.',
                         'last_identity' => 'Je hebt maar één geverifieerd inlog-e-mailadres — verifieer en voeg eerst een tweede toe voordat je iets verwijdert.',
                     ];
-                    echo esc_html($errors[$_GET['identity_error']] ?? 'Er ging iets mis.');
+                    echo esc_html($errors[sanitize_key(wp_unslash($_GET['identity_error']))] ?? 'Er ging iets mis.');
                     ?>
                 </p>
             <?php elseif (!empty($_GET['identity_removed'])) : ?>
@@ -830,11 +830,11 @@ class AVPVH_Member_Profile_Form {
             // Update address if provided
             if (!empty($_POST['street']) || !empty($_POST['postal_code'])) {
                 $address_data = [
-                    'street' => sanitize_text_field($_POST['street'] ?? ''),
-                    'house_number' => sanitize_text_field($_POST['house_number'] ?? ''),
-                    'postal_code' => sanitize_text_field($_POST['postal_code'] ?? ''),
-                    'city' => sanitize_text_field($_POST['city'] ?? ''),
-                    'country' => sanitize_text_field($_POST['country'] ?? 'Nederland'),
+                    'street' => sanitize_text_field(wp_unslash($_POST['street'] ?? '')),
+                    'house_number' => sanitize_text_field(wp_unslash($_POST['house_number'] ?? '')),
+                    'postal_code' => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
+                    'city' => sanitize_text_field(wp_unslash($_POST['city'] ?? '')),
+                    'country' => sanitize_text_field(wp_unslash($_POST['country'] ?? 'Nederland')),
                     'valid_from' => current_time('Y-m-d'),
                 ];
 
@@ -856,7 +856,7 @@ class AVPVH_Member_Profile_Form {
         $wp_user = wp_get_current_user();
         $own_member = AVPVH_DB::get_member_by_wp_user($wp_user->ID);
 
-        $member_id = (int) ($_POST['member_id'] ?? 0);
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         if ($member_id > 0 && $this->can_edit_member($own_member, $member_id)) {
             return AVPVH_DB::get_member($member_id);
         }
@@ -916,8 +916,8 @@ class AVPVH_Member_Profile_Form {
             wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
         }
 
-        $member_id   = (int) ($_POST['member_id'] ?? 0);
-        $identity_id = (int) ($_POST['identity_id'] ?? 0);
+        $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
 
         if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
@@ -972,8 +972,8 @@ class AVPVH_Member_Profile_Form {
             wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
         }
 
-        $member_id   = (int) ($_POST['member_id'] ?? 0);
-        $identity_id = (int) ($_POST['identity_id'] ?? 0);
+        $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
         $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
 
         if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
@@ -1021,7 +1021,7 @@ class AVPVH_Member_Profile_Form {
             wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
         }
 
-        $member_id  = (int) ($_POST['member_id'] ?? 0);
+        $member_id  = absint(wp_unslash($_POST['member_id'] ?? 0));
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
 
         $has_access = $member_id && (
@@ -1071,17 +1071,17 @@ class AVPVH_Member_Profile_Form {
             wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
         }
 
-        $member_id         = (int) ($_POST['member_id'] ?? 0);
-        $related_member_id = (int) ($_POST['related_member_id'] ?? 0);
-        $label_id           = (int) ($_POST['label_id'] ?? 0);
-        $valid_from         = sanitize_text_field($_POST['valid_from'] ?? '') ?: null;
-        $valid_until        = sanitize_text_field($_POST['valid_until'] ?? '') ?: null;
+        $member_id         = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $related_member_id = absint(wp_unslash($_POST['related_member_id'] ?? 0));
+        $label_id           = absint(wp_unslash($_POST['label_id'] ?? 0));
+        $valid_from         = sanitize_text_field(wp_unslash($_POST['valid_from'] ?? '')) ?: null;
+        $valid_until        = sanitize_text_field(wp_unslash($_POST['valid_until'] ?? '')) ?: null;
 
         // Picking an activity ("een kamp of weekend") is an alternative to
         // typing dates by hand — its real start/end date becomes the
         // relationship's validity period (e.g. temporary voogdij for the
         // activity's duration), overriding whatever was typed manually.
-        $activity_id = (int) ($_POST['activity_id'] ?? 0);
+        $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
         if ($activity_id) {
             $activity = AVPVH_DB::get_activity($activity_id);
             if ($activity) {
@@ -1120,8 +1120,8 @@ class AVPVH_Member_Profile_Form {
             wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
         }
 
-        $member_id        = (int) ($_POST['member_id'] ?? 0);
-        $relationship_id  = (int) ($_POST['relationship_id'] ?? 0);
+        $member_id        = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $relationship_id  = absint(wp_unslash($_POST['relationship_id'] ?? 0));
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
         if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {

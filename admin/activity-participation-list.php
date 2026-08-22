@@ -1,12 +1,13 @@
 <?php
 defined('ABSPATH') || exit;
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!current_user_can('manage_options')) wp_die('Geen toegang.');
 
 require_once AVPVH_PLUGIN_DIR . 'admin/class-activity-participation-list-table.php';
 
 $activities = AVPVH_DB::get_activities();
 $current_activity = AVPVH_DB::get_current_camp_activity();
-$activity_id = (int) ($_GET['activity_id'] ?? ($current_activity->id ?? 0));
+$activity_id = absint(wp_unslash($_GET['activity_id'] ?? ($current_activity->id ?? 0)));
 $activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
 $activity_saved = !empty($_GET['activity_saved']);
 $types_saved = !empty($_GET['types_saved']);

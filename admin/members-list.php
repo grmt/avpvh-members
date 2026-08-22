@@ -1,5 +1,6 @@
 <?php
 defined('ABSPATH') || exit;
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) wp_die('Geen toegang.');
 
 require_once AVPVH_PLUGIN_DIR . 'admin/class-members-list-table.php';
@@ -7,16 +8,16 @@ require_once AVPVH_PLUGIN_DIR . 'admin/class-members-list-table.php';
 $table = new AVPVH_Members_List_Table();
 $table->prepare_items();
 
-$search      = sanitize_text_field($_GET['s'] ?? '');
-$f_first     = sanitize_text_field($_GET['f_first_name'] ?? '');
-$f_suffix    = sanitize_text_field($_GET['f_suffix'] ?? '');
-$f_last      = sanitize_text_field($_GET['f_last_name'] ?? '');
-$statuses    = array_map('sanitize_key', (array) ($_GET['status'] ?? []));
-$joined_year = sanitize_text_field($_GET['joined_year'] ?? '');
-$fee_statuses = array_map('sanitize_key', (array) ($_GET['fee_status'] ?? []));
-$flag_ids     = array_map('intval', (array) ($_GET['flag_id'] ?? []));
+$search      = sanitize_text_field(wp_unslash($_GET['s'] ?? ''));
+$f_first     = sanitize_text_field(wp_unslash($_GET['f_first_name'] ?? ''));
+$f_suffix    = sanitize_text_field(wp_unslash($_GET['f_suffix'] ?? ''));
+$f_last      = sanitize_text_field(wp_unslash($_GET['f_last_name'] ?? ''));
+$statuses    = array_map('sanitize_key', (array) wp_unslash($_GET['status'] ?? []));
+$joined_year = sanitize_text_field(wp_unslash($_GET['joined_year'] ?? ''));
+$fee_statuses = array_map('sanitize_key', (array) wp_unslash($_GET['fee_status'] ?? []));
+$flag_ids     = array_map('intval', (array) wp_unslash($_GET['flag_id'] ?? []));
 $all_flags    = AVPVH_DB::get_all_flags();
-$current_year = (int) date('Y');
+$current_year = (int) current_time('Y');
 $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $joined_year || $fee_statuses || $flag_ids;
 ?>
 <style>

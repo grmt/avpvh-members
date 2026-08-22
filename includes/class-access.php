@@ -42,7 +42,7 @@ class AVPVH_Access {
     public function handle_login_bridge(): void {
         if (is_page('avpvh-login')) {
             if (is_user_logged_in()) {
-                wp_redirect(home_url('/'));
+                wp_safe_redirect(home_url('/'));
                 exit;
             }
             return;
@@ -50,7 +50,7 @@ class AVPVH_Access {
 
         // Redirect non-members away from members-only content
         if ($this->is_members_only_request() && !$this->current_user_is_active_member()) {
-            wp_redirect(home_url('/avpvh-login/'));
+            wp_safe_redirect(home_url('/avpvh-login/'));
             exit;
         }
     }
@@ -137,7 +137,7 @@ class AVPVH_Access {
         // WordPress core reserved public query var and gets silently
         // stripped from $_GET before this filter ever runs.
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $error = sanitize_key($_GET['login_error'] ?? '');
+        $error = sanitize_key(wp_unslash($_GET['login_error'] ?? ''));
 
         $error_messages = [
             'no_member'      => 'Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.',
@@ -220,7 +220,7 @@ class AVPVH_Access {
         AVPVH_DB::log_attempt($email, 'proxy', 'success');
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID);
-        do_action('wp_login', $user->user_login, $user);
+        do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately firing WP core's own wp_login hook (not a custom hook) so other code listening for a normal login still runs on this proxy/OAuth auth bridge
     }
 
     // Forces a logout after 24h of inactivity, independent of the auth
@@ -244,7 +244,7 @@ class AVPVH_Access {
             // branch again right away — an infinite logout redirect loop.
             delete_user_meta($user_id, 'avpvh_last_activity');
             wp_logout();
-            wp_redirect(home_url('/avpvh-login/?login_error=session_expired'));
+            wp_safe_redirect(home_url('/avpvh-login/?login_error=session_expired'));
             exit;
         }
 

@@ -20,7 +20,7 @@ class AVPVH_Directory_Consent {
         }
 
         $member = $own_member;
-        $requested_id = (int) ($_POST['member_id'] ?? 0);
+        $requested_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         if ($requested_id > 0 && $requested_id !== (int) $own_member->id) {
             $manageable = AVPVH_DB::get_manageable_members((int) $own_member->id);
             $member = null;
@@ -35,7 +35,7 @@ class AVPVH_Directory_Consent {
             }
         }
 
-        $decision = sanitize_key($_POST['consent'] ?? '');
+        $decision = sanitize_key(wp_unslash($_POST['consent'] ?? ''));
         if (!in_array($decision, ['granted', 'declined'], true)) {
             wp_die('Ongeldige keuze.', 'Fout', ['response' => 400]);
         }

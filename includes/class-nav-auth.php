@@ -18,6 +18,15 @@ class AVPVH_Nav_Auth {
         add_action('wp_enqueue_scripts', [$this, 'enqueue']);
         add_action('wp_footer',          [$this, 'render_logout_route']);
         add_action('rest_api_init',      [$this, 'register_logout_route']);
+        add_filter('allowed_redirect_hosts', [$this, 'allow_authelia_host']);
+    }
+
+    // Lets wp_safe_redirect() send the user on to Authelia's own logout
+    // endpoint instead of treating it as an unsafe external target —
+    // self::AUTHELIA_URL is a fixed constant, never user input.
+    public function allow_authelia_host(array $hosts): array {
+        $hosts[] = wp_parse_url(self::AUTHELIA_URL, PHP_URL_HOST);
+        return $hosts;
     }
 
     public function enqueue(): void {
@@ -37,7 +46,7 @@ class AVPVH_Nav_Auth {
         wp_enqueue_script(
             'avpvh-nav-auth',
             plugin_dir_url(dirname(__FILE__)) . 'assets/nav-auth.js',
-            [], avpvh_asset_version('assets/nav-auth.js'), true
+            [], avpvh_asset_version('assets/nav-auth.js'), ['strategy' => 'defer', 'in_footer' => true]
         );
 
         add_action('wp_footer', function () use ($is_active, $identity_label, $role_label, $member_role_label, $has_doc_search_access) {
@@ -131,7 +140,7 @@ class AVPVH_Nav_Auth {
 
     public function rest_logout(): void {
         wp_logout();
-        wp_redirect(self::AUTHELIA_URL . '/logout?rd=https://www.avphilipsvanhorne.nl/');
+        wp_safe_redirect(self::AUTHELIA_URL . '/logout?rd=https://www.avphilipsvanhorne.nl/');
         exit;
     }
 }
