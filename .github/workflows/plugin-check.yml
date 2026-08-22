@@ -42,17 +42,27 @@ jobs:
           # rather than in a subdirectory — narrower than excluding the
           # whole file_type check (which also covers hidden/compressed
           # files, VCS dirs, and badly-named files we do still want
-          # flagged). New naming patterns should be added here rather than
-          # falling back to excluding file_type outright.
+          # flagged). exclude-files takes exact filenames only — confirmed
+          # by testing: PLAN*.md-style globs are silently not matched, so
+          # this list needs a new line added whenever a new one of these
+          # docs is created, rather than relying on the naming pattern.
           exclude-files: |
             AGENTS.md
             DEPLOY.md
             TESTING.md
             GEMINI.md
-            PLAN*.md
-            DESIGN*.md
-            WORKFLOW*.md
-            ROLLBACK*.md
+            PLAN.md
+            PLAN-dtap-environments.md
+            PLAN-email-login-followup.md
+            PLAN-email-login.md
+            PLAN-openresty-jwt.md
+            PLAN-plugin-check-cleanup.md
+            PLAN-workspace-addressbook-sync.md
+            PLAN-workspace-group-sync.md
+            PLAN-workspace-sync-implementation.md
+            DESIGN-workspace-sync.md
+            WORKFLOW-version-test-deploy.md
+            ROLLBACK-email-login.md
           # direct_db_queries flags any use of $wpdb without an object-cache
           # wrapper — this plugin's whole DB layer is custom $wpdb queries
           # joining WordPress and LLDAP tables (see class-db.php's
