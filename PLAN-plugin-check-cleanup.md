@@ -81,6 +81,98 @@ be the first live signal from this branch.
       Left open pending a real CI run (see bug above) to confirm this is
       still flagged and get the exact check code before excluding it.
 
+## The real backlog: 352 findings, not ~9
+
+The CI-trigger bug above meant this branch never actually got checked.
+The first real run (after fixing it) found 352 findings, not the ~9
+above. Excluded `plugin_readme`/`trademarks`/`file_type`/
+`plugin_header_fields` as wordpress.org-submission-only noise (see the
+workflow file's own comment) — not applicable to a private plugin —
+leaving ~330 findings about the plugin's own code. Worked through in two
+more commits after the "Next batch" above:
+
+- [x] 3 more `wp_redirect()` → `wp_safe_redirect()` in `class-access.php`
+      (internal targets) that the earlier "11 wp_redirect()" pass missed;
+      1 more in `class-nav-auth.php` suppressed instead — its target is
+      Authelia's own logout endpoint, external, same reasoning as the
+      already-documented `class-oauth.php` exception.
+- [x] `do_action('wp_login', ...)` in `class-access.php`/`class-oauth.php`
+      — suppressed `NonPrefixedHooknameFound`; it's firing WP core's own
+      hook for compatibility, not defining a custom one.
+- [x] ~48 call sites of `(int) ($_POST/$_GET[...] ?? 0)` →
+      `(int) wp_unslash(...)` — PHPCS doesn't credit an int cast as
+      sanitization even though it fully is; this was the single largest
+      chunk of the `MissingUnslash`/`InputNotSanitized` pairs.
+- [x] Remaining `sanitize_text_field()`/`sanitize_key()`/`array_map()`
+      calls on raw `$_GET`/`$_POST` (address fields, activity dates,
+      flag/group id arrays, oauth test params, etc.) wrapped in
+      `wp_unslash()` — across `class-admin.php`, `class-member-profile-
+      form.php`, `admin/members-list.php`, `admin/member-detail.php`,
+      `admin/add-member.php`, `class-access.php`,
+      `class-directory-consent.php`.
+- [x] The day-grid and activity-type-rename array pulls
+      (`(array) ($_POST['day'/'type_name'] ?? [])`) now unslash the whole
+      array once up front instead of double-unslashing each value in the
+      loop.
+- [x] Added `isset()` guards before reading `$_POST['nights']` directly
+      in `class-admin.php` and `class-activity-participation-form.php`
+      (`InputNotValidated`).
+- [x] `class-db.php`: `PluginCheck.Security.DirectDB.
+      UnescapedDBParameter` turned out to be a *different* sniff than
+      `WordPress.DB.PreparedSQL.NotPrepared` — the earlier
+      `member_select()`/`$sql`/`$lldap` suppressions didn't cover it.
+      Added it to all the existing ignore comments/blocks. Also
+      suppressed two `WHERE id IN ($placeholders)` `$wpdb->prepare()`
+      calls PHPCS flagged as "unfinished" — it can't statically verify a
+      dynamically-built run of `%d`s matches `count($other_ids)`/
+      `count($flag_ids)`, but the array-args form of `prepare()` handles
+      it correctly at runtime.
+- [x] `WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound`
+      (107 findings, the single largest category) — this sniff treats
+      every top-level variable in an `include`d admin-page template as a
+      "global" needing the plugin's prefix. Renaming ~50+ template-local
+      variable names (or wrapping each page in a function) for a
+      naming-convention-only finding wasn't worth the risk/churn.
+      Suppressed per-file with a documented `phpcs:disable` in the 8
+      affected admin templates (`activity-participation-list.php`,
+      `activity-participation-detail.php`, `members-list.php`,
+      `newsletter.php`, `add-member.php`, `member-detail.php`,
+      `roles.php`, `login-attempts.php`).
+- [x] `nav-auth.js`'s `wp_enqueue_script()` now passes
+      `['strategy' => 'defer', 'in_footer' => true]` instead of the old
+      positional `true` — fixes `NonBlockingScripts.NoStrategy`. Only
+      script actually flagged (Plugin Check's crawler only observed
+      scripts that load site-wide; the others load conditionally on
+      pages it didn't happen to hit).
+
+Left as-is, documented rather than fixed:
+
+- `WordPress.Security.NonceVerification.Recommended` (55 findings) —
+  spot-checked across `class-member-profile-form.php`,
+  `class-admin.php`'s `admin_post_*` handlers, and several admin
+  templates: every state-changing POST handler already calls
+  `check_admin_referer()`/`check_ajax_referer()` near the top of the
+  function; PHPCS's sniff just can't trace across the private-method or
+  block-scope boundary to see it. The rest are read-only GET display
+  filters (search boxes, tab selection, success/error notices from a
+  post-redirect-GET), which WP core's own admin screens don't nonce
+  either. One instance (`class-access.php`'s `login_error` read) already
+  had an inline `phpcs:ignore` from an earlier session — left the rest
+  undocumented in code to match how the bulk of this category was
+  already handled, rather than adding ~54 more inline comments.
+- 5 `error_log()` calls (`class-member-profile-form.php` ×2,
+  `class-admin.php` ×3) — all logging a non-fatal LLDAP sync failure,
+  same category as the one already documented in `class-oauth.php`: the
+  only failure signal for those paths.
+- `EnqueuedStylesScope`/`EnqueuedScriptsScope` on `avpvh.css`/
+  `nav-auth.js` ("loaded in all contexts") — intentional: both style and
+  drive the site-wide nav bar that appears on every page, so "all
+  contexts" is correct, not a scoping bug.
+- `WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in`
+  in `class-access.php` (excluding member-only pages from sitemaps/
+  search) — a real VIP-scale performance concern that doesn't apply to
+  this small single-club site.
+
 ## Not planned to fix (verified false positives / deliberate)
 
 - One `wp_redirect()` in `class-oauth.php`'s `start()` — must stay

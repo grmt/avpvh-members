@@ -35,7 +35,7 @@ class AVPVH_Directory_Consent {
             }
         }
 
-        $decision = sanitize_key($_POST['consent'] ?? '');
+        $decision = sanitize_key(wp_unslash($_POST['consent'] ?? ''));
         if (!in_array($decision, ['granted', 'declined'], true)) {
             wp_die('Ongeldige keuze.', 'Fout', ['response' => 400]);
         }
