@@ -34,38 +34,52 @@ the first previously-hidden layer, not necessarily the last.
   line immediately before it, not a few lines up through a wrapping
   function call).
 
+## CI trigger bug found while working this batch
+
+`on.push.branches: "*"` in the workflow only matches single-segment
+branch names — `*` doesn't cross `/` in GitHub Actions glob syntax — so
+every push to `fix/plugin-check-remaining-findings` (and any other
+`foo/bar`-style branch) silently never triggered the workflow. All 8
+runs to date were on `main`. This whole "next batch" list below was
+therefore triaged from a stored punch list, not fresh CI output on this
+branch. Fixed by changing it to `"**"`; first real push after that will
+be the first live signal from this branch.
+
 ## Next batch (found via the CI run after the above landed)
 
-- [ ] `admin/members-list.php:19` — `date()`
-- [ ] `admin/class-members-list-table.php:23` — `date()`
-- [ ] `admin/class-members-list-table.php:66-69` — `$_GET['s']`,
-      `$_GET['f_first_name']`, `$_GET['f_suffix']` not unslashed/
-      sanitized before use (admin list-table search/filter fields). The
-      accompanying "Processing form data without nonce verification"
-      warnings are likely not worth acting on — WP core's own list
-      tables don't nonce their search/filter GET params either, since
-      it's a read-only display filter, not a state change.
-- [ ] `includes/class-xlsx-writer.php:69` — `unlink()` →
+- [x] `admin/members-list.php:19` — `date()` → `current_time('Y')`
+- [x] `admin/class-members-list-table.php:23` — `date()` →
+      `current_time('Y')`
+- [x] `admin/class-members-list-table.php:66-69` — wrapped
+      `$_GET['s']`/`f_first_name`/`f_suffix`/`f_last_name` in
+      `wp_unslash()` before `sanitize_text_field()`. The accompanying
+      "Processing form data without nonce verification" warnings left
+      as-is — WP core's own list tables don't nonce their search/filter
+      GET params either, since it's a read-only display filter, not a
+      state change.
+- [x] `includes/class-xlsx-writer.php:69` — `unlink()` →
       `wp_delete_file()`
-- [ ] `includes/class-activity-participation-export.php:49` — `date()`
-- [ ] `includes/class-media-protection.php:105` — `rename()` →
-      `WP_Filesystem::move()`
-- [ ] `includes/class-media-protection.php:121` — unprepared
-      interpolated `{$att_id}` in
-      `"SELECT guid FROM {$wpdb->posts} WHERE ID={$att_id}"` — check
-      whether `$att_id` is cast to int before this point; if not, that's
-      a real fix (cast or `$wpdb->prepare()` with `%d`), not a false
-      positive like the `member_select()` cases.
-- [ ] `includes/class-media-protection.php:20` — "Processing form data
-      without nonce verification" (×2) — check what's actually being
-      read here before deciding real-fix vs. not-applicable.
+- [x] `includes/class-activity-participation-export.php:49` — `date()`
+      → `wp_date()` (formats an arbitrary parsed date, not "now", so
+      `current_time()` wasn't the right swap here)
+- [x] `includes/class-media-protection.php:105` — `rename()` →
+      `$wp_filesystem->move()` (via `WP_Filesystem()`, direct method —
+      no credentials prompt on this host)
+- [x] `includes/class-media-protection.php:121` — confirmed `$att_id`
+      is `(int)`-cast at declaration and never reassigned before this
+      line; suppressed with `phpcs:ignore
+      WordPress.DB.PreparedSQL.InterpolatedNotPrepared`, same pattern as
+      the `member_select()` cases in `class-db.php`.
+- [x] `includes/class-media-protection.php:20` — checked: `absint()` on
+      `$_REQUEST['post_id']`/`['post']` in an `upload_dir` filter
+      callback (read-only directory routing, no state change, value
+      already fully sanitized to an int). Same category as the
+      list-table search fields above — left as-is, not applicable.
 - [ ] `README.md` — Plugin Check wants `readme.txt` headers ("Tested up
       to", "License", "Stable Tag"). Not applicable — this plugin has no
       `readme.txt` and was never meant for wordpress.org distribution.
-      Either add `exclude-checks: readme_*`-style codes to the workflow
-      (mirroring the `direct_db_queries` exclusion, with the same kind
-      of documented reasoning) or just leave it, since these are
-      warnings-not-blocking under `continue-on-error`.
+      Left open pending a real CI run (see bug above) to confirm this is
+      still flagged and get the exact check code before excluding it.
 
 ## Not planned to fix (verified false positives / deliberate)
 
