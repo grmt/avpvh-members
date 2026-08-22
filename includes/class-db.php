@@ -803,8 +803,8 @@ class AVPVH_DB {
         }
 
         global $wpdb;
-        $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
-        $ip = $forwarded ? trim(explode(',', $forwarded)[0]) : ($_SERVER['REMOTE_ADDR'] ?? '');
+        $forwarded = sanitize_text_field(wp_unslash($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+        $ip = $forwarded ? trim(explode(',', $forwarded)[0]) : sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? ''));
         $wpdb->insert(
             "{$wpdb->prefix}avm_login_attempts",
             ['email' => $email, 'method' => $method, 'result' => $result, 'ip' => $ip],
@@ -814,9 +814,9 @@ class AVPVH_DB {
 
     public static function get_login_attempts(int $limit = 200): array {
         global $wpdb;
-        return $wpdb->get_results(
-            "SELECT * FROM {$wpdb->prefix}avm_login_attempts ORDER BY attempted_at DESC LIMIT $limit"
-        ) ?: [];
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_login_attempts ORDER BY attempted_at DESC LIMIT %d", $limit
+        )) ?: [];
     }
 
     /**
@@ -859,6 +859,7 @@ class AVPVH_DB {
 
     public static function get_member_by_lldap_uid(string $uid): ?object {
         global $wpdb;
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
             self::member_select() . " WHERE u.user_id = %s LIMIT 1",
             $uid
@@ -868,6 +869,7 @@ class AVPVH_DB {
     public static function get_member_by_email(string $email): ?object {
         global $wpdb;
         $lldap = self::lldap();
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
             self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1",
             $email
@@ -1083,6 +1085,7 @@ class AVPVH_DB {
 
     public static function get_member_by_wp_user(int $user_id): ?object {
         global $wpdb;
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
             self::member_select() . " WHERE m.wp_user_id = %d LIMIT 1",
             $user_id
@@ -1091,6 +1094,7 @@ class AVPVH_DB {
 
     public static function get_member(int $id): ?object {
         global $wpdb;
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
             self::member_select() . " WHERE m.id = %d",
             $id
@@ -1182,6 +1186,7 @@ class AVPVH_DB {
             default       => "m.last_name ASC, m.first_name ASC",
         };
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where/$join are built above from hardcoded column names and %s/%d placeholders (real values go through $params -> prepare() below); $order_sql is one of a fixed set of literal strings from the match() above, gated by the $allowed_order whitelist a few lines up
         $sql = self::member_select() . $join . " WHERE $where ORDER BY $order_sql";
         if ($params) {
             $sql = $wpdb->prepare($sql, $params);
@@ -1244,6 +1249,7 @@ class AVPVH_DB {
         global $wpdb;
         $lldap = self::lldap();
         $today = current_time('Y-m-d');
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $lldap/$wpdb->prefix are fixed, hardcoded identifiers (AVPVH_LLDAP_DB constant / WP's own table prefix), never user input; the two %s values are properly prepared
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT u.email,
                     m.id, m.lldap_user_id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
@@ -1672,6 +1678,7 @@ class AVPVH_DB {
             "SELECT inverse_id FROM {$wpdb->prefix}avm_relationship_labels WHERE id = %d", $label_id
         ));
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- built up via %d/%s placeholders with matching $params below; structural fragments (the OR clause, IS NULL vs = %s) are chosen from fixed literal strings, not user input
         $sql = "SELECT COUNT(*) FROM {$wpdb->prefix}avm_relationships
                 WHERE ((member_id = %d AND related_member_id = %d AND label_id = %d)";
         $params = [$member_id, $related_member_id, $label_id];
@@ -1799,6 +1806,7 @@ class AVPVH_DB {
      */
     public static function get_manageable_members(int $member_id): array {
         global $wpdb;
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fully static query, no dynamic values at all
         $active = $wpdb->get_results(
             self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name"
         ) ?: [];
