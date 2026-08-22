@@ -13,7 +13,17 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v7
 
+      # Report-only for now — this plugin predates Plugin Check and has a
+      # real backlog (down from 678 warnings/several dozen errors on
+      # 2026-08-22, being worked through). continue-on-error lets the step
+      # run the real check and keep reporting every finding as a normal
+      # annotation, just without failing the job over a backlog that's
+      # still being triaged — unlike ignore-warnings/ignore-errors, which
+      # get passed straight to the underlying `wp plugin check` CLI and
+      # stop it from evaluating warnings/errors at all (tried that first;
+      # it silently suppressed all reporting, not just the pass/fail call).
       - name: "Run plugin check"
+        continue-on-error: true
         uses: wordpress/plugin-check-action@v1
         with:
           exclude-directories: |
@@ -23,12 +33,3 @@ jobs:
             .codex
             .claude
             bin
-          # Report-only for now — this plugin predates Plugin Check and
-          # has a real backlog (678 warnings, several dozen errors as of
-          # 2026-08-22, some of which are readme.txt/.org-submission
-          # fields that don't even apply to a private, non-.org plugin).
-          # Findings still show in the run log and the uploaded
-          # plugin-check-results artifact; this just stops CI going red
-          # over a pre-existing backlog nobody's triaged yet.
-          ignore-warnings: true
-          ignore-errors: true
