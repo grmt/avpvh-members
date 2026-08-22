@@ -20,7 +20,7 @@ class AVPVH_Newsletter_Consent {
         }
 
         $member = $own_member;
-        $requested_id = (int) ($_POST['member_id'] ?? 0);
+        $requested_id = (int) wp_unslash($_POST['member_id'] ?? 0);
         if ($requested_id > 0 && $requested_id !== (int) $own_member->id) {
             $manageable = AVPVH_DB::get_manageable_members((int) $own_member->id);
             $member = null;

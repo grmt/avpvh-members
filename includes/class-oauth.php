@@ -186,7 +186,7 @@ class AVPVH_OAuth {
         AVPVH_DB::log_attempt($email, $provider, 'success');
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID, true);
-        do_action('wp_login', $user->user_login, $user);
+        do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately firing WP core's own wp_login hook (not a custom hook) so other code listening for a normal login still runs on this OAuth bridge
 
         wp_safe_redirect(home_url('/'));
         exit;

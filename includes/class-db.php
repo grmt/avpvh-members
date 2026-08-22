@@ -860,7 +860,7 @@ class AVPVH_DB {
     public static function get_member_by_lldap_uid(string $uid): ?object {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE u.user_id = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
+            self::member_select() . " WHERE u.user_id = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
             $uid
         )) ?: null;
     }
@@ -869,7 +869,7 @@ class AVPVH_DB {
         global $wpdb;
         $lldap = self::lldap();
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
+            self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
             $email
         )) ?: null;
     }
@@ -1084,7 +1084,7 @@ class AVPVH_DB {
     public static function get_member_by_wp_user(int $user_id): ?object {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE m.wp_user_id = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
+            self::member_select() . " WHERE m.wp_user_id = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
             $user_id
         )) ?: null;
     }
@@ -1092,7 +1092,7 @@ class AVPVH_DB {
     public static function get_member(int $id): ?object {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE m.id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
+            self::member_select() . " WHERE m.id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
             $id
         )) ?: null;
     }
@@ -1188,13 +1188,13 @@ class AVPVH_DB {
         // above, gated by the $allowed_order whitelist a few lines up. Block
         // form since this sniff flags the assignment and the final
         // get_results() call separately.
-        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $sql = self::member_select() . $join . " WHERE $where ORDER BY $order_sql";
         if ($params) {
             $sql = $wpdb->prepare($sql, $params);
         }
         return $wpdb->get_results($sql) ?: [];
-        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
     public static function set_wp_user_id(int $member_id, int $wp_user_id): void {
@@ -1257,7 +1257,7 @@ class AVPVH_DB {
         // are properly prepared — phpcs:disable, block form since the flagged
         // interpolation is deep inside a multi-line string literal, too far from
         // any single line an inline phpcs:ignore comment could attach to.
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT u.email,
                     m.id, m.lldap_user_id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
@@ -1277,7 +1277,7 @@ class AVPVH_DB {
              ORDER BY m.last_name, m.first_name",
             $today, $today
         )) ?: [];
-        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         $leden = [];
         foreach ($rows as $lid) {
@@ -1650,6 +1650,7 @@ class AVPVH_DB {
         $other_ids = array_unique(array_map(fn($r) => (int) $r->other_id, $rows));
         $placeholders = implode(',', array_fill(0, count($other_ids), '%d'));
         $members = $wpdb->get_results($wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $placeholders is a %d run built to match count($other_ids); PHPCS can't verify the count statically but prepare() gets exactly one %d per array element
             "SELECT id, first_name, suffix, last_name FROM {$wpdb->prefix}avm_members WHERE id IN ($placeholders)",
             $other_ids
         ));
@@ -1691,7 +1692,7 @@ class AVPVH_DB {
         // structural fragments (the OR clause, IS NULL vs = %s) are chosen from
         // fixed literal strings, never user input. Block form since this sniff
         // flags both the assignment and the final prepare() call separately.
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $sql = "SELECT COUNT(*) FROM {$wpdb->prefix}avm_relationships
                 WHERE ((member_id = %d AND related_member_id = %d AND label_id = %d)";
         $params = [$member_id, $related_member_id, $label_id];
@@ -1709,7 +1710,7 @@ class AVPVH_DB {
         }
 
         return (int) $wpdb->get_var($wpdb->prepare($sql, $params)) > 0;
-        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
     /** Returns false both on a genuine insert failure and when this relationship (or its mirror) already exists — see relationship_exists(). */
@@ -1821,7 +1822,7 @@ class AVPVH_DB {
     public static function get_manageable_members(int $member_id): array {
         global $wpdb;
         $active = $wpdb->get_results(
-            self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fully static query, no dynamic values at all
+            self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- fully static query, no dynamic values at all
         ) ?: [];
 
         $manageable = [];
@@ -2046,6 +2047,7 @@ class AVPVH_DB {
         if ($flag_ids) {
             $placeholders = implode(',', array_fill(0, count($flag_ids), '%d'));
             $forces_inactive = (bool) $wpdb->get_var($wpdb->prepare(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $placeholders is a %d run built to match count($flag_ids); PHPCS can't verify the count statically but prepare() gets exactly one %d per array element
                 "SELECT 1 FROM {$wpdb->prefix}avm_member_flags WHERE id IN ($placeholders) AND sets_inactive = 1 LIMIT 1",
                 $flag_ids
             ));

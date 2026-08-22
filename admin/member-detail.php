@@ -2,7 +2,7 @@
 defined('ABSPATH') || exit;
 if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) wp_die('Geen toegang.');
 
-$member_id = (int) ($_GET['id'] ?? 0);
+$member_id = (int) wp_unslash($_GET['id'] ?? 0);
 $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
 if (!$member) {
     $search  = sanitize_text_field($_GET['s'] ?? '');
