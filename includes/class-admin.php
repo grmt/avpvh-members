@@ -20,6 +20,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
+        add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
         add_action('admin_post_avpvh_delete_address',     [$this, 'handle_delete_address']);
         add_action('admin_post_avpvh_add_member',         [$this, 'handle_add_member']);
         add_action('admin_post_avpvh_save_member_flags',  [$this, 'handle_save_member_flags']);
@@ -643,6 +644,59 @@ class AVPVH_Admin {
         }
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'email_updated' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    // manage_options only, not secretaris — unlike identities/address/flags,
+    // LLDAP groups can grant real elevated access (secretaris, bestuur, the
+    // boek-group), so letting a secretaris hand those out themselves would
+    // be a privilege-escalation path. Was previously only possible via
+    // scripts/manage-lldap-group.sh run on the server by hand.
+    public function handle_save_groups(): void {
+        check_admin_referer('avpvh_save_groups');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $member_id = (int) ($_POST['member_id'] ?? 0);
+        $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
+        if (!$member) {
+            wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
+        }
+
+        $current_groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
+        if (is_wp_error($current_groups)) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'groups_error' => '1'], admin_url('admin.php')));
+            exit;
+        }
+
+        $selected_ids = array_map('intval', (array) ($_POST['groups'] ?? []));
+        $current_ids  = array_map('intval', array_column($current_groups, 'id'));
+
+        $had_error = false;
+        foreach (array_diff($selected_ids, $current_ids) as $group_id) {
+            $result = AVPVH_LLDAP::add_to_group($member->lldap_user_id, $group_id);
+            if (is_wp_error($result)) {
+                $had_error = true;
+                error_log("AVPVH_Admin: failed to add member {$member_id} to LLDAP group {$group_id}: " . $result->get_error_message());
+            }
+        }
+        foreach (array_diff($current_ids, $selected_ids) as $group_id) {
+            $result = AVPVH_LLDAP::remove_from_group($member->lldap_user_id, $group_id);
+            if (is_wp_error($result)) {
+                $had_error = true;
+                error_log("AVPVH_Admin: failed to remove member {$member_id} from LLDAP group {$group_id}: " . $result->get_error_message());
+            }
+        }
+
+        // Same caches scripts/manage-lldap-group.sh's clear-cache clears —
+        // otherwise role checks, the ledenlijst, and the member's own
+        // "Groepen:" display wouldn't reflect this for up to 15 minutes.
+        delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
+        delete_transient('avpvh_all_group_memberships');
+
+        $notice_key = $had_error ? 'groups_error' : 'groups_saved';
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', $notice_key => '1'], admin_url('admin.php')));
         exit;
     }
 
