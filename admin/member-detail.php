@@ -59,11 +59,16 @@ $tab_url = fn(string $tab): string => add_query_arg(
     admin_url('admin.php')
 );
 
-// Sync-to-LLDAP action
+// Sync-to-LLDAP action — displayName only. 'email' isn't included: $member->email
+// is always read straight from LLDAP itself (member_select()'s u.email), so
+// sending it back would be a no-op; real changes go through the "E-mail"
+// field's own "Wijzigen" button above, or "Maak primair" on an Inlogadres.
+// Saving a name change on the profile page now syncs displayName
+// automatically (see handle_save_profile()) — this button mainly exists to
+// catch up any record that drifted before that existed, or as a manual fallback.
 $sync_msg = null;
 if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $member_id)) {
     $result = AVPVH_LLDAP::update_user($member->lldap_user_id, [
-        'email'       => $member->email,
         'displayName' => avpvh_format_name($member),
     ]);
     $sync_msg = is_wp_error($result) ? $result->get_error_message() : 'Gesynchroniseerd met LLDAP.';
@@ -77,7 +82,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
        class="button button-small">Bewerk profiel</a>
     &nbsp;|&nbsp;
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
-       class="button button-small">Sync naar LLDAP</a>
+       class="button button-small" title="Meestal niet nodig — een naamwijziging op het profiel synchroniseert al automatisch. Vooral bedoeld om een record bij te werken dat van vóór die automatische sync dateert.">Sync naar LLDAP</a>
 
     <?php if ($updated) : ?>
         <div class="notice notice-success is-dismissible"><p>Bijgewerkt.</p></div>
