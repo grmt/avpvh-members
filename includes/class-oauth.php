@@ -22,6 +22,18 @@ class AVPVH_OAuth {
 
     public function __construct() {
         add_action('rest_api_init', [$this, 'register_routes']);
+        add_filter('allowed_redirect_hosts', [$this, 'allow_provider_hosts']);
+    }
+
+    // Lets wp_safe_redirect() send the user on to Google/Microsoft's own
+    // OAuth authorize endpoint instead of treating it as an unsafe external
+    // target — the hosts come from self::PROVIDERS, a fixed constant, never
+    // user input.
+    public function allow_provider_hosts(array $hosts): array {
+        foreach (self::PROVIDERS as $config) {
+            $hosts[] = wp_parse_url($config['auth_url'], PHP_URL_HOST);
+        }
+        return $hosts;
     }
 
     public function register_routes(): void {
@@ -78,12 +90,7 @@ class AVPVH_OAuth {
             'state'         => $state,
         ];
 
-        // Deliberately wp_redirect(), not wp_safe_redirect(): the target is
-        // Google/Microsoft's own OAuth authorize endpoint, a fixed constant
-        // per provider (self::PROVIDERS), never user input — safe_redirect
-        // would just block it as an external host with no security benefit.
-        // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
-        wp_redirect($config['auth_url'] . '?' . http_build_query($params));
+        wp_safe_redirect($config['auth_url'] . '?' . http_build_query($params));
         exit;
     }
 
