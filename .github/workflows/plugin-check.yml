@@ -2,7 +2,10 @@ name: "Plugin Check"
 
 on:
   push:
-    branches: "*"
+    # "*" only matches single-segment branch names (no "/"), so
+    # "fix/..."-style branches never triggered this — "**" is needed to
+    # actually cover them.
+    branches: "**"
   pull_request:
 
 jobs:
