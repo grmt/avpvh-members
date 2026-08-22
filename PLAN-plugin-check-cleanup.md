@@ -176,6 +176,40 @@ already safe, and there's no direct wrap-with-a-recognized-function fix
 available without moving the escaping earlier in a way that would
 double-decode or double-sanitize.
 
+## License header + narrowed exclusions (2026-08-22)
+
+A review of every suppression from this cleanup surfaced two that were
+broader than necessary:
+
+- **`plugin_header_fields`** was fully excluded over 2 findings:
+  `plugin_header_invalid_plugin_version` (this project's own
+  `1.0.N+<hash>` convention) and `plugin_header_no_license` (the plugin
+  had no `License:` header at all — an actual gap, not a false
+  positive). Added `License: GPL-2.0-or-later` +
+  `License URI` to `avpvh-members.php`'s header — the standard
+  WordPress-ecosystem default, since a plugin built against WP core
+  APIs is a derivative work regardless of distribution channel. With
+  that fixed, `plugin_header_fields` no longer needs excluding at all;
+  the one remaining `plugin_header_invalid_plugin_version` warning is
+  expected and non-blocking (`continue-on-error`).
+- **`file_type`** was fully excluded over the "unexpected markdown
+  file" and ".github directory" findings, but the check also covers
+  hidden/compressed files, VCS dirs, and badly-named files — things
+  still worth catching. Narrowed to `exclude-files` (this repo's 16
+  planning docs, by exact filename) and moved `.github` into
+  `exclude-directories`, instead of disabling the whole check.
+  **`exclude-files` only matches exact filenames, not globs** — tried
+  `PLAN*.md`-style patterns first and confirmed via a live CI run that
+  they're silently ignored. Every new `PLAN-*.md`/`DESIGN-*.md`/
+  `WORKFLOW-*.md`/`ROLLBACK-*.md` doc needs its own line added to
+  `exclude-files` in the workflow, or it'll show up as an
+  "unexpected markdown file" warning until it does.
+
+Real backlog is now 69 findings (was 68 — the `plugin_header_fields`
+exclusion removal added back its one expected warning), same shape as
+before: everything remaining is already triaged as false-positive/
+deliberate/acceptable above.
+
 Left as-is, documented rather than fixed:
 
 - `WordPress.Security.NonceVerification.Recommended` (55 findings) —
