@@ -859,9 +859,8 @@ class AVPVH_DB {
 
     public static function get_member_by_lldap_uid(string $uid): ?object {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE u.user_id = %s LIMIT 1",
+            self::member_select() . " WHERE u.user_id = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
             $uid
         )) ?: null;
     }
@@ -869,9 +868,8 @@ class AVPVH_DB {
     public static function get_member_by_email(string $email): ?object {
         global $wpdb;
         $lldap = self::lldap();
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1",
+            self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
             $email
         )) ?: null;
     }
@@ -1085,18 +1083,16 @@ class AVPVH_DB {
 
     public static function get_member_by_wp_user(int $user_id): ?object {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE m.wp_user_id = %d LIMIT 1",
+            self::member_select() . " WHERE m.wp_user_id = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
             $user_id
         )) ?: null;
     }
 
     public static function get_member(int $id): ?object {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE m.id = %d",
+            self::member_select() . " WHERE m.id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
             $id
         )) ?: null;
     }
@@ -1143,7 +1139,7 @@ class AVPVH_DB {
             $where .= " AND EXISTS (SELECT 1 FROM {$wpdb->prefix}avm_member_flag_assignments fa WHERE fa.member_id = m.id AND fa.flag_id IN ($placeholders))";
             array_push($params, ...$flag_ids);
         }
-        $fee_year = !empty($args['fee_year']) ? (int) $args['fee_year'] : (int) date('Y');
+        $fee_year = !empty($args['fee_year']) ? (int) $args['fee_year'] : (int) current_time('Y');
 
         // Also any-of — e.g. "pending" + "none" together to find everyone
         // who doesn't have a paid/waived record yet.
@@ -1186,12 +1182,19 @@ class AVPVH_DB {
             default       => "m.last_name ASC, m.first_name ASC",
         };
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where/$join are built above from hardcoded column names and %s/%d placeholders (real values go through $params -> prepare() below); $order_sql is one of a fixed set of literal strings from the match() above, gated by the $allowed_order whitelist a few lines up
+        // $where/$join above are built from hardcoded column names and %s/%d
+        // placeholders (real values go through $params -> prepare() below);
+        // $order_sql is one of a fixed set of literal strings from the match()
+        // above, gated by the $allowed_order whitelist a few lines up. Block
+        // form since this sniff flags the assignment and the final
+        // get_results() call separately.
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $sql = self::member_select() . $join . " WHERE $where ORDER BY $order_sql";
         if ($params) {
             $sql = $wpdb->prepare($sql, $params);
         }
         return $wpdb->get_results($sql) ?: [];
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     }
 
     public static function set_wp_user_id(int $member_id, int $wp_user_id): void {
@@ -1249,7 +1252,12 @@ class AVPVH_DB {
         global $wpdb;
         $lldap = self::lldap();
         $today = current_time('Y-m-d');
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $lldap/$wpdb->prefix are fixed, hardcoded identifiers (AVPVH_LLDAP_DB constant / WP's own table prefix), never user input; the two %s values are properly prepared
+        // $lldap/$wpdb->prefix below are fixed, hardcoded identifiers (AVPVH_LLDAP_DB
+        // constant / WP's own table prefix), never user input; the two %s values
+        // are properly prepared — phpcs:disable, block form since the flagged
+        // interpolation is deep inside a multi-line string literal, too far from
+        // any single line an inline phpcs:ignore comment could attach to.
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT u.email,
                     m.id, m.lldap_user_id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
@@ -1269,6 +1277,7 @@ class AVPVH_DB {
              ORDER BY m.last_name, m.first_name",
             $today, $today
         )) ?: [];
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
         $leden = [];
         foreach ($rows as $lid) {
@@ -1678,7 +1687,11 @@ class AVPVH_DB {
             "SELECT inverse_id FROM {$wpdb->prefix}avm_relationship_labels WHERE id = %d", $label_id
         ));
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- built up via %d/%s placeholders with matching $params below; structural fragments (the OR clause, IS NULL vs = %s) are chosen from fixed literal strings, not user input
+        // $sql below is built up via %d/%s placeholders, with matching $params —
+        // structural fragments (the OR clause, IS NULL vs = %s) are chosen from
+        // fixed literal strings, never user input. Block form since this sniff
+        // flags both the assignment and the final prepare() call separately.
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
         $sql = "SELECT COUNT(*) FROM {$wpdb->prefix}avm_relationships
                 WHERE ((member_id = %d AND related_member_id = %d AND label_id = %d)";
         $params = [$member_id, $related_member_id, $label_id];
@@ -1696,6 +1709,7 @@ class AVPVH_DB {
         }
 
         return (int) $wpdb->get_var($wpdb->prepare($sql, $params)) > 0;
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
     }
 
     /** Returns false both on a genuine insert failure and when this relationship (or its mirror) already exists — see relationship_exists(). */
@@ -1806,9 +1820,8 @@ class AVPVH_DB {
      */
     public static function get_manageable_members(int $member_id): array {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fully static query, no dynamic values at all
         $active = $wpdb->get_results(
-            self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name"
+            self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fully static query, no dynamic values at all
         ) ?: [];
 
         $manageable = [];
