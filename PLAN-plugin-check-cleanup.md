@@ -162,6 +162,20 @@ unlike the native WPCS sniffs, this custom Plugin Check sniff didn't
 honor the inline ignore even when placed on the exact flagged line,
 but the block form (already proven elsewhere in this file) worked.
 
+That commit brought the real backlog down to 68 findings (from 352).
+The remaining 4 `InputNotSanitized` are the same class of PHPCS
+chain-tracing limitation as the `(int)`-cast one above, just one level
+removed: `(array) wp_unslash($_POST['day'/'type_name'] ?? [])` in
+`class-admin.php`/`class-activity-participation-form.php` — the sniff
+flags the array pull itself even though every value pulled from it gets
+`sanitize_text_field()` before use inside the loop; and
+`admin/add-member.php`'s `esc_html(rawurldecode(wp_unslash($_GET[...])))`
+— `esc_html()` does sanitize it, but the intervening `rawurldecode()`
+call breaks the sniff's ability to trace that far out. Left as-is —
+already safe, and there's no direct wrap-with-a-recognized-function fix
+available without moving the escaping earlier in a way that would
+double-decode or double-sanitize.
+
 Left as-is, documented rather than fixed:
 
 - `WordPress.Security.NonceVerification.Recommended` (55 findings) —
