@@ -379,7 +379,7 @@ class AVPVH_Member_Profile_Form {
                         'invalid_email' => 'Dat is geen geldig e-mailadres.',
                         'last_identity' => 'Je hebt maar één geverifieerd inlog-e-mailadres — verifieer en voeg eerst een tweede toe voordat je iets verwijdert.',
                     ];
-                    echo esc_html($errors[$_GET['identity_error']] ?? 'Er ging iets mis.');
+                    echo esc_html($errors[sanitize_key(wp_unslash($_GET['identity_error']))] ?? 'Er ging iets mis.');
                     ?>
                 </p>
             <?php elseif (!empty($_GET['identity_removed'])) : ?>

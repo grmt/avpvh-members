@@ -137,7 +137,7 @@ class AVPVH_Access {
         // WordPress core reserved public query var and gets silently
         // stripped from $_GET before this filter ever runs.
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $error = sanitize_key($_GET['login_error'] ?? '');
+        $error = sanitize_key(wp_unslash($_GET['login_error'] ?? ''));
 
         $error_messages = [
             'no_member'      => 'Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.',
