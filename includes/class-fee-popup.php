@@ -15,7 +15,7 @@ class AVPVH_Fee_Popup {
         if (!$member || $member->status !== 'active') {
             return;
         }
-        $year = (int) date('Y');
+        $year = (int) current_time('Y');
         $fee = AVPVH_DB::get_fee_for_year((int) $member->id, $year);
         if (!$fee || $fee->status !== 'paid') {
             update_user_meta($user->ID, '_avpvh_show_fee_popup', $year);
@@ -33,7 +33,7 @@ class AVPVH_Fee_Popup {
         }
         $user_id = get_current_user_id();
         $popup_year = (int) get_user_meta($user_id, '_avpvh_show_fee_popup', true);
-        if ($popup_year !== (int) date('Y')) {
+        if ($popup_year !== (int) current_time('Y')) {
             return;
         }
         ?>

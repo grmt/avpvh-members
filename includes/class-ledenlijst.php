@@ -166,8 +166,14 @@ class AVPVH_Ledenlijst {
                     <tr data-city="<?php echo esc_attr($lid->share_address ? $lid->city : ''); ?>"
                         data-groups="<?php echo esc_attr(implode(',', $lid_groups)); ?>">
                         <td class="col-naam" data-label="Naam" data-sort-value="<?php echo esc_attr(strtolower(avpvh_format_name($lid, 'list'))); ?>">
-                            <?php echo $naam; ?>
-                            <button type="button" class="avpvh-vcard-btn" title="Downloaden als contact (vCard)"<?php echo $vcard_attrs; ?>>📇</button>
+                            <?php
+                            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built above from esc_html()/esc_url() pieces
+                            echo $naam;
+                            ?>
+                            <button type="button" class="avpvh-vcard-btn" title="Downloaden als contact (vCard)"<?php
+                                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute value above is already esc_attr()'d
+                                echo $vcard_attrs;
+                            ?>>📇</button>
                         </td>
                         <td class="col-email" data-label="E-mail" data-sort-value="<?php echo esc_attr($show_email ? strtolower($lid->email) : ''); ?>">
                             <?php if ($show_email) : ?>
@@ -254,10 +260,11 @@ class AVPVH_Ledenlijst {
         require_once AVPVH_PLUGIN_DIR . 'includes/class-ledenlijst-export.php';
         $bytes = AVPVH_Ledenlijst_Export::build($data['leden'], $data['group_map']);
 
-        $filename = sanitize_file_name('ledenlijst-' . date('Y-m-d') . '.xlsx');
+        $filename = sanitize_file_name('ledenlijst-' . current_time('Y-m-d') . '.xlsx');
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Content-Length: ' . strlen($bytes));
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- raw .xlsx binary file download, not HTML
         echo $bytes;
         exit;
     }
