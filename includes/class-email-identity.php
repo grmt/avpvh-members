@@ -46,7 +46,7 @@ class AVPVH_Email_Identity {
         }
 
         $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-        $member_id   = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
         $email       = AVPVH_DB::normalize_identity_email(sanitize_email(wp_unslash($_POST['email'] ?? '')));
         $profile_url = home_url('/member-profile/');
 

@@ -145,6 +145,23 @@ more commits after the "Next batch" above:
       scripts that load site-wide; the others load conditionally on
       pages it didn't happen to hit).
 
+One correction after that CI run: `InputNotSanitized` still fired on every
+one of the ~50 `(int) wp_unslash(...)` sites — PHPCS doesn't credit a raw
+`(int)` cast as sanitization, only recognized functions like `absint()`
+(already proven true elsewhere in this codebase — `class-media-
+protection.php`'s existing `absint($_REQUEST[...])` was never flagged).
+Since every affected field is a non-negative id/count, swapping
+`(int) wp_unslash(...)` → `absint(wp_unslash(...))` is strictly more
+correct (clamps instead of preserving a sign) and satisfies the sniff.
+Also had to convert `class-db.php`'s single-line `phpcs:ignore
+PluginCheck.Security.DirectDB.UnescapedDBParameter` comments (on
+`get_member_by_lldap_uid()`, `get_member_by_email()`,
+`get_member_by_wp_user()`, `get_member()`, `get_manageable_members()`)
+to `phpcs:disable`/`phpcs:enable` blocks around the query statement —
+unlike the native WPCS sniffs, this custom Plugin Check sniff didn't
+honor the inline ignore even when placed on the exact flagged line,
+but the block form (already proven elsewhere in this file) worked.
+
 Left as-is, documented rather than fixed:
 
 - `WordPress.Security.NonceVerification.Recommended` (55 findings) —
