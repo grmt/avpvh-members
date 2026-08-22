@@ -33,3 +33,14 @@ jobs:
             .codex
             .claude
             bin
+          # direct_db_queries flags any use of $wpdb without an object-cache
+          # wrapper — this plugin's whole DB layer is custom $wpdb queries
+          # joining WordPress and LLDAP tables (see class-db.php's
+          # member_select()), which isn't something WP's post/option-
+          # oriented caching APIs are built around, and there's no
+          # persistent object cache backend configured on this site anyway
+          # (the redis container in the stack is Authelia's, not wired to
+          # WordPress). A deliberate architectural choice, not a gap — not
+          # excluding direct_db, the separate check for actual
+          # escaping/SQL-injection safety within those queries.
+          exclude-checks: direct_db_queries
