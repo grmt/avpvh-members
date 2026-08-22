@@ -159,8 +159,8 @@ class AVPVH_Admin {
     }
 
     public function render_settings(): void {
-        $oauth_test = isset($_GET['oauth_test']) ? sanitize_text_field($_GET['oauth_test']) : null;
-        $oauth_test_provider = isset($_GET['oauth_provider']) ? sanitize_text_field($_GET['oauth_provider']) : null;
+        $oauth_test = isset($_GET['oauth_test']) ? sanitize_text_field(wp_unslash($_GET['oauth_test'])) : null;
+        $oauth_test_provider = isset($_GET['oauth_provider']) ? sanitize_text_field(wp_unslash($_GET['oauth_provider'])) : null;
 
         $test_result = null;
         if (isset($_POST['test_lldap'])) {
@@ -185,7 +185,7 @@ class AVPVH_Admin {
                     <?php echo esc_html(ucfirst($oauth_test_provider)); ?> credentials ongeldig — controleer de client ID en secret
                     <?php if ($oauth_test_provider === 'google') : ?>in de Google Cloud Console<?php else : ?>in de Azure portal<?php endif; ?>.
                     <?php if (!empty($_GET['oauth_error'])) : ?>
-                        <br><small>Fout: <?php echo esc_html($_GET['oauth_error']); ?></small>
+                        <br><small>Fout: <?php echo esc_html(sanitize_text_field(wp_unslash($_GET['oauth_error']))); ?></small>
                     <?php endif; ?>
                 </p></div>
             <?php endif; ?>
@@ -504,7 +504,7 @@ class AVPVH_Admin {
         }
 
         $member_id = (int) wp_unslash($_POST['member_id'] ?? 0);
-        $flag_ids  = array_map('intval', (array) ($_POST['flag_ids'] ?? []));
+        $flag_ids  = array_map('intval', (array) wp_unslash($_POST['flag_ids'] ?? []));
         if ($member_id) {
             AVPVH_DB::set_member_flags($member_id, $flag_ids);
         }
@@ -670,7 +670,7 @@ class AVPVH_Admin {
             exit;
         }
 
-        $selected_ids = array_map('intval', (array) ($_POST['groups'] ?? []));
+        $selected_ids = array_map('intval', (array) wp_unslash($_POST['groups'] ?? []));
         $current_ids  = array_map('intval', array_column($current_groups, 'id'));
 
         $had_error = false;
@@ -733,7 +733,7 @@ class AVPVH_Admin {
         $suffix     = sanitize_text_field(wp_unslash($_POST['suffix'] ?? ''));
         $last_name  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
         $birth_date = sanitize_text_field(wp_unslash($_POST['birth_date'] ?? '')) ?: null;
-        $status     = sanitize_key($_POST['status'] ?? 'inactive');
+        $status     = sanitize_key(wp_unslash($_POST['status'] ?? 'inactive'));
         $status     = in_array($status, ['active', 'inactive', 'visitor'], true) ? $status : 'inactive';
         $confirmed  = !empty($_POST['confirmed']);
 
@@ -959,7 +959,7 @@ class AVPVH_Admin {
         }
 
         $by_member = avpvh_get_member_by_wp_user(get_current_user_id());
-        $role      = sanitize_key($_POST['role'] ?? '');
+        $role      = sanitize_key(wp_unslash($_POST['role'] ?? ''));
         $to_member_id = (int) wp_unslash($_POST['delegated_to_member_id'] ?? 0);
         $ends_at_raw  = sanitize_text_field(wp_unslash($_POST['ends_at'] ?? ''));
         // Datetime-local input ("2026-08-20T18:00") -> MySQL DATETIME, end of
