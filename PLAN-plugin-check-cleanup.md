@@ -238,11 +238,21 @@ Left as-is, documented rather than fixed:
   search) — a real VIP-scale performance concern that doesn't apply to
   this small single-club site.
 
+## allowed_redirect_hosts wired up (2026-08-22)
+
+The two remaining `wp_redirect()` calls to external-but-fixed hosts
+(`class-oauth.php`'s OAuth authorize endpoint, `class-nav-auth.php`'s
+Authelia logout) were never actually unsafe — the targets are
+`self::PROVIDERS`/`self::AUTHELIA_URL` constants, not user input — but
+relied on a `phpcs:ignore` rather than a real fix. Both classes now
+register an `allowed_redirect_hosts` filter (`allow_provider_hosts()`,
+`allow_authelia_host()`) adding the relevant host(s) via
+`wp_parse_url(..., PHP_URL_HOST)`, and both redirects use
+`wp_safe_redirect()` — real defense-in-depth instead of a documented
+exception, and one less `phpcs:ignore` to carry.
+
 ## Not planned to fix (verified false positives / deliberate)
 
-- One `wp_redirect()` in `class-oauth.php`'s `start()` — must stay
-  external (Google/Microsoft's own authorize endpoint); `wp_safe_redirect`
-  would block it.
 - `$naam`/`$vcard_attrs` in `class-ledenlijst.php` — already built from
   `esc_html()`/`esc_url()`/`esc_attr()` pieces; re-escaping would corrupt
   the markup.
