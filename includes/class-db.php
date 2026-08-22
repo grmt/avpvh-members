@@ -859,19 +859,23 @@ class AVPVH_DB {
 
     public static function get_member_by_lldap_uid(string $uid): ?object {
         global $wpdb;
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE u.user_id = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
+            self::member_select() . " WHERE u.user_id = %s LIMIT 1",
             $uid
         )) ?: null;
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
     public static function get_member_by_email(string $email): ?object {
         global $wpdb;
         $lldap = self::lldap();
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
+            self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1",
             $email
         )) ?: null;
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
     public static function normalize_identity_email(string $email): string {
@@ -1083,18 +1087,22 @@ class AVPVH_DB {
 
     public static function get_member_by_wp_user(int $user_id): ?object {
         global $wpdb;
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE m.wp_user_id = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
+            self::member_select() . " WHERE m.wp_user_id = %d LIMIT 1",
             $user_id
         )) ?: null;
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
     public static function get_member(int $id): ?object {
         global $wpdb;
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
-            self::member_select() . " WHERE m.id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %d value is properly prepared
+            self::member_select() . " WHERE m.id = %d",
             $id
         )) ?: null;
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
     public static function get_members(array $args = []): array {
@@ -1821,9 +1829,11 @@ class AVPVH_DB {
      */
     public static function get_manageable_members(int $member_id): array {
         global $wpdb;
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- fully static query, no dynamic values at all
         $active = $wpdb->get_results(
-            self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- fully static query, no dynamic values at all
+            self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name"
         ) ?: [];
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         $manageable = [];
         foreach ($active as $m) {

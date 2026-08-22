@@ -393,8 +393,8 @@ class AVPVH_Admin {
         if (!current_user_can('manage_options')) {
             wp_die('Geen toegang.', 403);
         }
-        $fee_id    = (int) wp_unslash($_POST['fee_id'] ?? 0);
-        $member_id = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $fee_id    = absint(wp_unslash($_POST['fee_id'] ?? 0));
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         if ($fee_id > 0) {
             AVPVH_DB::mark_fee_paid($fee_id);
             $member = AVPVH_DB::get_member($member_id);
@@ -420,7 +420,7 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $member_id = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $email     = sanitize_email(wp_unslash($_POST['email'] ?? ''));
 
         if ($member_id <= 0 || !$email) {
@@ -448,8 +448,8 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $member_id   = (int) wp_unslash($_POST['member_id'] ?? 0);
-        $identity_id = (int) wp_unslash($_POST['identity_id'] ?? 0);
+        $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
 
         // Same rule as the self-service member-profile page: at least 2
         // *verified* identities must remain, so nobody — including an admin
@@ -475,8 +475,8 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $member_id   = (int) wp_unslash($_POST['member_id'] ?? 0);
-        $identity_id = (int) wp_unslash($_POST['identity_id'] ?? 0);
+        $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
         AVPVH_DB::set_primary_identity($member_id, $identity_id);
 
         // The LLDAP contact e-mail (this page's "E-mail" field, used for
@@ -503,7 +503,7 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $member_id = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $flag_ids  = array_map('intval', (array) wp_unslash($_POST['flag_ids'] ?? []));
         if ($member_id) {
             AVPVH_DB::set_member_flags($member_id, $flag_ids);
@@ -534,7 +534,7 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $flag_id = (int) wp_unslash($_POST['flag_id'] ?? 0);
+        $flag_id = absint(wp_unslash($_POST['flag_id'] ?? 0));
         if ($flag_id) {
             AVPVH_DB::delete_flag($flag_id);
         }
@@ -591,8 +591,8 @@ class AVPVH_Admin {
         if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
             wp_die('Geen toegang.', 403);
         }
-        $id = (int) wp_unslash($_POST['id'] ?? 0);
-        $member_id = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $id = absint(wp_unslash($_POST['id'] ?? 0));
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $valid_from = sanitize_text_field(wp_unslash($_POST['valid_from'] ?? '')) ?: null;
         $valid_until = sanitize_text_field(wp_unslash($_POST['valid_until'] ?? '')) ?: null;
         if ($id && $member_id) {
@@ -616,7 +616,7 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $member_id = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $email     = sanitize_email(wp_unslash($_POST['email'] ?? ''));
         $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
 
@@ -658,7 +658,7 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $member_id = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
         if (!$member) {
             wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
@@ -705,8 +705,8 @@ class AVPVH_Admin {
         if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
             wp_die('Geen toegang.', 403);
         }
-        $id = (int) wp_unslash($_POST['id'] ?? 0);
-        $member_id = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $id = absint(wp_unslash($_POST['id'] ?? 0));
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         if ($id && $member_id) {
             AVPVH_DB::delete_address($id, $member_id);
         }
@@ -805,8 +805,8 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $activity_id = (int) wp_unslash($_POST['activity_id'] ?? 0);
-        $member_id   = (int) wp_unslash($_POST['member_id'] ?? 0);
+        $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
+        $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
         if (!$activity_id || !$member_id) {
             wp_die('Activiteit of lid ontbreekt.', 400);
         }
@@ -829,7 +829,7 @@ class AVPVH_Admin {
         // 'nights' field.
         $nights = isset($_POST['day'])
             ? count(array_filter($days, fn($status) => $status === 'n'))
-            : (isset($_POST['nights']) && $_POST['nights'] !== '' ? (int) wp_unslash($_POST['nights']) : '');
+            : (isset($_POST['nights']) && $_POST['nights'] !== '' ? absint(wp_unslash($_POST['nights'])) : '');
 
         $fields = [
             'nights'  => $nights,
@@ -864,7 +864,7 @@ class AVPVH_Admin {
         }
 
         $name = sanitize_text_field(wp_unslash($_POST['name'] ?? ''));
-        $year = (int) wp_unslash($_POST['year'] ?? 0);
+        $year = absint(wp_unslash($_POST['year'] ?? 0));
         if ($name === '' || !$year) {
             wp_die('Naam en jaar zijn verplicht.', 400);
         }
@@ -875,7 +875,7 @@ class AVPVH_Admin {
             sanitize_text_field(wp_unslash($_POST['kenmerk'] ?? '')),
             sanitize_text_field(wp_unslash($_POST['start_date'] ?? '')) ?: null,
             sanitize_text_field(wp_unslash($_POST['end_date'] ?? '')) ?: null,
-            (int) wp_unslash($_POST['type_id'] ?? 0)
+            absint(wp_unslash($_POST['type_id'] ?? 0))
         );
 
         wp_safe_redirect(add_query_arg([
@@ -890,8 +890,8 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $activity_id = (int) wp_unslash($_POST['activity_id'] ?? 0);
-        $type_id = (int) wp_unslash($_POST['type_id'] ?? 0);
+        $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
+        $type_id = absint(wp_unslash($_POST['type_id'] ?? 0));
         global $wpdb;
         $wpdb->update("{$wpdb->prefix}avm_activities", [
             'kenmerk'    => sanitize_text_field(wp_unslash($_POST['kenmerk'] ?? '')),
@@ -921,7 +921,7 @@ class AVPVH_Admin {
             AVPVH_DB::add_activity_type($new_name);
         }
 
-        $activity_id = (int) wp_unslash($_POST['activity_id'] ?? 0);
+        $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
         wp_safe_redirect(add_query_arg([
             'page' => 'avpvh-activity-participation', 'activity_id' => $activity_id, 'types_saved' => '1',
         ], admin_url('admin.php')));
@@ -934,7 +934,7 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        $activity_id = (int) wp_unslash($_GET['activity_id'] ?? 0);
+        $activity_id = absint(wp_unslash($_GET['activity_id'] ?? 0));
         $activity = AVPVH_DB::get_activity($activity_id);
         if (!$activity) {
             wp_die('Activiteit niet gevonden.', 404);
@@ -960,7 +960,7 @@ class AVPVH_Admin {
 
         $by_member = avpvh_get_member_by_wp_user(get_current_user_id());
         $role      = sanitize_key(wp_unslash($_POST['role'] ?? ''));
-        $to_member_id = (int) wp_unslash($_POST['delegated_to_member_id'] ?? 0);
+        $to_member_id = absint(wp_unslash($_POST['delegated_to_member_id'] ?? 0));
         $ends_at_raw  = sanitize_text_field(wp_unslash($_POST['ends_at'] ?? ''));
         // Datetime-local input ("2026-08-20T18:00") -> MySQL DATETIME, end of
         // day if only a date was somehow submitted. Blank = indefinite.
@@ -985,7 +985,7 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        AVPVH_Roles::revoke_delegation((int) wp_unslash($_POST['delegation_id'] ?? 0));
+        AVPVH_Roles::revoke_delegation(absint(wp_unslash($_POST['delegation_id'] ?? 0)));
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'revoke_ok' => '1'], admin_url('admin.php')));
         exit;
     }

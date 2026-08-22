@@ -7,7 +7,7 @@ require_once AVPVH_PLUGIN_DIR . 'admin/class-activity-participation-list-table.p
 
 $activities = AVPVH_DB::get_activities();
 $current_activity = AVPVH_DB::get_current_camp_activity();
-$activity_id = (int) wp_unslash($_GET['activity_id'] ?? ($current_activity->id ?? 0));
+$activity_id = absint(wp_unslash($_GET['activity_id'] ?? ($current_activity->id ?? 0)));
 $activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
 $activity_saved = !empty($_GET['activity_saved']);
 $types_saved = !empty($_GET['types_saved']);

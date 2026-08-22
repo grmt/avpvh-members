@@ -3,8 +3,8 @@ defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!current_user_can('manage_options')) wp_die('Geen toegang.');
 
-$participation_id = (int) wp_unslash($_GET['id'] ?? 0);
-$activity_id = (int) wp_unslash($_GET['activity_id'] ?? 0);
+$participation_id = absint(wp_unslash($_GET['id'] ?? 0));
+$activity_id = absint(wp_unslash($_GET['activity_id'] ?? 0));
 $participation = $participation_id ? AVPVH_DB::get_participation_by_id($participation_id) : null;
 if ($participation) {
     $activity_id = (int) $participation->activity_id;
