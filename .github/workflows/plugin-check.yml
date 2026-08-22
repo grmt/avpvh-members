@@ -36,6 +36,23 @@ jobs:
             .codex
             .claude
             bin
+            .github
+          # file_type also flags "unexpected markdown file" for this repo's
+          # own planning docs, which intentionally live at the plugin root
+          # rather than in a subdirectory — narrower than excluding the
+          # whole file_type check (which also covers hidden/compressed
+          # files, VCS dirs, and badly-named files we do still want
+          # flagged). New naming patterns should be added here rather than
+          # falling back to excluding file_type outright.
+          exclude-files: |
+            AGENTS.md
+            DEPLOY.md
+            TESTING.md
+            GEMINI.md
+            PLAN*.md
+            DESIGN*.md
+            WORKFLOW*.md
+            ROLLBACK*.md
           # direct_db_queries flags any use of $wpdb without an object-cache
           # wrapper — this plugin's whole DB layer is custom $wpdb queries
           # joining WordPress and LLDAP tables (see class-db.php's
@@ -47,20 +64,17 @@ jobs:
           # excluding direct_db, the separate check for actual
           # escaping/SQL-injection safety within those queries.
           #
-          # plugin_readme, trademarks, file_type, plugin_header_fields are
-          # all wordpress.org-submission checks (readme.txt "Stable
-          # Tag"/"Tested up to"/License headers, the plugin name not
-          # containing "plugin", no dev-planning markdown or .github/ in
-          # the plugin root, a bare numeric Version header) — this plugin
-          # is a private single-site custom build that will never be
-          # distributed on wordpress.org, and this repo intentionally
-          # keeps its planning docs, AGENTS.md, and CI config alongside
-          # the plugin code rather than shipping a curated export. The
-          # Version header's own "1.0.N+<hash>" suffix (see AGENTS.md) is
-          # a deliberate project convention these checks don't expect.
+          # plugin_readme and trademarks are wordpress.org-submission
+          # checks (readme.txt "Stable Tag"/"Tested up to" headers, the
+          # plugin name not containing "plugin") that don't apply — this
+          # plugin is a private single-site build that will never be
+          # distributed there. plugin_header_fields and file_type are
+          # NOT excluded outright (see the License header just added, and
+          # exclude-files/exclude-directories above) — the one expected
+          # plugin_header_fields warning left is plugin_header_invalid_
+          # plugin_version, for the "1.0.N+<hash>" Version suffix (see
+          # AGENTS.md), a deliberate project convention.
           exclude-checks: |
             direct_db_queries
             plugin_readme
             trademarks
-            file_type
-            plugin_header_fields
