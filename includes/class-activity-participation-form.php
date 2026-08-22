@@ -125,8 +125,8 @@ class AVPVH_Activity_Participation_Form {
         }
 
         $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-        $member_id   = (int) ($_POST['member_id'] ?? 0);
-        $activity_id = (int) ($_POST['activity_id'] ?? 0);
+        $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
 
         if (!$own_member || !$this->can_edit_member($own_member, $member_id)) {
             wp_die('Geen toegang.', 'Fout', ['response' => 403]);
@@ -138,7 +138,7 @@ class AVPVH_Activity_Participation_Form {
         }
 
         $fields = [
-            'nights'  => $_POST['nights'] !== '' ? (int) $_POST['nights'] : '',
+            'nights'  => isset($_POST['nights']) && $_POST['nights'] !== '' ? absint(wp_unslash($_POST['nights'])) : '',
             'nawacht' => !empty($_POST['nawacht']),
             'diet'    => sanitize_text_field(wp_unslash($_POST['diet'] ?? '')),
             'notes'   => sanitize_textarea_field(wp_unslash($_POST['notes'] ?? '')),
@@ -146,10 +146,10 @@ class AVPVH_Activity_Participation_Form {
         $participation_id = AVPVH_DB::save_participation($member_id, $activity_id, $fields);
 
         $days = [];
-        foreach ((array) ($_POST['day'] ?? []) as $date => $status) {
+        foreach ((array) wp_unslash($_POST['day'] ?? []) as $date => $status) {
             $date = sanitize_text_field($date);
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                $days[$date] = sanitize_text_field(wp_unslash($status));
+                $days[$date] = sanitize_text_field($status);
             }
         }
         AVPVH_DB::save_participation_days($participation_id, $days);
@@ -160,7 +160,7 @@ class AVPVH_Activity_Participation_Form {
     }
 
     private function get_target_member(object $own_member): object {
-        $member_id = (int) ($_GET['member_id'] ?? 0);
+        $member_id = absint(wp_unslash($_GET['member_id'] ?? 0));
         if ($member_id > 0 && $this->can_edit_member($own_member, $member_id)) {
             $member = AVPVH_DB::get_member($member_id);
             if ($member) {
