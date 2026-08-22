@@ -42,7 +42,7 @@ class AVPVH_OAuth {
     public function start(string $provider, \WP_REST_Request $request): void {
         $client_id = get_option('avpvh_oauth_' . $provider . '_client_id');
         if (!$client_id) {
-            wp_die($provider . ' login is niet geconfigureerd.', 'Fout', ['response' => 503]);
+            wp_die(esc_html($provider) . ' login is niet geconfigureerd.', 'Fout', ['response' => 503]);
         }
 
         $add_member_id = (int) $request->get_param('add_member_id');
@@ -78,17 +78,22 @@ class AVPVH_OAuth {
             'state'         => $state,
         ];
 
+        // Deliberately wp_redirect(), not wp_safe_redirect(): the target is
+        // Google/Microsoft's own OAuth authorize endpoint, a fixed constant
+        // per provider (self::PROVIDERS), never user input — safe_redirect
+        // would just block it as an external host with no security benefit.
+        // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
         wp_redirect($config['auth_url'] . '?' . http_build_query($params));
         exit;
     }
 
     private function get_client_ip(): string {
         // Trust X-Forwarded-For only from our nginx proxy (runs on the same host).
-        $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+        $forwarded = sanitize_text_field(wp_unslash($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
         if ($forwarded) {
             return trim(explode(',', $forwarded)[0]);
         }
-        return $_SERVER['REMOTE_ADDR'] ?? '';
+        return sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? ''));
     }
 
     private function check_ip_throttle(): bool {
@@ -104,7 +109,7 @@ class AVPVH_OAuth {
 
     public function handle_callback(string $provider, \WP_REST_Request $request): void {
         if ($this->check_ip_throttle()) {
-            wp_redirect(home_url('/avpvh-login/?login_error=no_member'));
+            wp_safe_redirect(home_url('/avpvh-login/?login_error=no_member'));
             exit;
         }
 
@@ -112,7 +117,7 @@ class AVPVH_OAuth {
         $state = sanitize_text_field($request->get_param('state') ?? '');
 
         if (!$code || !$state) {
-            wp_redirect(home_url('/avpvh-login/?login_error=oauth_failed'));
+            wp_safe_redirect(home_url('/avpvh-login/?login_error=oauth_failed'));
             exit;
         }
 
@@ -132,7 +137,7 @@ class AVPVH_OAuth {
             // the user finished the provider's consent/2FA step, not an
             // actual CSRF attempt. Send them back to try again rather than
             // dead-ending on a wp_die() page with no way forward.
-            wp_redirect(home_url('/avpvh-login/?login_error=oauth_expired'));
+            wp_safe_redirect(home_url('/avpvh-login/?login_error=oauth_expired'));
             exit;
         }
 
@@ -157,7 +162,7 @@ class AVPVH_OAuth {
         if (!$member) {
             $this->record_ip_failure();
             AVPVH_DB::log_attempt($email, $provider, 'no_member');
-            wp_redirect(home_url('/avpvh-login/?login_error=no_member'));
+            wp_safe_redirect(home_url('/avpvh-login/?login_error=no_member'));
             exit;
         }
 
@@ -166,6 +171,10 @@ class AVPVH_OAuth {
         // in place (by email) rather than adding a duplicate.
         $needs_upgrade = !$member_identity || $member_identity->provider !== $provider || !$member_identity->verified_at;
         if ($needs_upgrade && !AVPVH_DB::ensure_identity((int) $member->id, $provider, $email, false, true)) {
+            // Deliberate diagnostic logging, not leftover debug code — this
+            // is the only signal an admin gets that a login worked but the
+            // identity link failed (3-identity limit or invalid provider).
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
             error_log("AVPVH_OAuth: failed to link {$provider} identity ({$email}) for member {$member->id} — at 3-identity limit or invalid provider.");
         }
 
@@ -179,7 +188,7 @@ class AVPVH_OAuth {
         wp_set_auth_cookie($user->ID, true);
         do_action('wp_login', $user->user_login, $user);
 
-        wp_redirect(home_url('/'));
+        wp_safe_redirect(home_url('/'));
         exit;
     }
 
@@ -205,7 +214,7 @@ class AVPVH_OAuth {
         // the CSRF protection for this flow.
         $requesting_user = $user_id ? get_userdata($user_id) : false;
         if (!$requesting_user) {
-            wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'not_you'], $profile_url));
+            wp_safe_redirect(add_query_arg($redirect_args + ['identity_error' => 'not_you'], $profile_url));
             exit;
         }
 
@@ -221,24 +230,24 @@ class AVPVH_OAuth {
         // Never let this e-mail be claimed if it's already linked to someone else.
         $existing_identity = AVPVH_DB::get_member_identity($provider, $email);
         if ($existing_identity && (int) $existing_identity->member_id !== $member_id) {
-            wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'in_use'], $profile_url));
+            wp_safe_redirect(add_query_arg($redirect_args + ['identity_error' => 'in_use'], $profile_url));
             exit;
         }
         $existing_owner = AVPVH_DB::get_member_by_email($email);
         if ($existing_owner && (int) $existing_owner->id !== $member_id) {
-            wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'in_use'], $profile_url));
+            wp_safe_redirect(add_query_arg($redirect_args + ['identity_error' => 'in_use'], $profile_url));
             exit;
         }
 
         $member = AVPVH_DB::get_member($member_id);
         if (!$member || !AVPVH_DB::ensure_identity($member_id, $provider, $email, false, true)) {
-            wp_redirect(add_query_arg($redirect_args + ['identity_error' => 'limit'], $profile_url));
+            wp_safe_redirect(add_query_arg($redirect_args + ['identity_error' => 'limit'], $profile_url));
             exit;
         }
 
         AVPVH_Member_Profile_Form::notify_identity_change($member, $own_member, 'toegevoegd', $provider, $email, $requesting_user);
 
-        wp_redirect(add_query_arg($redirect_args + ['identity_added' => '1'], $profile_url));
+        wp_safe_redirect(add_query_arg($redirect_args + ['identity_added' => '1'], $profile_url));
         exit;
     }
 

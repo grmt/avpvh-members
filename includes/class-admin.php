@@ -943,10 +943,11 @@ class AVPVH_Admin {
         require_once AVPVH_PLUGIN_DIR . 'includes/class-activity-participation-export.php';
         $bytes = AVPVH_Activity_Participation_Export::build($activity);
 
-        $filename = sanitize_file_name('deelname-' . $activity->name . '-' . $activity->year . '-' . date('Y-m-d') . '.xlsx');
+        $filename = sanitize_file_name('deelname-' . $activity->name . '-' . $activity->year . '-' . current_time('Y-m-d') . '.xlsx');
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Content-Length: ' . strlen($bytes));
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- raw .xlsx binary file download, not HTML
         echo $bytes;
         exit;
     }
