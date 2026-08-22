@@ -46,4 +46,21 @@ jobs:
           # WordPress). A deliberate architectural choice, not a gap — not
           # excluding direct_db, the separate check for actual
           # escaping/SQL-injection safety within those queries.
-          exclude-checks: direct_db_queries
+          #
+          # plugin_readme, trademarks, file_type, plugin_header_fields are
+          # all wordpress.org-submission checks (readme.txt "Stable
+          # Tag"/"Tested up to"/License headers, the plugin name not
+          # containing "plugin", no dev-planning markdown or .github/ in
+          # the plugin root, a bare numeric Version header) — this plugin
+          # is a private single-site custom build that will never be
+          # distributed on wordpress.org, and this repo intentionally
+          # keeps its planning docs, AGENTS.md, and CI config alongside
+          # the plugin code rather than shipping a curated export. The
+          # Version header's own "1.0.N+<hash>" suffix (see AGENTS.md) is
+          # a deliberate project convention these checks don't expect.
+          exclude-checks: |
+            direct_db_queries
+            plugin_readme
+            trademarks
+            file_type
+            plugin_header_fields
