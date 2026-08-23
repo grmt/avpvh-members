@@ -7,14 +7,18 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)"
 MAIN_FILE="$SRC/avpvh-members.php"
 DEST="/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/"
 
-# Bump mini version
-current=$(grep -oP '(?<=\* Version:\s{5})\d+\.\d+\.\d+' "$MAIN_FILE")
+# Bump mini version. current_full may carry a leftover "+<hash>"
+# feature-branch-testing suffix (see WORKFLOW-version-test-deploy.md) --
+# only the leading X.Y.Z is used for the bump math, and the sed below
+# replaces the whole value so a stale hash can't survive the bump.
+current_full=$(grep -oP '(?<=\* Version:\s{5}).*' "$MAIN_FILE")
+current=$(grep -oP '^\d+\.\d+\.\d+' <<< "$current_full")
 major=${current%%.*}; rest=${current#*.}; minor=${rest%%.*}; mini=${rest##*.}
 mini=$(( mini + 1 ))
 new_version="$major.$minor.$mini"
 
-sed -i "s/\* Version:     $current/* Version:     $new_version/" "$MAIN_FILE"
-echo "version: $current → $new_version"
+sed -i "s/\(\* Version:[[:space:]]*\).*/\1$new_version/" "$MAIN_FILE"
+echo "version: $current_full → $new_version"
 
 # Commit and push
 git -C "$SRC" add "$MAIN_FILE"
