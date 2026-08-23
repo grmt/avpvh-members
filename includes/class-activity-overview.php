@@ -28,7 +28,7 @@ class AVPVH_Activity_Overview {
             return '<p>Dit overzicht is alleen beschikbaar voor actieve leden.</p>';
         }
 
-        $activity = AVPVH_DB::get_current_activity();
+        $activity = AVPVH_DB::get_current_camp_activity();
         if (!$activity) {
             return '<p>Er is nog geen overzicht beschikbaar.</p>';
         }
