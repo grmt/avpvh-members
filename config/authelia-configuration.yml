@@ -88,11 +88,21 @@ access_control:
       policy: 'one_factor'
 
     # Scans (Find and View) — same restriction for the underlying scan
-    # images, served directly by nginx (bypasses WordPress/PHP entirely)
+    # images, served directly by nginx (bypasses WordPress/PHP entirely).
+    # Files moved under uploads/private/scans/ on 2026-08-21 so nginx's
+    # uploads/ catch-all 403 doesn't block them; this rule's path was
+    # updated to match.
     - domain: 'www.avphilipsvanhorne.nl'
       resources:
-        - '^/wp-content/uploads/scans/.*'
+        - '^/wp-content/uploads/private/scans/.*'
       subject: 'group:boek'
+      policy: 'one_factor'
+
+    # All other private uploads require an authenticated member session.
+    # Keep this after the more restrictive scans rule.
+    - domain: 'www.avphilipsvanhorne.nl'
+      resources:
+        - '^/wp-content/uploads/private/.*'
       policy: 'one_factor'
 
     # All other pages: bypass Authelia, WordPress plugin handles access control
