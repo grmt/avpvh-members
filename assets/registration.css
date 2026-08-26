@@ -326,6 +326,34 @@ button.button-primary:active {
     margin: .5rem 0;
 }
 
+/* Collapsible sections: every fieldset's legend doubles as a toggle
+   (see registration.js) so a returning member can collapse sections they
+   don't need to revisit, like Change History. */
+.avpvh-member-profile-form fieldset > legend {
+    cursor: pointer;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.avpvh-member-profile-form fieldset > legend::after {
+    content: '\2212';
+    margin-left: .75rem;
+    font-weight: normal;
+    color: #777;
+}
+
+.avpvh-member-profile-form fieldset.avpvh-collapsed > legend::after {
+    content: '+';
+}
+
+.avpvh-member-profile-form fieldset.avpvh-collapsed > *:not(legend) {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .avpvh-registration-form {
         padding: 1rem;

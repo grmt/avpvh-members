@@ -21,12 +21,12 @@ $error = !empty($_GET['newsletter_error']);
     <p class="description">
         Stuurt direct (geen concept/inplannen) een losse e-mail naar elk actief lid dat
         &ldquo;Ik wil e-mail ontvangen over activiteiten en de nieuwsbrief&rdquo; heeft
-        aangevinkt op hun profiel — nu <strong><?php echo esc_html((string) $recipient_count); ?></strong> lid/leden.
+        aangevinkt op hun profiel — nu <strong><?php echo esc_html((string) $recipient_count); ?></strong> <?php echo $recipient_count === 1 ? 'lid' : 'leden'; ?>.
         Elke e-mail wordt los verzonden (geen BCC), dus niemand ziet de rest van de lijst.
     </p>
 
     <?php if ($sent !== null) : ?>
-        <div class="notice notice-success is-dismissible"><p>Verzonden aan <?php echo esc_html((string) $sent); ?> lid/leden.</p></div>
+        <div class="notice notice-success is-dismissible"><p>Verzonden aan <?php echo esc_html((string) $sent); ?> <?php echo $sent === 1 ? 'lid' : 'leden'; ?>.</p></div>
     <?php elseif ($error) : ?>
         <div class="notice notice-error is-dismissible"><p>Vul onderwerp en tekst in.</p></div>
     <?php endif; ?>
@@ -36,7 +36,7 @@ $error = !empty($_GET['newsletter_error']);
     <?php endif; ?>
 
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-        onsubmit="return confirm('E-mail versturen naar <?php echo esc_js((string) $recipient_count); ?> lid/leden?');">
+        onsubmit="return confirm('E-mail versturen naar <?php echo esc_js((string) $recipient_count); ?> <?php echo esc_js($recipient_count === 1 ? 'lid' : 'leden'); ?>?');">
         <?php wp_nonce_field('avpvh_send_newsletter'); ?>
         <input type="hidden" name="action" value="avpvh_send_newsletter">
         <table class="form-table">
