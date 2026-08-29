@@ -131,7 +131,10 @@ foreach ($config['merges'] as $index => $merge) {
     if (!$source || !$target) {
         avpvh_merge_fail("$label source or target no longer exists");
     }
-    if (avpvh_merge_name_key($source) !== avpvh_merge_name_key($target)) {
+    if (
+        avpvh_merge_name_key($source) !== avpvh_merge_name_key($target)
+        && empty($merge['allow_normalized_name_mismatch'])
+    ) {
         avpvh_merge_fail("$label normalized names do not match");
     }
     if (!hash_equals((string) ($merge['source_lldap_uid_sha256'] ?? ''), avpvh_merge_uid_hash($source->lldap_user_id))) {
@@ -151,6 +154,14 @@ foreach ($config['merges'] as $index => $merge) {
     }
     if ($source->wp_user_id !== null) {
         avpvh_merge_fail("$label source unexpectedly has a WordPress user");
+    }
+
+    $source_groups = AVPVH_LLDAP::get_user_groups((string) $source->lldap_user_id);
+    if (is_wp_error($source_groups)) {
+        avpvh_merge_fail("$label could not verify source LLDAP groups");
+    }
+    if ($source_groups) {
+        avpvh_merge_fail("$label source LLDAP account still has group memberships");
     }
 
     $dependencies = avpvh_merge_source_dependencies($source_id);
