@@ -84,4 +84,48 @@
         */
     });
 
+    // Collapsible profile sections (Persoonlijke gegevens, Contact, etc.) —
+    // each fieldset's legend toggles its own contents, remembered per
+    // section in localStorage so it stays collapsed on the next visit.
+    $(document).ready(function() {
+        $('.avpvh-member-profile-form fieldset').each(function() {
+            var $fieldset = $(this);
+            var $legend = $fieldset.children('legend').first();
+            if ($legend.length === 0) {
+                return;
+            }
+
+            var key = 'avpvh-profile-collapsed:' + $legend.text().trim();
+            $legend.attr({ role: 'button', tabindex: '0' });
+
+            function setCollapsed(collapsed) {
+                $fieldset.toggleClass('avpvh-collapsed', collapsed);
+                $legend.attr('aria-expanded', collapsed ? 'false' : 'true');
+            }
+
+            try {
+                setCollapsed(window.localStorage.getItem(key) === '1');
+            } catch (e) {
+                setCollapsed(false);
+            }
+
+            $legend.on('click', function() {
+                var collapsed = !$fieldset.hasClass('avpvh-collapsed');
+                setCollapsed(collapsed);
+                try {
+                    window.localStorage.setItem(key, collapsed ? '1' : '0');
+                } catch (e) {
+                    // Private browsing / storage disabled — toggling still works, just isn't remembered.
+                }
+            });
+
+            $legend.on('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    $legend.trigger('click');
+                }
+            });
+        });
+    });
+
 })(jQuery);
