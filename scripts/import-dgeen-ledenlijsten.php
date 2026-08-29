@@ -66,15 +66,20 @@ $editions = json_decode(file_get_contents($json_path), true);
 
 // --- normalize_name_key equivalent (mirrors _avpvh_import_common.py) ---
 $TUSSENVOEGSEL_PREFIXES = ['van der ', 'van den ', 'van de ', 'ten ', 'ter ',
-    'de ', 'van ', 'te ', 'von ', 'la ', 'le ', 'du '];
+    'de ', 'van ', 'te ', 'von ', 'la ', 'le ', 'du ', 'v/d ', 'vd '];
 
 function avpvh_normalize_dgeen_suffix(string $suffix): string
 {
     $suffix = trim($suffix);
 
-    // Historical DGéén tables abbreviate "van den" as "v/d".
+    // Historical DGéén tables use ambiguous abbreviations: v/d and vd
+    // can mean van de, van den, or van der. Recognize and normalize the
+    // abbreviation, but never guess which expanded form belongs to a person.
     if (preg_match('/^v\s*\/\s*d\.?$/iu', $suffix)) {
-        return 'van den';
+        return 'v/d';
+    }
+    if (preg_match('/^v\.?\s*d\.?$/iu', $suffix)) {
+        return 'vd';
     }
 
     return $suffix;
