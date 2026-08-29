@@ -398,8 +398,8 @@ class AVPVH_DB {
         if (version_compare($version, '2.8', '<')) {
             // Passport name must read exactly as printed in the passport —
             // strip parenthetical nicknames/notes left over from the old
-            // doopnaam data folded in during 2.7 (e.g. "Frank (Franciscus
-            // Maria Henricus)" -> "Frank Franciscus Maria Henricus").
+            // doopnaam data folded in during 2.7 (e.g. "Roepnaam (Volledige
+            // Namen)" -> "Roepnaam Volledige Namen").
             $rows = $wpdb->get_results(
                 "SELECT id, passport_name FROM {$wpdb->prefix}avm_members
                  WHERE passport_name LIKE '%(%' OR passport_name LIKE '%)%'
@@ -1961,7 +1961,7 @@ class AVPVH_DB {
         }
     }
 
-    /** Case-insensitive first+last name match — used by the "Nieuw lid" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, since a treasurer typing e.g. "Jules Horen" should still be warned about "Jules van Horen". */
+    /** Case-insensitive first+last name match — used by the "Nieuw lid" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, so a name entered without its tussenvoegsel still triggers a warning. */
     public static function find_members_by_name(string $first_name, string $last_name): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(

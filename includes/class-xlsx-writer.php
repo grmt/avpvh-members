@@ -10,7 +10,7 @@ defined('ABSPATH') || exit;
  * Usage:
  *   $bytes = AVPVH_Xlsx_Writer::build($rows, ['A' => 24, 'B' => 12]);
  *   where $rows is a list of rows, each a list of cells:
- *   ['v' => 'Jan Jansen', 'bold' => true, 'color' => 'FFEE99']
+ *   ['v' => 'Fictieve Testnaam', 'bold' => true, 'color' => 'FFEE99']
  */
 class AVPVH_Xlsx_Writer {
 

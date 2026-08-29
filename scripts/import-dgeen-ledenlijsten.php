@@ -50,7 +50,7 @@
  *
  * Rows flagged needs_review by the extraction script (missing comma in the
  * "Naam" cell, or a non-person entry like "sg Philips van Horne" / "Fam.
- * Volkaert") are excluded from matching/creation entirely and only listed
+ * Voorbeeld") are excluded from matching/creation entirely and only listed
  * in the report — never guessed at.
  */
 

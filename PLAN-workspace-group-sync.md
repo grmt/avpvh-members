@@ -105,7 +105,7 @@ Show:
 
 Example:
 
-- `Garmt Boekholt · Beheerder · Boek · 50 jaar archeo · Lid`
+- `Fictieve Testnaam · Beheerder · Boek · Jubileumgroep · Lid`
 
 ### Profile page
 

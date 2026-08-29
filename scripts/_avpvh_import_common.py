@@ -222,7 +222,7 @@ def normalize_name_key(first_name: str, last_name: str) -> tuple[str, str]:
     pvh_avm_members stores tussenvoegsel three different ways depending on
     when a row was created: legacy rows glue it into last_name as
     "Achternaam, suffix" (empty suffix column); some rows glue a capitalized
-    prefix directly onto last_name with no comma ("De Boe"); newer rows keep
+    prefix directly onto last_name with no comma ("De Voorbeeld"); newer rows keep
     it in the separate suffix column with a clean last_name. Handling both
     comma- and prefix-based forms means this is a no-op for sheet rows,
     which never contain either."""
@@ -241,7 +241,7 @@ def normalize_name_key(first_name: str, last_name: str) -> tuple[str, str]:
 
 def first_name_contains(db_first_name: str, sheet_first_name: str) -> bool:
     """True if the sheet's (short) first name appears as a whole word inside
-    the DB's first name — catches e.g. DB "Frank (Franciscus Maria
-    Henricus)" vs sheet "Frank", or "Julie Vrijheid" vs sheet "Julie"."""
+    the DB's first name — catches a short call name inside a longer formal
+    name, or one part of a compound given name."""
     words = re.findall(r"[^\W\d_]+", (db_first_name or '').lower(), re.UNICODE)
     return (sheet_first_name or '').strip().lower() in words
