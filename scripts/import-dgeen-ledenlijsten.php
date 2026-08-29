@@ -1,7 +1,7 @@
 <?php
 /**
  * Import DGéén ledenlijst snapshots (from the `scan` repo's already-parsed
- * avpvh/02-DGéén/transcripties/*/page_XX.md tables) into avm_members /
+ * avpvh/02-DGéén/transcripties/{editie}/page_XX.md tables) into avm_members /
  * avm_addresses, treating each publication date as an address-validity
  * boundary.
  *
@@ -68,6 +68,18 @@ $editions = json_decode(file_get_contents($json_path), true);
 $TUSSENVOEGSEL_PREFIXES = ['van der ', 'van den ', 'van de ', 'ten ', 'ter ',
     'de ', 'van ', 'te ', 'von ', 'la ', 'le ', 'du '];
 
+function avpvh_normalize_dgeen_suffix(string $suffix): string
+{
+    $suffix = trim($suffix);
+
+    // Historical DGéén tables abbreviate "van den" as "v/d".
+    if (preg_match('/^v\s*\/\s*d\.?$/iu', $suffix)) {
+        return 'van den';
+    }
+
+    return $suffix;
+}
+
 function normalize_name_key(string $first, string $last): string {
     global $TUSSENVOEGSEL_PREFIXES;
     $last = trim($last);
@@ -104,6 +116,7 @@ $review_needed = [];
 foreach ($editions as $ed) {
     $datum = $ed['datum'];
     foreach ($ed['personen'] as $p) {
+        $p['suffix'] = avpvh_normalize_dgeen_suffix($p['suffix'] ?? '');
         if (!empty($p['needs_review'])) {
             // Missing-comma OCR/typesetting artifact that couldn't be
             // resolved by fixing the source .md (or a genuine non-person
