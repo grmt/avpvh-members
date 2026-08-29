@@ -11,8 +11,6 @@
  * scripts/*.local.* so Git never tracks it.
  */
 
-declare(strict_types=1);
-
 defined('ABSPATH') || exit;
 
 global $wpdb;
