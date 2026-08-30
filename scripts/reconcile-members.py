@@ -39,7 +39,7 @@ from _avpvh_import_common import (
     read_secret, get_db, lldap_login, get_group_id,
     uid_from_email, lldap_create_user, lldap_add_to_group,
     sheet_headers, col, parse_date, age_on, placeholder_child_uid,
-    normalize_name_key, first_name_contains, SECRET_FILE,
+    normalize_name_key, first_name_contains, load_member_name_index, SECRET_FILE,
 )
 
 FIELDS_TO_SYNC = ['birth_date', 'phone', 'mobile', 'emergency_contact']
@@ -117,34 +117,58 @@ def load_sheet_rows(sheet) -> dict:
     return rows
 
 
-def load_db_members(cursor) -> dict:
+def load_db_members(cursor) -> tuple[dict, set]:
     cursor.execute(f"""
         SELECT m.id, m.first_name, m.last_name, m.suffix, m.birth_date,
                m.phone, m.mobile, m.emergency_contact,
                a.street, a.house_number, a.postal_code, a.city, a.country
         FROM {WP_PREFIX}avm_members m
-        LEFT JOIN {WP_PREFIX}avm_addresses a ON a.member_id = m.id
-            AND (a.valid_from IS NULL OR a.valid_from <= CURDATE())
-            AND (a.valid_until IS NULL OR a.valid_until >= CURDATE())
+        LEFT JOIN {WP_PREFIX}avm_addresses a ON a.id = (
+            SELECT MAX(a2.id) FROM {WP_PREFIX}avm_addresses a2
+            WHERE a2.member_id = m.id
+              AND (a2.valid_from IS NULL OR a2.valid_from <= CURDATE())
+              AND (a2.valid_until IS NULL OR a2.valid_until >= CURDATE())
+        )
         WHERE m.status = 'active'
     """)
-    members = {}
+    rows_by_id = {}
     for (mid, first, last, suffix, birth_date, phone, mobile, emergency,
          street, house_nr, postal, city, country) in cursor.fetchall():
-        key_first, key_last = DB_NAME_KEY_CORRECTIONS.get(mid, (first, last))
-        key = normalize_name_key(key_first, key_last)
-        if key in members:
-            print(f'  WARNING: duplicate name among active DB members, first one wins: '
-                  f'{first} {last} (id={mid})')
+        if mid in rows_by_id:
+            # Existing address overlaps are reported separately. Never let a
+            # join duplicate silently select an arbitrary different address.
             continue
-        members[key] = {
+        key_first, key_last = DB_NAME_KEY_CORRECTIONS.get(mid, (first, last))
+        official_key = normalize_name_key(key_first, key_last, suffix)
+        rows_by_id[mid] = {
             'id': mid, 'first_name': first, 'last_name': last, 'suffix': suffix,
             'birth_date': birth_date, 'phone': phone, 'mobile': mobile,
             'emergency_contact': emergency,
             'street': street, 'house_number': house_nr, 'postal_code': postal,
-            'city': city, 'country': country,
+            'city': city, 'country': country, '_official_key': official_key,
         }
-    return members
+
+    name_index = load_member_name_index(cursor, status='active')
+    for member_id, (first, last) in DB_NAME_KEY_CORRECTIONS.items():
+        if member_id in rows_by_id:
+            key = normalize_name_key(first, last, rows_by_id[member_id]['suffix'])
+            name_index.setdefault(key, []).append({
+                'id': member_id, 'match_type': 'local-correction',
+                'match_reason': 'lokale correctie', 'status': 'active',
+            })
+    members = {}
+    ambiguous = set()
+    for key, candidates in name_index.items():
+        ids = {candidate['id'] for candidate in candidates}
+        if len(ids) != 1:
+            ambiguous.add(key)
+            print(f'  WARNING: ambigue officiële naam/alias {key!r}; '
+                  f'kandidaten={sorted(ids)} (geen automatische match)')
+            continue
+        member_id = next(iter(ids))
+        if member_id in rows_by_id:
+            members[key] = rows_by_id[member_id]
+    return members, ambiguous
 
 
 def effective_sheet_row(member_id: int, db_row: dict, sheet_row: dict) -> dict:
@@ -326,29 +350,33 @@ def main():
         with conn.cursor() as cur:
             wb = openpyxl.load_workbook(args.xlsx, data_only=True)
             sheet_rows = load_sheet_rows(wb['Leden'])
-            db_members = load_db_members(cur)
+            db_members, ambiguous_keys = load_db_members(cur)
 
             exact_matched = sorted(set(sheet_rows) & set(db_members))
-            sheet_only = sorted(set(sheet_rows) - set(db_members))
-            db_only = sorted(set(db_members) - set(sheet_rows))
+            sheet_ambiguous = sorted(set(sheet_rows) & ambiguous_keys)
+            sheet_only = sorted(set(sheet_rows) - set(db_members) - ambiguous_keys)
+            db_only = sorted(
+                key for key, member in db_members.items()
+                if member['_official_key'] == key and key not in sheet_rows
+            )
 
             secondary = find_secondary_matches(sheet_only, db_only, sheet_rows, db_members)
             if secondary:
-                print(f'Secondary matches (short first name found inside a fuller DB '
-                      f'name, same surname): {len(secondary)}')
+                print(f'Fuzzy suggestions (no automatic match or create): {len(secondary)}')
                 for skey, dkey in secondary.items():
                     print(f"  sheet {sheet_rows[skey]['first_name']} {sheet_rows[skey]['last_name']}"
-                          f" -> DB {db_members[dkey]['first_name']} {db_members[dkey]['last_name']}"
+                          f" ? DB {db_members[dkey]['first_name']} {db_members[dkey]['last_name']}"
                           f" (id={db_members[dkey]['id']})")
                 sheet_only = [k for k in sheet_only if k not in secondary]
-                db_only = [k for k in db_only if k not in secondary.values()]
 
-            # (sheet_key, db_key) pairs to diff/update — exact matches plus secondary ones.
-            matched_pairs = [(k, k) for k in exact_matched] + list(secondary.items())
+            # Only exact official/alias matches are safe enough to update.
+            matched_pairs = [(k, k) for k in exact_matched]
 
             print(f'Sheet rows: {len(sheet_rows)}, active DB members: {len(db_members)}')
             print(f'Matched by name: {len(matched_pairs)}, sheet-only (candidates to create): '
-                  f'{len(sheet_only)}, DB-only (not in sheet, not touched): {len(db_only)}')
+                      f'{len(sheet_only)}, DB-only (not in sheet, not touched): {len(db_only)}')
+            if sheet_ambiguous:
+                print(f'Ambiguous exact names/aliases (not touched or created): {len(sheet_ambiguous)}')
 
             print('\n=== UPDATE (matched members with changed fields) ===')
             updated = 0

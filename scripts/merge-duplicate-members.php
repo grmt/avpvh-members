@@ -27,16 +27,31 @@ function avpvh_merge_uid_hash(string $uid): string
 
 function avpvh_merge_name_key(object $member): string
 {
-    $last = strtolower(trim((string) $member->last_name));
+    if (method_exists(AVPVH_DB::class, 'normalize_person_name')) {
+        $normalized = AVPVH_DB::normalize_person_name(
+            (string) $member->first_name,
+            (string) $member->suffix,
+            (string) $member->last_name
+        );
+        return $normalized['normalized_key'];
+    }
+
+    // Compatibility with a live plugin version predating the central API,
+    // so the read-only preflight can be run before deployment.
+    $first = strtolower(remove_accents(trim((string) $member->first_name)));
+    $last = trim((string) $member->last_name);
     if (str_contains($last, ',')) {
         $last = trim(explode(',', $last, 2)[0]);
+    } elseif (empty($member->suffix)) {
+        $last = preg_replace(
+            '/^(van der|van den|van de|v\/d|vd|ten|ter|de|van|te|von|la|le|du)\s+/iu',
+            '',
+            $last
+        );
     }
-    $last = preg_replace(
-        '/^(van der|van den|van de|v\/d|vd|ten|ter|de|van|te|von|la|le|du)\s+/iu',
-        '',
-        $last
-    );
-    return strtolower(trim((string) $member->first_name)) . '|' . trim((string) $last);
+    $last = strtolower(remove_accents($last));
+    return preg_replace('/[^\p{L}\p{N}]+/u', ' ', $first)
+        . '|' . trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $last));
 }
 
 function avpvh_merge_is_empty(mixed $value): bool
@@ -165,6 +180,7 @@ foreach ($config['merges'] as $index => $merge) {
     }
 
     $dependencies = avpvh_merge_source_dependencies($source_id);
+    echo "$label dependency counts: " . wp_json_encode($dependencies) . "\n";
     foreach ($dependencies as $dependency => $count) {
         if ($count !== 0) {
             avpvh_merge_fail("$label source has unsupported $dependency rows: $count");
@@ -191,6 +207,11 @@ foreach ($config['merges'] as $index => $merge) {
     );
 
     $updates = [];
+    $retained_target_fields = [];
+    $allowed_retain_fields = array_values(array_intersect(
+        (array) ($merge['retain_target_fields'] ?? []),
+        $member_fields
+    ));
     foreach ($member_fields as $field) {
         $source_value = $source->$field;
         $target_value = $target->$field;
@@ -202,6 +223,10 @@ foreach ($config['merges'] as $index => $merge) {
             continue;
         }
         if ((string) $source_value !== (string) $target_value) {
+            if (in_array($field, $allowed_retain_fields, true)) {
+                $retained_target_fields[] = $field;
+                continue;
+            }
             avpvh_merge_fail("$label conflicting non-empty member field: $field");
         }
     }
@@ -245,15 +270,30 @@ foreach ($config['merges'] as $index => $merge) {
         'target_id' => $target_id,
         'source_uid' => (string) $source->lldap_user_id,
         'member_updates' => $updates,
+        'retained_target_fields' => $retained_target_fields,
         'address_operations' => $address_operations,
+        'dry_run_only_reasons' => array_values(array_filter(array_map(
+            'strval',
+            (array) ($merge['dry_run_only_reasons'] ?? [])
+        ))),
     ];
     echo "$label preflight OK; " . count($source_address_ids) . " source addresses; "
-        . count($updates) . " member fields to fill\n";
+        . count($updates) . " member fields to fill; retained target fields: "
+        . ($retained_target_fields ? implode(',', $retained_target_fields) : 'none') . "\n";
+    foreach ($plans[array_key_last($plans)]['dry_run_only_reasons'] as $reason) {
+        echo "$label BLOCKS LIVE MERGE: $reason\n";
+    }
 }
 
 if ($dry_run) {
     echo "DRY RUN complete; no database or LLDAP changes made\n";
     return;
+}
+
+foreach ($plans as $plan) {
+    if ($plan['dry_run_only_reasons']) {
+        avpvh_merge_fail($plan['label'] . ' is dry-run-only until all reported blockers are resolved');
+    }
 }
 
 $wpdb->query('START TRANSACTION');

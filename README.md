@@ -11,6 +11,8 @@ WordPress plugin for AVP Philips van Horne to manage members, camp participation
 - **Access Control:** Bypasses post passwords for active members; shows notices to ex-members.
 - **Fee Popup:** Notifies members on login if current year's fees are pending.
 - **Admin UI:** Member list, detail views, fee management in the WordPress backend.
+- **Naamvarianten:** Explicitly managed aliases are used consistently by search and imports; ambiguous aliases are never matched automatically.
+- **Address history:** Central address normalization detects equivalent spelling while retaining the entered display values and keeping at most one current address for new writes.
 - **LLDAP connection test:** Test LLDAP credentials from the settings page without saving them.
 
 ## Architecture
@@ -53,6 +55,15 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 3. Enter client IDs and secrets in **WP Admin → AVP-PvH Leden → Instellingen**.
 4. Ensure the WordPress DB user has `SELECT` on the `lldap` database.
 5. Import members using `scripts/import-avpvh-members.py`.
+
+## Local data migrations
+
+Member-specific corrections and migration plans belong in `scripts/*.local.*`,
+which is ignored by Git. `scripts/import-member-name-aliases.php` reads
+`scripts/member-name-aliases.local.json` and defaults to a dry-run. Address
+overlaps can be inventoried read-only with `scripts/report-address-overlaps.php`.
+Never place real member names, IDs, contact data, or hashes in committed scripts,
+tests, comments, or documentation.
 
 ## Deploy
 

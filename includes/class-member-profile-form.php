@@ -838,11 +838,10 @@ class AVPVH_Member_Profile_Form {
                     'valid_from' => current_time('Y-m-d'),
                 ];
 
-                global $wpdb;
-                $wpdb->insert(
-                    "{$wpdb->prefix}avm_addresses",
-                    ['member_id' => $member->id] + $address_data,
-                    ['%d'] + array_fill(0, count($address_data), '%s')
+                AVPVH_DB::add_member_address(
+                    (int) $member->id,
+                    $address_data,
+                    $address_data['valid_from']
                 );
             }
 

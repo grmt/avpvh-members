@@ -64,10 +64,6 @@ echo $dry_run ? "=== DRY RUN ===\n\n" : "=== LIVE RUN ===\n\n";
 $json_path = '/var/www/html/wp-content-pvh/plugins/avpvh-members/scripts/_dgeen_ledenlijsten.json';
 $editions = json_decode(file_get_contents($json_path), true);
 
-// --- normalize_name_key equivalent (mirrors _avpvh_import_common.py) ---
-$TUSSENVOEGSEL_PREFIXES = ['van der ', 'van den ', 'van de ', 'ten ', 'ter ',
-    'de ', 'van ', 'te ', 'von ', 'la ', 'le ', 'du ', 'v/d ', 'vd '];
-
 function avpvh_normalize_dgeen_suffix(string $suffix): string
 {
     $suffix = trim($suffix);
@@ -85,34 +81,13 @@ function avpvh_normalize_dgeen_suffix(string $suffix): string
     return $suffix;
 }
 
-function normalize_name_key(string $first, string $last): string {
-    global $TUSSENVOEGSEL_PREFIXES;
-    $last = trim($last);
-    if (str_contains($last, ',')) {
-        $core = explode(',', $last, 2)[0];
-    } else {
-        $lowered = strtolower($last);
-        $core = $last;
-        foreach ($TUSSENVOEGSEL_PREFIXES as $prefix) {
-            if (str_starts_with($lowered, $prefix)) {
-                $core = substr($last, strlen($prefix));
-                break;
-            }
-        }
-    }
-    return strtolower(trim($first)) . '|' . strtolower(trim($core));
-}
-
-// --- load existing members ---
-$db_members = [];
+// Load existing rows by immutable ID. Candidate selection itself goes through
+// AVPVH_DB so official names and explicit aliases follow the same rules as the
+// admin search and every other import.
+$db_members_by_id = [];
 $rows = $wpdb->get_results("SELECT id, first_name, last_name, suffix, birth_date, phone, lldap_user_id FROM {$wpdb->prefix}avm_members");
 foreach ($rows as $r) {
-    $key = normalize_name_key($r->first_name, $r->last_name);
-    if (isset($db_members[$key])) {
-        echo "  WARNING: duplicate name among DB members, first one wins: {$r->first_name} {$r->last_name} (id={$r->id})\n";
-        continue;
-    }
-    $db_members[$key] = $r;
+    $db_members_by_id[(int) $r->id] = $r;
 }
 
 // --- group ledenlijst rows by normalized name, preserving date order ---
@@ -130,7 +105,12 @@ foreach ($editions as $ed) {
             $review_needed[] = [$ed['editie'], $datum, $p];
             continue;
         }
-        $key = normalize_name_key($p['voornaam'], $p['achternaam']);
+        $normalized = AVPVH_DB::normalize_person_name(
+            $p['voornaam'],
+            $p['suffix'],
+            $p['achternaam']
+        );
+        $key = $normalized['normalized_key'];
         if (!isset($people[$key])) {
             $people[$key] = ['display' => $p, 'snapshots' => []];
         }
@@ -149,7 +129,14 @@ if ($review_needed) {
 }
 
 function addr_key(array $a): string {
-    return implode('|', [$a['straat'], $a['huisnummer'], $a['postcode'], $a['plaats'], $a['land']]);
+    $normalized = AVPVH_DB::normalize_address([
+        'street' => $a['straat'] ?? '',
+        'house_number' => $a['huisnummer'] ?? '',
+        'postal_code' => $a['postcode'] ?? '',
+        'city' => $a['plaats'] ?? '',
+        'country' => $a['land'] ?? 'Nederland',
+    ]);
+    return $normalized['normalized_key'];
 }
 
 // coalesce consecutive identical addresses into periods
@@ -170,7 +157,7 @@ function coalesce_periods(array $snapshots): array {
 
 ksort($people);
 
-$n_matched = 0; $n_created = 0; $n_addr_rows = 0;
+$n_matched = 0; $n_created = 0; $n_ambiguous = 0; $n_addr_rows = 0;
 $n_birthdate_filled = 0; $n_birthdate_conflict = 0; $n_phone_filled = 0;
 $conflicts = [];
 
@@ -180,7 +167,14 @@ foreach ($people as $key => $entry) {
     $snapshots = $entry['snapshots'];
     usort($snapshots, fn($a, $b) => strcmp($a[0], $b[0]));
 
-    $db_row = $db_members[$key] ?? null;
+    $matches = AVPVH_DB::find_members_by_name_or_alias($voornaam, $suffix, $achternaam);
+    if (count($matches) > 1) {
+        $n_ambiguous++;
+        $ids = implode(', ', array_map(static fn(object $match): int => (int) $match->id, $matches));
+        echo "  AMBIGU (geen wijziging): $voornaam $suffix $achternaam; kandidaten: $ids\n";
+        continue;
+    }
+    $db_row = $matches ? ($db_members_by_id[(int) $matches[0]->id] ?? null) : null;
     $member_id = null;
 
     if ($db_row) {
@@ -245,6 +239,7 @@ foreach ($people as $key => $entry) {
 
 echo "\n=== Samenvatting ===\n";
 echo "Gematchte bestaande leden: $n_matched\n";
+echo "Ambigue namen (overgeslagen): $n_ambiguous\n";
 echo "Nieuw aan te maken (inactive) leden: $n_created\n";
 echo "avm_addresses rijen (na samenvoegen): $n_addr_rows\n";
 echo "birth_date ingevuld (was leeg): $n_birthdate_filled\n";

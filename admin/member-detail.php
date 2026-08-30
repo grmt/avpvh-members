@@ -45,6 +45,11 @@ $addresses  = AVPVH_DB::get_addresses($member_id);
 $activities = AVPVH_DB::get_activities_for_member($member_id);
 $fees       = AVPVH_DB::get_fees_for_member($member_id);
 $identities = AVPVH_DB::get_member_identities($member_id);
+$name_variants = AVPVH_DB::get_member_name_variants($member_id);
+$name_aliases = array_values(array_filter(
+    $name_variants,
+    static fn(object $variant): bool => ($variant->alias_type ?? 'official') !== 'official'
+));
 $all_flags  = AVPVH_DB::get_all_flags();
 $member_flag_ids = wp_list_pluck(AVPVH_DB::get_flags_for_member($member_id), 'id');
 $active_tab = sanitize_key(wp_unslash($_GET['tab'] ?? 'contact'));
@@ -107,6 +112,12 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-success is-dismissible"><p>Adres bijgewerkt.</p></div>
     <?php elseif (!empty($_GET['address_deleted'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Adres verwijderd.</p></div>
+    <?php elseif (!empty($_GET['alias_saved'])) : ?>
+        <div class="notice notice-success is-dismissible"><p>Naamvariant opgeslagen.</p></div>
+    <?php elseif (!empty($_GET['alias_deleted'])) : ?>
+        <div class="notice notice-success is-dismissible"><p>Naamvariant verwijderd.</p></div>
+    <?php elseif (!empty($_GET['alias_error'])) : ?>
+        <div class="notice notice-error is-dismissible"><p>Naamvariant kon niet worden opgeslagen. Controleer de naam of een bestaande dubbele variant.</p></div>
     <?php elseif (!empty($_GET['flags_saved'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Kenmerken opgeslagen.</p></div>
     <?php elseif (!empty($_GET['email_updated'])) : ?>
@@ -180,6 +191,102 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th>Lid sinds</th><td><?php echo esc_html($member->joined_year ?: '—'); ?></td></tr>
         <tr><th>Vertrokken</th><td><?php echo esc_html($member->left_year ?: '—'); ?></td></tr>
     </table>
+
+    <h2>Naamvarianten</h2>
+    <p class="description">Gebruik alleen expliciet bekende varianten. Als dezelfde variant bij meerdere leden hoort, wordt automatische koppeling geblokkeerd.</p>
+    <?php
+    $alias_type_labels = [
+        'maiden' => 'Geboortenaam',
+        'married' => 'Getrouwde naam',
+        'nickname' => 'Roepnaam',
+        'spelling' => 'Spellingvariant',
+        'abbreviation' => 'Afkorting',
+        'historical' => 'Historische naam',
+    ];
+    ?>
+    <?php if (!$name_aliases) : ?>
+        <p>Nog geen naamvarianten vastgelegd.</p>
+    <?php else : ?>
+        <?php foreach ($name_aliases as $alias) :
+            $alias_conflicts = AVPVH_DB::get_alias_conflicts((int) $alias->id);
+        ?>
+            <div style="max-width:1000px;margin:1em 0;padding:1em;border:1px solid #c3c4c7;background:#fff">
+                <?php if ($alias_conflicts) : ?>
+                    <div class="notice notice-warning inline"><p>Deze naamvariant hoort ook bij <?php echo esc_html(count($alias_conflicts)); ?> ander(e) lid/leden. Automatische koppeling wordt daarom geblokkeerd.</p></div>
+                <?php endif; ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <?php wp_nonce_field('avpvh_save_name_alias'); ?>
+                    <input type="hidden" name="action" value="avpvh_save_name_alias">
+                    <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                    <input type="hidden" name="alias_id" value="<?php echo esc_attr($alias->id); ?>">
+                    <table class="form-table" style="margin:0">
+                        <tr>
+                            <th>Naam</th>
+                            <td>
+                                <input name="first_name" value="<?php echo esc_attr($alias->first_name); ?>" placeholder="Voornaam" required>
+                                <input name="suffix" value="<?php echo esc_attr($alias->suffix); ?>" placeholder="Tussenvoegsel" style="width:10em">
+                                <input name="last_name" value="<?php echo esc_attr($alias->last_name); ?>" placeholder="Achternaam" required>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Soort en geldigheid</th>
+                            <td>
+                                <select name="alias_type">
+                                    <?php foreach ($alias_type_labels as $type => $label) : ?>
+                                        <option value="<?php echo esc_attr($type); ?>" <?php selected($alias->alias_type, $type); ?>><?php echo esc_html($label); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <label>van <input type="date" name="valid_from" value="<?php echo esc_attr($alias->valid_from); ?>"></label>
+                                <label>tot <input type="date" name="valid_until" value="<?php echo esc_attr($alias->valid_until); ?>"></label>
+                            </td>
+                        </tr>
+                        <tr><th>Herkomst</th><td><input class="regular-text" name="source" value="<?php echo esc_attr($alias->source); ?>"></td></tr>
+                        <tr><th>Notitie</th><td><textarea class="large-text" rows="2" name="note"><?php echo esc_textarea($alias->note); ?></textarea></td></tr>
+                    </table>
+                    <button type="submit" class="button button-secondary">Naamvariant opslaan</button>
+                </form>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:.5em" onsubmit="return confirm('Deze naamvariant verwijderen?');">
+                    <?php wp_nonce_field('avpvh_delete_name_alias'); ?>
+                    <input type="hidden" name="action" value="avpvh_delete_name_alias">
+                    <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                    <input type="hidden" name="alias_id" value="<?php echo esc_attr($alias->id); ?>">
+                    <button type="submit" class="button-link-delete">Naamvariant verwijderen</button>
+                </form>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+
+    <h3>Naamvariant toevoegen</h3>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="max-width:1000px">
+        <?php wp_nonce_field('avpvh_save_name_alias'); ?>
+        <input type="hidden" name="action" value="avpvh_save_name_alias">
+        <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+        <table class="form-table">
+            <tr>
+                <th>Naam</th>
+                <td>
+                    <input name="first_name" placeholder="Voornaam" required>
+                    <input name="suffix" placeholder="Tussenvoegsel" style="width:10em">
+                    <input name="last_name" placeholder="Achternaam" required>
+                </td>
+            </tr>
+            <tr>
+                <th>Soort en geldigheid</th>
+                <td>
+                    <select name="alias_type">
+                        <?php foreach ($alias_type_labels as $type => $label) : ?>
+                            <option value="<?php echo esc_attr($type); ?>"><?php echo esc_html($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label>van <input type="date" name="valid_from"></label>
+                    <label>tot <input type="date" name="valid_until"></label>
+                </td>
+            </tr>
+            <tr><th>Herkomst</th><td><input class="regular-text" name="source"></td></tr>
+            <tr><th>Notitie</th><td><textarea class="large-text" rows="2" name="note"></textarea></td></tr>
+        </table>
+        <?php submit_button('Naamvariant toevoegen', 'secondary'); ?>
+    </form>
 
     <h2>Inlogadressen</h2>
     <table class="wp-list-table widefat striped">

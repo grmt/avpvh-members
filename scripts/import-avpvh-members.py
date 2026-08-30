@@ -30,6 +30,7 @@ from _avpvh_import_common import (
     read_secret, get_db, lldap_login, get_group_id,
     uid_from_email, lldap_create_user, lldap_add_to_group,
     sheet_headers, col, parse_date, parse_year, age_on, placeholder_child_uid,
+    load_member_name_index, find_members_by_name_or_alias, normalize_name_key,
     SECRET_FILE,
 )
 
@@ -43,6 +44,7 @@ EX_LEDEN_COLS = ['vertrekjaar', 'achternaam', 'voornaam', 'geboortedatum',
 
 def import_sheet(cursor, session: requests.Session, sheet,
                  status: str, group_id: int, dry_run: bool,
+                 name_index: dict,
                  positional_headers: list[str] | None = None) -> None:
 
     if positional_headers is not None:
@@ -73,6 +75,19 @@ def import_sheet(cursor, session: requests.Session, sheet,
         postal     = c(row, 'postcode')
         city       = c(row, 'woonplaats') or c(row, 'stad')
         country    = c(row, 'land') or 'Nederland'
+
+        name_matches = find_members_by_name_or_alias(
+            name_index, first_name, last_name, suffix
+        )
+        if len(name_matches) > 1:
+            ids = ', '.join(str(match['id']) for match in name_matches)
+            print(f'  AMBIGU (overgeslagen): {last_name}, {first_name}; kandidaten={ids}')
+            continue
+        if name_matches:
+            match = name_matches[0]
+            print(f"  skip ({match['match_reason']}): {last_name}, {first_name} "
+                  f"→ member_id={match['id']}")
+            continue
 
         if birth_date and age_on(birth_date, date.today()) < 16:
             uid = placeholder_child_uid(session, first_name, last_name, dry_run)
@@ -123,6 +138,12 @@ def import_sheet(cursor, session: requests.Session, sheet,
                 )
 
         print(f'  imported ({status}): {last_name}, {first_name} <{email}> → uid={uid}')
+        name_index.setdefault(normalize_name_key(first_name, last_name, suffix), []).append({
+            'id': int(member_id) if not dry_run else -1,
+            'match_type': 'official',
+            'match_reason': 'officiële naam',
+            'status': status,
+        })
 
 
 def main():
@@ -142,19 +163,21 @@ def main():
 
     try:
         with conn.cursor() as cur:
+            name_index = load_member_name_index(cur)
             group_active   = get_group_id(session, GROUP_ACTIVE)
             group_inactive = get_group_id(session, GROUP_INACTIVE)
             print(f'Groups: {GROUP_ACTIVE}={group_active}, {GROUP_INACTIVE}={group_inactive}')
 
             if 'Leden' in wb.sheetnames:
                 print('\n=== Active members (sheet "Leden") ===')
-                import_sheet(cur, session, wb['Leden'], 'active', group_active, args.dry_run)
+                import_sheet(cur, session, wb['Leden'], 'active', group_active, args.dry_run, name_index)
             else:
                 print('WARNING: sheet "Leden" not found')
 
             if 'ex-leden' in wb.sheetnames:
                 print('\n=== Ex-members (sheet "ex-leden") ===')
                 import_sheet(cur, session, wb['ex-leden'], 'inactive', group_inactive, args.dry_run,
+                             name_index,
                              positional_headers=EX_LEDEN_COLS)
             else:
                 print('WARNING: sheet "ex-leden" not found')

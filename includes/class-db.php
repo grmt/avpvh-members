@@ -56,7 +56,57 @@ class AVPVH_DB {
             valid_from DATE NULL,
             valid_until DATE NULL,
             PRIMARY KEY (id),
-            KEY member_id (member_id)
+            KEY member_id (member_id),
+            KEY member_current (member_id, valid_until, valid_from)
+        ) $charset;");
+
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_member_name_aliases (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            member_id INT UNSIGNED NOT NULL,
+            first_name VARCHAR(100) NOT NULL DEFAULT '',
+            suffix VARCHAR(50) NOT NULL DEFAULT '',
+            last_name VARCHAR(100) NOT NULL DEFAULT '',
+            alias_type ENUM('maiden','married','nickname','spelling','abbreviation','historical') NOT NULL,
+            valid_from DATE NULL,
+            valid_until DATE NULL,
+            source VARCHAR(100) NOT NULL DEFAULT '',
+            note TEXT NULL,
+            normalized_key VARCHAR(255) NOT NULL,
+            normalized_key_hash CHAR(64) NOT NULL,
+            created_by INT UNSIGNED NULL,
+            updated_by INT UNSIGNED NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY member_normalized (member_id, normalized_key_hash),
+            KEY normalized_key_hash (normalized_key_hash),
+            KEY alias_type (alias_type)
+        ) $charset;");
+
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_city_aliases (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            country VARCHAR(100) NOT NULL DEFAULT 'Nederland',
+            alias_name VARCHAR(100) NOT NULL,
+            canonical_name VARCHAR(100) NOT NULL,
+            normalized_alias_hash CHAR(64) NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY country_alias (country, normalized_alias_hash)
+        ) $charset;");
+
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_street_aliases (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            country VARCHAR(100) NOT NULL DEFAULT 'Nederland',
+            postal_code VARCHAR(20) NOT NULL DEFAULT '',
+            city VARCHAR(100) NOT NULL DEFAULT '',
+            alias_street VARCHAR(150) NOT NULL,
+            canonical_street VARCHAR(150) NOT NULL,
+            normalized_scope_hash CHAR(64) NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY scoped_alias (normalized_scope_hash)
         ) $charset;");
 
         // Activity types (Kamp/Weekend/Uitje/...) — club admins can rename or
@@ -593,6 +643,24 @@ class AVPVH_DB {
             }
             update_option('avpvh_db_version', '2.18');
         }
+
+        if (version_compare($version, '2.19', '<')) {
+            // Central member-name aliases and scoped address aliases. dbDelta
+            // also adds the current-address lookup index to avm_addresses.
+            self::install();
+            $city_alias_key = AVPVH_Normalization::fold('Nederland')
+                . '|' . AVPVH_Normalization::fold('Den Bosch');
+            $wpdb->query($wpdb->prepare(
+                "INSERT IGNORE INTO {$wpdb->prefix}avm_city_aliases
+                    (country, alias_name, canonical_name, normalized_alias_hash)
+                 VALUES (%s, %s, %s, %s)",
+                'Nederland',
+                'Den Bosch',
+                "'s-Hertogenbosch",
+                hash('sha256', $city_alias_key)
+            ));
+            update_option('avpvh_db_version', '2.19');
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -1105,6 +1173,281 @@ class AVPVH_DB {
         // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
+    // -------------------------------------------------------------------
+    // Central name aliases and normalization
+    // -------------------------------------------------------------------
+
+    public static function normalize_person_name(
+        string $first_name,
+        string $suffix,
+        string $last_name
+    ): array {
+        return AVPVH_Normalization::normalize_person_name($first_name, $suffix, $last_name);
+    }
+
+    public static function get_member_name_variants(int $member_id): array {
+        global $wpdb;
+        $member = self::get_member($member_id);
+        if (!$member) {
+            return [];
+        }
+
+        $official = self::normalize_person_name(
+            (string) $member->first_name,
+            (string) $member->suffix,
+            (string) $member->last_name
+        );
+        $variants = [(object) ($official + [
+            'id' => 0,
+            'member_id' => $member_id,
+            'alias_type' => 'official',
+            'source' => '',
+            'note' => '',
+            'valid_from' => null,
+            'valid_until' => null,
+            'match_reason' => 'officiële naam',
+        ])];
+
+        $aliases = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_member_name_aliases
+             WHERE member_id = %d ORDER BY last_name, first_name, id",
+            $member_id
+        )) ?: [];
+        foreach ($aliases as $alias) {
+            $alias->match_reason = 'naamalias (' . $alias->alias_type . ')';
+            $variants[] = $alias;
+        }
+        return $variants;
+    }
+
+    public static function get_name_alias(int $alias_id, int $member_id = 0): ?object {
+        global $wpdb;
+        $sql = "SELECT * FROM {$wpdb->prefix}avm_member_name_aliases WHERE id = %d";
+        $params = [$alias_id];
+        if ($member_id > 0) {
+            $sql .= ' AND member_id = %d';
+            $params[] = $member_id;
+        }
+        return $wpdb->get_row($wpdb->prepare($sql, $params)) ?: null;
+    }
+
+    public static function save_member_name_alias(int $member_id, array $data, int $alias_id = 0): int {
+        global $wpdb;
+        if (!self::get_member($member_id)) {
+            return 0;
+        }
+
+        $allowed_types = ['maiden', 'married', 'nickname', 'spelling', 'abbreviation', 'historical'];
+        $alias_type = in_array($data['alias_type'] ?? '', $allowed_types, true)
+            ? $data['alias_type']
+            : 'spelling';
+        $normalized = self::normalize_person_name(
+            (string) ($data['first_name'] ?? ''),
+            (string) ($data['suffix'] ?? ''),
+            (string) ($data['last_name'] ?? '')
+        );
+        if ($normalized['first_key'] === '' || $normalized['last_key'] === '') {
+            return 0;
+        }
+
+        $row = [
+            'member_id' => $member_id,
+            'first_name' => trim((string) ($data['first_name'] ?? '')),
+            'suffix' => trim((string) ($data['suffix'] ?? '')),
+            'last_name' => trim((string) ($data['last_name'] ?? '')),
+            'alias_type' => $alias_type,
+            'valid_from' => ($data['valid_from'] ?? '') ?: null,
+            'valid_until' => ($data['valid_until'] ?? '') ?: null,
+            'source' => trim((string) ($data['source'] ?? '')),
+            'note' => trim((string) ($data['note'] ?? '')),
+            'normalized_key' => $normalized['normalized_key'],
+            'normalized_key_hash' => hash('sha256', $normalized['normalized_key']),
+            'updated_by' => get_current_user_id() ?: null,
+        ];
+
+        if ($alias_id > 0) {
+            $existing = self::get_name_alias($alias_id, $member_id);
+            if (!$existing) {
+                return 0;
+            }
+            $updated = $wpdb->update(
+                "{$wpdb->prefix}avm_member_name_aliases",
+                $row,
+                ['id' => $alias_id, 'member_id' => $member_id]
+            );
+            return $updated === false ? 0 : $alias_id;
+        }
+
+        $row['created_by'] = get_current_user_id() ?: null;
+        $inserted = $wpdb->insert("{$wpdb->prefix}avm_member_name_aliases", $row);
+        return $inserted ? (int) $wpdb->insert_id : 0;
+    }
+
+    public static function delete_member_name_alias(int $alias_id, int $member_id): bool {
+        global $wpdb;
+        return $wpdb->delete(
+            "{$wpdb->prefix}avm_member_name_aliases",
+            ['id' => $alias_id, 'member_id' => $member_id],
+            ['%d', '%d']
+        ) === 1;
+    }
+
+    public static function get_alias_conflicts(int $alias_id): array {
+        $alias = self::get_name_alias($alias_id);
+        if (!$alias) {
+            return [];
+        }
+        $matches = self::find_members_by_name_or_alias(
+            (string) $alias->first_name,
+            (string) $alias->suffix,
+            (string) $alias->last_name
+        );
+        return array_values(array_filter(
+            array_unique(array_map(static fn(object $match): int => (int) $match->id, $matches)),
+            static fn(int $member_id): bool => $member_id !== (int) $alias->member_id
+        ));
+    }
+
+    public static function find_members_by_name_or_alias(
+        string $first_name,
+        string $suffix,
+        string $last_name
+    ): array {
+        global $wpdb;
+        $normalized = self::normalize_person_name($first_name, $suffix, $last_name);
+        if ($normalized['first_key'] === '' || $normalized['last_key'] === '') {
+            return [];
+        }
+
+        $matches = [];
+        $members = $wpdb->get_results(
+            "SELECT id, first_name, suffix, last_name, status FROM {$wpdb->prefix}avm_members"
+        ) ?: [];
+        foreach ($members as $member) {
+            $official = self::normalize_person_name(
+                (string) $member->first_name,
+                (string) $member->suffix,
+                (string) $member->last_name
+            );
+            if ($official['normalized_key'] === $normalized['normalized_key']) {
+                $member->match_type = 'official';
+                $member->match_reason = 'officiële naam';
+                $matches[(int) $member->id] = $member;
+            }
+        }
+
+        $aliases = $wpdb->get_results($wpdb->prepare(
+            "SELECT a.*, m.status FROM {$wpdb->prefix}avm_member_name_aliases a
+             JOIN {$wpdb->prefix}avm_members m ON m.id = a.member_id
+             WHERE a.normalized_key_hash = %s AND a.normalized_key = %s",
+            hash('sha256', $normalized['normalized_key']),
+            $normalized['normalized_key']
+        )) ?: [];
+        foreach ($aliases as $alias) {
+            $member_id = (int) $alias->member_id;
+            if (isset($matches[$member_id])) {
+                continue;
+            }
+            $alias->id = $member_id;
+            $alias->match_type = 'alias';
+            $alias->match_reason = 'naamalias (' . $alias->alias_type . ')';
+            $matches[$member_id] = $alias;
+        }
+
+        return array_values($matches);
+    }
+
+    // -------------------------------------------------------------------
+    // Central address normalization and history rules
+    // -------------------------------------------------------------------
+
+    public static function normalize_address(array $address): array {
+        global $wpdb;
+        $city_aliases = [];
+        foreach ($wpdb->get_results("SELECT * FROM {$wpdb->prefix}avm_city_aliases") ?: [] as $alias) {
+            $key = AVPVH_Normalization::fold($alias->country)
+                . '|' . AVPVH_Normalization::fold($alias->alias_name);
+            $city_aliases[$key] = $alias->canonical_name;
+        }
+        $street_aliases = [];
+        foreach ($wpdb->get_results("SELECT * FROM {$wpdb->prefix}avm_street_aliases") ?: [] as $alias) {
+            $key = implode('|', [
+                AVPVH_Normalization::fold($alias->country),
+                AVPVH_Normalization::fold(AVPVH_Normalization::normalize_postal_code($alias->postal_code)),
+                AVPVH_Normalization::fold($alias->city),
+                AVPVH_Normalization::fold($alias->alias_street),
+            ]);
+            $street_aliases[$key] = $alias->canonical_street;
+        }
+        return AVPVH_Normalization::normalize_address($address, $city_aliases, $street_aliases);
+    }
+
+    public static function add_member_address(
+        int $member_id,
+        array $address,
+        ?string $valid_from = null
+    ): int {
+        global $wpdb;
+        $valid_from = $valid_from ?: current_time('Y-m-d');
+        $normalized = self::normalize_address($address);
+        $current = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_addresses
+             WHERE member_id = %d
+               AND (valid_from IS NULL OR valid_from <= %s)
+               AND (valid_until IS NULL OR valid_until >= %s)
+             ORDER BY valid_from DESC, id DESC",
+            $member_id,
+            $valid_from,
+            $valid_from
+        )) ?: [];
+
+        foreach ($current as $existing) {
+            if (self::normalize_address((array) $existing)['normalized_key'] === $normalized['normalized_key']) {
+                return (int) $existing->id;
+            }
+        }
+
+        $previous_day = wp_date('Y-m-d', strtotime($valid_from . ' -1 day'));
+        foreach ($current as $existing) {
+            $wpdb->update(
+                "{$wpdb->prefix}avm_addresses",
+                ['valid_until' => $previous_day],
+                ['id' => $existing->id, 'member_id' => $member_id],
+                ['%s'],
+                ['%d', '%d']
+            );
+        }
+
+        $inserted = $wpdb->insert(
+            "{$wpdb->prefix}avm_addresses",
+            [
+                'member_id' => $member_id,
+                'street' => trim((string) ($address['street'] ?? '')),
+                'house_number' => trim((string) ($address['house_number'] ?? '')),
+                'postal_code' => trim((string) ($address['postal_code'] ?? '')),
+                'city' => trim((string) ($address['city'] ?? '')),
+                'country' => trim((string) ($address['country'] ?? 'Nederland')) ?: 'Nederland',
+                'valid_from' => $valid_from,
+                'valid_until' => null,
+            ]
+        );
+        return $inserted ? (int) $wpdb->insert_id : 0;
+    }
+
+    public static function get_current_address_overlaps(?string $as_of = null): array {
+        global $wpdb;
+        $today = $as_of ?: current_time('Y-m-d');
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT member_id, COUNT(*) AS current_count
+             FROM {$wpdb->prefix}avm_addresses
+             WHERE (valid_from IS NULL OR valid_from <= %s)
+               AND (valid_until IS NULL OR valid_until >= %s)
+             GROUP BY member_id HAVING COUNT(*) > 1 ORDER BY member_id",
+            $today,
+            $today
+        )) ?: [];
+    }
+
     public static function get_members(array $args = []): array {
         global $wpdb;
         $lldap  = self::lldap();
@@ -1114,7 +1457,19 @@ class AVPVH_DB {
 
         if (!empty($args['search'])) {
             $s      = '%' . $wpdb->esc_like($args['search']) . '%';
-            $where .= ' AND (m.last_name LIKE %s OR m.first_name LIKE %s OR u.email LIKE %s)';
+            $where .= " AND (
+                m.last_name LIKE %s OR m.first_name LIKE %s OR u.email LIKE %s
+                OR EXISTS (
+                    SELECT 1 FROM {$wpdb->prefix}avm_member_name_aliases na
+                    WHERE na.member_id = m.id
+                      AND (na.first_name LIKE %s OR na.suffix LIKE %s OR na.last_name LIKE %s
+                           OR CONCAT_WS(' ', na.first_name, na.suffix, na.last_name) LIKE %s)
+                )
+            )";
+            $params[] = $s;
+            $params[] = $s;
+            $params[] = $s;
+            $params[] = $s;
             $params[] = $s;
             $params[] = $s;
             $params[] = $s;
@@ -1961,14 +2316,9 @@ class AVPVH_DB {
         }
     }
 
-    /** Case-insensitive first+last name match — used by the "Nieuw lid" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, so a name entered without its tussenvoegsel still triggers a warning. */
+    /** Official-name or alias match used by the "Nieuw lid" duplicate warning. */
     public static function find_members_by_name(string $first_name, string $last_name): array {
-        global $wpdb;
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT id, first_name, suffix, last_name, status FROM {$wpdb->prefix}avm_members
-             WHERE LOWER(first_name) = LOWER(%s) AND LOWER(last_name) = LOWER(%s)",
-            $first_name, $last_name
-        )) ?: [];
+        return self::find_members_by_name_or_alias($first_name, '', $last_name);
     }
 
     /** New member with an already-created LLDAP account (see AVPVH_Admin::handle_add_member()) — mirrors the shape of the avpvh-ops-scripts one-off "create minor member" scripts, now available from the admin UI instead of a hand-run script. */

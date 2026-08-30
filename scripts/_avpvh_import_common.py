@@ -12,11 +12,11 @@ Dependencies:
     pip install pymysql openpyxl requests
 """
 
-import re
-from datetime import date, datetime
+from __future__ import annotations
 
-import pymysql
-import requests
+import re
+import unicodedata
+from datetime import date, datetime
 
 SECRET_FILE   = '/opt/docker/secrets/compose/wordpress_db_password.txt'
 DB_HOST       = '127.0.0.1'
@@ -55,6 +55,8 @@ def read_secret(path: str) -> str:
 
 
 def get_db(password: str):
+    import pymysql
+
     return pymysql.connect(
         host=DB_HOST, port=DB_PORT,
         user=DB_USER, password=password,
@@ -217,7 +219,16 @@ TUSSENVOEGSEL_PREFIXES = (
 )
 
 
-def normalize_name_key(first_name: str, last_name: str) -> tuple[str, str]:
+def fold_match_value(value: str) -> str:
+    """Accent/case/punctuation-insensitive key; never use it for display."""
+    decomposed = unicodedata.normalize('NFKD', (value or '').strip())
+    unaccented = ''.join(c for c in decomposed if not unicodedata.combining(c))
+    unaccented = re.sub(r"[.\-_,;:/\\]+", ' ', unaccented.lower())
+    return re.sub(r"[^\w']+", ' ', unaccented, flags=re.UNICODE).strip()
+
+
+def normalize_name_key(first_name: str, last_name: str,
+                       suffix: str = '') -> tuple[str, str]:
     """Normalized (first, last) key for matching a DB member to a sheet row.
     pvh_avm_members stores tussenvoegsel three different ways depending on
     when a row was created: legacy rows glue it into last_name as
@@ -227,16 +238,82 @@ def normalize_name_key(first_name: str, last_name: str) -> tuple[str, str]:
     comma- and prefix-based forms means this is a no-op for sheet rows,
     which never contain either."""
     last = (last_name or '').strip()
-    if ',' in last:
-        core_last = last.split(',', 1)[0]
+    explicit_suffix = (suffix or '').strip()
+    if not explicit_suffix and ',' in last:
+        core_last, explicit_suffix = (part.strip() for part in last.split(',', 1))
     else:
-        lowered = last.lower()
+        lowered = fold_match_value(last)
         core_last = last
-        for prefix in TUSSENVOEGSEL_PREFIXES:
-            if lowered.startswith(prefix):
-                core_last = last[len(prefix):]
+        for prefix in TUSSENVOEGSEL_PREFIXES + ('v/d ', 'vd '):
+            folded_prefix = fold_match_value(prefix)
+            if not explicit_suffix and lowered.startswith(f'{folded_prefix} '):
+                word_count = len(prefix.strip().split())
+                core_last = ' '.join(last.split()[word_count:])
                 break
-    return ((first_name or '').strip().lower(), core_last.strip().lower())
+    # Deliberately omit the suffix. Legacy separate/combined/abbreviated
+    # forms share a candidate set; multiple people are then ambiguous.
+    return (fold_match_value(first_name), fold_match_value(core_last))
+
+
+def load_member_name_index(cursor, status: str | None = None) -> dict:
+    """Return normalized key -> candidates from official names and aliases."""
+    where = ' WHERE status = %s' if status else ''
+    params = (status,) if status else ()
+    cursor.execute(
+        f"SELECT id, first_name, suffix, last_name, status "
+        f"FROM {WP_PREFIX}avm_members{where}", params
+    )
+    index: dict[tuple[str, str], dict[int, dict]] = {}
+    for member_id, first, suffix, last, member_status in cursor.fetchall():
+        key = normalize_name_key(first, last, suffix)
+        index.setdefault(key, {})[int(member_id)] = {
+            'id': int(member_id), 'match_type': 'official',
+            'match_reason': 'officiële naam', 'status': member_status,
+        }
+
+    cursor.execute(f"SHOW TABLES LIKE '{WP_PREFIX}avm_member_name_aliases'")
+    if cursor.fetchone():
+        alias_where = ' WHERE m.status = %s' if status else ''
+        cursor.execute(
+            f"SELECT a.member_id, a.first_name, a.suffix, a.last_name, "
+            f"a.alias_type, m.status FROM {WP_PREFIX}avm_member_name_aliases a "
+            f"JOIN {WP_PREFIX}avm_members m ON m.id = a.member_id{alias_where}",
+            params,
+        )
+        for member_id, first, suffix, last, alias_type, member_status in cursor.fetchall():
+            key = normalize_name_key(first, last, suffix)
+            candidates = index.setdefault(key, {})
+            candidates.setdefault(int(member_id), {
+                'id': int(member_id), 'match_type': 'alias',
+                'match_reason': f'naamalias ({alias_type})', 'status': member_status,
+            })
+    return {key: list(candidates.values()) for key, candidates in index.items()}
+
+
+def find_members_by_name_or_alias(index: dict, first_name: str,
+                                  last_name: str, suffix: str = '') -> list[dict]:
+    return index.get(normalize_name_key(first_name, last_name, suffix), [])
+
+
+def normalize_postal_code(postal_code: str) -> str:
+    compact = re.sub(r'\s+', '', (postal_code or '').strip()).upper()
+    match = re.fullmatch(r'(\d{4})([A-Z]{2})', compact)
+    return f'{match.group(1)} {match.group(2)}' if match else compact
+
+
+def normalize_address_key(address: dict, city_aliases: dict | None = None,
+                          street_aliases: dict | None = None) -> tuple[str, ...]:
+    """Central comparison key while preserving original values for storage."""
+    city_aliases = city_aliases or {}
+    street_aliases = street_aliases or {}
+    country = fold_match_value(address.get('country') or 'Nederland')
+    postal = fold_match_value(normalize_postal_code(address.get('postal_code') or ''))
+    city = fold_match_value(address.get('city') or '')
+    city = fold_match_value(city_aliases.get((country, city), city))
+    street = fold_match_value(address.get('street') or '')
+    street = fold_match_value(street_aliases.get((country, postal, city, street), street))
+    house_number = fold_match_value(address.get('house_number') or '')
+    return country, postal, city, street, house_number
 
 
 def first_name_contains(db_first_name: str, sheet_first_name: str) -> bool:

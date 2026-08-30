@@ -103,23 +103,21 @@ AVPVH_DB::normalize_person_name($first_name, $suffix, $last_name);
 AVPVH_DB::normalize_address($address);
 ```
 
-`avpvh-bookkeeping` moet deze API gebruiken en geen tweede aliasadministratie onderhouden. Toon bij een match eventueel de reden, bijvoorbeeld: `gematcht via naamalias Kitty de Bruijn`.
+`avpvh-bookkeeping` moet deze API gebruiken en geen tweede aliasadministratie onderhouden. Toon bij een match eventueel de reden, bijvoorbeeld: `gematcht via naamalias`.
 
 ## 8. Bestaande gegevens migreren
 
 Minimaal:
 
-- Leg `Kitty de Bruijn` vast als spellingalias van actief lid #36, `Kitty de Bruin`.
-- Voeg meisjesnamen, gehuwde namen en roepnaam-/spellingvarianten pas na controle van de betrokken leden-ID's toe, waaronder mogelijke combinaties als:
-  - `Tiny Sijben` / `Tiny Bruekers-Sijben`;
-  - `Wil Lippits` / `Will Lippits-Wacht`.
+- Leg de bevestigde spellingalias uit de genegeerde lokale configuratie vast bij het actieve doellid.
+- Voeg meisjesnamen, gehuwde namen en roepnaam-/spellingvarianten pas na controle van de betrokken leden-ID's toe. Bewaar die leden-ID's en namen uitsluitend in een genegeerd `*.local.*`-bestand.
 - Voeg geen alias toe op basis van alleen gelijkenis; verifieer eerst dat het werkelijk dezelfde persoon is.
 
-Maak voor het inactieve duplicaat Kitty #343 een veilige samenvoeg-dry-run:
+Maak voor het inactieve duplicaat uit de lokale configuratie een veilige samenvoeg-dry-run:
 
 - rapporteer alle afhankelijkheden;
 - beoordeel de geboortedatum voor overname;
-- behoud het huidige telefoonnummer en huidige adres van #36 tenzij anders besloten;
+- behoud het huidige telefoonnummer en huidige adres van het doellid tenzij anders besloten;
 - bewaar het oude adres eventueel als historische regel met correcte einddatum;
 - controleer LLDAP-groepen en identiteit vóór verwijdering;
 - verwijder niets in productie voordat de dry-run zonder conflicten slaagt.
@@ -142,16 +140,16 @@ Test minimaal:
 
 - `José` en `Jose` vergelijken gelijk, terwijl de officiële spelling behouden blijft;
 - tussenvoegsel los versus onderdeel van de achternaam;
-- `Kitty de Bruin` en alias `Kitty de Bruijn` koppelen aan lid #36;
-- `Tiny Sijben` en `Tiny Bruekers-Sijben` kunnen na verificatie hetzelfde lid vinden;
-- `Wil Lippits` en `Will Lippits-Wacht` kunnen na verificatie hetzelfde lid vinden;
+- de bevestigde spellingalias koppelt aan het ingestelde doellid;
+- een bevestigde geboorte-/gehuwdenaam kan na verificatie hetzelfde lid vinden;
+- een bevestigde roepnaam-/spellingvariant kan na verificatie hetzelfde lid vinden;
 - een alias die bij twee leden voorkomt blokkeert automatische koppeling;
 - synchronisatie via alias overschrijft de officiële naam niet;
 - naamzoeken vindt officiële namen en aliases;
 - plaats- en straataliassen leveren dezelfde canonieke adressleutel;
 - overlappende actuele adressen worden gesignaleerd;
 - boekhoudmatching gebruikt de centrale alias-API en toont de matchreden;
-- een nieuwe synchronisatie maakt geen duplicaat van Kitty.
+- een nieuwe synchronisatie maakt geen duplicaat van het geconfigureerde doellid.
 
 ## 11. Uitvoering en deployment
 
@@ -163,9 +161,9 @@ Test minimaal:
 6. Maak een dry-run van datamigraties en merges.
 7. Maak een databaseback-up.
 8. Deploy en voer migraties uit.
-9. Controleer Kitty, Tiny en Wil/Will handmatig.
+9. Controleer de leden uit de lokale migratieconfiguratie handmatig.
 10. Pas daarna `avpvh-bookkeeping` aan om de nieuwe members-API te gebruiken.
 
 ## Opdracht voor de vervolgsessie
 
-Implementeer dit plan in `avpvh-members`. Begin met schema, migraties, centrale normalisatie-API en tests. Voeg daarna de beheerinterface en synchronisatie-integratie toe. Maak vervolgens een veilige dry-run voor het samenvoegen van Kitty #343 in actief lid #36. Verwijder of combineer geen productiegegevens zonder eerst conflicterende velden en afhankelijkheden te rapporteren.
+Implementeer dit plan in `avpvh-members`. Begin met schema, migraties, centrale normalisatie-API en tests. Voeg daarna de beheerinterface en synchronisatie-integratie toe. Maak vervolgens een veilige dry-run voor het lokaal geconfigureerde duplicaat en doellid. Verwijder of combineer geen productiegegevens zonder eerst conflicterende velden en afhankelijkheden te rapporteren.
