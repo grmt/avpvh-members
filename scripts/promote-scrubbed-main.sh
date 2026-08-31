@@ -11,7 +11,8 @@ if ! git show-ref --verify --quiet "refs/heads/$source_ref"; then
 fi
 
 repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-endpoint="repos/$repo/branches/main/protection/enforce_admins"
+admin_endpoint="repos/$repo/branches/main/protection/enforce_admins"
+force_endpoint="repos/$repo/branches/main/protection/allow_force_pushes"
 
 echo "Dit vervangt de remote history van main door $source_ref."
 read -r -p "Typ JA om door te gaan: " confirmation
@@ -23,14 +24,30 @@ fi
 git fetch origin main
 expected_main="$(git rev-parse refs/remotes/origin/main)"
 source_commit="$(git rev-parse "refs/heads/$source_ref")"
-protection_disabled=0
+admin_protection_changed=0
+force_push_changed=0
 
 restore_protection() {
-    if [[ "$protection_disabled" -eq 1 ]]; then
-        gh api --method POST "$endpoint" >/dev/null
-        protection_disabled=0
+    restore_status=0
+    if [[ "$force_push_changed" -eq 1 ]]; then
+        if gh api --method DELETE "$force_endpoint" >/dev/null; then
+            force_push_changed=0
+            echo "Force pushes zijn weer geblokkeerd."
+        else
+            restore_status=1
+        fi
+    fi
+    if [[ "$admin_protection_changed" -eq 1 ]]; then
+        if gh api --method POST "$admin_endpoint" >/dev/null; then
+            admin_protection_changed=0
+        else
+            restore_status=1
+        fi
+    fi
+    if [[ "$restore_status" -eq 0 ]]; then
         echo "Branch protection voor beheerders is hersteld."
     fi
+    return "$restore_status"
 }
 
 on_exit() {
@@ -44,11 +61,18 @@ on_exit() {
 }
 trap on_exit EXIT
 
-enforced="$(gh api "$endpoint" --jq .enabled)"
+enforced="$(gh api "$admin_endpoint" --jq .enabled)"
 if [[ "$enforced" == "true" ]]; then
-    protection_disabled=1
-    gh api --method DELETE "$endpoint" >/dev/null
+    admin_protection_changed=1
+    gh api --method DELETE "$admin_endpoint" >/dev/null
     echo "Branch protection voor beheerders is tijdelijk uitgeschakeld."
+fi
+
+force_push_allowed="$(gh api "$force_endpoint" --jq .enabled)"
+if [[ "$force_push_allowed" != "true" ]]; then
+    force_push_changed=1
+    gh api --method POST "$force_endpoint" >/dev/null
+    echo "Force pushes zijn tijdelijk toegestaan."
 fi
 
 git push \
