@@ -46,11 +46,22 @@ function rest_url(string $path): string
     return 'https://example.invalid/wp-json/' . ltrim($path, '/');
 }
 
+function home_url(string $path): string
+{
+    return 'https://www.example.invalid/' . ltrim($path, '/');
+}
+
+function add_query_arg(string $key, string $value, string $url): string
+{
+    return $url . '?' . http_build_query([$key => $value]);
+}
+
 function wp_safe_redirect(string $url): void
 {
     throw new AVPVH_Test_Redirect($url);
 }
 
+require_once dirname(__DIR__) . '/includes/class-nav-auth.php';
 require_once dirname(__DIR__) . '/includes/class-oauth.php';
 
 $oauth = new AVPVH_OAuth();
@@ -68,6 +79,15 @@ foreach (array_keys(AVPVH_OAuth::PROVIDERS) as $provider) {
             exit(1);
         }
     }
+}
+
+$logout_url = AVPVH_Nav_Auth::authelia_logout_url(home_url('/'));
+parse_str((string) parse_url($logout_url, PHP_URL_QUERY), $logout_params);
+if (parse_url($logout_url, PHP_URL_HOST) !== 'auth.avphilipsvanhorne.nl'
+    || parse_url($logout_url, PHP_URL_PATH) !== '/logout'
+    || ($logout_params['rd'] ?? null) !== home_url('/')) {
+    fwrite(STDERR, "Authelia logout redirect is invalid\n");
+    exit(1);
 }
 
 echo "OAuth authorization URL tests: OK\n";
