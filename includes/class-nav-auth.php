@@ -140,7 +140,11 @@ class AVPVH_Nav_Auth {
 
     public function rest_logout(): void {
         wp_logout();
-        wp_safe_redirect(self::AUTHELIA_URL . '/logout?rd=https://www.avphilipsvanhorne.nl/');
+        wp_safe_redirect(self::authelia_logout_url(home_url('/')));
         exit;
+    }
+
+    public static function authelia_logout_url(string $redirect_url): string {
+        return add_query_arg('rd', $redirect_url, self::AUTHELIA_URL . '/logout');
     }
 }

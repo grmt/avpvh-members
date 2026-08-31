@@ -192,11 +192,18 @@ class AVPVH_OAuth {
         }
 
         AVPVH_DB::log_attempt($email, $provider, 'success');
+        // OAuth and Authelia maintain separate browser sessions. Destroy the
+        // current WP session before installing the newly authenticated one,
+        // then send the browser through Authelia's logout endpoint so an old
+        // 2FA session for another identity cannot override this login later.
+        if (is_user_logged_in()) {
+            wp_logout();
+        }
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID, true);
         do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately firing WP core's own wp_login hook (not a custom hook) so other code listening for a normal login still runs on this OAuth bridge
 
-        wp_safe_redirect(home_url('/'));
+        wp_safe_redirect(AVPVH_Nav_Auth::authelia_logout_url(home_url('/')));
         exit;
     }
 
