@@ -30,8 +30,8 @@ assert_equal(
     'vd suffix',
 )
 assert_equal(
-    normalize_name_key('Anna Maria', 'Test Naam'),
-    normalize_name_key('Anna-Maria', 'Test.Naam'),
+    normalize_name_key('Testvoornaam Een', 'Test Achternaam'),
+    normalize_name_key('Testvoornaam-Een', 'Test.Achternaam'),
     'punctuation normalization',
 )
 

@@ -29,12 +29,12 @@ $compact_suffix = AVPVH_Normalization::normalize_person_name('Test', '', 'vd Voo
 avpvh_test_equal($separate['normalized_key'], $slash_suffix['normalized_key'], 'v/d suffix');
 avpvh_test_equal($separate['normalized_key'], $compact_suffix['normalized_key'], 'vd suffix');
 
-$punctuated = AVPVH_Normalization::normalize_person_name('Anna-Maria', '', 'Test.Naam');
-$spaced = AVPVH_Normalization::normalize_person_name('Anna Maria', '', 'Test Naam');
+$punctuated = AVPVH_Normalization::normalize_person_name('Testvoornaam-Een', '', 'Test.Achternaam');
+$spaced = AVPVH_Normalization::normalize_person_name('Testvoornaam Een', '', 'Test Achternaam');
 avpvh_test_equal($punctuated['normalized_key'], $spaced['normalized_key'], 'punctuation normalization');
 
-$spelling_a = AVPVH_Normalization::normalize_person_name('Kiki', 'de', 'Bruin');
-$spelling_b = AVPVH_Normalization::normalize_person_name('Kiki', 'de', 'Bruijn');
+$spelling_a = AVPVH_Normalization::normalize_person_name('Variantvoornaam', 'de', 'Testspelling');
+$spelling_b = AVPVH_Normalization::normalize_person_name('Variantvoornaam', 'de', 'Testspellink');
 if ($spelling_a['normalized_key'] === $spelling_b['normalized_key']) {
     fwrite(STDERR, "Explicit spelling variants must not be inferred\n");
     exit(1);

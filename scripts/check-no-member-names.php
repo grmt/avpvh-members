@@ -11,6 +11,7 @@ global $wpdb;
 
 $root = getenv('AVPVH_PRIVACY_SCAN_ROOT') ?: dirname(__DIR__);
 $include_single_parts = getenv('AVPVH_PRIVACY_INCLUDE_SINGLE_PARTS') === '1';
+$scan_git_history = getenv('AVPVH_PRIVACY_SCAN_GIT_HISTORY') === '1';
 $root = realpath($root);
 if (!$root || !is_dir($root)) {
     fwrite(STDERR, "Scanmap bestaat niet.\n");
@@ -69,6 +70,20 @@ $names = array_values(array_unique(array_filter(
 $extensions = ['php', 'py', 'sh', 'md', 'yml', 'yaml', 'json', 'js', 'css'];
 $skip_directories = ['.git', '.venv', 'vendor', 'node_modules', '.claude'];
 $hits = [];
+$scan_contents = static function (string $label, string $contents) use ($names, &$hits): void {
+    foreach ($names as $name) {
+        $name_parts = preg_split('/\s+/u', $name);
+        $pattern = '/(?<![\p{L}\p{N}])'
+            . implode('[\\s._-]+', array_map(static fn(string $part): string => preg_quote($part, '/'), $name_parts))
+            . '(?![\p{L}\p{N}])/iu';
+        if (!preg_match($pattern, $contents, $match, PREG_OFFSET_CAPTURE)) {
+            continue;
+        }
+        $offset = $match[0][1];
+        $line = substr_count(substr($contents, 0, $offset), "\n") + 1;
+        $hits[] = $label . ':' . $line . '; name_hash=' . substr(hash('sha256', $name), 0, 12);
+    }
+};
 $iterator = new RecursiveIteratorIterator(
     new RecursiveCallbackFilterIterator(
         new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
@@ -89,19 +104,36 @@ foreach ($iterator as $file) {
     if ($contents === false) {
         continue;
     }
-    foreach ($names as $name) {
-        $name_parts = preg_split('/\s+/u', $name);
-        $pattern = '/(?<![\p{L}\p{N}])'
-            . implode('[\\s._-]+', array_map(static fn(string $part): string => preg_quote($part, '/'), $name_parts))
-            . '(?![\p{L}\p{N}])/iu';
-        if (!preg_match($pattern, $contents, $match, PREG_OFFSET_CAPTURE)) {
-            continue;
-        }
-        $offset = $match[0][1];
-        $line = substr_count(substr($contents, 0, $offset), "\n") + 1;
-        $relative = ltrim(substr($file->getPathname(), strlen($root)), DIRECTORY_SEPARATOR);
-        $hits[] = $relative . ':' . $line . '; name_hash=' . substr(hash('sha256', $name), 0, 12);
+    $relative = ltrim(substr($file->getPathname(), strlen($root)), DIRECTORY_SEPARATOR);
+    $scan_contents($relative, $contents);
+}
+
+if ($scan_git_history) {
+    $descriptor_spec = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+    $process = proc_open(
+        ['git', '-C', $root, 'log', '--all', '--format=%H%n%s%n%b%n---'],
+        $descriptor_spec,
+        $pipes
+    );
+    if (!is_resource($process)) {
+        fwrite(STDERR, "Git-historycontrole kon niet starten.\n");
+        exit(2);
     }
+    fclose($pipes[0]);
+    $history = stream_get_contents($pipes[1]);
+    $git_error = stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $git_status = proc_close($process);
+    if ($git_status !== 0) {
+        fwrite(STDERR, "Git-historycontrole mislukte: " . trim($git_error) . "\n");
+        exit(2);
+    }
+    $scan_contents('git-history', $history);
 }
 
 if ($hits) {
