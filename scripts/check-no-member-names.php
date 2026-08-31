@@ -10,6 +10,7 @@ defined('ABSPATH') || exit;
 global $wpdb;
 
 $root = getenv('AVPVH_PRIVACY_SCAN_ROOT') ?: dirname(__DIR__);
+$include_single_parts = getenv('AVPVH_PRIVACY_INCLUDE_SINGLE_PARTS') === '1';
 $root = realpath($root);
 if (!$root || !is_dir($root)) {
     fwrite(STDERR, "Scanmap bestaat niet.\n");
@@ -22,6 +23,10 @@ $members = $wpdb->get_results(
      FROM {$wpdb->prefix}avm_members"
 ) ?: [];
 foreach ($members as $member) {
+    if ($include_single_parts) {
+        $names[] = trim((string) $member->first_name);
+        $names[] = trim((string) $member->last_name);
+    }
     $parts = array_values(array_filter([
         trim((string) $member->first_name),
         trim((string) $member->suffix),
@@ -43,6 +48,10 @@ if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $alias_table))) {
         "SELECT first_name, suffix, last_name FROM {$alias_table}"
     ) ?: [];
     foreach ($aliases as $alias) {
+        if ($include_single_parts) {
+            $names[] = trim((string) $alias->first_name);
+            $names[] = trim((string) $alias->last_name);
+        }
         $names[] = implode(' ', array_values(array_filter([
             trim((string) $alias->first_name),
             trim((string) $alias->suffix),
@@ -53,7 +62,8 @@ if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $alias_table))) {
 
 $names = array_values(array_unique(array_filter(
     array_map(static fn(string $name): string => trim(preg_replace('/\s+/u', ' ', $name)), $names),
-    static fn(string $name): bool => mb_strlen($name, 'UTF-8') >= 5 && str_contains($name, ' ')
+    static fn(string $name): bool => mb_strlen($name, 'UTF-8') >= 5
+        && ($include_single_parts || str_contains($name, ' '))
 )));
 
 $extensions = ['php', 'py', 'sh', 'md', 'yml', 'yaml', 'json', 'js', 'css'];
