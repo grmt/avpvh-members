@@ -2,7 +2,10 @@
 /**
  * Read-only privacy check: report committed-looking source files that contain
  * an official member name or stored alias. Matched names are never printed.
- * Run with wp eval-file; optionally set AVPVH_PRIVACY_SCAN_ROOT.
+ * Run with wp eval-file. Optional environment variables:
+ * - AVPVH_PRIVACY_SCAN_ROOT: repository or directory to scan.
+ * - AVPVH_PRIVACY_INCLUDE_SINGLE_PARTS=1: include separate first/last names.
+ * - AVPVH_PRIVACY_SCAN_GIT_HISTORY=1: also scan all Git commit messages.
  */
 
 defined('ABSPATH') || exit;
