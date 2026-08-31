@@ -28,6 +28,7 @@ bash -n scripts/release.sh
 ```bash
 php scripts/test-identity-helpers.php
 php scripts/test-identity-limit.php
+php scripts/test-oauth-authorization-url.php
 php scripts/test-role-labels.php
 ```
 
@@ -35,6 +36,7 @@ php scripts/test-role-labels.php
 
 - email normalization
 - identity limit logic
+- explicit OAuth account selection for Google and Microsoft
 - Workspace group label mapping
 
 ## Notes
