@@ -42,6 +42,13 @@ if (!$member) {
 }
 
 $addresses  = AVPVH_DB::get_addresses($member_id);
+$today = current_time('Y-m-d');
+$current_address_count = count(array_filter(
+    $addresses,
+    static fn(object $address): bool =>
+        (!$address->valid_from || $address->valid_from <= $today)
+        && (!$address->valid_until || $address->valid_until >= $today)
+));
 $activities = AVPVH_DB::get_activities_for_member($member_id);
 $fees       = AVPVH_DB::get_fees_for_member($member_id);
 $identities = AVPVH_DB::get_member_identities($member_id);
@@ -385,6 +392,9 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     </p>
 
     <h2>Adreshistorie</h2>
+    <?php if ($current_address_count > 1) : ?>
+        <div class="notice notice-warning inline"><p>Dit lid heeft <?php echo esc_html($current_address_count); ?> overlappende actuele adresregels. Controleer de geldigheidsdatums voordat je een regel als huidig adres gebruikt.</p></div>
+    <?php endif; ?>
     <p class="description">Elke keer dat een adres wordt opgeslagen via het profiel komt er een nieuwe rij bij (nooit een wijziging van een bestaande) — hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen.</p>
     <table class="wp-list-table widefat striped">
         <thead><tr><th>Straat</th><th>Nr</th><th>Postcode</th><th>Stad</th><th>Land</th><th>Van</th><th>Tot</th><th></th></tr></thead>

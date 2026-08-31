@@ -1363,21 +1363,25 @@ class AVPVH_DB {
 
     public static function normalize_address(array $address): array {
         global $wpdb;
-        $city_aliases = [];
-        foreach ($wpdb->get_results("SELECT * FROM {$wpdb->prefix}avm_city_aliases") ?: [] as $alias) {
-            $key = AVPVH_Normalization::fold($alias->country)
-                . '|' . AVPVH_Normalization::fold($alias->alias_name);
-            $city_aliases[$key] = $alias->canonical_name;
-        }
-        $street_aliases = [];
-        foreach ($wpdb->get_results("SELECT * FROM {$wpdb->prefix}avm_street_aliases") ?: [] as $alias) {
-            $key = implode('|', [
-                AVPVH_Normalization::fold($alias->country),
-                AVPVH_Normalization::fold(AVPVH_Normalization::normalize_postal_code($alias->postal_code)),
-                AVPVH_Normalization::fold($alias->city),
-                AVPVH_Normalization::fold($alias->alias_street),
-            ]);
-            $street_aliases[$key] = $alias->canonical_street;
+        static $city_aliases = null;
+        static $street_aliases = null;
+        if ($city_aliases === null || $street_aliases === null) {
+            $city_aliases = [];
+            foreach ($wpdb->get_results("SELECT * FROM {$wpdb->prefix}avm_city_aliases") ?: [] as $alias) {
+                $key = AVPVH_Normalization::fold($alias->country)
+                    . '|' . AVPVH_Normalization::fold($alias->alias_name);
+                $city_aliases[$key] = $alias->canonical_name;
+            }
+            $street_aliases = [];
+            foreach ($wpdb->get_results("SELECT * FROM {$wpdb->prefix}avm_street_aliases") ?: [] as $alias) {
+                $key = implode('|', [
+                    AVPVH_Normalization::fold($alias->country),
+                    AVPVH_Normalization::fold(AVPVH_Normalization::normalize_postal_code($alias->postal_code)),
+                    AVPVH_Normalization::fold($alias->city),
+                    AVPVH_Normalization::fold($alias->alias_street),
+                ]);
+                $street_aliases[$key] = $alias->canonical_street;
+            }
         }
         return AVPVH_Normalization::normalize_address($address, $city_aliases, $street_aliases);
     }
