@@ -88,6 +88,7 @@ class AVPVH_OAuth {
             'response_type' => 'code',
             'scope'         => $config['scope'],
             'state'         => $state,
+            'prompt'        => 'select_account',
         ];
 
         wp_safe_redirect($config['auth_url'] . '?' . http_build_query($params));
