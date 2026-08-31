@@ -69,7 +69,7 @@ class AVPVH_Nav_Auth {
     }
 
     // Mirrors the Authelia rule `resources: ['^/leden/zoeken-in-documenten/?$'],
-    // subject: 'group:boek'` in config/authelia-configuration.yml — LLDAP group
+    // subject: 'group:boek'` in config/authelia-configuration.local.yml — LLDAP group
     // membership is the actual authorization boundary, checked live via
     // AVPVH_LLDAP (same call the profile page's "Groepen:" row uses), cached
     // briefly so this doesn't add an LLDAP round-trip to every page load.

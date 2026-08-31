@@ -8,7 +8,7 @@
  *
  * Override the default config path with AVPVH_MEMBER_MERGE_CONFIG. The
  * config contains member-specific IDs and hashes and must match
- * scripts/*.local.* so Git never tracks it.
+ * *.local.* so Git never tracks it.
  */
 
 defined('ABSPATH') || exit;
