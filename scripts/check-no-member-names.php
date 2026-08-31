@@ -82,7 +82,7 @@ foreach ($iterator as $file) {
     foreach ($names as $name) {
         $name_parts = preg_split('/\s+/u', $name);
         $pattern = '/(?<![\p{L}\p{N}])'
-            . implode('\\s+', array_map(static fn(string $part): string => preg_quote($part, '/'), $name_parts))
+            . implode('[\\s._-]+', array_map(static fn(string $part): string => preg_quote($part, '/'), $name_parts))
             . '(?![\p{L}\p{N}])/iu';
         if (!preg_match($pattern, $contents, $match, PREG_OFFSET_CAPTURE)) {
             continue;
