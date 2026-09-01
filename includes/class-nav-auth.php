@@ -4,6 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_Nav_Auth {
 
     const AUTHELIA_URL = 'https://auth.avphilipsvanhorne.nl';
+    const AUTHELIA_SESSION_COOKIE = 'avpvh_session';
 
     // Page IDs whose nav items must be hidden for guests.
     const MEMBERS_PAGE_IDS = [647, 36];
@@ -140,11 +141,42 @@ class AVPVH_Nav_Auth {
 
     public function rest_logout(): void {
         wp_logout();
+        self::invalidate_authelia_session();
         wp_safe_redirect(self::authelia_logout_url(home_url('/')));
         exit;
     }
 
     public static function authelia_logout_url(string $redirect_url): string {
         return add_query_arg('rd', $redirect_url, self::AUTHELIA_URL . '/logout');
+    }
+
+    /**
+     * Destroy the shared SSO session at Authelia as a server-side guarantee.
+     * The subsequent browser visit to /logout remains necessary to remove
+     * the now-invalid cookie from the browser itself.
+     */
+    public static function invalidate_authelia_session(): bool {
+        $session = wp_unslash($_COOKIE[self::AUTHELIA_SESSION_COOKIE] ?? '');
+        // RFC cookie-octets may contain characters such as '%' and '|'. Only
+        // reject bytes that can terminate or inject a Cookie header.
+        if ($session === '' || preg_match('/[\x00-\x20\x22\x2c\x3b\x5c\x7f]/', $session)) {
+            return false;
+        }
+
+        $response = wp_remote_post(self::AUTHELIA_URL . '/api/logout', [
+            'timeout'     => 5,
+            'redirection' => 0,
+            'headers'     => [
+                'Content-Type' => 'application/json',
+                'Cookie'       => self::AUTHELIA_SESSION_COOKIE . '=' . $session,
+            ],
+            'body'        => wp_json_encode(['targetURL' => home_url('/')]),
+        ]);
+        $ok = !is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200;
+        if (!$ok) {
+            // No cookie value or member data is logged.
+            error_log('AVPVH_Nav_Auth: server-side Authelia logout failed.');
+        }
+        return $ok;
     }
 }

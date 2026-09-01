@@ -207,6 +207,7 @@ class AVPVH_OAuth {
         // server-side API call cannot reliably clear the browser's shared
         // SSO cookie, which could otherwise carry another account's 2FA
         // state into this freshly authenticated WordPress session.
+        AVPVH_Nav_Auth::invalidate_authelia_session();
         wp_safe_redirect(AVPVH_Nav_Auth::authelia_logout_url(home_url('/')));
         exit;
     }

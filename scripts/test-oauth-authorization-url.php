@@ -72,6 +72,16 @@ function wp_remote_post(string $url, array $args): array
     return ['response' => ['code' => 200]];
 }
 
+function is_wp_error(mixed $value): bool
+{
+    return false;
+}
+
+function wp_remote_retrieve_response_code(array $response): int
+{
+    return (int) ($response['response']['code'] ?? 0);
+}
+
 function wp_safe_redirect(string $url): void
 {
     throw new AVPVH_Test_Redirect($url);
@@ -102,6 +112,24 @@ parse_str((string) parse_url($logout_url, PHP_URL_QUERY), $logout_params);
 if (parse_url($logout_url, PHP_URL_PATH) !== '/logout'
     || ($logout_params['rd'] ?? null) !== home_url('/')) {
     fwrite(STDERR, "Browser Authelia logout URL is invalid\n");
+    exit(1);
+}
+
+$_COOKIE[AVPVH_Nav_Auth::AUTHELIA_SESSION_COOKIE] = 'test|session%3Dtoken';
+if (!AVPVH_Nav_Auth::invalidate_authelia_session()) {
+    fwrite(STDERR, "Server-side Authelia logout failed\n");
+    exit(1);
+}
+$logout_request = $GLOBALS['avpvh_test_remote_post'] ?? [];
+if (($logout_request['url'] ?? null) !== AVPVH_Nav_Auth::AUTHELIA_URL . '/api/logout'
+    || ($logout_request['args']['headers']['Cookie'] ?? null) !== 'avpvh_session=test|session%3Dtoken') {
+    fwrite(STDERR, "Server-side Authelia logout request is invalid\n");
+    exit(1);
+}
+
+$_COOKIE[AVPVH_Nav_Auth::AUTHELIA_SESSION_COOKIE] = "invalid\r\ncookie";
+if (AVPVH_Nav_Auth::invalidate_authelia_session()) {
+    fwrite(STDERR, "Unsafe Authelia cookie was accepted\n");
     exit(1);
 }
 
