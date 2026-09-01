@@ -822,7 +822,7 @@ class AVPVH_DB {
     public static function query_login_attempts(array $args = []): array {
         global $wpdb;
         $defaults = [
-            'search' => '', 'method' => '', 'result' => '',
+            'search' => '', 'method' => [], 'result' => [],
             'date_from' => '', 'date_to' => '',
             'orderby' => 'attempted_at', 'order' => 'desc',
             'per_page' => 50, 'page' => 1,
@@ -836,13 +836,15 @@ class AVPVH_DB {
             $where[] = '(email LIKE %s OR ip LIKE %s OR method LIKE %s OR result LIKE %s)';
             array_push($values, $like, $like, $like, $like);
         }
-        if ($args['method'] !== '') {
-            $where[] = 'method = %s';
-            $values[] = $args['method'];
+        $methods = array_values(array_filter((array) $args['method'], 'strlen'));
+        if ($methods) {
+            $where[] = 'method IN (' . implode(',', array_fill(0, count($methods), '%s')) . ')';
+            array_push($values, ...$methods);
         }
-        if ($args['result'] !== '') {
-            $where[] = 'result = %s';
-            $values[] = $args['result'];
+        $results = array_values(array_filter((array) $args['result'], 'strlen'));
+        if ($results) {
+            $where[] = 'result IN (' . implode(',', array_fill(0, count($results), '%s')) . ')';
+            array_push($values, ...$results);
         }
         if ($args['date_from'] !== '') {
             $where[] = 'attempted_at >= %s';

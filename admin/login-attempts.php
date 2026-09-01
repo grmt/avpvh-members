@@ -9,7 +9,7 @@ $table->prepare_items();
 ?>
 <div class="wrap">
     <h1>Loginpogingen</h1>
-    <form method="get">
+    <form method="get" class="avpvh-login-attempts-form">
         <input type="hidden" name="page" value="avpvh-login-attempts">
         <?php $table->search_box('Loginpogingen zoeken', 'avpvh-login-attempts-search'); ?>
         <?php $table->display(); ?>
