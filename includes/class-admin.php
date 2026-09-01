@@ -138,7 +138,7 @@ class AVPVH_Admin {
                 'avpvh-roles', [$this, 'render_roles']
             );
         }
-        if (AVPVH_Roles::current_user_is_chair()) {
+        if (AVPVH_Roles::current_user_is_it_admin()) {
             add_submenu_page(
                 'avpvh-members', 'Paginarechten', 'Paginarechten', 'read',
                 'avpvh-page-permissions', [$this, 'render_page_permissions']
@@ -1034,8 +1034,8 @@ class AVPVH_Admin {
 
     public function handle_save_page_permissions(): void {
         check_admin_referer('avpvh_save_page_permissions');
-        if (!AVPVH_Roles::current_user_is_chair()) {
-            wp_die('Alleen de voorzitter kan paginarechten wijzigen.', 403);
+        if (!AVPVH_Roles::current_user_is_it_admin()) {
+            wp_die('Alleen de IT-beheerder kan paginarechten wijzigen.', 403);
         }
 
         AVPVH_Roles::save_page_permissions((array) ($_POST['permissions'] ?? []));
