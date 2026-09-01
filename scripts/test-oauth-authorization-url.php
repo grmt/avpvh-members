@@ -97,13 +97,11 @@ foreach (array_keys(AVPVH_OAuth::PROVIDERS) as $provider) {
     }
 }
 
-$_COOKIE[AVPVH_Nav_Auth::AUTHELIA_SESSION_COOKIE] = 'test-session-token';
-AVPVH_Nav_Auth::clear_authelia_session();
-$logout_request = $GLOBALS['avpvh_test_remote_post'] ?? [];
-if (($logout_request['url'] ?? null) !== AVPVH_Nav_Auth::AUTHELIA_URL . '/api/logout'
-    || ($logout_request['args']['headers']['Cookie'] ?? null) !== 'avpvh_session=test-session-token'
-    || isset($_COOKIE[AVPVH_Nav_Auth::AUTHELIA_SESSION_COOKIE])) {
-    fwrite(STDERR, "Silent Authelia session cleanup is invalid\n");
+$logout_url = AVPVH_Nav_Auth::authelia_logout_url(home_url('/'));
+parse_str((string) parse_url($logout_url, PHP_URL_QUERY), $logout_params);
+if (parse_url($logout_url, PHP_URL_PATH) !== '/logout'
+    || ($logout_params['rd'] ?? null) !== home_url('/')) {
+    fwrite(STDERR, "Browser Authelia logout URL is invalid\n");
     exit(1);
 }
 
