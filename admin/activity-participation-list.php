@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
-if (!current_user_can('manage_options')) wp_die('Geen toegang.');
+if (!AVPVH_Roles::current_user_can_access_page('activities')) wp_die('Geen toegang.');
 
 require_once AVPVH_PLUGIN_DIR . 'admin/class-activity-participation-list-table.php';
 

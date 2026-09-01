@@ -6,7 +6,7 @@
 #   test-user.sh remove <user_id>
 #
 # Example:
-#   test-user.sh add test.member test.member@example.invalid Test "Member (fictief)"
+#   test-user.sh add test.member member@example.invalid Test "Member"
 #   test-user.sh remove test.member
 
 set -euo pipefail

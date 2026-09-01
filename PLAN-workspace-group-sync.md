@@ -105,7 +105,7 @@ Show:
 
 Example:
 
-- `Fictieve Testnaam · Beheerder · Boek · Jubileumgroep · Lid`
+- `grmt · Beheerder · Boek · 50 jaar archeo · Lid`
 
 ### Profile page
 
