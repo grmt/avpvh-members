@@ -203,8 +203,11 @@ class AVPVH_OAuth {
         wp_set_auth_cookie($user->ID, true);
         do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately firing WP core's own wp_login hook (not a custom hook) so other code listening for a normal login still runs on this OAuth bridge
 
-        AVPVH_Nav_Auth::clear_authelia_session();
-        wp_safe_redirect(home_url('/'));
+        // The browser itself must visit Authelia's logout endpoint. A
+        // server-side API call cannot reliably clear the browser's shared
+        // SSO cookie, which could otherwise carry another account's 2FA
+        // state into this freshly authenticated WordPress session.
+        wp_safe_redirect(AVPVH_Nav_Auth::authelia_logout_url(home_url('/')));
         exit;
     }
 

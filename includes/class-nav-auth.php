@@ -4,8 +4,6 @@ defined('ABSPATH') || exit;
 class AVPVH_Nav_Auth {
 
     const AUTHELIA_URL = 'https://auth.avphilipsvanhorne.nl';
-    const AUTHELIA_SESSION_COOKIE = 'avpvh_session';
-    const AUTHELIA_COOKIE_DOMAIN = 'avphilipsvanhorne.nl';
 
     // Page IDs whose nav items must be hidden for guests.
     const MEMBERS_PAGE_IDS = [647, 36];
@@ -142,37 +140,11 @@ class AVPVH_Nav_Auth {
 
     public function rest_logout(): void {
         wp_logout();
-        self::clear_authelia_session();
-        wp_safe_redirect(home_url('/'));
+        wp_safe_redirect(self::authelia_logout_url(home_url('/')));
         exit;
     }
 
-    public static function clear_authelia_session(): void {
-        $session = wp_unslash($_COOKIE[self::AUTHELIA_SESSION_COOKIE] ?? '');
-
-        // Invalidate the server-side Authelia session without showing its
-        // logout page. Only forward a syntactically valid opaque cookie value
-        // so browser input can never inject an extra Cookie header.
-        if ($session !== '' && preg_match('/\A[A-Za-z0-9._~+\/=:-]+\z/D', $session)) {
-            wp_remote_post(self::AUTHELIA_URL . '/api/logout', [
-                'timeout'     => 3,
-                'redirection' => 0,
-                'headers'     => [
-                    'Content-Type' => 'application/json',
-                    'Cookie'       => self::AUTHELIA_SESSION_COOKIE . '=' . $session,
-                ],
-                'body'        => wp_json_encode(['targetURL' => home_url('/')]),
-            ]);
-        }
-
-        setcookie(self::AUTHELIA_SESSION_COOKIE, '', [
-            'expires'  => time() - 3600,
-            'path'     => '/',
-            'domain'   => self::AUTHELIA_COOKIE_DOMAIN,
-            'secure'   => true,
-            'httponly' => true,
-            'samesite' => 'Lax',
-        ]);
-        unset($_COOKIE[self::AUTHELIA_SESSION_COOKIE]);
+    public static function authelia_logout_url(string $redirect_url): string {
+        return add_query_arg('rd', $redirect_url, self::AUTHELIA_URL . '/logout');
     }
 }
