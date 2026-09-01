@@ -7,12 +7,14 @@ if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('
 
 $delegations = AVPVH_Roles::get_active_delegations();
 $bestuur_members = AVPVH_Roles::get_role_holders('bestuur');
+$active_members = AVPVH_Roles::current_user_is_chair() ? AVPVH_DB::get_members(['status' => 'active']) : [];
 
 $role_label = [
     'bestuur'       => 'Bestuur',
     'voorzitter'    => 'Voorzitter',
     'secretaris'    => 'Secretaris',
     'penningmeester' => 'Penningmeester',
+    AVPVH_Roles::IT_ROLE => 'IT-beheerder',
 ];
 ?>
 <div class="wrap">
@@ -67,12 +69,14 @@ $role_label = [
                 <td><?php echo $d->ends_at ? esc_html(wp_date('D d M Y H:i', strtotime($d->ends_at))) : 'Onbepaalde tijd'; ?></td>
                 <td><?php echo esc_html(wp_date('D d M Y H:i', strtotime($d->created_at))); ?></td>
                 <td>
+                    <?php if ($d->role !== AVPVH_Roles::IT_ROLE || AVPVH_Roles::current_user_is_chair()) : ?>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
                         <?php wp_nonce_field('avpvh_revoke_delegation'); ?>
                         <input type="hidden" name="action" value="avpvh_revoke_delegation">
                         <input type="hidden" name="delegation_id" value="<?php echo esc_attr($d->id); ?>">
                         <button type="submit" class="button button-small" onclick="return confirm('Delegatie intrekken?');">Intrekken</button>
                     </form>
+                    <?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; endif; ?>
@@ -113,4 +117,32 @@ $role_label = [
         </table>
         <?php submit_button('Delegeren'); ?>
     </form>
+
+    <?php if (AVPVH_Roles::current_user_is_chair()) : ?>
+    <h2>IT-beheerder aanwijzen</h2>
+    <p class="description">Alleen de voorzitter kan deze rol toekennen of intrekken. Welke beheerpagina's de rol mag gebruiken stel je in bij <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-page-permissions'], admin_url('admin.php'))); ?>">Paginarechten</a>. Inlogidentiteiten en authenticatie-instellingen zijn nooit onderdeel van deze rol.</p>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <?php wp_nonce_field('avpvh_delegate_role'); ?>
+        <input type="hidden" name="action" value="avpvh_delegate_role">
+        <input type="hidden" name="role" value="<?php echo esc_attr(AVPVH_Roles::IT_ROLE); ?>">
+        <table class="form-table">
+            <tr>
+                <th><label for="it_delegated_to_member_id">Aanwijzen</label></th>
+                <td>
+                    <select name="delegated_to_member_id" id="it_delegated_to_member_id" required style="min-width:300px">
+                        <option value="">— Kies lid —</option>
+                        <?php foreach ($active_members as $m) : ?>
+                            <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m, 'list')); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <th><label for="it_ends_at">Tot (optioneel)</label></th>
+                <td><input type="datetime-local" id="it_ends_at" name="ends_at"></td>
+            </tr>
+        </table>
+        <?php submit_button('IT-beheerder aanwijzen'); ?>
+    </form>
+    <?php endif; ?>
 </div>

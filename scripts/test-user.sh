@@ -6,8 +6,8 @@
 #   test-user.sh remove <user_id>
 #
 # Example:
-#   test-user.sh add garmt.noname garmt.noname@gmail.com Garmt "Noname (test)"
-#   test-user.sh remove garmt.noname
+#   test-user.sh add test.member member@example.invalid Test "Member"
+#   test-user.sh remove test.member
 
 set -euo pipefail
 

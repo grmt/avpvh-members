@@ -12,6 +12,58 @@ class AVPVH_Roles {
     // than requiring a second LLDAP group membership per officer.
     const OFFICER_ROLES = ['voorzitter', 'secretaris', 'penningmeester'];
     const ALL_ROLES = ['bestuur', 'voorzitter', 'secretaris', 'penningmeester'];
+    const IT_ROLE = 'it_beheerder';
+    const ASSIGNABLE_ROLES = ['bestuur', 'voorzitter', 'secretaris', 'penningmeester', self::IT_ROLE];
+
+    /**
+     * Pages that the chair may assign to roles. Authentication credentials,
+     * identity management, LLDAP groups and delegation are deliberately not
+     * listed: those sensitive functions have fixed, narrower authorization.
+     */
+    public static function get_assignable_pages(): array {
+        return apply_filters('avpvh_assignable_role_pages', [
+            'members'        => 'Ledenbeheer',
+            'activities'     => 'Activiteiten',
+            'newsletter'     => 'Nieuwsbrief',
+            'plugin_settings' => 'Plugininstellingen (zonder authenticatie)',
+        ]);
+    }
+
+    public static function get_default_page_permissions(): array {
+        return apply_filters('avpvh_default_role_page_permissions', [
+            'members'        => ['secretaris', self::IT_ROLE],
+            'activities'     => [self::IT_ROLE],
+            'newsletter'     => [self::IT_ROLE],
+            'plugin_settings' => [self::IT_ROLE],
+        ]);
+    }
+
+    public static function get_page_permissions(): array {
+        $saved = get_option('avpvh_role_page_permissions', []);
+        $saved = is_array($saved) ? $saved : [];
+        $permissions = self::get_default_page_permissions();
+        foreach (self::get_assignable_pages() as $page => $_label) {
+            if (!array_key_exists($page, $saved) || !is_array($saved[$page])) {
+                continue;
+            }
+            $permissions[$page] = array_values(array_intersect(
+                self::ASSIGNABLE_ROLES,
+                array_map('sanitize_key', $saved[$page])
+            ));
+        }
+        return $permissions;
+    }
+
+    public static function save_page_permissions(array $submitted): void {
+        $permissions = [];
+        foreach (self::get_assignable_pages() as $page => $_label) {
+            $roles = isset($submitted[$page]) && is_array($submitted[$page])
+                ? array_map('sanitize_key', wp_unslash($submitted[$page]))
+                : [];
+            $permissions[$page] = array_values(array_intersect(self::ASSIGNABLE_ROLES, $roles));
+        }
+        update_option('avpvh_role_page_permissions', $permissions, false);
+    }
 
     /**
      * Real (LLDAP-derived) roles for a member, with implied 'bestuur'
@@ -60,6 +112,25 @@ class AVPVH_Roles {
         return $member && self::member_has_role((int) $member->id, $role);
     }
 
+    public static function current_user_can_access_page(string $page): bool {
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        if (!array_key_exists($page, self::get_assignable_pages())) {
+            return false;
+        }
+        foreach (self::get_page_permissions()[$page] ?? [] as $role) {
+            if (self::current_user_has_role($role)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static function current_user_is_chair(): bool {
+        return self::current_user_has_role('voorzitter');
+    }
+
     // -------------------------------------------------------------------
     // Delegations
     // -------------------------------------------------------------------
@@ -88,6 +159,15 @@ class AVPVH_Roles {
         )) ?: [];
     }
 
+    public static function get_delegation(int $delegation_id): ?object {
+        global $wpdb;
+        $delegation = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_role_delegations WHERE id = %d",
+            $delegation_id
+        ));
+        return $delegation ?: null;
+    }
+
     /**
      * Delegate $role to $to_member_id. Fails (returns false) unless
      * $by_member_id genuinely holds $role or is bestuur — a delegation
@@ -96,13 +176,22 @@ class AVPVH_Roles {
     public static function create_delegation(string $role, int $to_member_id, int $by_member_id, ?string $ends_at = null): bool {
         global $wpdb;
         $role = strtolower($role);
-        if (!in_array($role, self::OFFICER_ROLES, true)) {
+        if (!in_array($role, array_merge(self::OFFICER_ROLES, [self::IT_ROLE]), true)) {
             return false;
+        }
+        if ($role === self::IT_ROLE) {
+            return self::member_has_role($by_member_id, 'voorzitter')
+                && self::insert_delegation($role, $to_member_id, $by_member_id, $ends_at);
         }
         if (!self::member_has_role($by_member_id, $role) && !self::member_has_role($by_member_id, 'bestuur')) {
             return false;
         }
 
+        return self::insert_delegation($role, $to_member_id, $by_member_id, $ends_at);
+    }
+
+    private static function insert_delegation(string $role, int $to_member_id, int $by_member_id, ?string $ends_at): bool {
+        global $wpdb;
         return (bool) $wpdb->insert(
             "{$wpdb->prefix}avm_role_delegations",
             [

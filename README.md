@@ -70,8 +70,8 @@ docker compose -f /opt/docker/scripts/docker-compose.yml restart authelia
 Use `scripts/test-user.sh` to add/remove temporary test users:
 
 ```bash
-./scripts/test-user.sh add garmt.noname garmt.noname@gmail.com Garmt "Noname (test)"
-./scripts/test-user.sh remove garmt.noname
+./scripts/test-user.sh add test.member member@example.invalid Test "Member"
+./scripts/test-user.sh remove test.member
 ```
 
 ## Development Workflow

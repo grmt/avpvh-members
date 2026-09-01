@@ -17,7 +17,7 @@
 #
 # Examples:
 #   ./scripts/manage-lldap-group.sh list boek
-#   ./scripts/manage-lldap-group.sh remove garmt.noname boek
+#   ./scripts/manage-lldap-group.sh remove test.member boek
 #
 # After a remove/add, the change is live in LLDAP immediately, but WordPress
 # caches group membership in transients for up to 15 minutes

@@ -204,7 +204,7 @@ info "Expanding TLS certificate..."
 if (cd "$COMPOSE_DIR" && docker compose run --rm --entrypoint certbot certbot \
         certonly --webroot -w /var/www/certbot \
         --expand \
-        --email clinton@xs4all.nl \
+        --email admin@avphilipsvanhorne.nl \
         -d avphilipsvanhorne.nl \
         -d www.avphilipsvanhorne.nl \
         -d leden-admin.avphilipsvanhorne.nl \
@@ -216,7 +216,7 @@ else
     warn "Certificate expansion failed (DNS may not have propagated yet)."
     warn "Once DNS is live, re-run manually:"
     warn "  cd $COMPOSE_DIR && docker compose run --rm --entrypoint certbot certbot \\"
-    warn "    certonly --webroot -w /var/www/certbot --expand --email clinton@xs4all.nl \\"
+    warn "    certonly --webroot -w /var/www/certbot --expand --email admin@avphilipsvanhorne.nl \\"
     warn "    -d avphilipsvanhorne.nl -d www.avphilipsvanhorne.nl -d leden-admin.avphilipsvanhorne.nl \\"
     warn "    --agree-tos --non-interactive"
     warn "  docker exec $NGINX_CONTAINER nginx -s reload"

@@ -18,6 +18,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_export_activity_participation', [$this, 'handle_export_activity_participation']);
         add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
+        add_action('admin_post_avpvh_save_page_permissions', [$this, 'handle_save_page_permissions']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
@@ -45,7 +46,16 @@ class AVPVH_Admin {
     // lid only, not the rest of this menu (Activiteiten, Instellingen,
     // Nieuwsbrief, Loginpogingen stay manage_options-only).
     private function can_manage_members(): bool {
-        return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('secretaris');
+        return AVPVH_Roles::current_user_can_access_page('members');
+    }
+
+    private function can_access_page(string $page): bool {
+        return AVPVH_Roles::current_user_can_access_page($page);
+    }
+
+    private function can_manage_identities(): bool {
+        return $this->can_manage_members()
+            && (current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('secretaris'));
     }
 
     public function register_menus(): void {
@@ -55,6 +65,10 @@ class AVPVH_Admin {
         // re-runs per admin pageview for whoever's viewing, same trick
         // already used below for can_manage_roles()/'Rollen & delegatie'.
         $members_cap = $this->can_manage_members() ? 'read' : 'manage_options';
+        $activities_cap = $this->can_access_page('activities') ? 'read' : 'manage_options';
+        $login_attempts_cap = $this->can_access_page('login_attempts') ? 'read' : 'manage_options';
+        $newsletter_cap = $this->can_access_page('newsletter') ? 'read' : 'manage_options';
+        $settings_cap = $this->can_access_page('plugin_settings') ? 'read' : 'manage_options';
 
         $hook = add_menu_page(
             'AV-PvH Leden', 'AV-PvH Leden', $members_cap,
@@ -84,7 +98,7 @@ class AVPVH_Admin {
             'avpvh-add-member', [$this, 'render_add_member']
         );
         add_submenu_page(
-            'avpvh-members', 'Activiteiten', 'Activiteiten', 'manage_options',
+            'avpvh-members', 'Activiteiten', 'Activiteiten', $activities_cap,
             'avpvh-activity-participation', [$this, 'render_activity_participation_list']
         );
         // Not shown in the sidebar — only reachable via the "Nieuwe
@@ -98,19 +112,19 @@ class AVPVH_Admin {
         // dispatch the request, so a direct link 404s/"not allowed"s
         // instead of just being hidden from the menu.
         add_submenu_page(
-            null, 'Deelname bewerken', 'Deelname bewerken', 'manage_options',
+            null, 'Deelname bewerken', 'Deelname bewerken', $activities_cap,
             'avpvh-activity-participation-detail', [$this, 'render_activity_participation_detail']
         );
         add_submenu_page(
-            'avpvh-members', 'Loginpogingen', 'Loginpogingen', 'manage_options',
+            'avpvh-members', 'Loginpogingen', 'Loginpogingen', $login_attempts_cap,
             'avpvh-login-attempts', [$this, 'render_login_attempts']
         );
         add_submenu_page(
-            'avpvh-members', 'Nieuwsbrief', 'Nieuwsbrief', 'manage_options',
+            'avpvh-members', 'Nieuwsbrief', 'Nieuwsbrief', $newsletter_cap,
             'avpvh-newsletter', [$this, 'render_newsletter']
         );
         add_submenu_page(
-            'avpvh-members', 'Instellingen', 'Instellingen', 'manage_options',
+            'avpvh-members', 'Instellingen', 'Instellingen', $settings_cap,
             'avpvh-settings', [$this, 'render_settings']
         );
 
@@ -122,6 +136,12 @@ class AVPVH_Admin {
             add_submenu_page(
                 'avpvh-members', 'Rollen & delegatie', 'Rollen & delegatie', 'read',
                 'avpvh-roles', [$this, 'render_roles']
+            );
+        }
+        if (AVPVH_Roles::current_user_is_chair()) {
+            add_submenu_page(
+                'avpvh-members', 'Paginarechten', 'Paginarechten', 'read',
+                'avpvh-page-permissions', [$this, 'render_page_permissions']
             );
         }
     }
@@ -158,11 +178,22 @@ class AVPVH_Admin {
         require AVPVH_PLUGIN_DIR . 'admin/roles.php';
     }
 
+    public function render_page_permissions(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/page-permissions.php';
+    }
+
     public function render_settings(): void {
+        if (!$this->can_access_page('plugin_settings')) {
+            wp_die('Geen toegang.', 403);
+        }
+        $can_manage_authentication = current_user_can('manage_options');
         $oauth_test = isset($_GET['oauth_test']) ? sanitize_text_field(wp_unslash($_GET['oauth_test'])) : null;
         $oauth_test_provider = isset($_GET['oauth_provider']) ? sanitize_text_field(wp_unslash($_GET['oauth_provider'])) : null;
 
         $test_result = null;
+        if (isset($_POST['test_lldap']) && !$can_manage_authentication) {
+            wp_die('Geen toegang.', 403);
+        }
         if (isset($_POST['test_lldap'])) {
             check_admin_referer('avpvh_test_lldap');
             $url      = sanitize_url(wp_unslash($_POST['lldap_url'] ?? 'http://lldap:17170'));
@@ -173,14 +204,14 @@ class AVPVH_Admin {
         ?>
         <div class="wrap">
             <h1>AVP-PvH Instellingen</h1>
-            <?php if ($test_result === true) : ?>
+            <?php if ($can_manage_authentication && $test_result === true) : ?>
                 <div class="notice notice-success"><p>LLDAP verbinding OK.</p></div>
-            <?php elseif (is_wp_error($test_result)) : ?>
+            <?php elseif ($can_manage_authentication && is_wp_error($test_result)) : ?>
                 <div class="notice notice-error"><p>LLDAP fout: <?php echo esc_html($test_result->get_error_message()); ?></p></div>
             <?php endif; ?>
-            <?php if ($oauth_test === 'ok') : ?>
+            <?php if ($can_manage_authentication && $oauth_test === 'ok') : ?>
                 <div class="notice notice-success"><p><?php echo esc_html(ucfirst($oauth_test_provider)); ?> credentials OK — client ID en secret zijn geldig.</p></div>
-            <?php elseif ($oauth_test === 'fail') : ?>
+            <?php elseif ($can_manage_authentication && $oauth_test === 'fail') : ?>
                 <div class="notice notice-error"><p>
                     <?php echo esc_html(ucfirst($oauth_test_provider)); ?> credentials ongeldig — controleer de client ID en secret
                     <?php if ($oauth_test_provider === 'google') : ?>in de Google Cloud Console<?php else : ?>in de Azure portal<?php endif; ?>.
@@ -189,6 +220,7 @@ class AVPVH_Admin {
                     <?php endif; ?>
                 </p></div>
             <?php endif; ?>
+            <?php if ($can_manage_authentication) : ?>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                 <?php wp_nonce_field('avpvh_save_settings'); ?>
                 <input type="hidden" name="action" value="avpvh_save_settings">
@@ -236,6 +268,7 @@ class AVPVH_Admin {
                 </table>
                 <?php submit_button('Opslaan'); ?>
             </form>
+            <?php endif; ?>
 
             <hr>
             <h2>Kenmerken</h2>
@@ -293,6 +326,7 @@ class AVPVH_Admin {
                 <?php submit_button('Kenmerk aanmaken', 'secondary'); ?>
             </form>
 
+            <?php if ($can_manage_authentication) : ?>
             <hr>
             <h2>LLDAP verbinding testen</h2>
             <form method="post">
@@ -314,6 +348,7 @@ class AVPVH_Admin {
                 </table>
                 <?php submit_button('Verbinding testen', 'secondary'); ?>
             </form>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -390,7 +425,7 @@ class AVPVH_Admin {
 
     public function handle_mark_fee_paid(): void {
         check_admin_referer('avpvh_mark_fee_paid');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $fee_id    = absint(wp_unslash($_POST['fee_id'] ?? 0));
@@ -416,7 +451,7 @@ class AVPVH_Admin {
      */
     public function handle_add_identity(): void {
         check_admin_referer('avpvh_add_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_identities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -444,7 +479,7 @@ class AVPVH_Admin {
 
     public function handle_delete_identity(): void {
         check_admin_referer('avpvh_delete_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_identities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -471,7 +506,7 @@ class AVPVH_Admin {
 
     public function handle_primary_identity(): void {
         check_admin_referer('avpvh_primary_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_identities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -499,7 +534,7 @@ class AVPVH_Admin {
 
     public function handle_save_member_flags(): void {
         check_admin_referer('avpvh_save_member_flags');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -515,7 +550,7 @@ class AVPVH_Admin {
 
     public function handle_create_flag(): void {
         check_admin_referer('avpvh_create_flag');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_access_page('plugin_settings')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -530,7 +565,7 @@ class AVPVH_Admin {
 
     public function handle_delete_flag(): void {
         check_admin_referer('avpvh_delete_flag');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_access_page('plugin_settings')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -553,7 +588,7 @@ class AVPVH_Admin {
      */
     public function handle_send_newsletter(): void {
         check_admin_referer('avpvh_send_newsletter');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_access_page('newsletter')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -588,7 +623,7 @@ class AVPVH_Admin {
 
     public function handle_update_address(): void {
         check_admin_referer('avpvh_update_address');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
@@ -612,7 +647,7 @@ class AVPVH_Admin {
     // existed and was editable directly in LLDAP.
     public function handle_update_email(): void {
         check_admin_referer('avpvh_update_email');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -702,7 +737,7 @@ class AVPVH_Admin {
 
     public function handle_delete_address(): void {
         check_admin_referer('avpvh_delete_address');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
@@ -725,7 +760,7 @@ class AVPVH_Admin {
      */
     public function handle_add_member(): void {
         check_admin_referer('avpvh_add_member');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -801,7 +836,7 @@ class AVPVH_Admin {
 
     public function handle_save_participation(): void {
         check_admin_referer('avpvh_save_participation');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_access_page('activities')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -859,7 +894,7 @@ class AVPVH_Admin {
      */
     public function handle_create_activity(): void {
         check_admin_referer('avpvh_create_activity');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_access_page('activities')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -886,7 +921,7 @@ class AVPVH_Admin {
 
     public function handle_save_activity(): void {
         check_admin_referer('avpvh_save_activity');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_access_page('activities')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -908,7 +943,7 @@ class AVPVH_Admin {
 
     public function handle_save_activity_types(): void {
         check_admin_referer('avpvh_save_activity_types');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_access_page('activities')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -930,7 +965,7 @@ class AVPVH_Admin {
 
     public function handle_export_activity_participation(): void {
         check_admin_referer('avpvh_export_activity_participation');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_access_page('activities')) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -966,7 +1001,8 @@ class AVPVH_Admin {
         // day if only a date was somehow submitted. Blank = indefinite.
         $ends_at = $ends_at_raw !== '' ? str_replace('T', ' ', $ends_at_raw) . (strlen($ends_at_raw) === 10 ? ':00' : '') : null;
 
-        if (!$by_member || !$to_member_id || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
+        $allowed_roles = array_merge(AVPVH_Roles::OFFICER_ROLES, [AVPVH_Roles::IT_ROLE]);
+        if (!$by_member || !$to_member_id || !in_array($role, $allowed_roles, true)) {
             wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'delegate_error' => '1'], admin_url('admin.php')));
             exit;
         }
@@ -985,8 +1021,28 @@ class AVPVH_Admin {
             wp_die('Geen toegang.', 403);
         }
 
-        AVPVH_Roles::revoke_delegation(absint(wp_unslash($_POST['delegation_id'] ?? 0)));
+        $delegation_id = absint(wp_unslash($_POST['delegation_id'] ?? 0));
+        $delegation = AVPVH_Roles::get_delegation($delegation_id);
+        if (!$delegation || ($delegation->role === AVPVH_Roles::IT_ROLE && !AVPVH_Roles::current_user_is_chair())) {
+            wp_die('Alleen de voorzitter kan een IT-beheerder intrekken.', 403);
+        }
+
+        AVPVH_Roles::revoke_delegation($delegation_id);
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'revoke_ok' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_save_page_permissions(): void {
+        check_admin_referer('avpvh_save_page_permissions');
+        if (!AVPVH_Roles::current_user_is_chair()) {
+            wp_die('Alleen de voorzitter kan paginarechten wijzigen.', 403);
+        }
+
+        AVPVH_Roles::save_page_permissions((array) ($_POST['permissions'] ?? []));
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-page-permissions', 'updated' => '1'],
+            admin_url('admin.php')
+        ));
         exit;
     }
 }

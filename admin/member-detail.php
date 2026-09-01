@@ -1,7 +1,10 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
-if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) wp_die('Geen toegang.');
+if (!AVPVH_Roles::current_user_can_access_page('members')) wp_die('Geen toegang.');
+
+$can_manage_identities = AVPVH_Roles::current_user_can_access_page('members')
+    && (current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('secretaris'));
 
 $member_id = absint(wp_unslash($_GET['id'] ?? 0));
 $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
@@ -44,7 +47,7 @@ if (!$member) {
 $addresses  = AVPVH_DB::get_addresses($member_id);
 $activities = AVPVH_DB::get_activities_for_member($member_id);
 $fees       = AVPVH_DB::get_fees_for_member($member_id);
-$identities = AVPVH_DB::get_member_identities($member_id);
+$identities = $can_manage_identities ? AVPVH_DB::get_member_identities($member_id) : [];
 $all_flags  = AVPVH_DB::get_all_flags();
 $member_flag_ids = wp_list_pluck(AVPVH_DB::get_flags_for_member($member_id), 'id');
 $active_tab = sanitize_key(wp_unslash($_GET['tab'] ?? 'contact'));
@@ -91,7 +94,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <?php if ($created) : ?>
         <div class="notice notice-success is-dismissible"><p>Nieuw lid aangemaakt.</p></div>
     <?php endif; ?>
-    <?php if ($identity_ok) : ?>
+    <?php if ($can_manage_identities && $identity_ok) : ?>
         <div class="notice notice-success is-dismissible"><p>E-mailadres gekoppeld.</p></div>
     <?php elseif ($identity_deleted) : ?>
         <div class="notice notice-success is-dismissible"><p>E-mailadres verwijderd.</p></div>
@@ -181,6 +184,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th>Vertrokken</th><td><?php echo esc_html($member->left_year ?: '—'); ?></td></tr>
     </table>
 
+    <?php if ($can_manage_identities) : ?>
     <h2>Inlogadressen</h2>
     <table class="wp-list-table widefat striped">
         <thead><tr><th>Provider</th><th>E-mail</th><th>Geverifieerd</th><th>Eerste login</th><th>Laatste login</th><th>Primair</th><th>Actie</th></tr></thead>
@@ -244,6 +248,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         </table>
         <?php submit_button('Koppelen', 'secondary'); ?>
     </form>
+    <?php endif; ?>
 
     <h2>Kenmerken</h2>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -314,6 +319,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         </tbody>
     </table>
 
+    <?php if (current_user_can('manage_options')) : ?>
     <h2>LLDAP-groepen</h2>
     <p class="description">Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor "Zoeken in documenten") — los van de kenmerken hierboven, die alleen labels/filters zijn.</p>
     <?php
@@ -343,6 +349,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             </p>
             <?php submit_button('Groepen opslaan', 'secondary'); ?>
         </form>
+    <?php endif; ?>
     <?php endif; ?>
 
     <?php elseif ($active_tab === 'activities') : ?>
