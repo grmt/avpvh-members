@@ -56,6 +56,22 @@ function add_query_arg(string $key, string $value, string $url): string
     return $url . '?' . http_build_query([$key => $value]);
 }
 
+function wp_unslash(string $value): string
+{
+    return $value;
+}
+
+function wp_json_encode(mixed $value): string
+{
+    return json_encode($value, JSON_THROW_ON_ERROR);
+}
+
+function wp_remote_post(string $url, array $args): array
+{
+    $GLOBALS['avpvh_test_remote_post'] = compact('url', 'args');
+    return ['response' => ['code' => 200]];
+}
+
 function wp_safe_redirect(string $url): void
 {
     throw new AVPVH_Test_Redirect($url);
@@ -81,12 +97,13 @@ foreach (array_keys(AVPVH_OAuth::PROVIDERS) as $provider) {
     }
 }
 
-$logout_url = AVPVH_Nav_Auth::authelia_logout_url(home_url('/'));
-parse_str((string) parse_url($logout_url, PHP_URL_QUERY), $logout_params);
-if (parse_url($logout_url, PHP_URL_HOST) !== 'auth.avphilipsvanhorne.nl'
-    || parse_url($logout_url, PHP_URL_PATH) !== '/logout'
-    || ($logout_params['rd'] ?? null) !== home_url('/')) {
-    fwrite(STDERR, "Authelia logout redirect is invalid\n");
+$_COOKIE[AVPVH_Nav_Auth::AUTHELIA_SESSION_COOKIE] = 'test-session-token';
+AVPVH_Nav_Auth::clear_authelia_session();
+$logout_request = $GLOBALS['avpvh_test_remote_post'] ?? [];
+if (($logout_request['url'] ?? null) !== AVPVH_Nav_Auth::AUTHELIA_URL . '/api/logout'
+    || ($logout_request['args']['headers']['Cookie'] ?? null) !== 'avpvh_session=test-session-token'
+    || isset($_COOKIE[AVPVH_Nav_Auth::AUTHELIA_SESSION_COOKIE])) {
+    fwrite(STDERR, "Silent Authelia session cleanup is invalid\n");
     exit(1);
 }
 
