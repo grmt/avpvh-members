@@ -28,6 +28,9 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_create_flag',        [$this, 'handle_create_flag']);
         add_action('admin_post_avpvh_delete_flag',        [$this, 'handle_delete_flag']);
         add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
+        add_filter('set_screen_option_avpvh_login_attempts_per_page', static function ($status, $option, $value) {
+            return max(1, min(500, (int) $value));
+        }, 10, 3);
     }
 
     // manage_options (real WP admins) or bestuur (incl. voorzitter/
@@ -115,10 +118,27 @@ class AVPVH_Admin {
             null, 'Deelname bewerken', 'Deelname bewerken', $activities_cap,
             'avpvh-activity-participation-detail', [$this, 'render_activity_participation_detail']
         );
-        add_submenu_page(
+        $login_attempts_hook = add_submenu_page(
             'avpvh-members', 'Loginpogingen', 'Loginpogingen', $login_attempts_cap,
             'avpvh-login-attempts', [$this, 'render_login_attempts']
         );
+        add_action('load-' . $login_attempts_hook, function () {
+            require_once AVPVH_PLUGIN_DIR . 'admin/class-login-attempts-list-table.php';
+            add_screen_option('per_page', [
+                'label' => 'Loginpogingen per pagina',
+                'default' => 50,
+                'option' => 'avpvh_login_attempts_per_page',
+            ]);
+            add_filter('manage_' . get_current_screen()->id . '_columns', static function () {
+                return (new AVPVH_Login_Attempts_List_Table())->get_columns();
+            });
+            add_filter('default_hidden_columns', static function (array $hidden, $screen): array {
+                if ($screen && $screen->id === get_current_screen()->id) {
+                    $hidden[] = 'id';
+                }
+                return array_values(array_unique($hidden));
+            }, 10, 2);
+        });
         add_submenu_page(
             'avpvh-members', 'Nieuwsbrief', 'Nieuwsbrief', $newsletter_cap,
             'avpvh-newsletter', [$this, 'render_newsletter']

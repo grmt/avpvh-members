@@ -819,6 +819,72 @@ class AVPVH_DB {
         )) ?: [];
     }
 
+    public static function query_login_attempts(array $args = []): array {
+        global $wpdb;
+        $defaults = [
+            'search' => '', 'method' => '', 'result' => '',
+            'date_from' => '', 'date_to' => '',
+            'orderby' => 'attempted_at', 'order' => 'desc',
+            'per_page' => 50, 'page' => 1,
+        ];
+        $args = array_merge($defaults, $args);
+        $where = [];
+        $values = [];
+
+        if ($args['search'] !== '') {
+            $like = '%' . $wpdb->esc_like($args['search']) . '%';
+            $where[] = '(email LIKE %s OR ip LIKE %s OR method LIKE %s OR result LIKE %s)';
+            array_push($values, $like, $like, $like, $like);
+        }
+        if ($args['method'] !== '') {
+            $where[] = 'method = %s';
+            $values[] = $args['method'];
+        }
+        if ($args['result'] !== '') {
+            $where[] = 'result = %s';
+            $values[] = $args['result'];
+        }
+        if ($args['date_from'] !== '') {
+            $where[] = 'attempted_at >= %s';
+            $values[] = $args['date_from'] . ' 00:00:00';
+        }
+        if ($args['date_to'] !== '') {
+            $where[] = 'attempted_at <= %s';
+            $values[] = $args['date_to'] . ' 23:59:59';
+        }
+
+        $where_sql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+        $allowed_orderby = ['id', 'attempted_at', 'email', 'method', 'result', 'ip'];
+        $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'attempted_at';
+        $order = strtolower($args['order']) === 'asc' ? 'ASC' : 'DESC';
+        $per_page = max(1, min(500, (int) $args['per_page']));
+        $offset = (max(1, (int) $args['page']) - 1) * $per_page;
+
+        $count_sql = "SELECT COUNT(*) FROM {$wpdb->prefix}avm_login_attempts{$where_sql}";
+        $total = (int) ($values
+            ? $wpdb->get_var($wpdb->prepare($count_sql, $values))
+            : $wpdb->get_var($count_sql));
+
+        $query_values = array_merge($values, [$per_page, $offset]);
+        $rows_sql = "SELECT * FROM {$wpdb->prefix}avm_login_attempts{$where_sql}
+            ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
+        $items = $wpdb->get_results($wpdb->prepare($rows_sql, $query_values)) ?: [];
+
+        return ['items' => $items, 'total' => $total];
+    }
+
+    public static function get_login_attempt_filter_values(): array {
+        global $wpdb;
+        return [
+            'methods' => $wpdb->get_col(
+                "SELECT DISTINCT method FROM {$wpdb->prefix}avm_login_attempts ORDER BY method"
+            ) ?: [],
+            'results' => $wpdb->get_col(
+                "SELECT DISTINCT result FROM {$wpdb->prefix}avm_login_attempts ORDER BY result"
+            ) ?: [],
+        ];
+    }
+
     /**
      * First/most recent *successful* login logged for one specific address
      * (avm_login_attempts.email — proxy/Google/Microsoft/e-mail-link all

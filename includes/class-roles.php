@@ -25,6 +25,7 @@ class AVPVH_Roles {
             'members'        => 'Ledenbeheer',
             'activities'     => 'Activiteiten',
             'newsletter'     => 'Nieuwsbrief',
+            'login_attempts' => 'Loginpogingen',
             'plugin_settings' => 'Plugininstellingen (zonder authenticatie)',
         ]);
     }
@@ -34,6 +35,7 @@ class AVPVH_Roles {
             'members'        => ['secretaris', self::IT_ROLE],
             'activities'     => [self::IT_ROLE],
             'newsletter'     => [self::IT_ROLE],
+            'login_attempts' => [self::IT_ROLE],
             'plugin_settings' => [self::IT_ROLE],
         ]);
     }
