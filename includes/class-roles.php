@@ -131,6 +131,10 @@ class AVPVH_Roles {
         return self::current_user_has_role('voorzitter');
     }
 
+    public static function current_user_is_it_admin(): bool {
+        return self::current_user_has_role(self::IT_ROLE);
+    }
+
     // -------------------------------------------------------------------
     // Delegations
     // -------------------------------------------------------------------

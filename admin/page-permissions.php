@@ -1,8 +1,8 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- single-execution admin template
-if (!AVPVH_Roles::current_user_is_chair()) {
-    wp_die('Alleen de voorzitter kan paginarechten beheren.', 403);
+if (!AVPVH_Roles::current_user_is_it_admin()) {
+    wp_die('Alleen de IT-beheerder kan paginarechten beheren.', 403);
 }
 
 $pages = AVPVH_Roles::get_assignable_pages();
@@ -17,7 +17,7 @@ $roles = [
 ?>
 <div class="wrap">
     <h1>Paginarechten</h1>
-    <p>Hier wijs je beheerpagina's toe aan rollen. WordPress-beheerders houden altijd toegang.</p>
+    <p>Als IT-beheerder wijs je hier beheerpagina's toe aan functies. WordPress-beheerders houden altijd toegang tot de toegewezen pluginpagina's.</p>
     <div class="notice notice-info inline"><p><strong>Niet toewijsbaar:</strong> authenticatie-instellingen, inlogadressen van leden, LLDAP-groepen, rollen en delegaties. Die blijven met vaste, strengere rechten afgeschermd.</p></div>
     <?php if (!empty($_GET['updated'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Paginarechten opgeslagen.</p></div>

@@ -120,7 +120,7 @@ $role_label = [
 
     <?php if (AVPVH_Roles::current_user_is_chair()) : ?>
     <h2>IT-beheerder aanwijzen</h2>
-    <p class="description">Alleen de voorzitter kan deze rol toekennen of intrekken. Welke beheerpagina's de rol mag gebruiken stel je in bij <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-page-permissions'], admin_url('admin.php'))); ?>">Paginarechten</a>. Inlogidentiteiten en authenticatie-instellingen zijn nooit onderdeel van deze rol.</p>
+    <p class="description">Alleen de voorzitter kan deze rol toekennen of intrekken. De aangewezen IT-beheerder stelt daarna zelf de paginarechten voor alle functies in. Inlogidentiteiten en authenticatie-instellingen zijn nooit onderdeel van deze rol.</p>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <?php wp_nonce_field('avpvh_delegate_role'); ?>
         <input type="hidden" name="action" value="avpvh_delegate_role">
