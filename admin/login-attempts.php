@@ -3,39 +3,15 @@ defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!AVPVH_Roles::current_user_can_access_page('login_attempts')) wp_die('Geen toegang.');
 
-$attempts = AVPVH_DB::get_login_attempts(500);
-
-$method_label = ['proxy' => 'Wachtwoord (Authelia)', 'google' => 'Google', 'microsoft' => 'Microsoft', 'password_reset' => 'Wachtwoord instellen'];
-$result_label = ['success' => '✓ Gelukt', 'no_member' => '✗ Onbekend e-mailadres', 'hibp_warned' => '⚠ Gelekt wachtwoord gekozen'];
-$result_class = ['success' => 'color:green', 'no_member' => 'color:#c00', 'hibp_warned' => 'color:#b8600a;font-weight:bold'];
+require_once AVPVH_PLUGIN_DIR . 'admin/class-login-attempts-list-table.php';
+$table = new AVPVH_Login_Attempts_List_Table();
+$table->prepare_items();
 ?>
 <div class="wrap">
     <h1>Loginpogingen</h1>
-    <p><?php echo esc_html(count($attempts)); ?> meest recente pogingen.</p>
-    <table class="wp-list-table widefat striped">
-        <thead>
-            <tr>
-                <th>Tijdstip</th>
-                <th>E-mailadres</th>
-                <th>Methode</th>
-                <th>Resultaat</th>
-                <th>IP-adres</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php if (!$attempts) : ?>
-            <tr><td colspan="5">Nog geen loginpogingen geregistreerd.</td></tr>
-        <?php else : foreach ($attempts as $a) : ?>
-            <tr>
-                <td><?php echo esc_html(wp_date('d-m-Y H:i:s', strtotime($a->attempted_at))); ?></td>
-                <td><?php echo esc_html($a->email); ?></td>
-                <td><?php echo esc_html($method_label[$a->method] ?? $a->method); ?></td>
-                <td style="<?php echo esc_attr($result_class[$a->result] ?? ''); ?>">
-                    <?php echo esc_html($result_label[$a->result] ?? $a->result); ?>
-                </td>
-                <td><code><?php echo esc_html($a->ip); ?></code></td>
-            </tr>
-        <?php endforeach; endif; ?>
-        </tbody>
-    </table>
+    <form method="get">
+        <input type="hidden" name="page" value="avpvh-login-attempts">
+        <?php $table->search_box('Loginpogingen zoeken', 'avpvh-login-attempts-search'); ?>
+        <?php $table->display(); ?>
+    </form>
 </div>

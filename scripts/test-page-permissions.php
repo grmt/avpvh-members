@@ -42,10 +42,11 @@ $pages = AVPVH_Roles::get_assignable_pages();
 $defaults = AVPVH_Roles::get_default_page_permissions();
 
 assert_page_permission(!isset($pages['authentication']), 'Authenticatie is niet toewijsbaar');
-assert_page_permission(!isset($pages['login_attempts']), 'Loginpogingen zijn niet toewijsbaar');
+assert_page_permission(isset($pages['login_attempts']), 'Loginpogingen zijn toewijsbaar');
 assert_page_permission(!isset($pages['identities']), 'Inlogidentiteiten zijn niet toewijsbaar');
 assert_page_permission(!isset($pages['roles']), 'Rolbeheer is niet toewijsbaar');
 assert_page_permission(in_array('secretaris', $defaults['members'], true), 'Secretaris heeft standaard ledenbeheer');
+assert_page_permission(in_array(AVPVH_Roles::IT_ROLE, $defaults['login_attempts'], true), 'IT-beheerder heeft standaard loginpogingen');
 assert_page_permission(!in_array('penningmeester', $defaults['plugin_settings'], true), 'Penningmeester heeft standaard geen plugininstellingen');
 
 AVPVH_Roles::save_page_permissions([
