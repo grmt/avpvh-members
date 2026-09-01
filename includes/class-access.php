@@ -144,6 +144,7 @@ class AVPVH_Access {
             'oauth_expired'  => 'Je inlogpoging duurde te lang en is verlopen. Probeer het opnieuw.',
             'oauth_failed'   => 'Inloggen is niet gelukt. Probeer het opnieuw.',
             'session_expired' => 'Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in.',
+            'identity_mismatch' => 'De extra beveiligde sessie hoorde bij een ander account. Beide sessies zijn beëindigd; log opnieuw in met hetzelfde account.',
         ];
 
         ob_start();
@@ -176,11 +177,18 @@ class AVPVH_Access {
             if ((int) get_current_user_id() === (int) $member->wp_user_id) {
                 return;
             }
-            // Authelia is now vouching for a different identity than the WP
-            // session on file (e.g. logged out and back in as someone else
-            // at the proxy) — a stale WP cookie must not keep overriding
-            // that, so swap the WP session to match.
+
+            // Both identities arrived in this same browser request: the
+            // WordPress auth cookie identifies the current WP user, while
+            // nginx derived HTTP_REMOTE_USER from the shared Authelia cookie.
+            // A mismatch must never silently switch the WP session to the
+            // other account. Reject it, destroy both sessions, and require a
+            // fresh authentication instead.
             wp_logout();
+            AVPVH_Nav_Auth::invalidate_authelia_session();
+            $retry_url = home_url('/avpvh-login/?login_error=identity_mismatch');
+            wp_safe_redirect(AVPVH_Nav_Auth::authelia_logout_url($retry_url));
+            exit;
         }
 
         $email = $member->email;
