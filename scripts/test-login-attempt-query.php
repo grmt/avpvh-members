@@ -39,8 +39,8 @@ require_once dirname(__DIR__) . '/includes/class-db.php';
 
 $result = AVPVH_DB::query_login_attempts([
     'search' => 'needle',
-    'method' => 'google',
-    'result' => 'success',
+    'method' => ['google', 'microsoft'],
+    'result' => ['success', 'no_member'],
     'date_from' => '2026-08-01',
     'date_to' => '2026-08-31',
     'orderby' => 'attempted_at; DROP TABLE members',
@@ -52,8 +52,8 @@ $result = AVPVH_DB::query_login_attempts([
 $sql = implode("\n", $wpdb->queries);
 $checks = [
     'search filter' => str_contains($sql, "email LIKE '%needle%'"),
-    'method filter' => str_contains($sql, "method = 'google'"),
-    'result filter' => str_contains($sql, "result = 'success'"),
+    'method filter' => str_contains($sql, "method IN ('google','microsoft')"),
+    'result filter' => str_contains($sql, "result IN ('success','no_member')"),
     'date range' => str_contains($sql, "2026-08-01 00:00:00") && str_contains($sql, "2026-08-31 23:59:59"),
     'safe ordering' => str_contains($sql, 'ORDER BY attempted_at DESC') && !str_contains($sql, 'DROP TABLE'),
     'pagination' => str_contains($sql, 'LIMIT 25 OFFSET 50'),

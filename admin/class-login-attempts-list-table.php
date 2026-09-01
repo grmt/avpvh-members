@@ -64,8 +64,8 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
         $per_page = $this->get_items_per_page('avpvh_login_attempts_per_page', 50);
         $query = AVPVH_DB::query_login_attempts([
             'search' => sanitize_text_field(wp_unslash($_GET['s'] ?? '')),
-            'method' => sanitize_key(wp_unslash($_GET['method'] ?? '')),
-            'result' => sanitize_key(wp_unslash($_GET['result'] ?? '')),
+            'method' => $this->sanitize_filter_values($_GET['method'] ?? []),
+            'result' => $this->sanitize_filter_values($_GET['result'] ?? []),
             'date_from' => $this->sanitize_date($_GET['date_from'] ?? ''),
             'date_to' => $this->sanitize_date($_GET['date_to'] ?? ''),
             'orderby' => sanitize_key(wp_unslash($_GET['orderby'] ?? 'attempted_at')),
@@ -98,29 +98,40 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
             return;
         }
         $filters = AVPVH_DB::get_login_attempt_filter_values();
-        $selected_method = sanitize_key(wp_unslash($_GET['method'] ?? ''));
-        $selected_result = sanitize_key(wp_unslash($_GET['result'] ?? ''));
+        $selected_methods = $this->sanitize_filter_values($_GET['method'] ?? []);
+        $selected_results = $this->sanitize_filter_values($_GET['result'] ?? []);
         ?>
-        <div class="alignleft actions">
-            <label class="screen-reader-text" for="filter-method">Filter op methode</label>
-            <select name="method" id="filter-method">
-                <option value="">Alle methoden</option>
+        <div class="alignleft actions avpvh-login-filters" data-avpvh-auto-filter>
+            <details class="avpvh-checkbox-filter<?php echo $selected_methods ? ' is-active' : ''; ?>" data-filter-key="method">
+                <summary class="button">
+                    <?php echo esc_html($this->filter_summary('Methode', $selected_methods, self::METHOD_LABELS)); ?>
+                </summary>
+                <div class="avpvh-checkbox-filter__panel">
                 <?php foreach ($filters['methods'] as $method) : ?>
-                    <option value="<?php echo esc_attr($method); ?>" <?php selected($selected_method, $method); ?>><?php echo esc_html(self::METHOD_LABELS[$method] ?? $method); ?></option>
+                    <label>
+                        <input type="checkbox" name="method[]" value="<?php echo esc_attr($method); ?>" data-auto-submit <?php checked(in_array($method, $selected_methods, true)); ?>>
+                        <?php echo esc_html(self::METHOD_LABELS[$method] ?? $method); ?>
+                    </label>
                 <?php endforeach; ?>
-            </select>
-            <label class="screen-reader-text" for="filter-result">Filter op resultaat</label>
-            <select name="result" id="filter-result">
-                <option value="">Alle resultaten</option>
+                </div>
+            </details>
+            <details class="avpvh-checkbox-filter<?php echo $selected_results ? ' is-active' : ''; ?>" data-filter-key="result">
+                <summary class="button">
+                    <?php echo esc_html($this->filter_summary('Resultaat', $selected_results, self::RESULT_LABELS)); ?>
+                </summary>
+                <div class="avpvh-checkbox-filter__panel">
                 <?php foreach ($filters['results'] as $result) : ?>
-                    <option value="<?php echo esc_attr($result); ?>" <?php selected($selected_result, $result); ?>><?php echo esc_html(self::RESULT_LABELS[$result] ?? $result); ?></option>
+                    <label>
+                        <input type="checkbox" name="result[]" value="<?php echo esc_attr($result); ?>" data-auto-submit <?php checked(in_array($result, $selected_results, true)); ?>>
+                        <?php echo esc_html(self::RESULT_LABELS[$result] ?? $result); ?>
+                    </label>
                 <?php endforeach; ?>
-            </select>
+                </div>
+            </details>
             <label for="filter-date-from">Van</label>
-            <input type="date" name="date_from" id="filter-date-from" value="<?php echo esc_attr($this->sanitize_date($_GET['date_from'] ?? '')); ?>">
+            <input type="date" name="date_from" id="filter-date-from" value="<?php echo esc_attr($this->sanitize_date($_GET['date_from'] ?? '')); ?>" data-auto-submit>
             <label for="filter-date-to">tot</label>
-            <input type="date" name="date_to" id="filter-date-to" value="<?php echo esc_attr($this->sanitize_date($_GET['date_to'] ?? '')); ?>">
-            <?php submit_button('Filteren', '', 'filter_action', false); ?>
+            <input type="date" name="date_to" id="filter-date-to" value="<?php echo esc_attr($this->sanitize_date($_GET['date_to'] ?? '')); ?>" data-auto-submit>
         </div>
         <?php
     }
@@ -138,5 +149,25 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
     private function sanitize_date($value): string {
         $value = sanitize_text_field(wp_unslash((string) $value));
         return preg_match('/\A\d{4}-\d{2}-\d{2}\z/D', $value) ? $value : '';
+    }
+
+    private function sanitize_filter_values($values): array {
+        $sanitized = [];
+        foreach ((array) wp_unslash($values) as $value) {
+            if (is_scalar($value)) {
+                $sanitized[] = sanitize_key((string) $value);
+            }
+        }
+        return array_values(array_filter(array_unique($sanitized), 'strlen'));
+    }
+
+    private function filter_summary(string $label, array $selected, array $labels): string {
+        if (!$selected) {
+            return $label . ': alle';
+        }
+        if (count($selected) === 1) {
+            return $label . ': ' . ($labels[$selected[0]] ?? $selected[0]);
+        }
+        return $label . ': ' . count($selected) . ' gekozen';
     }
 }
