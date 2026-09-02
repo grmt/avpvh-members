@@ -108,6 +108,71 @@
     margin: 0;
 }
 
+.ui-datepicker {
+    background: #fff;
+    border: 1px solid #8c8f94;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    display: none;
+    padding: 10px;
+    width: 280px;
+    z-index: 100001 !important;
+}
+
+.ui-datepicker-header {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.ui-datepicker-title {
+    font-weight: 600;
+    order: 2;
+}
+
+.ui-datepicker-prev,
+.ui-datepicker-next {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.ui-datepicker-prev {
+    order: 1;
+}
+
+.ui-datepicker-next {
+    order: 3;
+}
+
+.ui-datepicker table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.ui-datepicker th,
+.ui-datepicker td {
+    padding: 2px;
+    text-align: center;
+}
+
+.ui-datepicker td a,
+.ui-datepicker td span {
+    border-radius: 2px;
+    display: block;
+    padding: 5px;
+    text-decoration: none;
+}
+
+.ui-datepicker td a:hover,
+.ui-datepicker-current-day a {
+    background: #2271b1;
+    color: #fff;
+}
+
+.ui-datepicker-unselectable span {
+    color: #a7aaad;
+}
+
 @media screen and (max-width: 782px) {
     .avpvh-login-attempts-form .wp-list-table {
         table-layout: fixed;
