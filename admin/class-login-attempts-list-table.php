@@ -22,6 +22,12 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
         'link_sent' => 'E-maillink verzonden',
     ];
 
+    private const MONTH_LABELS = [
+        '01' => 'jan', '02' => 'feb', '03' => 'mrt', '04' => 'apr',
+        '05' => 'mei', '06' => 'jun', '07' => 'jul', '08' => 'aug',
+        '09' => 'sep', '10' => 'okt', '11' => 'nov', '12' => 'dec',
+    ];
+
     public function __construct() {
         parent::__construct(['singular' => 'loginpoging', 'plural' => 'loginpogingen', 'ajax' => false]);
     }
@@ -136,9 +142,9 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
                 </div>
             </details>
             <label for="filter-date-from">Van</label>
-            <input type="date" name="date_from" id="filter-date-from" value="<?php echo esc_attr($date_from); ?>" max="<?php echo esc_attr($latest_date_from); ?>" data-auto-submit>
+            <input type="text" name="date_from" id="filter-date-from" value="<?php echo esc_attr($this->format_date_input($date_from)); ?>" placeholder="dd-mmm-yyyy" autocomplete="off" data-maximum-date="<?php echo esc_attr($latest_date_from); ?>" data-auto-submit>
             <label for="filter-date-to">tot</label>
-            <input type="date" name="date_to" id="filter-date-to" value="<?php echo esc_attr($date_to); ?>" min="<?php echo esc_attr($minimum_date_to); ?>" max="<?php echo esc_attr($today); ?>" data-auto-submit>
+            <input type="text" name="date_to" id="filter-date-to" value="<?php echo esc_attr($this->format_date_input($date_to)); ?>" placeholder="dd-mmm-yyyy" autocomplete="off" data-minimum-date="<?php echo esc_attr($minimum_date_to); ?>" data-maximum-date="<?php echo esc_attr($today); ?>" data-auto-submit>
         </div>
         <?php
     }
@@ -155,7 +161,29 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
 
     private function sanitize_date($value): string {
         $value = sanitize_text_field(wp_unslash((string) $value));
-        return preg_match('/\A\d{4}-\d{2}-\d{2}\z/D', $value) ? $value : '';
+        if (preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/D', $value, $parts)
+            && checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) {
+            return $value;
+        }
+        if (preg_match('/\A(\d{2})-(\d{2})-(\d{4})\z/D', $value, $parts)
+            && checkdate((int) $parts[2], (int) $parts[1], (int) $parts[3])) {
+            return $parts[3] . '-' . $parts[2] . '-' . $parts[1];
+        }
+        if (preg_match('/\A(\d{2})-([a-z]{3})-(\d{4})\z/Di', $value, $parts)) {
+            $month = array_search(strtolower($parts[2]), self::MONTH_LABELS, true);
+            if ($month && checkdate((int) $month, (int) $parts[1], (int) $parts[3])) {
+                return $parts[3] . '-' . $month . '-' . $parts[1];
+            }
+        }
+        return '';
+    }
+
+    private function format_date_input(string $value): string {
+        if (!$value) {
+            return '';
+        }
+        $month = self::MONTH_LABELS[substr($value, 5, 2)] ?? '';
+        return substr($value, 8, 2) . '-' . $month . '-' . substr($value, 0, 4);
     }
 
     private function get_date_filters(): array {

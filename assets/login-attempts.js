@@ -11,6 +11,26 @@
     var submitTimer;
     var dateFrom = document.getElementById('filter-date-from');
     var dateTo = document.getElementById('filter-date-to');
+    var monthNumbers = {
+        jan: '01', feb: '02', mrt: '03', apr: '04', mei: '05', jun: '06',
+        jul: '07', aug: '08', sep: '09', okt: '10', nov: '11', dec: '12'
+    };
+
+    function parseDate(value) {
+        var match = value.trim().toLowerCase().match(/^(\d{2})-([a-z]{3})-(\d{4})$/);
+        if (!match || !monthNumbers[match[2]]) {
+            return '';
+        }
+
+        var iso = match[3] + '-' + monthNumbers[match[2]] + '-' + match[1];
+        var date = new Date(iso + 'T00:00:00Z');
+        return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === iso ? iso : '';
+    }
+
+    function localDate(value) {
+        var parts = value.split('-');
+        return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    }
 
     function nextDate(value) {
         var date = new Date(value + 'T00:00:00Z');
@@ -19,16 +39,48 @@
     }
 
     function datesAreValid() {
-        dateTo.setCustomValidity('');
-        dateTo.min = dateFrom.value ? nextDate(dateFrom.value) : '';
+        var from = parseDate(dateFrom.value);
+        var to = parseDate(dateTo.value);
 
-        if (dateTo.value > dateTo.max) {
+        dateFrom.setCustomValidity('');
+        dateTo.setCustomValidity('');
+
+        if (dateFrom.value && !from) {
+            dateFrom.setCustomValidity('Gebruik een geldige datum als dd-mmm-yyyy.');
+        } else if (from && from > dateFrom.dataset.maximumDate) {
+            dateFrom.setCustomValidity('Van moet vóór vandaag liggen.');
+        }
+
+        if (dateTo.value && !to) {
+            dateTo.setCustomValidity('Gebruik een geldige datum als dd-mmm-yyyy.');
+        } else if (to && to > dateTo.dataset.maximumDate) {
             dateTo.setCustomValidity('Tot kan niet later zijn dan vandaag.');
-        } else if (dateFrom.value && dateTo.value && dateTo.value <= dateFrom.value) {
+        } else if (from && to && to <= from) {
             dateTo.setCustomValidity('Tot moet later zijn dan van.');
         }
 
+        if (window.jQuery && window.jQuery.fn.datepicker) {
+            window.jQuery(dateTo).datepicker('option', 'minDate', from ? localDate(nextDate(from)) : null);
+        }
+
         return form.checkValidity();
+    }
+
+    if (window.jQuery && window.jQuery.fn.datepicker) {
+        var datepickerOptions = {
+            dateFormat: 'dd-M-yy',
+            firstDay: 1,
+            dayNamesMin: ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'],
+            monthNames: ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'],
+            monthNamesShort: ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
+            nextText: 'Volgende',
+            prevText: 'Vorige',
+            onSelect: function () {
+                this.dispatchEvent(new Event('change', {bubbles: true}));
+            }
+        };
+        window.jQuery(dateFrom).datepicker(Object.assign({}, datepickerOptions, {maxDate: -1}));
+        window.jQuery(dateTo).datepicker(Object.assign({}, datepickerOptions, {maxDate: 0}));
     }
 
     datesAreValid();

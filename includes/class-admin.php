@@ -132,7 +132,7 @@ class AVPVH_Admin {
             wp_enqueue_script(
                 'avpvh-login-attempts-admin',
                 plugin_dir_url(dirname(__FILE__)) . 'assets/login-attempts.js',
-                [], avpvh_asset_version('assets/login-attempts.js'), true
+                ['jquery-ui-datepicker'], avpvh_asset_version('assets/login-attempts.js'), true
             );
             add_screen_option('per_page', [
                 'label' => 'Loginpogingen per pagina',
