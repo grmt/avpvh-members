@@ -9,6 +9,29 @@
     var form = filters.closest('form');
     var storageKey = 'avpvh-login-attempts-open-filter';
     var submitTimer;
+    var dateFrom = document.getElementById('filter-date-from');
+    var dateTo = document.getElementById('filter-date-to');
+
+    function nextDate(value) {
+        var date = new Date(value + 'T00:00:00Z');
+        date.setUTCDate(date.getUTCDate() + 1);
+        return date.toISOString().slice(0, 10);
+    }
+
+    function datesAreValid() {
+        dateTo.setCustomValidity('');
+        dateTo.min = dateFrom.value ? nextDate(dateFrom.value) : '';
+
+        if (dateTo.value > dateTo.max) {
+            dateTo.setCustomValidity('Tot kan niet later zijn dan vandaag.');
+        } else if (dateFrom.value && dateTo.value && dateTo.value <= dateFrom.value) {
+            dateTo.setCustomValidity('Tot moet later zijn dan van.');
+        }
+
+        return form.checkValidity();
+    }
+
+    datesAreValid();
 
     try {
         var openFilter = window.sessionStorage.getItem(storageKey);
@@ -24,6 +47,11 @@
 
     filters.addEventListener('change', function (event) {
         if (!event.target.matches('[data-auto-submit]')) {
+            return;
+        }
+
+        if (!datesAreValid()) {
+            form.reportValidity();
             return;
         }
 

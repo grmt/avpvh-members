@@ -62,12 +62,13 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
         $this->_column_headers = [$columns, $hidden, $this->get_sortable_columns(), $this->get_default_primary_column_name()];
 
         $per_page = $this->get_items_per_page('avpvh_login_attempts_per_page', 50);
+        [$date_from, $date_to] = $this->get_date_filters();
         $query = AVPVH_DB::query_login_attempts([
             'search' => sanitize_text_field(wp_unslash($_GET['s'] ?? '')),
             'method' => $this->sanitize_filter_values($_GET['method'] ?? []),
             'result' => $this->sanitize_filter_values($_GET['result'] ?? []),
-            'date_from' => $this->sanitize_date($_GET['date_from'] ?? ''),
-            'date_to' => $this->sanitize_date($_GET['date_to'] ?? ''),
+            'date_from' => $date_from,
+            'date_to' => $date_to,
             'orderby' => sanitize_key(wp_unslash($_GET['orderby'] ?? 'attempted_at')),
             'order' => sanitize_key(wp_unslash($_GET['order'] ?? 'desc')),
             'per_page' => $per_page,
@@ -100,6 +101,12 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
         $filters = AVPVH_DB::get_login_attempt_filter_values();
         $selected_methods = $this->sanitize_filter_values($_GET['method'] ?? []);
         $selected_results = $this->sanitize_filter_values($_GET['result'] ?? []);
+        $today = wp_date('Y-m-d');
+        $latest_date_from = (new DateTimeImmutable($today))->modify('-1 day')->format('Y-m-d');
+        [$date_from, $date_to] = $this->get_date_filters();
+        $minimum_date_to = $date_from
+            ? (new DateTimeImmutable($date_from))->modify('+1 day')->format('Y-m-d')
+            : '';
         ?>
         <div class="alignleft actions avpvh-login-filters" data-avpvh-auto-filter>
             <details class="avpvh-checkbox-filter<?php echo $selected_methods ? ' is-active' : ''; ?>" data-filter-key="method">
@@ -129,9 +136,9 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
                 </div>
             </details>
             <label for="filter-date-from">Van</label>
-            <input type="date" name="date_from" id="filter-date-from" value="<?php echo esc_attr($this->sanitize_date($_GET['date_from'] ?? '')); ?>" data-auto-submit>
+            <input type="date" name="date_from" id="filter-date-from" value="<?php echo esc_attr($date_from); ?>" max="<?php echo esc_attr($latest_date_from); ?>" data-auto-submit>
             <label for="filter-date-to">tot</label>
-            <input type="date" name="date_to" id="filter-date-to" value="<?php echo esc_attr($this->sanitize_date($_GET['date_to'] ?? '')); ?>" data-auto-submit>
+            <input type="date" name="date_to" id="filter-date-to" value="<?php echo esc_attr($date_to); ?>" min="<?php echo esc_attr($minimum_date_to); ?>" max="<?php echo esc_attr($today); ?>" data-auto-submit>
         </div>
         <?php
     }
@@ -149,6 +156,21 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
     private function sanitize_date($value): string {
         $value = sanitize_text_field(wp_unslash((string) $value));
         return preg_match('/\A\d{4}-\d{2}-\d{2}\z/D', $value) ? $value : '';
+    }
+
+    private function get_date_filters(): array {
+        $today = wp_date('Y-m-d');
+        $date_from = $this->sanitize_date($_GET['date_from'] ?? '');
+        $date_to = $this->sanitize_date($_GET['date_to'] ?? '');
+
+        if (!$date_to || $date_to > $today || ($date_from && $date_to <= $date_from)) {
+            $date_to = $today;
+        }
+        if ($date_from && $date_from >= $date_to) {
+            $date_from = '';
+        }
+
+        return [$date_from, $date_to];
     }
 
     private function sanitize_filter_values($values): array {
