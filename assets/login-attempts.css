@@ -1,32 +1,32 @@
 .avpvh-login-attempts-form .wp-list-table {
-    table-layout: auto;
-    min-width: 900px;
+    table-layout: fixed;
+    min-width: 1200px;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-id {
-    width: 64px;
+    width: 4%;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-attempted_at {
-    width: 165px;
+    width: 13%;
     white-space: nowrap;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-email {
-    width: auto;
-    min-width: 240px;
+    overflow-wrap: anywhere;
+    width: 28%;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-method {
-    width: 190px;
+    width: 17%;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-result {
-    width: 210px;
+    width: 14%;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-ip {
-    width: 175px;
+    width: 24%;
     white-space: nowrap;
 }
 
