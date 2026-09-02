@@ -1,32 +1,34 @@
 .avpvh-login-attempts-form .wp-list-table {
-    table-layout: fixed;
-    min-width: 1200px;
+    max-width: 100%;
+    min-width: 0;
+    table-layout: auto;
+    width: max-content;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-id {
-    width: 4%;
+    width: 64px;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-attempted_at {
-    width: 13%;
+    width: 165px;
     white-space: nowrap;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-email {
     overflow-wrap: anywhere;
-    width: 28%;
+    width: 320px;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-method {
-    width: 17%;
+    width: 200px;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-result {
-    width: 14%;
+    width: 210px;
 }
 
 .avpvh-login-attempts-form .wp-list-table .column-ip {
-    width: 24%;
+    width: 310px;
     white-space: nowrap;
 }
 
@@ -107,6 +109,40 @@
 }
 
 @media screen and (max-width: 782px) {
+    .avpvh-login-attempts-form .wp-list-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tr {
+        display: table-row;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table th:not(.hidden),
+    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td:not(.hidden) {
+        display: table-cell !important;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tr td:nth-child(n+3) {
+        flex: none;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table td.column-primary,
+    .avpvh-login-attempts-form .wp-list-table tbody th.column-primary,
+    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td.column-primary ~ td:not(.check-column) {
+        padding: 8px 10px;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td:not(.check-column)::before,
+    .avpvh-login-attempts-form .wp-list-table .toggle-row {
+        display: none !important;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table .column-attempted_at,
+    .avpvh-login-attempts-form .wp-list-table .column-ip {
+        white-space: normal;
+    }
+
     .avpvh-login-filters {
         float: none;
     }
