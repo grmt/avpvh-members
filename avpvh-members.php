@@ -46,6 +46,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-newsletter-consent.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-fee-popup.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-admin.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-protection.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-media-token.php';
 
 register_activation_hook(__FILE__, ['AVPVH_DB', 'install']);
 add_action('plugins_loaded', ['AVPVH_DB', 'maybe_upgrade']);
@@ -79,3 +80,4 @@ new AVPVH_Newsletter_Consent();
 new AVPVH_Member_Profile_Form();
 new AVPVH_Admin();
 new AVPVH_Media_Protection();
+new AVPVH_Media_Token();
