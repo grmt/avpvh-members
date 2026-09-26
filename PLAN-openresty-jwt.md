@@ -1,5 +1,10 @@
 # Plan: Migratie naar OpenResty + JWT-validatie voor private uploads
 
+## Status
+
+Geïmplementeerd op feature branch `fix/signed-private-media`; wacht op review
+en deployment.
+
 ## Doel
 Vervang `nginx:stable-alpine` door `openresty/openresty:alpine` zodat nginx
 private uploads cryptografisch kan verifiëren zonder roundtrip naar Authelia of PHP.
@@ -43,7 +48,11 @@ Controleer of alle `include`-paden nog kloppen (config root blijft `/etc/nginx/`
 
 ### Stap 2 — WordPress: JWT-cookie bij inloggen
 
-In de avpvh-members plugin (`class-access.php` of nieuw `class-media-token.php`):
+In de avpvh-members plugin (`includes/class-media-token.php`). De implementatie
+haakt op `set_logged_in_cookie`, zodat ook Google/Microsoft OAuth en de
+Authelia proxy-login worden gedekt. Een bestaand sessiecookie krijgt op de
+eerstvolgende WordPress-request geen mediatoken: bestaande sessies worden bij
+de eenmalige overgang uitgelogd en moeten opnieuw authenticeren.
 
 ```php
 // Na succesvolle WordPress-login
@@ -177,7 +186,13 @@ location ~* ^/wp-content/uploads/private/ {
 
 ## Notities
 
-- OpenResty levert `lua-resty-hmac` en `lua-resty-string` standaard mee.
-- JWT-expiry synchroon houden met WordPress sessieduur (8 uur).
+- De productie-image bevat geen `resty.hmac`; de validator gebruikt de wel
+  aanwezige `resty.openssl.hmac` module.
+- De JWT verloopt hard na 8 uur en wordt niet stilzwijgend vernieuwd. Bij een
+  ontbrekende, ongeldige of verlopen JWT beëindigt de plugin ook de WordPress-
+  sessie, zodat opnieuw inloggen verplicht is.
+- Een externe watchdog controleert de sessie bij laden, focus, `pageshow`, het
+  zichtbaar worden van een slapend tabblad en iedere minuut zolang de pagina
+  zichtbaar is. De gevalideerde vervaltijd wordt lokaal bewaakt; bij verlopen
+  wordt bestaande ledeninhoud direct gewist en volgt een redirect naar login.
 - Bij wachtwoord-reset of force-logout: cookie wissen + optioneel secret rouleren.
-- `resty.hmac` module beschikbaar in `openresty/openresty:alpine` image.
