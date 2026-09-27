@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.py[cod]
+
+# Operator-specific member IDs, hashes, and reconciliation overrides.
+scripts/*.local.*
