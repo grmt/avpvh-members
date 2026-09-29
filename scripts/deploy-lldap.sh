@@ -18,6 +18,9 @@ warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 die()   { echo -e "${RED}[✗]${NC} $*" >&2; exit 1; }
 ask()   { echo -e "${YELLOW}[?]${NC} $*"; }
 
+# Let's Encrypt contact address — kept out of Git, export it before running.
+[[ -n "${CERTBOT_EMAIL:-}" ]] || die "Set CERTBOT_EMAIL (Let's Encrypt contact address) before running this script."
+
 echo ""
 echo "=== AVP-PvH LLDAP deployment ==="
 echo ""
