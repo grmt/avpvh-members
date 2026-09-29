@@ -2,5 +2,6 @@
 __pycache__/
 *.py[cod]
 
-# Operator-specific member IDs, hashes, and reconciliation overrides.
-scripts/*.local.*
+# Operator-specific member IDs, hashes, reconciliation overrides and local
+# config (e.g. config/authelia-configuration.local.yml).
+*.local.*

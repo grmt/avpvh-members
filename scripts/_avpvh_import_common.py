@@ -241,7 +241,7 @@ def normalize_name_key(first_name: str, last_name: str) -> tuple[str, str]:
 
 def first_name_contains(db_first_name: str, sheet_first_name: str) -> bool:
     """True if the sheet's (short) first name appears as a whole word inside
-    the DB's first name — catches e.g. DB "Roepnaam (Volledige
-    Namen)" vs sheet "Roepnaam", or "Anna Testnaam" vs sheet "Anna"."""
+    the DB's first name — catches a short call name inside a longer formal
+    name, or one part of a compound given name."""
     words = re.findall(r"[^\W\d_]+", (db_first_name or '').lower(), re.UNICODE)
     return (sheet_first_name or '').strip().lower() in words

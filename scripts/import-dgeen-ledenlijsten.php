@@ -1,7 +1,7 @@
 <?php
 /**
  * Import DGéén ledenlijst snapshots (from the `scan` repo's already-parsed
- * avpvh/02-DGéén/transcripties/*/page_XX.md tables) into avm_members /
+ * avpvh/02-DGéén/transcripties/{editie}/page_XX.md tables) into avm_members /
  * avm_addresses, treating each publication date as an address-validity
  * boundary.
  *
@@ -50,7 +50,7 @@
  *
  * Rows flagged needs_review by the extraction script (missing comma in the
  * "Naam" cell, or a non-person entry like "sg Philips van Horne" / "Fam.
- * Volkaert") are excluded from matching/creation entirely and only listed
+ * Voorbeeld") are excluded from matching/creation entirely and only listed
  * in the report — never guessed at.
  */
 
@@ -66,7 +66,28 @@ $editions = json_decode(file_get_contents($json_path), true);
 
 // --- normalize_name_key equivalent (mirrors _avpvh_import_common.py) ---
 $TUSSENVOEGSEL_PREFIXES = ['van der ', 'van den ', 'van de ', 'ten ', 'ter ',
-    'de ', 'van ', 'te ', 'von ', 'la ', 'le ', 'du '];
+    'de ', 'van ', 'te ', 'von ', 'la ', 'le ', 'du ', 'v/d ', 'vd '];
+
+function avpvh_normalize_dgeen_suffix(string $suffix): string
+{
+    $suffix = trim($suffix);
+
+    // "v/d" (with the slash) is unambiguous in this specific source: the
+    // historical DGéén ledenlijsten consistently use it to mean "van den",
+    // unlike the general Dutch-naming ambiguity (van de / van den / van der
+    // all possible) that AVPVH_Name_Matcher has to assume for other,
+    // less-consistent sources -- so it's expanded here rather than kept as
+    // a bare abbreviation. Bare "vd"/"v.d." (no slash) has no such
+    // confirmed single meaning in this source and is still left ambiguous.
+    if (preg_match('/^v\s*\/\s*d\.?$/iu', $suffix)) {
+        return 'van den';
+    }
+    if (preg_match('/^v\.?\s*d\.?$/iu', $suffix)) {
+        return 'vd';
+    }
+
+    return $suffix;
+}
 
 function normalize_name_key(string $first, string $last): string {
     global $TUSSENVOEGSEL_PREFIXES;
@@ -104,6 +125,7 @@ $review_needed = [];
 foreach ($editions as $ed) {
     $datum = $ed['datum'];
     foreach ($ed['personen'] as $p) {
+        $p['suffix'] = avpvh_normalize_dgeen_suffix($p['suffix'] ?? '');
         if (!empty($p['needs_review'])) {
             // Missing-comma OCR/typesetting artifact that couldn't be
             // resolved by fixing the source .md (or a genuine non-person
