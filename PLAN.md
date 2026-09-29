@@ -115,7 +115,7 @@ assets/
   fee-popup.js / .css
   ledenlijst.js / .css
 config/
-  authelia-configuration.yml
+  authelia-configuration.local.yml  Ignored environment configuration
 scripts/
   deploy.sh
   test-user.sh              Add/remove temporary test users

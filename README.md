@@ -11,6 +11,8 @@ WordPress plugin for AVP Philips van Horne to manage members, camp participation
 - **Access Control:** Bypasses post passwords for active members; shows notices to ex-members.
 - **Fee Popup:** Notifies members on login if current year's fees are pending.
 - **Admin UI:** Member list, detail views, fee management in the WordPress backend.
+- **Naamvarianten:** Explicitly managed aliases are used consistently by search and imports; ambiguous aliases are never matched automatically.
+- **Address history:** Central address normalization detects equivalent spelling while retaining the entered display values and keeping at most one current address for new writes.
 - **LLDAP connection test:** Test LLDAP credentials from the settings page without saving them.
 
 ## Architecture
@@ -54,6 +56,15 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 4. Ensure the WordPress DB user has `SELECT` on the `lldap` database.
 5. Import members using `scripts/import-avpvh-members.py`.
 
+## Local data migrations
+
+Member-specific corrections, migration plans, and environment configuration belong in `*.local.*`,
+which is ignored by Git. `scripts/import-member-name-aliases.php` reads
+`scripts/member-name-aliases.local.json` and defaults to a dry-run. Address
+overlaps can be inventoried read-only with `scripts/report-address-overlaps.php`.
+Never place real member names, IDs, contact data, or hashes in committed scripts,
+tests, comments, or documentation.
+
 ## Deploy
 
 ```bash
@@ -61,7 +72,7 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 sudo rsync -a --delete ~/03-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/
 
 # Authelia config
-sudo cp ~/03-src/avpvh-members/config/authelia-configuration.yml /opt/docker/volumes/authelia/config/configuration.yml
+sudo cp ~/03-src/avpvh-members/config/authelia-configuration.local.yml /opt/docker/volumes/authelia/config/configuration.yml
 docker compose -f /opt/docker/scripts/docker-compose.yml restart authelia
 ```
 

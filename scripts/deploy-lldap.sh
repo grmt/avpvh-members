@@ -57,7 +57,8 @@ fi
 # ---------------------------------------------------------------------------
 # 3. Deploy Authelia config (fill in the LLDAP admin password)
 # ---------------------------------------------------------------------------
-AUTHELIA_SRC="$REPO_DIR/config/authelia-configuration.yml"
+AUTHELIA_SRC="$REPO_DIR/config/authelia-configuration.local.yml"
+[[ -f "$AUTHELIA_SRC" ]] || die "Missing ignored local Authelia config: $AUTHELIA_SRC"
 AUTHELIA_TMP=$(mktemp)
 sed "s/REPLACE_WITH_LLDAP_ADMIN_PASSWORD/$LLDAP_PASS/" "$AUTHELIA_SRC" > "$AUTHELIA_TMP"
 

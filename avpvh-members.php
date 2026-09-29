@@ -30,6 +30,7 @@ function avpvh_asset_version(string $relative_path): string {
     return $mtime ? (string) $mtime : '1.0';
 }
 
+require_once AVPVH_PLUGIN_DIR . 'includes/class-normalization.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-roles.php';

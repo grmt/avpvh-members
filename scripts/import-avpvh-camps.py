@@ -23,6 +23,10 @@ from pathlib import Path
 import pymysql
 import openpyxl
 
+from _avpvh_import_common import (
+    load_member_name_index, find_members_by_name_or_alias,
+)
+
 try:
     import xlrd
     HAS_XLRD = True
@@ -101,34 +105,17 @@ def iter_rows_as_strings(sheet, sheet_type: str):
             yield [str(sheet.cell_value(rx, cx)).strip() for cx in range(sheet.ncols)]
 
 
-def find_member(cursor, last_name: str, first_name: str) -> int | None:
-    cursor.execute(
-        f"""SELECT id FROM {WP_PREFIX}avm_members
-            WHERE LOWER(last_name) = LOWER(%s) AND LOWER(first_name) = LOWER(%s)
-            LIMIT 1""",
-        (last_name, first_name)
-    )
-    row = cursor.fetchone()
-    return row[0] if row else None
-
-
-def fuzzy_find_member(cursor, full_name: str) -> int | None:
+def fuzzy_name_parts(full_name: str) -> list[tuple[str, str]]:
     parts = full_name.strip().split()
     if len(parts) < 2:
-        return None
-    # Try last word as last name, rest as first
-    last  = parts[-1]
-    first = ' '.join(parts[:-1])
-    mid = find_member(cursor, last, first)
-    if mid:
-        return mid
-    # Try first word as first name
-    first2 = parts[0]
-    last2  = ' '.join(parts[1:])
-    return find_member(cursor, last2, first2)
+        return []
+    return [
+        (' '.join(parts[:-1]), parts[-1]),
+        (parts[0], ' '.join(parts[1:])),
+    ]
 
 
-def import_file(cursor, path: Path, dry_run: bool, unmatched: list):
+def import_file(cursor, path: Path, dry_run: bool, unmatched: list, name_index: dict):
     year, location = extract_year_location(path)
     if not year:
         print(f'  SKIP (no year found): {path}')
@@ -139,7 +126,7 @@ def import_file(cursor, path: Path, dry_run: bool, unmatched: list):
 
     # Ensure camp row
     cursor.execute(
-        f'SELECT id FROM {WP_PREFIX}avm_camps WHERE name = %s AND year = %s',
+        f'SELECT id FROM {WP_PREFIX}avm_activities WHERE name = %s AND year = %s',
         (camp_name, year)
     )
     camp_row = cursor.fetchone()
@@ -147,7 +134,7 @@ def import_file(cursor, path: Path, dry_run: bool, unmatched: list):
         camp_id = camp_row[0]
     elif not dry_run:
         cursor.execute(
-            f'INSERT INTO {WP_PREFIX}avm_camps (name, year, location) VALUES (%s,%s,%s)',
+            f'INSERT INTO {WP_PREFIX}avm_activities (name, year, kenmerk) VALUES (%s,%s,%s)',
             (camp_name, year, location)
         )
         camp_id = cursor.lastrowid
@@ -204,13 +191,29 @@ def import_file(cursor, path: Path, dry_run: bool, unmatched: list):
 
         first_name = row[idx_first] if idx_first is not None and idx_first < len(row) else ''
 
-        member_id = find_member(cursor, last_name, first_name)
-        if not member_id and first_name:
-            member_id = fuzzy_find_member(cursor, f'{first_name} {last_name}')
+        matches = find_members_by_name_or_alias(name_index, first_name, last_name)
+        if len(matches) > 1:
+            full = f'{last_name}, {first_name}'.strip(', ')
+            ids = ','.join(str(match['id']) for match in matches)
+            unmatched.append({'file': str(path), 'name': full, 'reason': 'ambiguous', 'ids': ids})
+            print(f'  AMBIGUOUS (not imported): {full}; candidates={ids}')
+            skipped += 1
+            continue
+        member_id = matches[0]['id'] if matches else None
         if not member_id:
             full = f'{last_name}, {first_name}'.strip(', ')
-            unmatched.append({'file': str(path), 'name': full})
-            print(f'  UNMATCHED: {full}')
+            suggestions = []
+            for suggested_first, suggested_last in fuzzy_name_parts(f'{first_name} {last_name}'):
+                suggestions.extend(find_members_by_name_or_alias(
+                    name_index, suggested_first, suggested_last
+                ))
+            suggestion_ids = sorted({match['id'] for match in suggestions})
+            unmatched.append({
+                'file': str(path), 'name': full, 'reason': 'unmatched',
+                'suggested_member_ids': suggestion_ids,
+            })
+            suffix = f'; suggestions={suggestion_ids}' if suggestion_ids else ''
+            print(f'  UNMATCHED (not imported): {full}{suffix}')
             skipped += 1
             continue
 
@@ -221,8 +224,8 @@ def import_file(cursor, path: Path, dry_run: bool, unmatched: list):
 
         if not dry_run and camp_id > 0:
             cursor.execute(
-                f"""INSERT IGNORE INTO {WP_PREFIX}avm_camp_participation
-                    (member_id, camp_id, nights, nawacht, diet, notes)
+                f"""INSERT IGNORE INTO {WP_PREFIX}avm_activity_participation
+                    (member_id, activity_id, nights, nawacht, diet, notes)
                     VALUES (%s,%s,%s,%s,%s,%s)""",
                 (member_id, camp_id, nights, nawacht or 0, diet or None, notes or None)
             )
@@ -252,10 +255,11 @@ def main():
 
     try:
         with conn.cursor() as cur:
+            name_index = load_member_name_index(cur)
             xls_files = sorted(OPRAVINGEN_ROOT.rglob('*.xls')) + sorted(OPRAVINGEN_ROOT.rglob('*.xlsx'))
             print(f'Found {len(xls_files)} XLS/XLSX files under {OPRAVINGEN_ROOT}')
             for path in xls_files:
-                import_file(cur, path, args.dry_run, unmatched)
+                import_file(cur, path, args.dry_run, unmatched, name_index)
 
         if not args.dry_run:
             conn.commit()
