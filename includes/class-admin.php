@@ -41,8 +41,9 @@ class AVPVH_Admin {
     // See AVPVH_Roles::can_manage_members(): WP admins plus the officer
     // roles in AVPVH_Roles::MEMBER_ADMIN_ROLES get Ledenbeheer/Ledendetail/
     // Nieuw lid only. Activiteiten has its own, narrower rule
-    // (AVPVH_Roles::can_manage_activities(): secretaris only); Instellingen,
-    // Nieuwsbrief and Loginpogingen stay manage_options-only.
+    // (AVPVH_Roles::can_manage_activities(): secretaris only), as does
+    // Nieuwsbrief (can_send_newsletter(): secretaris); Instellingen and
+    // Loginpogingen stay manage_options-only.
     private function can_manage_members(): bool {
         return AVPVH_Roles::can_manage_members();
     }
@@ -55,6 +56,7 @@ class AVPVH_Admin {
         // already used below for can_manage_roles()/'Rollen & delegatie'.
         $members_cap = $this->can_manage_members() ? 'read' : 'manage_options';
         $activities_cap = AVPVH_Roles::can_manage_activities() ? 'read' : 'manage_options';
+        $newsletter_cap = AVPVH_Roles::can_send_newsletter() ? 'read' : 'manage_options';
 
         $hook = add_menu_page(
             'AV-PvH Leden', 'AV-PvH Leden', $members_cap,
@@ -106,7 +108,7 @@ class AVPVH_Admin {
             'avpvh-login-attempts', [$this, 'render_login_attempts']
         );
         add_submenu_page(
-            'avpvh-members', 'Nieuwsbrief', 'Nieuwsbrief', 'manage_options',
+            'avpvh-members', 'Nieuwsbrief', 'Nieuwsbrief', $newsletter_cap,
             'avpvh-newsletter', [$this, 'render_newsletter']
         );
         add_submenu_page(
@@ -553,7 +555,7 @@ class AVPVH_Admin {
      */
     public function handle_send_newsletter(): void {
         check_admin_referer('avpvh_send_newsletter');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_send_newsletter()) {
             wp_die('Geen toegang.', 403);
         }
 

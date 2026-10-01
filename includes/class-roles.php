@@ -60,15 +60,7 @@ class AVPVH_Roles {
     const MEMBER_ADMIN_ROLES = ['secretaris', 'penningmeester'];
 
     public static function can_manage_members(): bool {
-        if (current_user_can('manage_options')) {
-            return true;
-        }
-        foreach (self::MEMBER_ADMIN_ROLES as $role) {
-            if (self::current_user_has_role($role)) {
-                return true;
-            }
-        }
-        return false;
+        return self::is_admin_or_has_any_role(self::MEMBER_ADMIN_ROLES);
     }
 
     // Activiteiten (activities, activity types, participation, export) is
@@ -76,10 +68,23 @@ class AVPVH_Roles {
     const ACTIVITY_ADMIN_ROLES = ['secretaris'];
 
     public static function can_manage_activities(): bool {
+        return self::is_admin_or_has_any_role(self::ACTIVITY_ADMIN_ROLES);
+    }
+
+    // Nieuwsbrief (compose and send to members who opted in): secretaris.
+    const NEWSLETTER_ROLES = ['secretaris'];
+
+    public static function can_send_newsletter(): bool {
+        return self::is_admin_or_has_any_role(self::NEWSLETTER_ROLES);
+    }
+
+    // Real WP admins always qualify; otherwise any one of the given club
+    // roles, via LLDAP group membership or an active delegation.
+    private static function is_admin_or_has_any_role(array $roles): bool {
         if (current_user_can('manage_options')) {
             return true;
         }
-        foreach (self::ACTIVITY_ADMIN_ROLES as $role) {
+        foreach ($roles as $role) {
             if (self::current_user_has_role($role)) {
                 return true;
             }
