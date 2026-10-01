@@ -24,12 +24,16 @@ $role_label = [
         <div class="notice notice-error"><p>Delegatie kon niet worden aangemaakt — controleer de invoer, of je hebt zelf niet de rechten om deze rol te delegeren.</p></div>
     <?php elseif (isset($_GET['revoke_ok'])) : ?>
         <div class="notice notice-success"><p>Delegatie ingetrokken.</p></div>
+    <?php elseif (isset($_GET['transfer_ok'])) : ?>
+        <div class="notice notice-success"><p>Voorzitterschap overgedragen.</p></div>
+    <?php elseif (isset($_GET['transfer_error'])) : ?>
+        <div class="notice notice-error"><p>Overdragen is niet gelukt. Kies een bestuurslid en vink de bevestiging aan; lukt het dan nog niet, neem contact op met de beheerder.</p></div>
     <?php endif; ?>
 
     <h2>Huidige rolhouders (LLDAP)</h2>
     <p class="description">
         Rollen worden beheerd in LLDAP-groepen. Voorzitter, secretaris en penningmeester tellen automatisch ook als bestuur.
-        Iemand toevoegen aan of verwijderen uit een rol kan hier niet — dat doe je in
+        Een nieuwe voorzitter aanwijzen kan hieronder bij "Voorzitter overdragen". Iemand anders toevoegen aan of verwijderen uit een rol kan hier niet — dat doe je in
         <a href="https://leden-admin.avphilipsvanhorne.nl" target="_blank" rel="noopener">het LLDAP-beheer (leden-admin.avphilipsvanhorne.nl)</a>,
         bij de groepen "voorzitter", "secretaris" en "penningmeester".
     </p>
@@ -47,6 +51,36 @@ $role_label = [
         <?php endforeach; ?>
         </tbody>
     </table>
+
+    <?php if (AVPVH_Roles::can_transfer_voorzitter()) : ?>
+        <h2>Voorzitter overdragen</h2>
+        <p class="description">
+            Wijs een nieuwe voorzitter aan. Diegene komt in de LLDAP-groep "voorzitter", de huidige voorzitter gaat eruit
+            en actieve voorzitter-delegaties worden beëindigd. Dit is blijvend; terugdraaien kan alleen de nieuwe voorzitter of de beheerder.
+        </p>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <?php wp_nonce_field('avpvh_transfer_voorzitter'); ?>
+            <input type="hidden" name="action" value="avpvh_transfer_voorzitter">
+            <table class="form-table">
+                <tr>
+                    <th><label for="new_voorzitter_id">Nieuwe voorzitter</label></th>
+                    <td>
+                        <select name="new_voorzitter_id" id="new_voorzitter_id" required style="min-width:300px">
+                            <option value="">— Kies bestuurslid —</option>
+                            <?php foreach ($bestuur_members as $m) : ?>
+                                <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m, 'list')); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Bevestigen</th>
+                    <td><label><input type="checkbox" name="confirm_transfer" value="1" required> Ik draag het voorzitterschap over aan dit bestuurslid</label></td>
+                </tr>
+            </table>
+            <?php submit_button('Voorzitterschap overdragen', 'secondary'); ?>
+        </form>
+    <?php endif; ?>
 
     <h2>Actieve delegaties</h2>
     <table class="wp-list-table widefat striped">

@@ -18,6 +18,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_export_activity_participation', [$this, 'handle_export_activity_participation']);
         add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
+        add_action('admin_post_avpvh_transfer_voorzitter', [$this, 'handle_transfer_voorzitter']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
@@ -974,6 +975,30 @@ class AVPVH_Admin {
         $ok = AVPVH_Roles::create_delegation($role, $to_member_id, (int) $by_member->id, $ends_at);
         wp_safe_redirect(add_query_arg(
             ['page' => 'avpvh-roles', $ok ? 'delegate_ok' : 'delegate_error' => '1'],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+
+    public function handle_transfer_voorzitter(): void {
+        check_admin_referer('avpvh_transfer_voorzitter');
+        if (!AVPVH_Roles::can_transfer_voorzitter()) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $to_member_id = absint(wp_unslash($_POST['new_voorzitter_id'] ?? 0));
+        $bestuur_ids  = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_role_holders('bestuur'));
+        if (!$to_member_id || !in_array($to_member_id, $bestuur_ids, true) || empty($_POST['confirm_transfer'])) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'transfer_error' => '1'], admin_url('admin.php')));
+            exit;
+        }
+
+        $result = AVPVH_Roles::transfer_voorzitter($to_member_id);
+        if (is_wp_error($result)) {
+            error_log('AVPVH_Admin: voorzitter handover failed: ' . $result->get_error_message());
+        }
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-roles', is_wp_error($result) ? 'transfer_error' : 'transfer_ok' => '1'],
             admin_url('admin.php')
         ));
         exit;

@@ -177,6 +177,78 @@ class AVPVH_Roles {
     }
 
     /**
+     * Only a real voorzitter (LLDAP group, not a delegation) or a WP admin
+     * may appoint a successor — otherwise a temporary stand-in could make
+     * their own voorzitterschap permanent.
+     */
+    public static function can_transfer_voorzitter(): bool {
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        $member = is_user_logged_in() ? avpvh_get_member_by_wp_user(get_current_user_id()) : null;
+        return $member && in_array('voorzitter', self::get_member_roles((int) $member->id), true);
+    }
+
+    /**
+     * Hand the voorzitter role to $to_member_id: adds them to the LLDAP
+     * group "voorzitter", removes every other current holder (normally the
+     * outgoing voorzitter) and ends active voorzitter delegations, so there
+     * is exactly one voorzitter afterwards. Adding happens first, so a
+     * failure never leaves the club without a voorzitter.
+     */
+    public static function transfer_voorzitter(int $to_member_id): true|\WP_Error {
+        global $wpdb;
+        $to = AVPVH_DB::get_member($to_member_id);
+        if (!$to || empty($to->lldap_user_id)) {
+            return new \WP_Error('avpvh_no_member', 'Lid niet gevonden.');
+        }
+
+        $groups = AVPVH_LLDAP::list_groups();
+        if (is_wp_error($groups)) {
+            return $groups;
+        }
+        $group_id = null;
+        foreach ($groups as $group) {
+            if (strtolower($group['displayName']) === 'voorzitter') {
+                $group_id = (int) $group['id'];
+            }
+        }
+        if (!$group_id) {
+            return new \WP_Error('avpvh_no_group', 'LLDAP-groep "voorzitter" niet gevonden.');
+        }
+
+        $previous = self::get_role_holders('voorzitter');
+        $added = AVPVH_LLDAP::add_to_group($to->lldap_user_id, $group_id);
+        if (is_wp_error($added)) {
+            return $added;
+        }
+
+        $affected = [$to->lldap_user_id];
+        foreach ($previous as $holder) {
+            if ((int) $holder->id === $to_member_id) {
+                continue;
+            }
+            $removed = AVPVH_LLDAP::remove_from_group($holder->lldap_user_id, $group_id);
+            if (is_wp_error($removed)) {
+                error_log("AVPVH_Roles: voorzitter handover could not remove member {$holder->id}: " . $removed->get_error_message());
+            }
+            $affected[] = $holder->lldap_user_id;
+        }
+
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}avm_role_delegations SET ends_at = %s
+             WHERE role = 'voorzitter' AND (ends_at IS NULL OR ends_at > %s)",
+            current_time('mysql'), current_time('mysql')
+        ));
+
+        foreach ($affected as $uid) {
+            delete_transient('avpvh_lldap_groups_' . $uid);
+        }
+        delete_transient('avpvh_all_group_memberships');
+        return true;
+    }
+
+    /**
      * Every member currently holding $role for real (LLDAP group), for the
      * admin "who holds what" list. Uses AVPVH_LLDAP::get_all_group_memberships()
      * (one round-trip for every group) rather than a per-member lookup.
