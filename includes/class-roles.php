@@ -71,6 +71,22 @@ class AVPVH_Roles {
         return false;
     }
 
+    // Activiteiten (activities, activity types, participation, export) is
+    // narrower than member admin: secretaris only, not penningmeester.
+    const ACTIVITY_ADMIN_ROLES = ['secretaris'];
+
+    public static function can_manage_activities(): bool {
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        foreach (self::ACTIVITY_ADMIN_ROLES as $role) {
+            if (self::current_user_has_role($role)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static function current_user_has_role(string $role): bool {
         if (!is_user_logged_in()) {
             return false;

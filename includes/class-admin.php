@@ -40,8 +40,9 @@ class AVPVH_Admin {
 
     // See AVPVH_Roles::can_manage_members(): WP admins plus the officer
     // roles in AVPVH_Roles::MEMBER_ADMIN_ROLES get Ledenbeheer/Ledendetail/
-    // Nieuw lid only, not the rest of this menu (Activiteiten, Instellingen,
-    // Nieuwsbrief, Loginpogingen stay manage_options-only).
+    // Nieuw lid only. Activiteiten has its own, narrower rule
+    // (AVPVH_Roles::can_manage_activities(): secretaris only); Instellingen,
+    // Nieuwsbrief and Loginpogingen stay manage_options-only.
     private function can_manage_members(): bool {
         return AVPVH_Roles::can_manage_members();
     }
@@ -53,6 +54,7 @@ class AVPVH_Admin {
         // re-runs per admin pageview for whoever's viewing, same trick
         // already used below for can_manage_roles()/'Rollen & delegatie'.
         $members_cap = $this->can_manage_members() ? 'read' : 'manage_options';
+        $activities_cap = AVPVH_Roles::can_manage_activities() ? 'read' : 'manage_options';
 
         $hook = add_menu_page(
             'AV-PvH Leden', 'AV-PvH Leden', $members_cap,
@@ -82,7 +84,7 @@ class AVPVH_Admin {
             'avpvh-add-member', [$this, 'render_add_member']
         );
         add_submenu_page(
-            'avpvh-members', 'Activiteiten', 'Activiteiten', 'manage_options',
+            'avpvh-members', 'Activiteiten', 'Activiteiten', $activities_cap,
             'avpvh-activity-participation', [$this, 'render_activity_participation_list']
         );
         // Not shown in the sidebar — only reachable via the "Nieuwe
@@ -96,7 +98,7 @@ class AVPVH_Admin {
         // dispatch the request, so a direct link 404s/"not allowed"s
         // instead of just being hidden from the menu.
         add_submenu_page(
-            null, 'Deelname bewerken', 'Deelname bewerken', 'manage_options',
+            null, 'Deelname bewerken', 'Deelname bewerken', $activities_cap,
             'avpvh-activity-participation-detail', [$this, 'render_activity_participation_detail']
         );
         add_submenu_page(
@@ -799,7 +801,7 @@ class AVPVH_Admin {
 
     public function handle_save_participation(): void {
         check_admin_referer('avpvh_save_participation');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -857,7 +859,7 @@ class AVPVH_Admin {
      */
     public function handle_create_activity(): void {
         check_admin_referer('avpvh_create_activity');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -884,7 +886,7 @@ class AVPVH_Admin {
 
     public function handle_save_activity(): void {
         check_admin_referer('avpvh_save_activity');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -906,7 +908,7 @@ class AVPVH_Admin {
 
     public function handle_save_activity_types(): void {
         check_admin_referer('avpvh_save_activity_types');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -928,7 +930,7 @@ class AVPVH_Admin {
 
     public function handle_export_activity_participation(): void {
         check_admin_referer('avpvh_export_activity_participation');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
