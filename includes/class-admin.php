@@ -982,7 +982,10 @@ class AVPVH_Admin {
         }
 
         $candidate_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_officer_candidates());
-        if (!$by_member || !in_array($to_member_id, $candidate_ids, true) || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
+        // WP admins may delegate without a member record of their own (or
+        // without a club role); everyone else must be a member.
+        $is_admin = current_user_can('manage_options');
+        if ((!$by_member && !$is_admin) || !in_array($to_member_id, $candidate_ids, true) || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
             $this->delegate_error('delegate_error');
         }
 
@@ -993,7 +996,7 @@ class AVPVH_Admin {
             $this->delegate_error('delegate_needs_end');
         }
 
-        $ok = AVPVH_Roles::create_delegation($role, $to_member_id, (int) $by_member->id, $ends_at);
+        $ok = AVPVH_Roles::create_delegation($role, $to_member_id, $by_member ? (int) $by_member->id : 0, $ends_at, $is_admin);
         wp_safe_redirect(add_query_arg(
             ['page' => 'avpvh-roles', $ok ? 'delegate_ok' : 'delegate_error' => '1'],
             admin_url('admin.php')

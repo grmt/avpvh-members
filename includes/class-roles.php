@@ -152,15 +152,17 @@ class AVPVH_Roles {
     /**
      * Delegate $role to $to_member_id. Fails (returns false) unless
      * $by_member_id genuinely holds $role or is bestuur — a delegation
-     * can't be used to grant authority the delegator doesn't have.
+     * can't be used to grant authority the delegator doesn't have — or
+     * $by_admin is set (a WP admin, who may delegate any officer role and
+     * may have no member record at all: $by_member_id is then 0).
      */
-    public static function create_delegation(string $role, int $to_member_id, int $by_member_id, ?string $ends_at = null): bool {
+    public static function create_delegation(string $role, int $to_member_id, int $by_member_id, ?string $ends_at = null, bool $by_admin = false): bool {
         global $wpdb;
         $role = strtolower($role);
         if (!in_array($role, self::OFFICER_ROLES, true)) {
             return false;
         }
-        if (!self::member_has_role($by_member_id, $role) && !self::member_has_role($by_member_id, 'bestuur')) {
+        if (!$by_admin && !self::member_has_role($by_member_id, $role) && !self::member_has_role($by_member_id, 'bestuur')) {
             return false;
         }
 

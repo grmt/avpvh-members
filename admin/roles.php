@@ -179,7 +179,7 @@ $role_label = [
             <tr>
                 <td><?php echo esc_html($role_label[$d->role] ?? $d->role); ?></td>
                 <td><?php echo esc_html($to ? avpvh_format_name($to, 'list') : '#' . $d->delegated_to_member_id); ?></td>
-                <td><?php echo esc_html($by ? avpvh_format_name($by, 'list') : '#' . $d->delegated_by_member_id); ?></td>
+                <td><?php echo esc_html($by ? avpvh_format_name($by, 'list') : ((int) $d->delegated_by_member_id === 0 ? 'Beheerder' : '#' . $d->delegated_by_member_id)); ?></td>
                 <td><?php echo $d->ends_at ? esc_html(wp_date('D d M Y H:i', strtotime($d->ends_at))) : 'Onbepaalde tijd'; ?></td>
                 <td><?php echo esc_html(wp_date('D d M Y H:i', strtotime($d->created_at))); ?></td>
                 <td>
@@ -212,7 +212,7 @@ $role_label = [
             <tr>
                 <td><?php echo esc_html($role_label[$d->role] ?? $d->role); ?></td>
                 <td><?php echo esc_html($to ? avpvh_format_name($to, 'list') : '#' . $d->delegated_to_member_id); ?></td>
-                <td><?php echo esc_html($by ? avpvh_format_name($by, 'list') : '#' . $d->delegated_by_member_id); ?></td>
+                <td><?php echo esc_html($by ? avpvh_format_name($by, 'list') : ((int) $d->delegated_by_member_id === 0 ? 'Beheerder' : '#' . $d->delegated_by_member_id)); ?></td>
                 <td><?php echo esc_html(wp_date('D d M Y H:i', strtotime($d->starts_at))); ?></td>
                 <td><?php echo esc_html(wp_date('D d M Y H:i', strtotime($d->ends_at))); ?></td>
             </tr>
