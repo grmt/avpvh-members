@@ -38,14 +38,12 @@ class AVPVH_Admin {
         return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('bestuur');
     }
 
-    // secretaris (real LLDAP group membership, or a temporary delegation —
-    // see AVPVH_Roles and admin/roles.php's "Nieuwe delegatie" form) is
-    // traditionally the membership registrar, so gets the same member-
-    // management access as a real WP admin: Ledenbeheer/Ledendetail/Nieuw
-    // lid only, not the rest of this menu (Activiteiten, Instellingen,
+    // See AVPVH_Roles::can_manage_members(): WP admins plus the officer
+    // roles in AVPVH_Roles::MEMBER_ADMIN_ROLES get Ledenbeheer/Ledendetail/
+    // Nieuw lid only, not the rest of this menu (Activiteiten, Instellingen,
     // Nieuwsbrief, Loginpogingen stay manage_options-only).
     private function can_manage_members(): bool {
-        return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('secretaris');
+        return AVPVH_Roles::can_manage_members();
     }
 
     public function register_menus(): void {
@@ -390,7 +388,7 @@ class AVPVH_Admin {
 
     public function handle_mark_fee_paid(): void {
         check_admin_referer('avpvh_mark_fee_paid');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $fee_id    = absint(wp_unslash($_POST['fee_id'] ?? 0));
@@ -416,7 +414,7 @@ class AVPVH_Admin {
      */
     public function handle_add_identity(): void {
         check_admin_referer('avpvh_add_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -444,7 +442,7 @@ class AVPVH_Admin {
 
     public function handle_delete_identity(): void {
         check_admin_referer('avpvh_delete_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -471,7 +469,7 @@ class AVPVH_Admin {
 
     public function handle_primary_identity(): void {
         check_admin_referer('avpvh_primary_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -499,7 +497,7 @@ class AVPVH_Admin {
 
     public function handle_save_member_flags(): void {
         check_admin_referer('avpvh_save_member_flags');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -588,7 +586,7 @@ class AVPVH_Admin {
 
     public function handle_update_address(): void {
         check_admin_referer('avpvh_update_address');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
@@ -612,7 +610,7 @@ class AVPVH_Admin {
     // existed and was editable directly in LLDAP.
     public function handle_update_email(): void {
         check_admin_referer('avpvh_update_email');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -702,7 +700,7 @@ class AVPVH_Admin {
 
     public function handle_delete_address(): void {
         check_admin_referer('avpvh_delete_address');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
@@ -725,7 +723,7 @@ class AVPVH_Admin {
      */
     public function handle_add_member(): void {
         check_admin_referer('avpvh_add_member');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 

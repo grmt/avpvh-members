@@ -52,6 +52,25 @@ class AVPVH_Roles {
         return self::has_active_delegation($member_id, $role);
     }
 
+    // Officer roles that get the same member-management access as a real WP
+    // admin (Ledenbeheer, Ledendetail, Nieuw lid and their save handlers):
+    // secretaris as membership registrar, penningmeester for contributie
+    // and member records. Either via real LLDAP group membership or a
+    // temporary delegation (see admin/roles.php).
+    const MEMBER_ADMIN_ROLES = ['secretaris', 'penningmeester'];
+
+    public static function can_manage_members(): bool {
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        foreach (self::MEMBER_ADMIN_ROLES as $role) {
+            if (self::current_user_has_role($role)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static function current_user_has_role(string $role): bool {
         if (!is_user_logged_in()) {
             return false;
