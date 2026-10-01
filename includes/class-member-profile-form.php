@@ -1234,11 +1234,12 @@ class AVPVH_Member_Profile_Form {
      * adult" fallback. Returns [birth_date, birth_year], always exactly
      * one of the two non-null (or both null for an empty/invalid input) —
      * the two columns are mutually exclusive, never both set at once.
+     * Shared with the "Nieuw lid" form (AVPVH_Admin::handle_add_member()).
      */
-    private static function parse_birth_date(string $raw): array {
+    public static function parse_birth_date(string $raw): array {
         $raw = trim($raw);
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
-            return [$raw, null];
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $raw, $m)) {
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? [$raw, null] : [null, null];
         }
         if (preg_match('/^(\d{4})$/', $raw, $m)) {
             $year = (int) $m[1];

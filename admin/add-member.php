@@ -36,6 +36,8 @@ if ($pending) {
             <p>
                 <?php if ($err === 'onvolledig') : ?>
                     Voornaam en achternaam zijn verplicht.
+                <?php elseif ($err === 'geboortedatum') : ?>
+                    Ongeldige geboortedatum. Vul een volledige datum in (JJJJ-MM-DD) of alleen een geboortejaar (JJJJ).
                 <?php elseif ($err === 'lldap') : ?>
                     Aanmaken van het LLDAP-account is mislukt: <?php echo esc_html(rawurldecode(wp_unslash($_GET['add_member_error_message'] ?? ''))); ?>
                 <?php endif; ?>
@@ -95,8 +97,12 @@ if ($pending) {
             </tr>
             <tr>
                 <th><label for="birth_date">Geboortedatum</label></th>
-                <td><input type="date" id="birth_date" name="birth_date"
-                           value="<?php echo esc_attr($pending['birth_date'] ?? ''); ?>"></td>
+                <td>
+                    <input type="text" id="birth_date" name="birth_date" inputmode="numeric"
+                           pattern="\d{4}(-\d{2}-\d{2})?" placeholder="JJJJ-MM-DD of alleen JJJJ"
+                           value="<?php echo esc_attr($pending['birth_date'] ?? ''); ?>">
+                    <p class="description">Volledige datum (JJJJ-MM-DD), of alleen het geboortejaar als de exacte datum niet bekend is.</p>
+                </td>
             </tr>
             <tr>
                 <th><label for="status">Status</label></th>
