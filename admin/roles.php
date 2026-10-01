@@ -41,6 +41,18 @@ $role_label = [
         <div class="notice notice-error"><p>Aanwijzen is niet gelukt. Kies een rol en een lid en vink de bevestiging aan; lukt het dan nog niet, neem contact op met de beheerder.</p></div>
     <?php endif; ?>
 
+    <?php if (isset($_GET['appoint_ok']) || isset($_GET['bestuur_added']) || isset($_GET['bestuur_removed'])) : ?>
+        <div class="notice notice-warning">
+            <p>
+                <strong>Vergeet de KVK niet:</strong> een bestuurswissel moet binnen een week worden doorgegeven aan de KVK
+                (<a href="https://www.kvk.nl/wijzigen/bestuurswissel-stichting-of-vereniging/" target="_blank" rel="noopener">bestuurswissel doorgeven</a>,
+                via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het
+                <a href="https://www.kvk.nl/veilig-zakendoen/bestuurswissel-pas-de-ubo-registratie-aan/" target="_blank" rel="noopener">UBO-register</a>.
+                Dit gaat niet automatisch.
+            </p>
+        </div>
+    <?php endif; ?>
+
     <h2>Huidige rolhouders (LLDAP)</h2>
     <p class="description">
         Rollen worden beheerd in LLDAP-groepen. Voorzitter, secretaris en penningmeester tellen automatisch ook als bestuur.
