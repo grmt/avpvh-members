@@ -97,7 +97,7 @@ $role_label = [
         </form>
 
         <h2>Bestuursleden</h2>
-        <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn automatisch bestuurslid via hun rol.</p>
+        <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn automatisch bestuurslid via hun rol. Wie uit het bestuur gaat (verwijderd, of als rolhouder vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder.</p>
         <?php
         $bestuur_direct_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_role_holders('bestuur', false));
         ?>
@@ -117,7 +117,7 @@ $role_label = [
                                 <input type="hidden" name="action" value="avpvh_set_bestuur">
                                 <input type="hidden" name="op" value="remove">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($m->id); ?>">
-                                <button type="submit" class="button button-small" onclick="return confirm('Uit het bestuur verwijderen?');">Verwijderen</button>
+                                <button type="submit" class="button button-small" onclick="return confirm('Uit het bestuur verwijderen? Diegene krijgt het kenmerk Oud-bestuurder.');">Verwijderen</button>
                             </form>
                         <?php endif; ?>
                         <?php if ($officer_roles) : ?>

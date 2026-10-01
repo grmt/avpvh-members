@@ -230,7 +230,26 @@ class AVPVH_Roles {
 
         delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
         delete_transient('avpvh_all_group_memberships');
+        if (!$add) {
+            self::mark_oud_bestuurder_if_left($member_id);
+        }
         return true;
+    }
+
+    /**
+     * Whoever leaves the bestuur keeps a lasting record of it as the
+     * "oud-bestuurder" kenmerk. Called after a group change; does nothing
+     * while the member still counts as bestuur (directly, or through an
+     * officer role). The kenmerk is created on first use.
+     */
+    private static function mark_oud_bestuurder_if_left(int $member_id): void {
+        if (in_array('bestuur', self::get_member_roles($member_id), true)) {
+            return;
+        }
+        if (!AVPVH_DB::flag_exists('oud-bestuurder')) {
+            AVPVH_DB::create_flag('oud-bestuurder', 'Oud-bestuurder');
+        }
+        AVPVH_DB::set_member_flag_by_slug($member_id, 'oud-bestuurder', true);
     }
 
     private static function lldap_group_id(string $name): int|\WP_Error {
@@ -276,6 +295,7 @@ class AVPVH_Roles {
         }
 
         $affected = [$to->lldap_user_id];
+        $replaced = [];
         foreach ($previous as $holder) {
             if ((int) $holder->id === $to_member_id) {
                 continue;
@@ -285,6 +305,7 @@ class AVPVH_Roles {
                 error_log("AVPVH_Roles: {$role} appointment could not remove member {$holder->id}: " . $removed->get_error_message());
             }
             $affected[] = $holder->lldap_user_id;
+            $replaced[] = (int) $holder->id;
         }
 
         $now = current_time('mysql');
@@ -298,6 +319,9 @@ class AVPVH_Roles {
             delete_transient('avpvh_lldap_groups_' . $uid);
         }
         delete_transient('avpvh_all_group_memberships');
+        foreach ($replaced as $member_id) {
+            self::mark_oud_bestuurder_if_left($member_id);
+        }
         return true;
     }
 

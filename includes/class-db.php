@@ -2093,6 +2093,13 @@ class AVPVH_DB {
         }
     }
 
+    public static function flag_exists(string $slug): bool {
+        global $wpdb;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_member_flags WHERE slug = %s", $slug
+        ));
+    }
+
     /** Adds a new flag to the catalog (admin UI, "extendable" per the club's own ad-hoc categories). Returns the new flag id, or 0 on failure (e.g. duplicate slug). */
     public static function create_flag(string $slug, string $label, bool $affects_fees = false, bool $sets_inactive = false): int {
         global $wpdb;
