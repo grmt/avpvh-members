@@ -18,7 +18,8 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_export_activity_participation', [$this, 'handle_export_activity_participation']);
         add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
-        add_action('admin_post_avpvh_transfer_voorzitter', [$this, 'handle_transfer_voorzitter']);
+        add_action('admin_post_avpvh_appoint_officer',   [$this, 'handle_appoint_officer']);
+        add_action('admin_post_avpvh_set_bestuur',       [$this, 'handle_set_bestuur']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
@@ -980,25 +981,45 @@ class AVPVH_Admin {
         exit;
     }
 
-    public function handle_transfer_voorzitter(): void {
-        check_admin_referer('avpvh_transfer_voorzitter');
-        if (!AVPVH_Roles::can_transfer_voorzitter()) {
+    public function handle_appoint_officer(): void {
+        check_admin_referer('avpvh_appoint_officer');
+        if (!AVPVH_Roles::can_appoint_officers()) {
             wp_die('Geen toegang.', 403);
         }
 
-        $to_member_id = absint(wp_unslash($_POST['new_voorzitter_id'] ?? 0));
-        $bestuur_ids  = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_role_holders('bestuur'));
-        if (!$to_member_id || !in_array($to_member_id, $bestuur_ids, true) || empty($_POST['confirm_transfer'])) {
-            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'transfer_error' => '1'], admin_url('admin.php')));
+        $role          = sanitize_key(wp_unslash($_POST['role'] ?? ''));
+        $to_member_id  = absint(wp_unslash($_POST['new_holder_id'] ?? 0));
+        $candidate_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_officer_candidates());
+        if (!in_array($role, AVPVH_Roles::OFFICER_ROLES, true) || !in_array($to_member_id, $candidate_ids, true) || empty($_POST['confirm_appoint'])) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'appoint_error' => '1'], admin_url('admin.php')));
             exit;
         }
 
-        $result = AVPVH_Roles::transfer_voorzitter($to_member_id);
+        $result = AVPVH_Roles::appoint_officer($role, $to_member_id);
         if (is_wp_error($result)) {
-            error_log('AVPVH_Admin: voorzitter handover failed: ' . $result->get_error_message());
+            error_log("AVPVH_Admin: appointing {$role} failed: " . $result->get_error_message());
         }
         wp_safe_redirect(add_query_arg(
-            ['page' => 'avpvh-roles', is_wp_error($result) ? 'transfer_error' : 'transfer_ok' => '1'],
+            ['page' => 'avpvh-roles', is_wp_error($result) ? 'appoint_error' : 'appoint_ok' => $role],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+
+    public function handle_set_bestuur(): void {
+        check_admin_referer('avpvh_set_bestuur');
+        if (!AVPVH_Roles::can_appoint_officers()) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $add       = sanitize_key(wp_unslash($_POST['op'] ?? '')) === 'add';
+        $result    = $member_id ? AVPVH_Roles::set_bestuur_member($member_id, $add) : new \WP_Error('avpvh_no_member', 'Geen lid gekozen.');
+        if (is_wp_error($result)) {
+            error_log('AVPVH_Admin: changing bestuur failed: ' . $result->get_error_message());
+        }
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-roles', is_wp_error($result) ? 'bestuur_error' : ($add ? 'bestuur_added' : 'bestuur_removed') => '1'],
             admin_url('admin.php')
         ));
         exit;

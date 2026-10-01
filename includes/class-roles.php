@@ -178,10 +178,10 @@ class AVPVH_Roles {
 
     /**
      * Only a real voorzitter (LLDAP group, not a delegation) or a WP admin
-     * may appoint a successor — otherwise a temporary stand-in could make
-     * their own voorzitterschap permanent.
+     * may appoint a new voorzitter, secretaris or penningmeester —
+     * otherwise a temporary stand-in could make their own role permanent.
      */
-    public static function can_transfer_voorzitter(): bool {
+    public static function can_appoint_officers(): bool {
         if (current_user_can('manage_options')) {
             return true;
         }
@@ -190,34 +190,86 @@ class AVPVH_Roles {
     }
 
     /**
-     * Hand the voorzitter role to $to_member_id: adds them to the LLDAP
-     * group "voorzitter", removes every other current holder (normally the
-     * outgoing voorzitter) and ends active voorzitter delegations, so there
-     * is exactly one voorzitter afterwards. Adding happens first, so a
-     * failure never leaves the club without a voorzitter.
+     * Who can be appointed to an officer role: active members with a real
+     * login. Placeholder @avpvh.local accounts (minors, see
+     * AVPVH_Admin::handle_add_member()) can't log in, so are left out.
      */
-    public static function transfer_voorzitter(int $to_member_id): true|\WP_Error {
+    public static function get_officer_candidates(): array {
+        return array_values(array_filter(
+            AVPVH_DB::get_members(['status' => 'active']),
+            static fn($m) => !empty($m->lldap_user_id)
+                && !str_ends_with(strtolower((string) ($m->email ?? '')), '@avpvh.local')
+        ));
+    }
+
+    /**
+     * Add or remove a bestuurslid (LLDAP group "bestuur"). Only members who
+     * qualify via get_officer_candidates() — active, with a real login —
+     * can be added; anyone can be removed. Officers stay bestuur by
+     * implication even when not in the group themselves.
+     */
+    public static function set_bestuur_member(int $member_id, bool $add): true|\WP_Error {
+        $member = AVPVH_DB::get_member($member_id);
+        if (!$member || empty($member->lldap_user_id)) {
+            return new \WP_Error('avpvh_no_member', 'Lid niet gevonden.');
+        }
+        if ($add && !in_array($member_id, array_map(static fn($m) => (int) $m->id, self::get_officer_candidates()), true)) {
+            return new \WP_Error('avpvh_not_eligible', 'Alleen actieve leden met een eigen login kunnen bestuurslid worden.');
+        }
+
+        $group_id = self::lldap_group_id('bestuur');
+        if (is_wp_error($group_id)) {
+            return $group_id;
+        }
+        $result = $add
+            ? AVPVH_LLDAP::add_to_group($member->lldap_user_id, $group_id)
+            : AVPVH_LLDAP::remove_from_group($member->lldap_user_id, $group_id);
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
+        delete_transient('avpvh_all_group_memberships');
+        return true;
+    }
+
+    private static function lldap_group_id(string $name): int|\WP_Error {
+        $groups = AVPVH_LLDAP::list_groups();
+        if (is_wp_error($groups)) {
+            return $groups;
+        }
+        foreach ($groups as $group) {
+            if (strtolower($group['displayName']) === $name) {
+                return (int) $group['id'];
+            }
+        }
+        return new \WP_Error('avpvh_no_group', "LLDAP-groep \"{$name}\" niet gevonden.");
+    }
+
+    /**
+     * Appoint $to_member_id as the new $role (voorzitter, secretaris or
+     * penningmeester): adds them to that LLDAP group, removes every other
+     * current holder and ends active delegations of the role, so exactly
+     * one person holds it afterwards. Adding happens first, so a failure
+     * never leaves the role empty.
+     */
+    public static function appoint_officer(string $role, int $to_member_id): true|\WP_Error {
         global $wpdb;
+        $role = strtolower($role);
+        if (!in_array($role, self::OFFICER_ROLES, true)) {
+            return new \WP_Error('avpvh_bad_role', 'Onbekende rol.');
+        }
         $to = AVPVH_DB::get_member($to_member_id);
         if (!$to || empty($to->lldap_user_id)) {
             return new \WP_Error('avpvh_no_member', 'Lid niet gevonden.');
         }
 
-        $groups = AVPVH_LLDAP::list_groups();
-        if (is_wp_error($groups)) {
-            return $groups;
-        }
-        $group_id = null;
-        foreach ($groups as $group) {
-            if (strtolower($group['displayName']) === 'voorzitter') {
-                $group_id = (int) $group['id'];
-            }
-        }
-        if (!$group_id) {
-            return new \WP_Error('avpvh_no_group', 'LLDAP-groep "voorzitter" niet gevonden.');
+        $group_id = self::lldap_group_id($role);
+        if (is_wp_error($group_id)) {
+            return $group_id;
         }
 
-        $previous = self::get_role_holders('voorzitter');
+        $previous = self::get_role_holders($role);
         $added = AVPVH_LLDAP::add_to_group($to->lldap_user_id, $group_id);
         if (is_wp_error($added)) {
             return $added;
@@ -230,15 +282,16 @@ class AVPVH_Roles {
             }
             $removed = AVPVH_LLDAP::remove_from_group($holder->lldap_user_id, $group_id);
             if (is_wp_error($removed)) {
-                error_log("AVPVH_Roles: voorzitter handover could not remove member {$holder->id}: " . $removed->get_error_message());
+                error_log("AVPVH_Roles: {$role} appointment could not remove member {$holder->id}: " . $removed->get_error_message());
             }
             $affected[] = $holder->lldap_user_id;
         }
 
+        $now = current_time('mysql');
         $wpdb->query($wpdb->prepare(
             "UPDATE {$wpdb->prefix}avm_role_delegations SET ends_at = %s
-             WHERE role = 'voorzitter' AND (ends_at IS NULL OR ends_at > %s)",
-            current_time('mysql'), current_time('mysql')
+             WHERE role = %s AND (ends_at IS NULL OR ends_at > %s)",
+            $now, $role, $now
         ));
 
         foreach ($affected as $uid) {
@@ -253,7 +306,7 @@ class AVPVH_Roles {
      * admin "who holds what" list. Uses AVPVH_LLDAP::get_all_group_memberships()
      * (one round-trip for every group) rather than a per-member lookup.
      */
-    public static function get_role_holders(string $role): array {
+    public static function get_role_holders(string $role, bool $include_implied = true): array {
         $role = strtolower($role);
         $memberships = AVPVH_LLDAP::get_all_group_memberships();
         if (is_wp_error($memberships)) {
@@ -264,7 +317,7 @@ class AVPVH_Roles {
         foreach ($memberships as $lldap_uid => $groups) {
             $names = array_map('strtolower', $groups);
             $has_role = in_array($role, $names, true)
-                || ($role === 'bestuur' && array_intersect($names, self::OFFICER_ROLES));
+                || ($include_implied && $role === 'bestuur' && array_intersect($names, self::OFFICER_ROLES));
             if (!$has_role) {
                 continue;
             }
