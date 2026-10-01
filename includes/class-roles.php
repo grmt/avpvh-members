@@ -78,6 +78,16 @@ class AVPVH_Roles {
         return self::is_admin_or_has_any_role(self::NEWSLETTER_ROLES);
     }
 
+    // Rollen & delegatie: voorzitter only. A delegation hands out real
+    // officer rights (secretaris = ledenbeheer, activiteiten, nieuwsbrief),
+    // so any bestuur member being able to delegate would let them grant
+    // those to themselves.
+    const ROLE_ADMIN_ROLES = ['voorzitter'];
+
+    public static function can_manage_roles(): bool {
+        return self::is_admin_or_has_any_role(self::ROLE_ADMIN_ROLES);
+    }
+
     // Real WP admins always qualify; otherwise any one of the given club
     // roles, via LLDAP group membership or an active delegation.
     private static function is_admin_or_has_any_role(array $roles): bool {

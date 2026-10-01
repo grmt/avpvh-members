@@ -29,13 +29,11 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
     }
 
-    // manage_options (real WP admins) or bestuur (incl. voorzitter/
-    // secretaris/penningmeester, who imply bestuur — see AVPVH_Roles) —
-    // broader than the manage_options-only gate every other screen in this
-    // file uses, since board members log in as plain 'contributor' WP
-    // users and would otherwise never see this menu at all.
+    // See AVPVH_Roles::can_manage_roles(): WP admins plus voorzitter.
+    // Board members log in as plain 'contributor' WP users, so this is
+    // checked by hand rather than through a WP capability.
     private function can_manage_roles(): bool {
-        return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('bestuur');
+        return AVPVH_Roles::can_manage_roles();
     }
 
     // See AVPVH_Roles::can_manage_members(): WP admins plus the officer
