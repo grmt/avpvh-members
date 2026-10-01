@@ -20,6 +20,10 @@ $role_label = [
 
     <?php if (isset($_GET['delegate_ok'])) : ?>
         <div class="notice notice-success"><p>Delegatie aangemaakt.</p></div>
+    <?php elseif (isset($_GET['delegate_needs_end'])) : ?>
+        <div class="notice notice-error"><p>Delegeren aan iemand die geen bestuurslid is kan alleen tijdelijk: vul bij "Tot" een einddatum in.</p></div>
+    <?php elseif (isset($_GET['delegate_past'])) : ?>
+        <div class="notice notice-error"><p>De einddatum bij "Tot" moet in de toekomst liggen.</p></div>
     <?php elseif (isset($_GET['delegate_error'])) : ?>
         <div class="notice notice-error"><p>Delegatie kon niet worden aangemaakt — controleer de invoer, of je hebt zelf niet de rechten om deze rol te delegeren.</p></div>
     <?php elseif (isset($_GET['revoke_ok'])) : ?>
@@ -179,8 +183,36 @@ $role_label = [
         </tbody>
     </table>
 
+    <h2>Verlopen delegaties</h2>
+    <p class="description">De laatste 10 verlopen of ingetrokken delegaties.</p>
+    <?php $expired = AVPVH_Roles::get_expired_delegations(10); ?>
+    <table class="wp-list-table widefat striped">
+        <thead>
+            <tr><th>Rol</th><th>Gedelegeerd aan</th><th>Door</th><th>Van</th><th>Tot</th></tr>
+        </thead>
+        <tbody>
+        <?php if (!$expired) : ?>
+            <tr><td colspan="5">Geen verlopen delegaties.</td></tr>
+        <?php else : foreach ($expired as $d) :
+            $to = AVPVH_DB::get_member((int) $d->delegated_to_member_id);
+            $by = AVPVH_DB::get_member((int) $d->delegated_by_member_id);
+            ?>
+            <tr>
+                <td><?php echo esc_html($role_label[$d->role] ?? $d->role); ?></td>
+                <td><?php echo esc_html($to ? avpvh_format_name($to, 'list') : '#' . $d->delegated_to_member_id); ?></td>
+                <td><?php echo esc_html($by ? avpvh_format_name($by, 'list') : '#' . $d->delegated_by_member_id); ?></td>
+                <td><?php echo esc_html(wp_date('D d M Y H:i', strtotime($d->starts_at))); ?></td>
+                <td><?php echo esc_html(wp_date('D d M Y H:i', strtotime($d->ends_at))); ?></td>
+            </tr>
+        <?php endforeach; endif; ?>
+        </tbody>
+    </table>
+
     <h2>Nieuwe delegatie</h2>
-    <p class="description">Tijdelijk delegeren (bijv. tijdens kamp, of secretariaat overdragen aan een ander bestuurslid). Laat "Tot" leeg voor onbepaalde tijd.</p>
+    <p class="description">
+        Tijdelijk delegeren (bijv. tijdens kamp, of secretariaat overdragen aan een ander bestuurslid). Laat "Tot" leeg voor onbepaalde tijd.
+        Een rol kan ook tijdelijk worden uitgevoerd door een lid dat geen bestuurslid is; dan is "Tot" verplicht. Diegene krijgt de rechten van de rol, maar wordt geen bestuurslid.
+    </p>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <?php wp_nonce_field('avpvh_delegate_role'); ?>
         <input type="hidden" name="action" value="avpvh_delegate_role">
@@ -199,16 +231,31 @@ $role_label = [
                 <th><label for="delegated_to_member_id">Delegeren aan</label></th>
                 <td>
                     <select name="delegated_to_member_id" id="delegated_to_member_id" required style="min-width:300px">
-                        <option value="">— Kies bestuurslid —</option>
-                        <?php foreach ($bestuur_members as $m) : ?>
-                            <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m, 'list')); ?></option>
-                        <?php endforeach; ?>
+                        <option value="">— Kies lid —</option>
+                        <optgroup label="Bestuursleden">
+                            <?php foreach ($bestuur_members as $m) : ?>
+                                <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m, 'list')); ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
+                        <optgroup label="Overige leden (alleen tijdelijk, Tot verplicht)">
+                            <?php
+                            $delegate_bestuur_ids = array_map(static fn($m) => (int) $m->id, $bestuur_members);
+                            foreach (AVPVH_Roles::get_officer_candidates() as $m) :
+                                if (in_array((int) $m->id, $delegate_bestuur_ids, true)) {
+                                    continue;
+                                } ?>
+                                <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m, 'list')); ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
                     </select>
                 </td>
             </tr>
             <tr>
-                <th><label for="ends_at">Tot (optioneel)</label></th>
-                <td><input type="datetime-local" id="ends_at" name="ends_at"></td>
+                <th><label for="ends_at">Tot</label></th>
+                <td>
+                    <input type="datetime-local" id="ends_at" name="ends_at">
+                    <p class="description">Optioneel voor bestuursleden, verplicht voor overige leden.</p>
+                </td>
             </tr>
         </table>
         <?php submit_button('Delegeren'); ?>

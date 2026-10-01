@@ -138,6 +138,17 @@ class AVPVH_Roles {
         )) ?: [];
     }
 
+    /** Most recently ended delegations (expired or revoked), newest first. */
+    public static function get_expired_delegations(int $limit = 10): array {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_role_delegations
+             WHERE ends_at IS NOT NULL AND ends_at < %s
+             ORDER BY ends_at DESC LIMIT %d",
+            current_time('mysql'), $limit
+        )) ?: [];
+    }
+
     /**
      * Delegate $role to $to_member_id. Fails (returns false) unless
      * $by_member_id genuinely holds $role or is bestuur — a delegation

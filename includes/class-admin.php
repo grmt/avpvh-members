@@ -964,13 +964,33 @@ class AVPVH_Admin {
         $role      = sanitize_key(wp_unslash($_POST['role'] ?? ''));
         $to_member_id = absint(wp_unslash($_POST['delegated_to_member_id'] ?? 0));
         $ends_at_raw  = sanitize_text_field(wp_unslash($_POST['ends_at'] ?? ''));
-        // Datetime-local input ("2026-08-20T18:00") -> MySQL DATETIME, end of
-        // day if only a date was somehow submitted. Blank = indefinite.
-        $ends_at = $ends_at_raw !== '' ? str_replace('T', ' ', $ends_at_raw) . (strlen($ends_at_raw) === 10 ? ':00' : '') : null;
+        // Datetime-local input ("2026-08-20T18:00") -> MySQL DATETIME; a bare
+        // date means the end of that day. Blank = indefinite.
+        $ends_at = null;
+        if ($ends_at_raw !== '') {
+            // Round-trip check: createFromFormat() silently rolls "2026-13-01"
+            // or "25:00" over into another date instead of failing.
+            $format = strlen($ends_at_raw) === 10 ? 'Y-m-d' : 'Y-m-d\TH:i';
+            $parsed = \DateTime::createFromFormat('!' . $format, $ends_at_raw);
+            if (!$parsed || $parsed->format($format) !== $ends_at_raw) {
+                $this->delegate_error('delegate_error');
+            }
+            $ends_at = $parsed->format(strlen($ends_at_raw) === 10 ? 'Y-m-d 23:59:59' : 'Y-m-d H:i:s');
+            if ($ends_at <= current_time('mysql')) {
+                $this->delegate_error('delegate_past');
+            }
+        }
 
-        if (!$by_member || !$to_member_id || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
-            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'delegate_error' => '1'], admin_url('admin.php')));
-            exit;
+        $candidate_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_officer_candidates());
+        if (!$by_member || !in_array($to_member_id, $candidate_ids, true) || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
+            $this->delegate_error('delegate_error');
+        }
+
+        // A non-bestuurslid may stand in for an officer role, but only
+        // temporarily: the end date is required, so it can never quietly
+        // turn into a permanent role outside the bestuur.
+        if ($ends_at === null && !in_array('bestuur', AVPVH_Roles::get_member_roles($to_member_id), true)) {
+            $this->delegate_error('delegate_needs_end');
         }
 
         $ok = AVPVH_Roles::create_delegation($role, $to_member_id, (int) $by_member->id, $ends_at);
@@ -978,6 +998,11 @@ class AVPVH_Admin {
             ['page' => 'avpvh-roles', $ok ? 'delegate_ok' : 'delegate_error' => '1'],
             admin_url('admin.php')
         ));
+        exit;
+    }
+
+    private function delegate_error(string $key): never {
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', $key => '1'], admin_url('admin.php')));
         exit;
     }
 
