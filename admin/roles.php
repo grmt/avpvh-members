@@ -16,6 +16,11 @@ $role_label = [
     'penningmeester' => 'Penningmeester',
 ];
 ?>
+<style>
+    .avpvh-roles-section { margin: 1.5rem 0; }
+    .avpvh-roles-section > summary { cursor: pointer; }
+    .avpvh-roles-section > summary h2 { display: inline; margin: 0; }
+</style>
 <div class="wrap">
     <h1>Rollen &amp; delegatie</h1>
 
@@ -61,7 +66,8 @@ $role_label = [
         </div>
     <?php endif; ?>
 
-    <h2>Huidige rolhouders (LLDAP)</h2>
+    <details class="avpvh-roles-section" open>
+        <summary><h2>Huidige rolhouders (LLDAP)</h2></summary>
     <p class="description">
         Rollen worden beheerd in LLDAP-groepen. Voorzitter, secretaris en penningmeester tellen automatisch ook als bestuur.
         Een rolhouder kan aftreden: diegene blijft dan gewoon bestuurslid en de rol is tijdelijk niet ingevuld.
@@ -101,9 +107,11 @@ $role_label = [
         </tr>
         </tbody>
     </table>
+    </details>
 
     <?php if (AVPVH_Roles::can_appoint_officers()) : ?>
-        <h2>Rolhouder aanwijzen</h2>
+        <details class="avpvh-roles-section" open>
+            <summary><h2>Rolhouder aanwijzen</h2></summary>
         <p class="description">
             Wijs een nieuwe voorzitter, secretaris of penningmeester aan, ook voor een rol die niet ingevuld is. Diegene krijgt de rol,
             een eventuele huidige rolhouder raakt hem kwijt en actieve delegaties van die rol worden beëindigd. Dit is blijvend, geen tijdelijke delegatie.
@@ -155,8 +163,10 @@ $role_label = [
             </table>
             <?php submit_button('Rolhouder aanwijzen', 'secondary'); ?>
         </form>
+        </details>
 
-        <h2>Bestuursleden</h2>
+        <details class="avpvh-roles-section" open>
+            <summary><h2>Bestuursleden</h2></summary>
         <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn automatisch bestuurslid via hun rol; die vervang je via "Rolhouder aanwijzen". Wie uit het bestuur gaat (verwijderd, of als rolhouder vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder.</p>
         <?php
         $bestuur_direct_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_role_holders('bestuur', false));
@@ -209,10 +219,13 @@ $role_label = [
             </select>
             <?php submit_button('Toevoegen', 'secondary', 'submit', false); ?>
         </form>
+        </details>
+
     <?php endif; ?>
 
     <?php if ($can_manage_delegations) : ?>
-    <h2>Actieve delegaties</h2>
+    <details class="avpvh-roles-section" open>
+        <summary><h2>Actieve delegaties</h2></summary>
     <table class="wp-list-table widefat striped">
         <thead>
             <tr><th>Rol</th><th>Gedelegeerd aan</th><th>Door</th><th>Tot</th><th>Sinds</th><th></th></tr>
@@ -242,8 +255,10 @@ $role_label = [
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+    </details>
 
-    <h2>Verlopen delegaties</h2>
+    <details class="avpvh-roles-section">
+        <summary><h2>Verlopen delegaties</h2></summary>
     <p class="description">De laatste 10 verlopen of ingetrokken delegaties.</p>
     <?php $expired = AVPVH_Roles::get_expired_delegations(10); ?>
     <table class="wp-list-table widefat striped">
@@ -267,8 +282,10 @@ $role_label = [
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+    </details>
 
-    <h2>Nieuwe delegatie</h2>
+    <details class="avpvh-roles-section" open>
+        <summary><h2>Nieuwe delegatie</h2></summary>
     <p class="description">
         Tijdelijk delegeren (bijv. tijdens kamp, of secretariaat overdragen aan een ander bestuurslid). Laat "Tot" leeg voor onbepaalde tijd.
         Een rol kan ook tijdelijk worden uitgevoerd door een lid dat geen bestuurslid is; dan is "Tot" verplicht. Diegene krijgt de rechten van de rol, maar wordt geen bestuurslid.
@@ -320,5 +337,7 @@ $role_label = [
         </table>
         <?php submit_button('Delegeren'); ?>
     </form>
+    </details>
+
     <?php endif; ?>
 </div>
