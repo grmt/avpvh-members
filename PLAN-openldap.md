@@ -57,13 +57,15 @@ Status: plan, nog niet uitgevoerd (2026-10-02).
    `(member={dn})` matcht er nooit op). De plugin voegt die toe vóór het
    verwijderen van het laatste echte lid en haalt hem weg bij een nieuw lid,
    en negeert hem bij het lezen.
-3. **Eigen serviceaccount** `cn=avpvh-admin,ou=avpvh,dc=nl` met `manage` op
+3. **Eigen serviceaccount** `cn=avpvh-admin,dc=nl` met `manage` op
    `ou=avpvh` en niets daarbuiten, zelfde patroon als `vve-admin` (docker-
    scripts PR #29), inclusief grenstest: geen toegang tot `ou=rechtspreker`
    en tot `dc=nl` zelf. Wachtwoord alleen in een Docker-secret, nooit in de
    repo of de WP-database. Vervangt het gebruik van LLDAP-root `admin`.
-   Uitvoering: Claude schrijft LDIF + script in docker-scripts, de beheerder
-   draait het op de server.
+   Het account staat buiten zijn eigen boom (net als `vve-admin`), zodat het
+   zichzelf niet kan wijzigen. Uitvoering: `openldap-avpvh-admin.sh` in
+   docker-scripts (branch `feat/openldap-avpvh-admin`), door de beheerder op
+   de server gedraaid.
 4. Group-ID's: LLDAP gebruikt numerieke ID's, OpenLDAP DN's/`cn`. De plugin
    gaat overal met groepsnamen (`cn`) werken (o.a. Ledendetail-checkboxes,
    `handle_save_groups()`, `AVPVH_Roles`).
