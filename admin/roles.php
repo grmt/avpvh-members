@@ -71,7 +71,7 @@ $role_label = [
     <p class="description">
         Voorzitter, secretaris en penningmeester vormen het dagelijks bestuur. Wie aftreedt blijft gewoon bestuurslid; de functie is dan tijdelijk niet ingevuld.
         Treedt de voorzitter af, dan kan alleen de beheerder een nieuwe voorzitter aanwijzen.
-        Een nieuwe voorzitter, secretaris of penningmeester wijs je hieronder aan bij "Dagelijks bestuur aanwijzen"; bestuursleden toevoegen of verwijderen doe je bij "Bestuursleden".
+        Een nieuwe voorzitter, secretaris of penningmeester wijs je hieronder aan bij "Bestuursfuncties aanwijzen"; bestuursleden toevoegen of verwijderen doe je bij "Bestuursleden".
     </p>
     <table class="wp-list-table widefat striped" style="max-width:600px">
         <thead><tr><th>Rol</th><th>Leden</th></tr></thead>
@@ -110,7 +110,7 @@ $role_label = [
 
     <?php if (AVPVH_Roles::can_appoint_officers()) : ?>
         <details class="avpvh-roles-section">
-            <summary><h2>Dagelijks bestuur aanwijzen</h2></summary>
+            <summary><h2>Bestuursfuncties aanwijzen</h2></summary>
         <p class="description">
             Wijs een nieuwe voorzitter, secretaris of penningmeester aan, ook voor een rol die niet ingevuld is. Diegene krijgt de rol,
             wie de functie nu heeft raakt die kwijt en actieve delegaties van die functie worden beëindigd. Dit is blijvend, geen tijdelijke delegatie.
@@ -166,7 +166,7 @@ $role_label = [
 
         <details class="avpvh-roles-section">
             <summary><h2>Bestuursleden</h2></summary>
-        <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn als dagelijks bestuur automatisch bestuurslid; die vervang je via "Dagelijks bestuur aanwijzen". Wie uit het bestuur gaat (verwijderd, of als voorzitter, secretaris of penningmeester vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder.</p>
+        <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn als dagelijks bestuur automatisch bestuurslid; die vervang je via "Bestuursfuncties aanwijzen". Wie uit het bestuur gaat (verwijderd, of als voorzitter, secretaris of penningmeester vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder.</p>
         <?php
         $bestuur_direct_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_role_holders('bestuur', false));
         ?>

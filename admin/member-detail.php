@@ -68,11 +68,13 @@ $tab_url = fn(string $tab): string => add_query_arg(
 // automatically (see handle_save_profile()) — this button mainly exists to
 // catch up any record that drifted before that existed, or as a manual fallback.
 $sync_msg = null;
+$sync_ok  = false;
 if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $member_id)) {
     $result = AVPVH_LLDAP::update_user($member->lldap_user_id, [
         'displayName' => avpvh_format_name($member),
     ]);
-    $sync_msg = is_wp_error($result) ? $result->get_error_message() : 'Gesynchroniseerd met LLDAP.';
+    $sync_ok  = !is_wp_error($result);
+    $sync_msg = $sync_ok ? 'Naam bijgewerkt in het account.' : 'Bijwerken van het account is mislukt: ' . $result->get_error_message();
 }
 ?>
 <div class="wrap">
@@ -83,7 +85,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
        class="button button-small">Bewerk profiel</a>
     &nbsp;|&nbsp;
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
-       class="button button-small" title="Meestal niet nodig — een naamwijziging op het profiel synchroniseert al automatisch. Vooral bedoeld om een record bij te werken dat van vóór die automatische sync dateert.">Sync naar LLDAP</a>
+       class="button button-small" title="Meestal niet nodig — een naamwijziging op het profiel werkt het account al automatisch bij. Vooral bedoeld voor een lid van vóór die automatische koppeling.">Naam bijwerken in account</a>
 
     <?php if ($updated) : ?>
         <div class="notice notice-success is-dismissible"><p>Bijgewerkt.</p></div>
@@ -114,14 +116,14 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <?php elseif (!empty($_GET['email_updated'])) : ?>
         <div class="notice notice-success is-dismissible"><p>E-mailadres bijgewerkt.</p></div>
     <?php elseif (!empty($_GET['email_error'])) : ?>
-        <div class="notice notice-error is-dismissible"><p>Kon e-mailadres niet bijwerken (ongeldig adres, of LLDAP-fout).</p></div>
+        <div class="notice notice-error is-dismissible"><p>Kon e-mailadres niet bijwerken (ongeldig adres, of fout bij het bijwerken van het account).</p></div>
     <?php elseif (!empty($_GET['groups_saved'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Groepen bijgewerkt.</p></div>
     <?php elseif (!empty($_GET['groups_error'])) : ?>
         <div class="notice notice-error is-dismissible"><p>Groepen konden niet (volledig) worden bijgewerkt — zie het serverlog.</p></div>
     <?php endif; ?>
     <?php if ($sync_msg) : ?>
-        <div class="notice notice-<?php echo str_contains($sync_msg, 'LLDAP') && !str_contains($sync_msg, 'fout') ? 'success' : 'error'; ?> is-dismissible"><p><?php echo esc_html($sync_msg); ?></p></div>
+        <div class="notice notice-<?php echo $sync_ok ? 'success' : 'error'; ?> is-dismissible"><p><?php echo esc_html($sync_msg); ?></p></div>
     <?php endif; ?>
 
     <nav class="nav-tab-wrapper" style="margin-top:1em">
@@ -133,7 +135,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <?php if ($active_tab === 'contact') : ?>
     <h2>Contactgegevens</h2>
     <table class="form-table">
-        <tr><th>LLDAP user_id</th><td><code><?php echo esc_html($member->lldap_user_id); ?></code></td></tr>
+        <tr><th>Gebruikersnaam</th><td><code><?php echo esc_html($member->lldap_user_id); ?></code></td></tr>
         <tr><th>Voornaam</th><td><?php echo esc_html($member->first_name); ?></td></tr>
         <tr><th>Tussenvoegsel</th><td><?php echo esc_html($member->suffix ?: '—'); ?></td></tr>
         <tr><th>Achternaam</th><td><?php echo esc_html($member->last_name); ?></td></tr>
@@ -152,14 +154,14 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             <th>E-mail</th>
             <td>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:.5rem;align-items:center"
-                    onsubmit="return confirm('LLDAP-e-mailadres wijzigen?');">
+                    onsubmit="return confirm('Contactadres van het account wijzigen?');">
                     <?php wp_nonce_field('avpvh_update_email'); ?>
                     <input type="hidden" name="action" value="avpvh_update_email">
                     <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
                     <input type="email" name="email" value="<?php echo esc_attr($member->email); ?>" class="regular-text">
                     <button type="submit" class="button button-small">Wijzigen</button>
                 </form>
-                <p class="description">Dit is het contactadres van het LLDAP-account zelf, los van de Inlogadressen hieronder — al wordt het automatisch bijgewerkt naar het adres dat daar als primair wordt ingesteld. Leeg laten en opslaan zet het om naar een placeholder-adres (<?php echo esc_html($member->lldap_user_id); ?>@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.</p>
+                <p class="description">Dit is het contactadres van het account zelf, los van de Inlogadressen hieronder — al wordt het automatisch bijgewerkt naar het adres dat daar als primair wordt ingesteld. Leeg laten en opslaan zet het om naar een placeholder-adres (<?php echo esc_html($member->lldap_user_id); ?>@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.</p>
             </td>
         </tr>
         <tr><th>Status</th><td><?php echo esc_html($member->status); ?></td></tr>
@@ -208,7 +210,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                 <td>
                     <?php if (!$identity->is_primary) : ?>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin-right:.5rem"
-                        title="Wordt ook het LLDAP-contactadres hierboven, los van waarmee wordt ingelogd.">
+                        title="Wordt ook het contactadres van het account hierboven, los van waarmee wordt ingelogd.">
                         <?php wp_nonce_field('avpvh_primary_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_primary_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
@@ -316,14 +318,14 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         </tbody>
     </table>
 
-    <h2>LLDAP-groepen</h2>
+    <h2>Groepen (toegangsrechten)</h2>
     <p class="description">Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor "Zoeken in documenten") — los van de kenmerken hierboven, die alleen labels/filters zijn.</p>
     <?php
     $all_groups     = AVPVH_LLDAP::list_groups();
     $current_groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
     ?>
     <?php if (is_wp_error($all_groups) || is_wp_error($current_groups)) : ?>
-        <p class="description">Kon groepen niet ophalen uit LLDAP.</p>
+        <p class="description">Kon de groepen niet ophalen.</p>
     <?php else :
         $current_group_ids = array_map('intval', array_column($current_groups, 'id'));
     ?>
@@ -340,7 +342,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     </label>
                 <?php endforeach; ?>
                 <?php if (!$all_groups) : ?>
-                    <em>Geen groepen gevonden in LLDAP.</em>
+                    <em>Geen groepen gevonden.</em>
                 <?php endif; ?>
             </p>
             <?php submit_button('Groepen opslaan', 'secondary'); ?>

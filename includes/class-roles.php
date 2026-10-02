@@ -297,7 +297,7 @@ class AVPVH_Roles {
                 return (int) $group['id'];
             }
         }
-        return new \WP_Error('avpvh_no_group', "LLDAP-groep \"{$name}\" niet gevonden.");
+        return new \WP_Error('avpvh_no_group', "Groep \"{$name}\" niet gevonden.");
     }
 
     /**
