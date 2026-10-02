@@ -56,8 +56,11 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 
 ### Camp participation imports
 
-Both camp scripts accept either a workbook or a directory of exports. Always
-run a dry-run before writing production data.
+The camp workbook has its own fixed `totaal inschrijvingen` grid and is not
+processed by the configurable generic sheet importer in **Activiteit
+betalingen**. These two camp-specific scripts accept either an overview
+workbook or the camp archive directory. Always run a dry-run before writing
+production data.
 
 ```bash
 # Import/update participation records from the newest workbook in a directory.
@@ -70,9 +73,10 @@ python3 scripts/sync-kamp-overzicht.py /path/to/exports/
 ```
 
 `import-avpvh-camps.py` exits with status 2 when names remain unmatched or
-ambiguous, after reporting them for manual review. Recognizable date columns
-also replace that participant's day-by-day attendance for the activity. The
-overview option name is derived from the campaign year (for example
+ambiguous, after reporting them for manual review. It reads names from column
+D, the day grid from E-T, and nawacht/notes/diet from W-Z. An import replaces
+that participant's day-by-day attendance for the camp. The overview option
+name is derived from the campaign year (for example
 `avpvh_kamp_2026_overzicht`); use `--year` or `--option-name` when the year
 cannot be inferred correctly.
 

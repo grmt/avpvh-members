@@ -47,10 +47,11 @@ def newest_workbook(source: Path) -> Path:
 
     candidates = [
         path for path in source.rglob('*.xlsx')
-        if not path.name.startswith('~$')
+        if 'overzicht' in path.name.casefold()
+        and not path.name.startswith('~$')
     ]
     if not candidates:
-        raise SystemExit(f'ERROR: no .xlsx files found under {source}')
+        raise SystemExit(f'ERROR: no camp overview .xlsx files found under {source}')
     return max(candidates, key=lambda path: path.stat().st_mtime)
 
 
