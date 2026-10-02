@@ -1,26 +1,35 @@
 #!/usr/bin/env python3
 """
-Import excavation camp participation from XLS files into pvh_avm_camp_participation.
+Import excavation-camp participation from XLS/XLSX files into the current
+pvh_avm_activities and pvh_avm_activity_participation tables.
+
+The source may be one workbook or a directory. Directory imports process all
+workbooks unless --latest is supplied. Re-running an import updates existing
+participation rows, making the script idempotent.
 
 Usage:
-    python3 import-avpvh-camps.py [--dry-run]
+    python3 import-avpvh-camps.py /path/to/Opgravingen/ --dry-run
+    python3 import-avpvh-camps.py /path/to/exports/ --latest
 
-Iterates over all .xls/.xlsx files under /home/grmt/avpvh_drive/xls/Opgravingen/.
-For each file:
-  - Extracts year and location from directory name / filename
-  - Creates pvh_avm_camps row if not yet present
-  - Reads "totaal inschrijvingen" sheet (or first sheet) for participants
-  - Matches participants to pvh_avm_members by last_name + first_name
-  - Logs unmatched names to stdout for manual review
+For each workbook the script:
+  - extracts the year and activity name from its path;
+  - creates a Kamp activity if it does not exist;
+  - reads "totaal inschrijvingen" (or the first sheet);
+  - matches participants to members without choosing ambiguous matches;
+  - inserts or updates participation details;
+  - reports unmatched or ambiguous names for manual review.
+
+Dependencies:
+    pip install pymysql openpyxl requests xlrd
 """
 
 import argparse
-import os
 import re
 import sys
+from collections import defaultdict
+from datetime import date, datetime
 from pathlib import Path
 
-import pymysql
 import openpyxl
 
 try:
@@ -29,246 +38,398 @@ try:
 except ImportError:
     HAS_XLRD = False
 
-SECRET_FILE   = '/opt/docker/secrets/compose/mysql_password.txt'
-DB_HOST       = '127.0.0.1'
-DB_PORT       = 6603
-DB_USER       = 'wordpress'
-DB_NAME       = 'wordpress_pvh'
-WP_PREFIX     = 'pvh_'
-OPRAVINGEN_ROOT = Path('/home/grmt/avpvh_drive/xls/Opgravingen')
+from _avpvh_import_common import (
+    SECRET_FILE,
+    WP_PREFIX,
+    get_db,
+    normalize_name_key,
+    read_secret,
+)
+
+PREFERRED_SHEET = 'totaal inschrijvingen'
+SUPPORTED_SUFFIXES = {'.xls', '.xlsx'}
 
 
-def read_db_password() -> str:
-    with open(SECRET_FILE) as f:
-        return f.read().strip()
+def workbook_paths(source: Path, latest: bool) -> list[Path]:
+    if source.is_file():
+        if source.suffix.lower() not in SUPPORTED_SUFFIXES:
+            raise SystemExit(f'ERROR: unsupported workbook type: {source}')
+        return [source]
+    if not source.is_dir():
+        raise SystemExit(f'ERROR: source does not exist: {source}')
 
-
-def get_connection(password: str):
-    return pymysql.connect(
-        host=DB_HOST, port=DB_PORT,
-        user=DB_USER, password=password,
-        database=DB_NAME, charset='utf8mb4',
+    paths = sorted(
+        path for path in source.rglob('*')
+        if path.is_file()
+        and path.suffix.lower() in SUPPORTED_SUFFIXES
+        and not path.name.startswith('~$')
     )
+    if not paths:
+        raise SystemExit(f'ERROR: no XLS/XLSX files found under {source}')
+    if latest:
+        return [max(paths, key=lambda path: path.stat().st_mtime)]
+    return paths
 
 
-def extract_year_location(path: Path) -> tuple[int | None, str]:
-    # Try to get year from directory name first, then filename
+def extract_year_activity(path: Path) -> tuple[int | None, str, str]:
     year = None
-    for part in reversed(path.parts):
-        m = re.search(r'\b(20\d{2}|19\d{2})\b', part)
-        if m:
-            year = int(m.group())
+    for value in (*reversed(path.parts), path.stem):
+        match = re.search(r'\b(19|20)\d{2}\b', value)
+        if match:
+            year = int(match.group())
             break
 
-    # Location from parent directory name (strip year)
-    location = re.sub(r'\b(20|19)\d{2}\b', '', path.parent.name).strip(' _-')
-    if not location:
-        location = re.sub(r'\b(20|19)\d{2}\b', '', path.stem).strip(' _-')
+    parent_without_year = re.sub(r'\b(19|20)\d{2}\b', '', path.parent.name).strip(' _-')
+    stem_without_year = re.sub(r'\b(19|20)\d{2}\b', '', path.stem).strip(' _-')
+    activity_name = path.parent.name if path.parent.name else path.stem
+    kenmerk = parent_without_year or stem_without_year
+    return year, activity_name, kenmerk
 
-    return year, location
+
+def activity_title_metadata(rows: list[list[str]]) -> tuple[int | None, str]:
+    """Read the modern export's "Activity name YYYY" title when present."""
+    for row in rows[:2]:
+        for value in row:
+            if 'bijgewerkt' in value.casefold():
+                continue
+            match = re.search(r'\b(19|20)\d{2}\b', value)
+            if not match:
+                continue
+            name = (value[:match.start()] + value[match.end():]).strip(' _-')
+            if name:
+                return int(match.group()), name
+    return None, ''
 
 
 def open_workbook(path: Path):
-    suffix = path.suffix.lower()
-    if suffix == '.xlsx':
+    if path.suffix.lower() == '.xlsx':
         return openpyxl.load_workbook(path, data_only=True), 'openpyxl'
-    elif suffix == '.xls' and HAS_XLRD:
+    if HAS_XLRD:
         return xlrd.open_workbook(str(path)), 'xlrd'
+    print(f'  SKIP (.xls requires xlrd): {path}')
     return None, None
 
 
-def get_sheet(wb, wb_type: str, preferred_name: str):
-    if wb_type == 'openpyxl':
-        names_lower = {s.lower(): s for s in wb.sheetnames}
-        key = preferred_name.lower()
-        if key in names_lower:
-            return wb[names_lower[key]], 'openpyxl'
-        return wb.active, 'openpyxl'
-    elif wb_type == 'xlrd':
-        for i in range(wb.nsheets):
-            if preferred_name.lower() in wb.sheet_by_index(i).name.lower():
-                return wb.sheet_by_index(i), 'xlrd'
-        return wb.sheet_by_index(0), 'xlrd'
-    return None, None
+def get_sheet(workbook, workbook_type: str):
+    if workbook_type == 'openpyxl':
+        names = {name.casefold(): name for name in workbook.sheetnames}
+        return workbook[names.get(PREFERRED_SHEET.casefold(), workbook.sheetnames[0])]
+    for index in range(workbook.nsheets):
+        sheet = workbook.sheet_by_index(index)
+        if PREFERRED_SHEET.casefold() in sheet.name.casefold():
+            return sheet
+    return workbook.sheet_by_index(0)
 
 
-def iter_rows_as_strings(sheet, sheet_type: str):
-    if sheet_type == 'openpyxl':
-        for row in sheet.iter_rows(values_only=True):
-            yield [str(c).strip() if c is not None else '' for c in row]
-    elif sheet_type == 'xlrd':
-        for rx in range(sheet.nrows):
-            yield [str(sheet.cell_value(rx, cx)).strip() for cx in range(sheet.ncols)]
-
-
-def find_member(cursor, last_name: str, first_name: str) -> int | None:
-    cursor.execute(
-        f"""SELECT id FROM {WP_PREFIX}avm_members
-            WHERE LOWER(last_name) = LOWER(%s) AND LOWER(first_name) = LOWER(%s)
-            LIMIT 1""",
-        (last_name, first_name)
-    )
-    row = cursor.fetchone()
-    return row[0] if row else None
-
-
-def fuzzy_find_member(cursor, full_name: str) -> int | None:
-    parts = full_name.strip().split()
-    if len(parts) < 2:
-        return None
-    # Try last word as last name, rest as first
-    last  = parts[-1]
-    first = ' '.join(parts[:-1])
-    mid = find_member(cursor, last, first)
-    if mid:
-        return mid
-    # Try first word as first name
-    first2 = parts[0]
-    last2  = ' '.join(parts[1:])
-    return find_member(cursor, last2, first2)
-
-
-def import_file(cursor, path: Path, dry_run: bool, unmatched: list):
-    year, location = extract_year_location(path)
-    if not year:
-        print(f'  SKIP (no year found): {path}')
-        return
-
-    camp_name = path.parent.name
-    print(f'\n{path.name}  →  camp="{camp_name}" year={year} location="{location}"')
-
-    # Ensure camp row
-    cursor.execute(
-        f'SELECT id FROM {WP_PREFIX}avm_camps WHERE name = %s AND year = %s',
-        (camp_name, year)
-    )
-    camp_row = cursor.fetchone()
-    if camp_row:
-        camp_id = camp_row[0]
-    elif not dry_run:
-        cursor.execute(
-            f'INSERT INTO {WP_PREFIX}avm_camps (name, year, location) VALUES (%s,%s,%s)',
-            (camp_name, year, location)
-        )
-        camp_id = cursor.lastrowid
-        print(f'  created camp id={camp_id}')
+def iter_rows_as_strings(sheet, workbook_type: str):
+    if workbook_type == 'openpyxl':
+        rows = sheet.iter_rows(values_only=True)
     else:
-        camp_id = -1
+        rows = (
+            [sheet.cell_value(row, column) for column in range(sheet.ncols)]
+            for row in range(sheet.nrows)
+        )
+    for row in rows:
+        yield [cell_text(value) for value in row]
 
-    wb, wb_type = open_workbook(path)
-    if not wb:
-        print(f'  SKIP (unreadable format): {path}')
-        return
 
-    sheet, sheet_type = get_sheet(wb, wb_type, 'totaal inschrijvingen')
-    rows = list(iter_rows_as_strings(sheet, sheet_type))
-    if not rows:
-        print('  SKIP (empty sheet)')
-        return
+def cell_text(value) -> str:
+    if value is None:
+        return ''
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value).strip()
 
-    # Detect header row
-    header_idx = 0
-    headers = []
-    for i, row in enumerate(rows[:10]):
-        row_lower = [c.lower() for c in row]
-        if any(k in row_lower for k in ('naam', 'achternaam', 'voornaam')):
-            header_idx = i
-            headers = row_lower
-            break
 
-    if not headers:
-        print('  SKIP (no recognisable header row)')
-        return
+def normalized_header(value: str) -> str:
+    return re.sub(r'\s+', ' ', value.strip().casefold())
 
-    def col_idx(name: str) -> int | None:
+
+def first_index(headers: list[str], *names: str) -> int | None:
+    for name in names:
         try:
             return headers.index(name)
         except ValueError:
-            return None
-
-    idx_last   = col_idx('achternaam') or col_idx('naam')
-    idx_first  = col_idx('voornaam')
-    idx_nights = col_idx('nachten') or col_idx('nights')
-    idx_nawacht= col_idx('nawacht')
-    idx_diet   = col_idx('dieet') or col_idx('diet')
-    idx_notes  = col_idx('notities') or col_idx('opmerkingen') or col_idx('notes')
-
-    imported = skipped = 0
-    for row in rows[header_idx + 1:]:
-        if idx_last is not None and idx_last < len(row):
-            last_name = row[idx_last]
-        else:
             continue
-        if not last_name or last_name.lower() in ('totaal', 'sum', ''):
-            continue
+    return None
 
+
+def find_header(rows: list[list[str]]) -> tuple[int, list[str]] | None:
+    for index, row in enumerate(rows[:15]):
+        headers = [normalized_header(value) for value in row]
+        if any(name in headers for name in ('naam', 'achternaam', 'voornaam')):
+            return index, headers
+    return None
+
+
+def parse_int(value: str) -> int | None:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_bool(value: str) -> int:
+    normalized = value.strip().casefold()
+    if normalized in ('', '0', 'nee', 'no', 'false', 'n.v.t.'):
+        return 0
+    return 1
+
+
+def parse_day_header(value: str, default_year: int) -> date | None:
+    """Read ISO dates and localized headers such as "za 18-7"."""
+    value = value.strip()
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            pass
+    match = re.search(r'(?<!\d)(\d{1,2})[-/](\d{1,2})(?![-/\d])', value)
+    if not match:
+        return None
+    try:
+        return date(default_year, int(match.group(2)), int(match.group(1)))
+    except ValueError:
+        return None
+
+
+def full_name_key(value: str) -> str:
+    return re.sub(r'[^\w]+', ' ', value.casefold(), flags=re.UNICODE).strip()
+
+
+class MemberMatcher:
+    """Match exact normalized names and reject duplicate/ambiguous keys."""
+
+    def __init__(self, cursor):
+        cursor.execute(
+            f'SELECT id, first_name, suffix, last_name FROM {WP_PREFIX}avm_members'
+        )
+        self.by_parts = defaultdict(list)
+        self.by_full = defaultdict(list)
+        for member_id, first_name, suffix, last_name in cursor.fetchall():
+            first_name = first_name or ''
+            suffix = suffix or ''
+            last_name = last_name or ''
+            self.by_parts[normalize_name_key(first_name, last_name)].append(member_id)
+            variants = {
+                f'{first_name} {suffix} {last_name}',
+                f'{first_name} {last_name}',
+                f'{last_name}, {first_name}',
+            }
+            for variant in variants:
+                self.by_full[full_name_key(variant)].append(member_id)
+
+    def find(self, first_name: str, last_name: str, full_name: str) -> tuple[int | None, str]:
+        matches = (
+            self.by_parts.get(normalize_name_key(first_name, last_name), [])
+            if first_name and last_name
+            else self.by_full.get(full_name_key(full_name), [])
+        )
+        unique = set(matches)
+        if len(unique) == 1:
+            return unique.pop(), 'matched'
+        return None, 'ambiguous' if unique else 'unmatched'
+
+
+def get_kamp_type_id(cursor) -> int:
+    cursor.execute(
+        f'SELECT id FROM {WP_PREFIX}avm_activity_types WHERE LOWER(name) = LOWER(%s)',
+        ('Kamp',),
+    )
+    row = cursor.fetchone()
+    if not row:
+        raise RuntimeError('activity type "Kamp" does not exist')
+    return int(row[0])
+
+
+def get_or_create_activity(cursor, name: str, year: int, kenmerk: str,
+                           kamp_type_id: int, dry_run: bool) -> int | None:
+    cursor.execute(
+        f'SELECT id FROM {WP_PREFIX}avm_activities WHERE name = %s AND year = %s',
+        (name, year),
+    )
+    row = cursor.fetchone()
+    if row:
+        return int(row[0])
+    if dry_run:
+        print(f'  [dry-run] would create Kamp activity: {name} ({year})')
+        return None
+    cursor.execute(
+        f'''INSERT INTO {WP_PREFIX}avm_activities
+            (name, type_id, year, kenmerk) VALUES (%s, %s, %s, %s)''',
+        (name, kamp_type_id, year, kenmerk),
+    )
+    activity_id = int(cursor.lastrowid)
+    print(f'  created activity id={activity_id}')
+    return activity_id
+
+
+def save_participation(cursor, member_id: int, activity_id: int,
+                       fields: dict[str, object]) -> int:
+    """Upsert only columns present in the workbook, preserving other data."""
+    columns = ['member_id', 'activity_id', *fields]
+    placeholders = ', '.join(['%s'] * len(columns))
+    values = [member_id, activity_id, *fields.values()]
+    if fields:
+        updates = [f'{column} = VALUES({column})' for column in fields]
+        updates.append('id = LAST_INSERT_ID(id)')
+        update_sql = ', '.join(updates)
+        duplicate_sql = f'ON DUPLICATE KEY UPDATE {update_sql}'
+    else:
+        duplicate_sql = 'ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)'
+    cursor.execute(
+        f'''INSERT INTO {WP_PREFIX}avm_activity_participation
+            ({', '.join(columns)}) VALUES ({placeholders})
+            {duplicate_sql}''',
+        values,
+    )
+    return int(cursor.lastrowid)
+
+
+def replace_participation_days(cursor, participation_id: int,
+                               days: dict[date, str]) -> None:
+    cursor.execute(
+        f'DELETE FROM {WP_PREFIX}avm_activity_participation_days '
+        'WHERE participation_id = %s',
+        (participation_id,),
+    )
+    for day, status in days.items():
+        status = status.strip()[:10]
+        if not status:
+            continue
+        cursor.execute(
+            f'''INSERT INTO {WP_PREFIX}avm_activity_participation_days
+                (participation_id, date, status) VALUES (%s, %s, %s)''',
+            (participation_id, day.isoformat(), status),
+        )
+
+
+def import_file(cursor, matcher: MemberMatcher, path: Path,
+                kamp_type_id: int, dry_run: bool) -> tuple[int, int, int]:
+    year, activity_name, kenmerk = extract_year_activity(path)
+    workbook, workbook_type = open_workbook(path)
+    if not workbook:
+        return 0, 0, 0
+    rows = list(iter_rows_as_strings(get_sheet(workbook, workbook_type), workbook_type))
+    title_year, title_name = activity_title_metadata(rows)
+    # Historical archives already have a meaningful year-bearing directory
+    # name. A newly downloaded export usually sits in a generic directory, in
+    # which case its first-row title is the authoritative activity identity.
+    if not re.search(r'\b(19|20)\d{2}\b', path.parent.name) and title_name:
+        year = title_year
+        activity_name = title_name
+        kenmerk = title_name
+    if not year:
+        print(f'  SKIP (no year found in path or workbook title): {path}')
+        return 0, 0, 0
+
+    print(f'\n{path.name} -> activity={activity_name!r}, year={year}, kenmerk={kenmerk!r}')
+    header = find_header(rows)
+    if not header:
+        print('  SKIP (no recognisable header row)')
+        return 0, 0, 0
+
+    header_index, headers = header
+    idx_last = first_index(headers, 'achternaam')
+    idx_first = first_index(headers, 'voornaam', 'roepnaam')
+    idx_full = first_index(headers, 'naam')
+    if idx_last is None and idx_full is None:
+        print('  SKIP (no name column)')
+        return 0, 0, 0
+
+    idx_nights = first_index(headers, 'nachten', 'nights')
+    idx_nawacht = first_index(headers, 'nawacht')
+    idx_diet = first_index(headers, 'dieet', 'diet')
+    idx_notes = first_index(headers, 'notities', 'opmerkingen', 'notes')
+    day_columns = {
+        index: day
+        for index, header_value in enumerate(headers)
+        if (day := parse_day_header(header_value, year)) is not None
+    }
+
+    activity_id = get_or_create_activity(
+        cursor, activity_name, year, kenmerk, kamp_type_id, dry_run
+    )
+    imported = unmatched = ambiguous = 0
+    for row in rows[header_index + 1:]:
         first_name = row[idx_first] if idx_first is not None and idx_first < len(row) else ''
-
-        member_id = find_member(cursor, last_name, first_name)
-        if not member_id and first_name:
-            member_id = fuzzy_find_member(cursor, f'{first_name} {last_name}')
-        if not member_id:
-            full = f'{last_name}, {first_name}'.strip(', ')
-            unmatched.append({'file': str(path), 'name': full})
-            print(f'  UNMATCHED: {full}')
-            skipped += 1
+        last_name = row[idx_last] if idx_last is not None and idx_last < len(row) else ''
+        full_name = row[idx_full] if idx_full is not None and idx_full < len(row) else ''
+        display_name = full_name or f'{first_name} {last_name}'.strip()
+        if not display_name or display_name.casefold() in ('totaal', 'sum'):
             continue
 
-        nights  = _parse_int(row[idx_nights])  if idx_nights  and idx_nights  < len(row) else None
-        nawacht = _parse_int(row[idx_nawacht]) if idx_nawacht and idx_nawacht < len(row) else 0
-        diet    = row[idx_diet][:50]           if idx_diet    and idx_diet    < len(row) else None
-        notes   = row[idx_notes]               if idx_notes   and idx_notes   < len(row) else None
+        member_id, result = matcher.find(first_name, last_name, full_name)
+        if not member_id:
+            print(f'  {result.upper()}: {display_name}')
+            unmatched += result == 'unmatched'
+            ambiguous += result == 'ambiguous'
+            continue
 
-        if not dry_run and camp_id > 0:
-            cursor.execute(
-                f"""INSERT IGNORE INTO {WP_PREFIX}avm_camp_participation
-                    (member_id, camp_id, nights, nawacht, diet, notes)
-                    VALUES (%s,%s,%s,%s,%s,%s)""",
-                (member_id, camp_id, nights, nawacht or 0, diet or None, notes or None)
+        def value(index: int | None) -> str:
+            return row[index] if index is not None and index < len(row) else ''
+
+        fields = {}
+        if idx_nights is not None:
+            fields['nights'] = parse_int(value(idx_nights))
+        if idx_nawacht is not None:
+            fields['nawacht'] = parse_bool(value(idx_nawacht))
+        if idx_diet is not None:
+            fields['diet'] = value(idx_diet) or None
+        if idx_notes is not None:
+            fields['notes'] = value(idx_notes) or None
+        if not dry_run and activity_id is not None:
+            participation_id = save_participation(
+                cursor, member_id, activity_id, fields
             )
+            if day_columns:
+                replace_participation_days(cursor, participation_id, {
+                    day: value(index) for index, day in day_columns.items()
+                })
         imported += 1
 
-    print(f'  imported={imported} skipped(unmatched)={skipped}')
-
-
-def _parse_int(val: str) -> int | None:
-    try:
-        return int(float(val))
-    except (ValueError, TypeError):
-        return None
+    print(f'  imported/updated={imported} unmatched={unmatched} ambiguous={ambiguous}')
+    return imported, unmatched, ambiguous
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('source', type=Path,
+                        help='Workbook or directory containing camp workbooks')
+    parser.add_argument('--latest', action='store_true',
+                        help='Import only the most recently modified workbook')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
 
-    if not OPRAVINGEN_ROOT.exists():
-        sys.exit(f'ERROR: {OPRAVINGEN_ROOT} does not exist')
-
-    password = read_db_password()
-    conn = get_connection(password)
-    unmatched = []
-
+    paths = workbook_paths(args.source, args.latest)
+    print(f'Found {len(paths)} workbook(s)')
+    connection = get_db(read_secret(SECRET_FILE))
+    totals = [0, 0, 0]
     try:
-        with conn.cursor() as cur:
-            xls_files = sorted(OPRAVINGEN_ROOT.rglob('*.xls')) + sorted(OPRAVINGEN_ROOT.rglob('*.xlsx'))
-            print(f'Found {len(xls_files)} XLS/XLSX files under {OPRAVINGEN_ROOT}')
-            for path in xls_files:
-                import_file(cur, path, args.dry_run, unmatched)
-
-        if not args.dry_run:
-            conn.commit()
-            print('\nCommitted.')
+        with connection.cursor() as cursor:
+            kamp_type_id = get_kamp_type_id(cursor)
+            matcher = MemberMatcher(cursor)
+            for path in paths:
+                result = import_file(cursor, matcher, path, kamp_type_id, args.dry_run)
+                totals = [left + right for left, right in zip(totals, result)]
+        if args.dry_run:
+            connection.rollback()
+            print('\nDry-run complete - no changes written.')
         else:
-            print('\nDry-run complete — no changes written.')
+            connection.commit()
+            print('\nCommitted.')
+    except Exception:
+        connection.rollback()
+        raise
     finally:
-        conn.close()
+        connection.close()
 
-    if unmatched:
-        print(f'\n=== {len(unmatched)} UNMATCHED PARTICIPANTS (manual review needed) ===')
-        for u in unmatched:
-            print(f'  {u["name"]}  ({Path(u["file"]).name})')
+    print(
+        f'Total: imported/updated={totals[0]} '
+        f'unmatched={totals[1]} ambiguous={totals[2]}'
+    )
+    if totals[1] or totals[2]:
+        sys.exit(2)
 
 
 if __name__ == '__main__':
