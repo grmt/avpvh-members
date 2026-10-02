@@ -46,9 +46,11 @@ class AVPVH_Bestuur_Page {
         usort($others, static fn($a, $b) => strcasecmp(avpvh_format_name($a, 'list'), avpvh_format_name($b, 'list')));
 
         $current_ids = array_map(static fn($m) => (int) $m->id, array_merge(array_column($officers, 'member'), $others));
+        // Geroyeerde oud-bestuurders keep the kenmerk (it's history) but
+        // aren't named on the public page.
         $former = array_values(array_filter(
             $this->oud_bestuurders(),
-            static fn($m) => !in_array((int) $m->id, $current_ids, true)
+            static fn($m) => !in_array((int) $m->id, $current_ids, true) && !AVPVH_DB::member_has_flag((int) $m->id, 'geroyeerd')
         ));
         usort($former, static fn($a, $b) => strcasecmp(avpvh_format_name($a, 'list'), avpvh_format_name($b, 'list')));
 

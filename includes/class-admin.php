@@ -20,6 +20,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
         add_action('admin_post_avpvh_appoint_officer',   [$this, 'handle_appoint_officer']);
         add_action('admin_post_avpvh_set_bestuur',       [$this, 'handle_set_bestuur']);
+        add_action('admin_post_avpvh_step_down',         [$this, 'handle_step_down']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
@@ -120,7 +121,7 @@ class AVPVH_Admin {
         // only WP capability every logged-in member has, so gating on the
         // real rule here (rather than in add_submenu_page's capability
         // argument) is what keeps this out of the menu for everyone else.
-        if ($this->can_manage_roles()) {
+        if (AVPVH_Roles::can_view_roles_page()) {
             add_submenu_page(
                 'avpvh-members', 'Rollen & delegatie', 'Rollen & delegatie', 'read',
                 'avpvh-roles', [$this, 'render_roles']
@@ -507,11 +508,17 @@ class AVPVH_Admin {
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $flag_ids  = array_map('intval', (array) wp_unslash($_POST['flag_ids'] ?? []));
+        $stripped = false;
         if ($member_id) {
             AVPVH_DB::set_member_flags($member_id, $flag_ids);
+            // Geroyeerd (or another kenmerk that makes a member inactive):
+            // they can't stay in the bestuur or hold an officer role.
+            if (AVPVH_DB::member_has_inactivating_flag($member_id)) {
+                $stripped = AVPVH_Roles::strip_bestuur_roles($member_id);
+            }
         }
 
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'flags_saved' => '1'], admin_url('admin.php')));
+        wp_safe_redirect(add_query_arg(array_filter(['page' => 'avpvh-member-detail', 'id' => $member_id, 'flags_saved' => '1', 'bestuur_stripped' => $stripped ? '1' : null]), admin_url('admin.php')));
         exit;
     }
 
@@ -1018,8 +1025,14 @@ class AVPVH_Admin {
         $role          = sanitize_key(wp_unslash($_POST['role'] ?? ''));
         $to_member_id  = absint(wp_unslash($_POST['new_holder_id'] ?? 0));
         $candidate_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_officer_candidates());
-        if (!in_array($role, AVPVH_Roles::OFFICER_ROLES, true) || !in_array($to_member_id, $candidate_ids, true) || empty($_POST['confirm_appoint'])) {
+        if (!in_array($role, AVPVH_Roles::OFFICER_ROLES, true) || !in_array($to_member_id, $candidate_ids, true)) {
             wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'appoint_error' => '1'], admin_url('admin.php')));
+            exit;
+        }
+        // Normally only bestuursleden become rolhouder; appointing anyone
+        // else needs the explicit "geen bestuurslid (uitzondering)" box.
+        if (empty($_POST['allow_non_bestuur']) && !in_array('bestuur', AVPVH_Roles::get_member_roles($to_member_id), true)) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'appoint_needs_exception' => '1'], admin_url('admin.php')));
             exit;
         }
 
@@ -1029,6 +1042,24 @@ class AVPVH_Admin {
         }
         wp_safe_redirect(add_query_arg(
             ['page' => 'avpvh-roles', is_wp_error($result) ? 'appoint_error' : 'appoint_ok' => $role],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+
+    public function handle_step_down(): void {
+        check_admin_referer('avpvh_step_down');
+        $role      = sanitize_key(wp_unslash($_POST['role'] ?? ''));
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        if (!AVPVH_Roles::can_step_down($role, $member_id)) {
+            wp_die('Geen toegang.', 403);
+        }
+        $result = AVPVH_Roles::step_down($role, $member_id);
+        if (is_wp_error($result)) {
+            error_log("AVPVH_Admin: stepping down as {$role} failed: " . $result->get_error_message());
+        }
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-roles', is_wp_error($result) ? 'step_down_error' : 'step_down_ok' => $role],
             admin_url('admin.php')
         ));
         exit;

@@ -107,6 +107,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-success is-dismissible"><p>Adres bijgewerkt.</p></div>
     <?php elseif (!empty($_GET['address_deleted'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Adres verwijderd.</p></div>
+    <?php elseif (!empty($_GET['flags_saved']) && !empty($_GET['bestuur_stripped'])) : ?>
+        <div class="notice notice-warning is-dismissible"><p>Kenmerken opgeslagen. Dit lid is daardoor uit het bestuur en alle bestuursrollen gehaald en lopende delegaties zijn beëindigd. Vergeet de KVK niet als diegene daar als bestuurder staat.</p></div>
     <?php elseif (!empty($_GET['flags_saved'])) : ?>
         <div class="notice notice-success is-dismissible"><p>Kenmerken opgeslagen.</p></div>
     <?php elseif (!empty($_GET['email_updated'])) : ?>

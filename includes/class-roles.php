@@ -88,6 +88,28 @@ class AVPVH_Roles {
         return self::is_admin_or_has_any_role(self::ROLE_ADMIN_ROLES);
     }
 
+    // Rollen & delegatie is visible to every real rolhouder too, so a
+    // secretaris or penningmeester can step down there themselves; what
+    // each viewer may change is gated per section/handler.
+    public static function can_view_roles_page(): bool {
+        if (self::can_manage_roles()) {
+            return true;
+        }
+        $member = is_user_logged_in() ? avpvh_get_member_by_wp_user(get_current_user_id()) : null;
+        return $member && array_intersect(self::OFFICER_ROLES, self::get_member_roles((int) $member->id));
+    }
+
+    // A rolhouder may lay down their own (real, LLDAP) role; the voorzitter
+    // or a WP admin may do it for any rolhouder.
+    public static function can_step_down(string $role, int $holder_id): bool {
+        if (self::can_appoint_officers()) {
+            return true;
+        }
+        $member = is_user_logged_in() ? avpvh_get_member_by_wp_user(get_current_user_id()) : null;
+        return $member && (int) $member->id === $holder_id
+            && in_array($role, self::get_member_roles($holder_id), true);
+    }
+
     // Real WP admins always qualify; otherwise any one of the given club
     // roles, via LLDAP group membership or an active delegation.
     private static function is_admin_or_has_any_role(array $roles): bool {
@@ -276,6 +298,86 @@ class AVPVH_Roles {
             }
         }
         return new \WP_Error('avpvh_no_group', "LLDAP-groep \"{$name}\" niet gevonden.");
+    }
+
+    /**
+     * Lay down $role (voorzitter, secretaris or penningmeester): $member_id
+     * leaves that LLDAP group but stays an ordinary bestuurslid (added to
+     * "bestuur" first, so they're never briefly outside the bestuur). The
+     * role stays vacant until someone is appointed.
+     */
+    public static function step_down(string $role, int $member_id): true|\WP_Error {
+        $role = strtolower($role);
+        $member = AVPVH_DB::get_member($member_id);
+        if (!in_array($role, self::OFFICER_ROLES, true) || !$member || empty($member->lldap_user_id)) {
+            return new \WP_Error('avpvh_bad_input', 'Onbekende rol of lid.');
+        }
+        if (!in_array($role, self::get_member_roles($member_id), true)) {
+            return new \WP_Error('avpvh_not_holder', 'Dit lid heeft deze rol niet.');
+        }
+        $role_group    = self::lldap_group_id($role);
+        $bestuur_group = self::lldap_group_id('bestuur');
+        if (is_wp_error($role_group)) {
+            return $role_group;
+        }
+        if (is_wp_error($bestuur_group)) {
+            return $bestuur_group;
+        }
+        $added = AVPVH_LLDAP::add_to_group($member->lldap_user_id, $bestuur_group);
+        if (is_wp_error($added)) {
+            return $added;
+        }
+        $removed = AVPVH_LLDAP::remove_from_group($member->lldap_user_id, $role_group);
+        delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
+        delete_transient('avpvh_all_group_memberships');
+        return is_wp_error($removed) ? $removed : true;
+    }
+
+    /**
+     * Take $member_id out of the bestuur entirely — the "bestuur" group and
+     * every officer group they're in — and end delegations to them. Used
+     * when a member is geroyeerd (or gets any other kenmerk that makes them
+     * inactive): a bestuurder can lose their place that way too.
+     * Returns whether anything was removed.
+     */
+    public static function strip_bestuur_roles(int $member_id): bool {
+        global $wpdb;
+        $member = AVPVH_DB::get_member($member_id);
+        if (!$member || empty($member->lldap_user_id)) {
+            return false;
+        }
+        $groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
+        if (is_wp_error($groups)) {
+            error_log("AVPVH_Roles: could not read LLDAP groups of member {$member_id}: " . $groups->get_error_message());
+            return false;
+        }
+
+        $changed = false;
+        foreach ($groups as $group) {
+            if (!in_array(strtolower((string) $group['displayName']), self::ALL_ROLES, true)) {
+                continue;
+            }
+            $removed = AVPVH_LLDAP::remove_from_group($member->lldap_user_id, (int) $group['id']);
+            if (is_wp_error($removed)) {
+                error_log("AVPVH_Roles: could not remove member {$member_id} from {$group['displayName']}: " . $removed->get_error_message());
+                continue;
+            }
+            $changed = true;
+        }
+
+        $now = current_time('mysql');
+        $ended = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}avm_role_delegations SET ends_at = %s
+             WHERE delegated_to_member_id = %d AND (ends_at IS NULL OR ends_at > %s)",
+            $now, $member_id, $now
+        ));
+
+        delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
+        delete_transient('avpvh_all_group_memberships');
+        if ($changed) {
+            self::mark_oud_bestuurder_if_left($member_id);
+        }
+        return $changed || $ended > 0;
     }
 
     /**

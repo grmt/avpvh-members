@@ -1,9 +1,10 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
-if (!AVPVH_Roles::can_manage_roles()) {
+if (!AVPVH_Roles::can_view_roles_page()) {
     wp_die('Geen toegang.');
 }
+$can_manage_delegations = AVPVH_Roles::can_manage_roles();
 
 $delegations = AVPVH_Roles::get_active_delegations();
 $bestuur_members = AVPVH_Roles::get_role_holders('bestuur');
@@ -37,11 +38,18 @@ $role_label = [
         <div class="notice notice-success"><p>Bestuurslid verwijderd.</p></div>
     <?php elseif (isset($_GET['bestuur_error'])) : ?>
         <div class="notice notice-error"><p>Bestuur wijzigen is niet gelukt. Alleen actieve leden met een eigen login kunnen bestuurslid worden.</p></div>
+    <?php elseif (isset($_GET['appoint_needs_exception'])) : ?>
+        <div class="notice notice-error"><p>Dit lid is geen bestuurslid. Wil je toch iemand buiten het bestuur aanwijzen, vink dan "Lid is geen bestuurslid (uitzondering)" aan.</p></div>
+    <?php elseif (isset($_GET['step_down_ok'])) :
+        $stepped_role = sanitize_key(wp_unslash($_GET['step_down_ok'])); ?>
+        <div class="notice notice-warning"><p>Rol <?php echo esc_html(strtolower($role_label[$stepped_role] ?? '')); ?> neergelegd; diegene blijft bestuurslid. De rol is nu niet ingevuld tot er iemand wordt aangewezen.</p></div>
+    <?php elseif (isset($_GET['step_down_error'])) : ?>
+        <div class="notice notice-error"><p>Aftreden is niet gelukt; neem contact op met de beheerder.</p></div>
     <?php elseif (isset($_GET['appoint_error'])) : ?>
         <div class="notice notice-error"><p>Aanwijzen is niet gelukt. Kies een rol en een lid en vink de bevestiging aan; lukt het dan nog niet, neem contact op met de beheerder.</p></div>
     <?php endif; ?>
 
-    <?php if (isset($_GET['appoint_ok']) || isset($_GET['bestuur_added']) || isset($_GET['bestuur_removed'])) : ?>
+    <?php if (isset($_GET['appoint_ok']) || isset($_GET['bestuur_added']) || isset($_GET['bestuur_removed']) || isset($_GET['step_down_ok'])) : ?>
         <div class="notice notice-warning">
             <p>
                 <strong>Vergeet de KVK niet:</strong> een bestuurswissel moet binnen een week worden doorgegeven aan de KVK
@@ -56,28 +64,49 @@ $role_label = [
     <h2>Huidige rolhouders (LLDAP)</h2>
     <p class="description">
         Rollen worden beheerd in LLDAP-groepen. Voorzitter, secretaris en penningmeester tellen automatisch ook als bestuur.
+        Een rolhouder kan aftreden: diegene blijft dan gewoon bestuurslid en de rol is tijdelijk niet ingevuld.
+        Treedt de voorzitter af, dan kan alleen de beheerder een nieuwe voorzitter aanwijzen.
         Een nieuwe voorzitter, secretaris of penningmeester wijs je hieronder aan bij "Rolhouder aanwijzen"; bestuursleden toevoegen of verwijderen doe je bij "Bestuursleden".
     </p>
     <table class="wp-list-table widefat striped" style="max-width:600px">
         <thead><tr><th>Rol</th><th>Leden</th></tr></thead>
         <tbody>
-        <?php foreach (['voorzitter', 'secretaris', 'penningmeester', 'bestuur'] as $role) :
+        <?php foreach (['voorzitter', 'secretaris', 'penningmeester'] as $role) :
             $holders = AVPVH_Roles::get_role_holders($role); ?>
             <tr>
                 <td><?php echo esc_html($role_label[$role]); ?></td>
-                <td><?php echo $holders
-                    ? esc_html(implode(', ', array_map(fn($m) => avpvh_format_name($m, 'list'), $holders)))
-                    : '—'; ?></td>
+                <td>
+                    <?php if (!$holders) : ?>
+                        <em>niet ingevuld</em>
+                    <?php endif; ?>
+                    <?php foreach ($holders as $holder) : ?>
+                        <?php echo esc_html(avpvh_format_name($holder, 'list')); ?>
+                        <?php if (AVPVH_Roles::can_step_down($role, (int) $holder->id)) : ?>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin-left:.5rem">
+                                <?php wp_nonce_field('avpvh_step_down'); ?>
+                                <input type="hidden" name="action" value="avpvh_step_down">
+                                <input type="hidden" name="role" value="<?php echo esc_attr($role); ?>">
+                                <input type="hidden" name="member_id" value="<?php echo esc_attr($holder->id); ?>">
+                                <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js($role === 'voorzitter' ? 'Voorzitterschap neerleggen? Diegene blijft bestuurslid. Daarna kan alleen de beheerder een nieuwe voorzitter aanwijzen.' : 'Rol neerleggen? Diegene blijft bestuurslid; de rol is daarna niet ingevuld.'); ?>');">Aftreden</button>
+                            </form>
+                        <?php endif; ?>
+                        <br>
+                    <?php endforeach; ?>
+                </td>
             </tr>
         <?php endforeach; ?>
+        <tr>
+            <td><?php echo esc_html($role_label['bestuur']); ?></td>
+            <td><?php echo esc_html(implode(', ', array_map(fn($m) => avpvh_format_name($m, 'list'), $bestuur_members)) ?: '—'); ?></td>
+        </tr>
         </tbody>
     </table>
 
     <?php if (AVPVH_Roles::can_appoint_officers()) : ?>
         <h2>Rolhouder aanwijzen</h2>
         <p class="description">
-            Wijs een nieuwe voorzitter, secretaris of penningmeester aan. Diegene krijgt de rol, de huidige rolhouder raakt hem kwijt
-            en actieve delegaties van die rol worden beëindigd. Dit is blijvend, geen tijdelijke delegatie.
+            Wijs een nieuwe voorzitter, secretaris of penningmeester aan, ook voor een rol die niet ingevuld is. Diegene krijgt de rol,
+            een eventuele huidige rolhouder raakt hem kwijt en actieve delegaties van die rol worden beëindigd. Dit is blijvend, geen tijdelijke delegatie.
         </p>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <?php wp_nonce_field('avpvh_appoint_officer'); ?>
@@ -98,15 +127,30 @@ $role_label = [
                     <td>
                         <select name="new_holder_id" id="new_holder_id" required style="min-width:300px">
                             <option value="">— Kies lid —</option>
-                            <?php foreach (AVPVH_Roles::get_officer_candidates() as $m) : ?>
-                                <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m, 'list')); ?></option>
-                            <?php endforeach; ?>
+                            <optgroup label="Bestuursleden">
+                                <?php foreach ($bestuur_members as $m) : ?>
+                                    <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m, 'list')); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <optgroup label="Overige leden (alleen met uitzondering hieronder)">
+                                <?php
+                                $appoint_bestuur_ids = array_map(static fn($m) => (int) $m->id, $bestuur_members);
+                                foreach (AVPVH_Roles::get_officer_candidates() as $m) :
+                                    if (in_array((int) $m->id, $appoint_bestuur_ids, true)) {
+                                        continue;
+                                    } ?>
+                                    <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m, 'list')); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
                         </select>
                     </td>
                 </tr>
                 <tr>
-                    <th>Bevestigen</th>
-                    <td><label><input type="checkbox" name="confirm_appoint" value="1" required> Ik wijs dit lid aan als nieuwe rolhouder</label></td>
+                    <th>Uitzondering</th>
+                    <td>
+                        <label><input type="checkbox" name="allow_non_bestuur" value="1"> Lid is geen bestuurslid (uitzondering)</label>
+                        <p class="description">Normaal wordt alleen een bestuurslid voorzitter, secretaris of penningmeester. Vink dit aan om toch een ander lid aan te wijzen; diegene wordt daarmee bestuurslid via de rol.</p>
+                    </td>
                 </tr>
             </table>
             <?php submit_button('Rolhouder aanwijzen', 'secondary'); ?>
@@ -167,6 +211,7 @@ $role_label = [
         </form>
     <?php endif; ?>
 
+    <?php if ($can_manage_delegations) : ?>
     <h2>Actieve delegaties</h2>
     <table class="wp-list-table widefat striped">
         <thead>
@@ -275,4 +320,5 @@ $role_label = [
         </table>
         <?php submit_button('Delegeren'); ?>
     </form>
+    <?php endif; ?>
 </div>
