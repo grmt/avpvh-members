@@ -113,7 +113,7 @@ $role_label = [
         </form>
 
         <h2>Bestuursleden</h2>
-        <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn automatisch bestuurslid via hun rol. Wie uit het bestuur gaat (verwijderd, of als rolhouder vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder.</p>
+        <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn automatisch bestuurslid via hun rol; die vervang je via "Rolhouder aanwijzen". Wie uit het bestuur gaat (verwijderd, of als rolhouder vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder.</p>
         <?php
         $bestuur_direct_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_role_holders('bestuur', false));
         ?>
@@ -127,7 +127,10 @@ $role_label = [
                 <tr>
                     <td><?php echo esc_html(avpvh_format_name($m, 'list')); ?></td>
                     <td>
-                        <?php if (in_array((int) $m->id, $bestuur_direct_ids, true)) : ?>
+                        <?php // Rolhouders stay bestuur through their role, so removing them
+                        // from the group would change nothing visible — they're replaced
+                        // via "Rolhouder aanwijzen" instead.
+                        if (!$officer_roles && in_array((int) $m->id, $bestuur_direct_ids, true)) : ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
                                 <?php wp_nonce_field('avpvh_set_bestuur'); ?>
                                 <input type="hidden" name="action" value="avpvh_set_bestuur">
