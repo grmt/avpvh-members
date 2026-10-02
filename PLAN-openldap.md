@@ -36,9 +36,9 @@ Status: plan, nog niet uitgevoerd (2026-10-02).
   - groepen gelijk, behalve **1 bestuurswijziging** (alleen in LLDAP verwerkt)
     en de leden-groep van dat nieuwe lid.
 - Slechts 4 accounts in OpenLDAP hebben een wachtwoord: LLDAP-hashes waren
-  niet over te zetten. Voor OAuth-gebruikers (Google/Microsoft) maakt dat niet
-  uit; wie via Authelia met wachtwoord inlogt (wp-admin) moet eenmalig
-  "wachtwoord vergeten" gebruiken.
+  niet over te zetten. Geen probleem: de overige leden hebben nooit met een
+  wachtwoord ingelogd (leden loggen in via Google/Microsoft). Wie later toch
+  een wachtwoord nodig heeft gebruikt "wachtwoord vergeten" in Authelia.
 - `leden-admin.avphilipsvanhorne.nl` is de LLDAP-webinterface. Na de migratie
   is er geen LDAP-beheerinterface meer; beheer gaat via de plugin.
 
