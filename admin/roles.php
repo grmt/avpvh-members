@@ -36,7 +36,7 @@ $role_label = [
         <div class="notice notice-success"><p>Delegatie ingetrokken.</p></div>
     <?php elseif (isset($_GET['appoint_ok'])) :
         $appointed_role = sanitize_key(wp_unslash($_GET['appoint_ok'])); ?>
-        <div class="notice notice-success"><p>Nieuwe <?php echo esc_html(strtolower($role_label[$appointed_role] ?? 'rolhouder')); ?> aangewezen.</p></div>
+        <div class="notice notice-success"><p>Nieuwe <?php echo esc_html(strtolower($role_label[$appointed_role] ?? 'functionaris')); ?> aangewezen.</p></div>
     <?php elseif (isset($_GET['bestuur_added'])) : ?>
         <div class="notice notice-success"><p>Bestuurslid toegevoegd.</p></div>
     <?php elseif (isset($_GET['bestuur_removed'])) : ?>
@@ -47,7 +47,7 @@ $role_label = [
         <div class="notice notice-error"><p>Dit lid is geen bestuurslid. Wil je toch iemand buiten het bestuur aanwijzen, vink dan "Lid is geen bestuurslid (uitzondering)" aan.</p></div>
     <?php elseif (isset($_GET['step_down_ok'])) :
         $stepped_role = sanitize_key(wp_unslash($_GET['step_down_ok'])); ?>
-        <div class="notice notice-warning"><p>Rol <?php echo esc_html(strtolower($role_label[$stepped_role] ?? '')); ?> neergelegd; diegene blijft bestuurslid. De rol is nu niet ingevuld tot er iemand wordt aangewezen.</p></div>
+        <div class="notice notice-warning"><p>Functie <?php echo esc_html(strtolower($role_label[$stepped_role] ?? '')); ?> neergelegd; diegene blijft bestuurslid. De functie is nu niet ingevuld tot er iemand wordt aangewezen.</p></div>
     <?php elseif (isset($_GET['step_down_error'])) : ?>
         <div class="notice notice-error"><p>Aftreden is niet gelukt; neem contact op met de beheerder.</p></div>
     <?php elseif (isset($_GET['appoint_error'])) : ?>
@@ -67,12 +67,11 @@ $role_label = [
     <?php endif; ?>
 
     <details class="avpvh-roles-section" open>
-        <summary><h2>Huidige rolhouders (LLDAP)</h2></summary>
+        <summary><h2>Dagelijks bestuur</h2></summary>
     <p class="description">
-        Rollen worden beheerd in LLDAP-groepen. Voorzitter, secretaris en penningmeester tellen automatisch ook als bestuur.
-        Een rolhouder kan aftreden: diegene blijft dan gewoon bestuurslid en de rol is tijdelijk niet ingevuld.
+        Voorzitter, secretaris en penningmeester vormen het dagelijks bestuur. Wie aftreedt blijft gewoon bestuurslid; de functie is dan tijdelijk niet ingevuld.
         Treedt de voorzitter af, dan kan alleen de beheerder een nieuwe voorzitter aanwijzen.
-        Een nieuwe voorzitter, secretaris of penningmeester wijs je hieronder aan bij "Rolhouder aanwijzen"; bestuursleden toevoegen of verwijderen doe je bij "Bestuursleden".
+        Een nieuwe voorzitter, secretaris of penningmeester wijs je hieronder aan bij "Dagelijks bestuur aanwijzen"; bestuursleden toevoegen of verwijderen doe je bij "Bestuursleden".
     </p>
     <table class="wp-list-table widefat striped" style="max-width:600px">
         <thead><tr><th>Rol</th><th>Leden</th></tr></thead>
@@ -93,7 +92,7 @@ $role_label = [
                                 <input type="hidden" name="action" value="avpvh_step_down">
                                 <input type="hidden" name="role" value="<?php echo esc_attr($role); ?>">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($holder->id); ?>">
-                                <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js($role === 'voorzitter' ? 'Voorzitterschap neerleggen? Diegene blijft bestuurslid. Daarna kan alleen de beheerder een nieuwe voorzitter aanwijzen.' : 'Rol neerleggen? Diegene blijft bestuurslid; de rol is daarna niet ingevuld.'); ?>');">Aftreden</button>
+                                <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js($role === 'voorzitter' ? 'Voorzitterschap neerleggen? Diegene blijft bestuurslid. Daarna kan alleen de beheerder een nieuwe voorzitter aanwijzen.' : 'Functie neerleggen? Diegene blijft bestuurslid; de functie is daarna niet ingevuld.'); ?>');">Aftreden</button>
                             </form>
                         <?php endif; ?>
                         <br>
@@ -102,7 +101,7 @@ $role_label = [
             </tr>
         <?php endforeach; ?>
         <tr>
-            <td><?php echo esc_html($role_label['bestuur']); ?></td>
+            <td>Alle bestuursleden</td>
             <td><?php echo esc_html(implode(', ', array_map(fn($m) => avpvh_format_name($m, 'list'), $bestuur_members)) ?: '—'); ?></td>
         </tr>
         </tbody>
@@ -111,10 +110,10 @@ $role_label = [
 
     <?php if (AVPVH_Roles::can_appoint_officers()) : ?>
         <details class="avpvh-roles-section">
-            <summary><h2>Rolhouder aanwijzen</h2></summary>
+            <summary><h2>Dagelijks bestuur aanwijzen</h2></summary>
         <p class="description">
             Wijs een nieuwe voorzitter, secretaris of penningmeester aan, ook voor een rol die niet ingevuld is. Diegene krijgt de rol,
-            een eventuele huidige rolhouder raakt hem kwijt en actieve delegaties van die rol worden beëindigd. Dit is blijvend, geen tijdelijke delegatie.
+            wie de functie nu heeft raakt die kwijt en actieve delegaties van die functie worden beëindigd. Dit is blijvend, geen tijdelijke delegatie.
         </p>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <?php wp_nonce_field('avpvh_appoint_officer'); ?>
@@ -131,7 +130,7 @@ $role_label = [
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="new_holder_id">Nieuwe rolhouder</label></th>
+                    <th><label for="new_holder_id">Lid</label></th>
                     <td>
                         <select name="new_holder_id" id="new_holder_id" required style="min-width:300px">
                             <option value="">— Kies lid —</option>
@@ -161,13 +160,13 @@ $role_label = [
                     </td>
                 </tr>
             </table>
-            <?php submit_button('Rolhouder aanwijzen', 'secondary'); ?>
+            <?php submit_button('Aanwijzen', 'secondary'); ?>
         </form>
         </details>
 
         <details class="avpvh-roles-section">
             <summary><h2>Bestuursleden</h2></summary>
-        <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn automatisch bestuurslid via hun rol; die vervang je via "Rolhouder aanwijzen". Wie uit het bestuur gaat (verwijderd, of als rolhouder vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder.</p>
+        <p class="description">Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn als dagelijks bestuur automatisch bestuurslid; die vervang je via "Dagelijks bestuur aanwijzen". Wie uit het bestuur gaat (verwijderd, of als voorzitter, secretaris of penningmeester vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder.</p>
         <?php
         $bestuur_direct_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_role_holders('bestuur', false));
         ?>
@@ -194,7 +193,7 @@ $role_label = [
                             </form>
                         <?php endif; ?>
                         <?php if ($officer_roles) : ?>
-                            <span class="description">via rol <?php echo esc_html(implode(', ', array_map(static fn($r) => strtolower($role_label[$r]), $officer_roles))); ?></span>
+                            <span class="description"><?php echo esc_html(implode(', ', array_map(static fn($r) => $role_label[$r], $officer_roles))); ?> (dagelijks bestuur)</span>
                         <?php endif; ?>
                     </td>
                 </tr>
