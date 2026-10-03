@@ -81,15 +81,9 @@ class AVPVH_Bestuur_Page {
 
     // Same 15-minute transient AVPVH_Ledenlijst uses (and that AVPVH_Admin /
     // AVPVH_Roles clear on every group change made through the plugin), so a
-    // public page view doesn't cost an LLDAP round-trip each time.
+    // public page view doesn't cost a directory round-trip each time.
     private function group_memberships(): array {
-        $map = get_transient('avpvh_all_group_memberships');
-        if ($map === false) {
-            $result = AVPVH_LLDAP::get_all_group_memberships();
-            $map = is_wp_error($result) ? [] : $result;
-            set_transient('avpvh_all_group_memberships', $map, is_wp_error($result) ? MINUTE_IN_SECONDS : 15 * MINUTE_IN_SECONDS);
-        }
-        return is_array($map) ? $map : [];
+        return AVPVH_Directory::cached_all_group_memberships();
     }
 
     private function oud_bestuurders(): array {

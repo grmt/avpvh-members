@@ -134,7 +134,7 @@ class AVPVH_Member_Merge {
         $accounts = [];
         foreach (['keep' => $keep, 'remove' => $remove] as $side => $member) {
             $full = AVPVH_DB::get_member((int) $member->id);
-            $groups = AVPVH_LLDAP::get_user_groups((string) $member->lldap_user_id);
+            $groups = AVPVH_Directory::get_user_groups((string) $member->lldap_user_id);
             if (is_wp_error($groups)) {
                 $warnings[] = 'De groepen van ' . avpvh_format_name($member) . ' konden niet worden opgehaald.';
                 $groups = [];
@@ -143,7 +143,7 @@ class AVPVH_Member_Merge {
                 'uid'    => (string) $member->lldap_user_id,
                 'exists' => $full !== null,
                 'email'  => $full ? (string) $full->email : '',
-                'groups' => array_values(array_map(fn($g) => (string) $g['displayName'], $groups)),
+                'groups' => AVPVH_Directory::only_pvh_groups($groups),
             ];
         }
         $missing_groups = array_values(array_diff($accounts['remove']['groups'], $accounts['keep']['groups']));
@@ -358,13 +358,12 @@ class AVPVH_Member_Merge {
         }
 
         if ($remove_account['exists']) {
-            $result = AVPVH_LLDAP::delete_user($remove_account['uid']);
+            $result = AVPVH_Directory::delete_user($remove_account['uid']);
             if (is_wp_error($result)) {
                 $warnings[] = 'De leden zijn samengevoegd, maar het account "' . $remove_account['uid'] . '" kon niet worden verwijderd: '
                     . $result->get_error_message();
             }
-            delete_transient('avpvh_lldap_groups_' . $remove_account['uid']);
-            delete_transient('avpvh_all_group_memberships');
+            AVPVH_Directory::forget_groups($remove_account['uid']);
         }
 
         return $warnings;

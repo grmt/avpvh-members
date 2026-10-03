@@ -78,21 +78,7 @@ class AVPVH_Nav_Auth {
             return false;
         }
 
-        $cache_key = 'avpvh_lldap_groups_' . $member->user_id;
-        $groups = get_transient($cache_key);
-
-        if ($groups === false) {
-            $result = AVPVH_LLDAP::get_user_groups($member->user_id);
-            $groups = is_wp_error($result) ? [] : $result;
-            set_transient($cache_key, $groups, is_wp_error($result) ? MINUTE_IN_SECONDS : 15 * MINUTE_IN_SECONDS);
-        }
-
-        foreach ($groups as $group) {
-            if (strtolower($group['displayName'] ?? '') === 'boek') {
-                return true;
-            }
-        }
-        return false;
+        return in_array('boek', AVPVH_Directory::cached_user_groups($member->user_id), true);
     }
 
     public function render_logout_route(): void {

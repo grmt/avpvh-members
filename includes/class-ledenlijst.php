@@ -239,12 +239,7 @@ class AVPVH_Ledenlijst {
         $is_bestuur = $is_admin || strtolower((string) get_user_meta(get_current_user_id(), 'avpvh_member_role', true)) === 'bestuur';
         $leden = AVPVH_DB::get_members_with_address((int) $own_member->id, $is_bestuur);
 
-        $group_map = get_transient('avpvh_all_group_memberships');
-        if ($group_map === false) {
-            $result = AVPVH_LLDAP::get_all_group_memberships();
-            $group_map = is_wp_error($result) ? [] : $result;
-            set_transient('avpvh_all_group_memberships', $group_map, is_wp_error($result) ? MINUTE_IN_SECONDS : 15 * MINUTE_IN_SECONDS);
-        }
+        $group_map = AVPVH_Directory::cached_all_group_memberships();
 
         return ['own_member' => $own_member, 'is_admin' => $is_admin, 'leden' => $leden, 'group_map' => $group_map];
     }

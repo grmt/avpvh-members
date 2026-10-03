@@ -85,7 +85,7 @@ class AVPVH_Admin {
             'avpvh-member-detail', [$this, 'render_member_detail']
         );
         add_submenu_page(
-            'avpvh-members', 'Nieuw lid', 'Nieuw lid', $members_cap,
+            'avpvh-members', 'Nieuwe persoon', 'Nieuwe persoon', $members_cap,
             'avpvh-add-member', [$this, 'render_add_member']
         );
         // manage_options only, not secretaris — a merge deletes an account
@@ -185,6 +185,16 @@ class AVPVH_Admin {
             $password = sanitize_text_field(wp_unslash($_POST['lldap_password'] ?? ''));
             $test_result = AVPVH_LLDAP::test_connection_with($url, $user, $password);
         }
+        $directory_test = null;
+        $directory_sync = null;
+        if (isset($_POST['test_directory'])) {
+            check_admin_referer('avpvh_directory_tools');
+            $directory_test = AVPVH_Directory::test_connection();
+        }
+        if (isset($_POST['sync_directory'])) {
+            check_admin_referer('avpvh_directory_tools');
+            $directory_sync = AVPVH_Directory_Cache::full_sync();
+        }
         ?>
         <div class="wrap">
             <h1>AVP-PvH Instellingen</h1>
@@ -192,6 +202,18 @@ class AVPVH_Admin {
                 <div class="notice notice-success"><p>LLDAP verbinding OK.</p></div>
             <?php elseif (is_wp_error($test_result)) : ?>
                 <div class="notice notice-error"><p>LLDAP fout: <?php echo esc_html($test_result->get_error_message()); ?></p></div>
+            <?php endif; ?>
+            <?php if ($directory_test === true) : ?>
+                <div class="notice notice-success"><p>Directory-verbinding OK.</p></div>
+            <?php elseif (is_wp_error($directory_test)) : ?>
+                <div class="notice notice-error"><p>Directory-fout: <?php echo esc_html($directory_test->get_error_message()); ?></p></div>
+            <?php endif; ?>
+            <?php if (is_array($directory_sync)) : ?>
+                <div class="notice notice-<?php echo $directory_sync['ok'] ? 'success' : 'error'; ?>"><p>
+                    <?php echo $directory_sync['ok']
+                        ? esc_html(sprintf('Gesynchroniseerd: %d accounts, %d verwijderd.', $directory_sync['upserted'], $directory_sync['deleted']))
+                        : esc_html('Synchroniseren mislukt: ' . $directory_sync['error']); ?>
+                </p></div>
             <?php endif; ?>
             <?php if ($oauth_test === 'ok') : ?>
                 <div class="notice notice-success"><p><?php echo esc_html(ucfirst($oauth_test_provider)); ?> credentials OK — client ID en secret zijn geldig.</p></div>
@@ -306,6 +328,26 @@ class AVPVH_Admin {
                     </tr>
                 </table>
                 <?php submit_button('Kenmerk aanmaken', 'secondary'); ?>
+            </form>
+
+            <hr>
+            <h2>Directory (accounts en groepen)</h2>
+            <?php global $wpdb; ?>
+            <table class="form-table">
+                <tr><th>Backend</th><td><code><?php echo esc_html(AVPVH_Directory::backend_name()); ?></code> <span class="description">(instelbaar met de constante AVPVH_DIRECTORY_BACKEND in wp-config.php)</span></td></tr>
+                <?php if (AVPVH_Directory::is_openldap()) : ?>
+                    <tr><th>Cache</th><td>
+                        <?php echo (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . AVPVH_Directory_Cache::table()); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- fixed table name ($wpdb->prefix + constant), no user input ?> accounts,
+                        laatst volledig gesynchroniseerd: <?php echo esc_html(get_option('avpvh_directory_synced_at') ?: 'nog nooit'); ?>
+                    </td></tr>
+                <?php endif; ?>
+            </table>
+            <form method="post">
+                <?php wp_nonce_field('avpvh_directory_tools'); ?>
+                <?php submit_button('Verbinding testen', 'secondary', 'test_directory', false); ?>
+                <?php if (AVPVH_Directory::is_openldap()) : ?>
+                    <?php submit_button('Nu synchroniseren', 'secondary', 'sync_directory', false); ?>
+                <?php endif; ?>
             </form>
 
             <hr>
@@ -500,9 +542,9 @@ class AVPVH_Admin {
         $member = AVPVH_DB::get_member($member_id);
         foreach (AVPVH_DB::get_member_identities($member_id) as $identity) {
             if ($member && (int) $identity->id === $identity_id) {
-                $result = AVPVH_LLDAP::update_user($member->lldap_user_id, ['email' => $identity->email]);
+                $result = AVPVH_Directory::update_user($member->lldap_user_id, ['mail' => $identity->email]);
                 if (is_wp_error($result)) {
-                    error_log("AVPVH_Admin: failed to sync primary identity ({$identity->email}) to LLDAP for member {$member_id}: " . $result->get_error_message());
+                    error_log("AVPVH_Admin: failed to sync primary identity ({$identity->email}) to the directory for member {$member_id}: " . $result->get_error_message());
                 }
                 break;
             }
@@ -528,6 +570,9 @@ class AVPVH_Admin {
             if (AVPVH_DB::member_has_inactivating_flag($member_id)) {
                 $stripped = AVPVH_Roles::strip_bestuur_roles($member_id);
             }
+            // A kenmerk like Overleden may just have made them inactive:
+            // keep leden / ex-leden in step with the status.
+            AVPVH_Roles::sync_status_group($member_id);
         }
 
         wp_safe_redirect(add_query_arg(array_filter(['page' => 'avpvh-member-detail', 'id' => $member_id, 'flags_saved' => '1', 'bestuur_stripped' => $stripped ? '1' : null]), admin_url('admin.php')));
@@ -658,7 +703,7 @@ class AVPVH_Admin {
             $email = $member->lldap_user_id . '@avpvh.local';
         }
 
-        $result = AVPVH_LLDAP::update_user($member->lldap_user_id, ['email' => $email]);
+        $result = AVPVH_Directory::update_user($member->lldap_user_id, ['mail' => $email]);
         if (is_wp_error($result)) {
             wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'email_error' => '1'], admin_url('admin.php')));
             exit;
@@ -685,8 +730,8 @@ class AVPVH_Admin {
             wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
         }
 
-        $all_groups     = AVPVH_LLDAP::list_groups();
-        $current_groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
+        $all_groups     = AVPVH_Directory::list_groups();
+        $current_groups = AVPVH_Directory::get_user_groups($member->lldap_user_id);
         if (is_wp_error($all_groups) || is_wp_error($current_groups)) {
             wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'groups_error' => '1'], admin_url('admin.php')));
             exit;
@@ -695,31 +740,29 @@ class AVPVH_Admin {
         // Only PvH groups are on the form, so only those may change: a
         // member's groups of other tenants (or lldap_* system groups) must
         // survive a save untouched, and a forged POST can't add them.
-        $pvh_ids      = array_map('intval', array_column(AVPVH_LLDAP::only_pvh_groups($all_groups), 'id'));
-        $selected_ids = array_intersect(array_map('intval', (array) wp_unslash($_POST['groups'] ?? [])), $pvh_ids);
-        $current_ids  = array_map('intval', array_column(AVPVH_LLDAP::only_pvh_groups($current_groups), 'id'));
+        $pvh_groups = AVPVH_Directory::only_pvh_groups($all_groups);
+        $selected   = array_values(array_intersect(array_map('strtolower', array_map('sanitize_text_field', (array) wp_unslash($_POST['groups'] ?? []))), $pvh_groups));
+        $current    = AVPVH_Directory::only_pvh_groups($current_groups);
 
         $had_error = false;
-        foreach (array_diff($selected_ids, $current_ids) as $group_id) {
-            $result = AVPVH_LLDAP::add_to_group($member->lldap_user_id, $group_id);
+        foreach (array_diff($selected, $current) as $group) {
+            $result = AVPVH_Directory::add_to_group($member->lldap_user_id, $group);
             if (is_wp_error($result)) {
                 $had_error = true;
-                error_log("AVPVH_Admin: failed to add member {$member_id} to LLDAP group {$group_id}: " . $result->get_error_message());
+                error_log("AVPVH_Admin: failed to add member {$member_id} to group {$group}: " . $result->get_error_message());
             }
         }
-        foreach (array_diff($current_ids, $selected_ids) as $group_id) {
-            $result = AVPVH_LLDAP::remove_from_group($member->lldap_user_id, $group_id);
+        foreach (array_diff($current, $selected) as $group) {
+            $result = AVPVH_Directory::remove_from_group($member->lldap_user_id, $group);
             if (is_wp_error($result)) {
                 $had_error = true;
-                error_log("AVPVH_Admin: failed to remove member {$member_id} from LLDAP group {$group_id}: " . $result->get_error_message());
+                error_log("AVPVH_Admin: failed to remove member {$member_id} from group {$group}: " . $result->get_error_message());
             }
         }
 
-        // Same caches scripts/manage-lldap-group.sh's clear-cache clears —
-        // otherwise role checks, the ledenlijst, and the member's own
+        // Otherwise role checks, the ledenlijst, and the member's own
         // "Groepen:" display wouldn't reflect this for up to 15 minutes.
-        delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
-        delete_transient('avpvh_all_group_memberships');
+        AVPVH_Directory::forget_groups($member->lldap_user_id);
 
         $notice_key = $had_error ? 'groups_error' : 'groups_saved';
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', $notice_key => '1'], admin_url('admin.php')));
@@ -802,9 +845,27 @@ class AVPVH_Admin {
         $last_name  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
         $birth_raw  = trim(sanitize_text_field(wp_unslash($_POST['birth_date'] ?? '')));
         [$birth_date, $birth_year] = AVPVH_Member_Profile_Form::parse_birth_date($birth_raw);
-        $status     = sanitize_key(wp_unslash($_POST['status'] ?? 'inactive'));
-        $status     = in_array($status, ['active', 'inactive', 'visitor'], true) ? $status : 'inactive';
+        $status     = sanitize_key(wp_unslash($_POST['status'] ?? ''));
         $confirmed  = !empty($_POST['confirmed']);
+
+        // Kenmerken: only ids that exist in the catalog. One that makes a
+        // member inactive (Overleden, Geroyeerd) makes them an ex-lid.
+        $all_flags = AVPVH_DB::get_all_flags();
+        $flag_ids  = array_values(array_intersect(
+            array_map('intval', (array) wp_unslash($_POST['flag_ids'] ?? [])),
+            array_map(static fn($f) => (int) $f->id, $all_flags)
+        ));
+        foreach ($all_flags as $flag) {
+            if (!empty($flag->sets_inactive) && in_array((int) $flag->id, $flag_ids, true)) {
+                $status = 'inactive';
+            }
+        }
+        if (!isset(AVPVH_Roles::STATUS_GROUPS[$status])) {
+            wp_safe_redirect(add_query_arg([
+                'page' => 'avpvh-add-member', 'add_member_error' => 'soort',
+            ], admin_url('admin.php')));
+            exit;
+        }
 
         if ($first_name === '' || $last_name === '') {
             wp_safe_redirect(add_query_arg([
@@ -825,7 +886,7 @@ class AVPVH_Admin {
             if ($matches) {
                 set_transient('avpvh_add_member_pending_' . get_current_user_id(), [
                     'first_name' => $first_name, 'suffix' => $suffix, 'last_name' => $last_name,
-                    'birth_date' => $birth_raw, 'status' => $status,
+                    'birth_date' => $birth_raw, 'status' => $status, 'flag_ids' => $flag_ids,
                     'matches'    => wp_list_pluck($matches, 'matched_via', 'id'),
                 ], 10 * MINUTE_IN_SECONDS);
                 wp_safe_redirect(add_query_arg(['page' => 'avpvh-add-member', 'add_member_duplicate' => '1'], admin_url('admin.php')));
@@ -839,14 +900,14 @@ class AVPVH_Admin {
         $base_uid = preg_replace('/[^a-z0-9._-]/', '.', strtolower("{$first_name}.{$last_name}"));
         $uid = $base_uid;
         $n = 1;
-        while (AVPVH_LLDAP::get_user_display_name($uid) !== null) {
+        while (AVPVH_Directory::user_exists($uid)) {
             $n++;
             $uid = "{$base_uid}{$n}";
         }
         $email = "{$uid}@avpvh.local";
         $display_name = trim(preg_replace('/\s+/', ' ', "{$first_name} {$suffix} {$last_name}"));
 
-        $created = AVPVH_LLDAP::create_user($uid, $email, $display_name);
+        $created = AVPVH_Directory::create_user($uid, $email, $display_name);
         if (is_wp_error($created)) {
             wp_safe_redirect(add_query_arg([
                 'page' => 'avpvh-add-member', 'add_member_error' => 'lldap',
@@ -855,21 +916,16 @@ class AVPVH_Admin {
             exit;
         }
 
-        $groups = AVPVH_LLDAP::list_groups();
-        $group_id = null;
-        if (!is_wp_error($groups)) {
-            foreach ($groups as $group) {
-                if (strtolower($group['displayName']) === 'leden') {
-                    $group_id = (int) $group['id'];
-                    break;
-                }
-            }
-        }
-        if ($group_id) {
-            AVPVH_LLDAP::add_to_group($uid, $group_id);
-        }
-
         $member_id = AVPVH_DB::create_member($uid, $first_name, $suffix, $last_name, $birth_date, $status, $birth_year);
+        if ($flag_ids) {
+            AVPVH_DB::set_member_flags($member_id, $flag_ids);
+        }
+        // leden / ex-leden / neither, matching the chosen soort.
+        $synced = AVPVH_Roles::sync_status_group($member_id);
+        if (is_wp_error($synced)) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
+            error_log("AVPVH_Admin: new person {$uid} not put in the matching membership group: " . $synced->get_error_message());
+        }
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'created' => '1'], admin_url('admin.php')));
         exit;

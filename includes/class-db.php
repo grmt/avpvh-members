@@ -7,6 +7,16 @@ class AVPVH_DB {
         return AVPVH_LLDAP_DB;
     }
 
+    /**
+     * Table holding uid/email/display_name for JOINs: LLDAP's own users table
+     * (cross-DB) with the LLDAP backend, the plugin's cache of OpenLDAP with
+     * the OpenLDAP backend. Same column names in both (user_id, email,
+     * lowercase_email, display_name). See AVPVH_Directory_Cache.
+     */
+    public static function identity_table(): string {
+        return AVPVH_Directory::is_openldap() ? AVPVH_Directory_Cache::table() : self::lldap() . '.users';
+    }
+
     public static function install(): void {
         global $wpdb;
         $charset = $wpdb->get_charset_collate();
@@ -268,6 +278,19 @@ class AVPVH_DB {
             PRIMARY KEY (id),
             UNIQUE KEY member_alias (member_id, normalized_key),
             KEY normalized_key (normalized_key)
+        ) $charset;");
+
+        // Local copy of uid/email/display_name from OpenLDAP for SQL JOINs,
+        // same columns as lldap.users — see AVPVH_Directory_Cache. Only
+        // filled and used with the OpenLDAP directory backend.
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_directory_users (
+            user_id VARCHAR(100) NOT NULL,
+            email VARCHAR(255) NOT NULL DEFAULT '',
+            lowercase_email VARCHAR(255) NOT NULL DEFAULT '',
+            display_name VARCHAR(255) NOT NULL DEFAULT '',
+            synced_at DATETIME NOT NULL,
+            PRIMARY KEY (user_id),
+            KEY lowercase_email (lowercase_email)
         ) $charset;");
 
         // Note: avm_registrations / avm_registration_attendance /
@@ -633,14 +656,21 @@ class AVPVH_DB {
             update_option('avpvh_db_version', '2.19');
         }
 
-        // 2.21: 2.19 is gallery_taggable above (live before it was merged)
-        // and feature/openldap-directory claims 2.20.
+        // 2.21: 2.19 is gallery_taggable above (live before it was merged).
         if (version_compare($version, '2.21', '<')) {
             // install() alone can't create a new table on an already-active
             // site — dbDelta only handles structure, not seeding — so run it
             // here too, same pattern as the 2.17 migration above.
             self::install();
             update_option('avpvh_db_version', '2.21');
+        }
+
+        // Directory cache table (avm_directory_users). Was 2.20 on
+        // feature/openldap-directory, but production reached 2.21 first, so
+        // a 2.20 here would be skipped there.
+        if (version_compare($version, '2.22', '<')) {
+            self::install();
+            update_option('avpvh_db_version', '2.22');
         }
     }
 
@@ -893,7 +923,7 @@ class AVPVH_DB {
 
     private static function member_select(): string {
         global $wpdb;
-        $lldap = self::lldap();
+        $identity = self::identity_table();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
                        m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.birth_year, m.is_student,
@@ -902,7 +932,7 @@ class AVPVH_DB {
                        m.directory_consent, m.directory_consent_at,
                        m.share_email, m.share_phone, m.share_address, m.share_activity_history,
                        m.created_at, m.updated_at
-                FROM {$lldap}.users u
+                FROM {$identity} u
                 JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id";
     }
 
@@ -1005,6 +1035,7 @@ class AVPVH_DB {
             $email
         ));
         if ($owner !== null && (int) $owner !== $member_id) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
             error_log("AVPVH_DB: primary e-mail of member {$member_id} is already an identity of member {$owner}; left unchanged");
             return;
         }
@@ -1325,10 +1356,10 @@ class AVPVH_DB {
 
     public static function get_members_with_address(int $viewer_member_id = 0, bool $viewer_sees_minors = false): array {
         global $wpdb;
-        $lldap = self::lldap();
+        $identity = self::identity_table();
         $today = current_time('Y-m-d');
-        // $lldap/$wpdb->prefix below are fixed, hardcoded identifiers (AVPVH_LLDAP_DB
-        // constant / WP's own table prefix), never user input; the two %s values
+        // $identity/$wpdb->prefix below are fixed, hardcoded identifiers
+        // (identity_table() / WP's own table prefix), never user input; the two %s values
         // are properly prepared — phpcs:disable, block form since the flagged
         // interpolation is deep inside a multi-line string literal, too far from
         // any single line an inline phpcs:ignore comment could attach to.
@@ -1338,7 +1369,7 @@ class AVPVH_DB {
                     m.id, m.lldap_user_id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
                     m.birth_date, m.share_email, m.share_phone, m.share_address,
                     a.street, a.house_number, a.postal_code, a.city, a.country
-             FROM {$lldap}.users u
+             FROM {$identity} u
              JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
              LEFT JOIN {$wpdb->prefix}avm_addresses a ON a.id = (
                  SELECT a2.id FROM {$wpdb->prefix}avm_addresses a2
@@ -2028,7 +2059,7 @@ class AVPVH_DB {
         }
     }
 
-    /** Case-insensitive first+last name match — used by the "Nieuw lid" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, so a name entered without its tussenvoegsel still triggers a warning. */
+    /** Case-insensitive first+last name match — used by the "Nieuwe persoon" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, since a treasurer typing e.g. "Jan Voorbeeld" should still be warned about "Jan van Voorbeeld". */
     public static function find_members_by_name(string $first_name, string $last_name): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(
