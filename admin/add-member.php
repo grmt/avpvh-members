@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
-if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+if (!AVPVH_Roles::can_manage_members()) {
     wp_die('Geen toegang.');
 }
 
@@ -28,7 +28,7 @@ if ($pending) {
 <div class="wrap">
     <h1>Nieuw lid</h1>
     <p class="description">
-        Maakt een plaatsvervangend LLDAP-account aan (@avpvh.local, geen echte inlog — clubbeleid: leden onder de
+        Maakt een plaatsvervangend account aan (@avpvh.local, geen echte inlog — clubbeleid: leden onder de
         16 krijgen geen eigen login) en het bijbehorende ledenrecord.
     </p>
 
@@ -38,8 +38,10 @@ if ($pending) {
             <p>
                 <?php if ($err === 'onvolledig') : ?>
                     Voornaam en achternaam zijn verplicht.
+                <?php elseif ($err === 'geboortedatum') : ?>
+                    Ongeldige geboortedatum. Vul een volledige datum in (JJJJ-MM-DD) of alleen een geboortejaar (JJJJ).
                 <?php elseif ($err === 'lldap') : ?>
-                    Aanmaken van het LLDAP-account is mislukt: <?php echo esc_html(rawurldecode(wp_unslash($_GET['add_member_error_message'] ?? ''))); ?>
+                    Aanmaken van het account is mislukt: <?php echo esc_html(rawurldecode(wp_unslash($_GET['add_member_error_message'] ?? ''))); ?>
                 <?php endif; ?>
             </p>
         </div>
@@ -97,8 +99,12 @@ if ($pending) {
             </tr>
             <tr>
                 <th><label for="birth_date">Geboortedatum</label></th>
-                <td><input type="date" id="birth_date" name="birth_date"
-                           value="<?php echo esc_attr($pending['birth_date'] ?? ''); ?>"></td>
+                <td>
+                    <input type="text" id="birth_date" name="birth_date" inputmode="numeric"
+                           pattern="\d{4}(-\d{2}-\d{2})?" placeholder="JJJJ-MM-DD of alleen JJJJ"
+                           value="<?php echo esc_attr($pending['birth_date'] ?? ''); ?>">
+                    <p class="description">Volledige datum (JJJJ-MM-DD), of alleen het geboortejaar als de exacte datum niet bekend is.</p>
+                </td>
             </tr>
             <tr>
                 <th><label for="status">Status</label></th>

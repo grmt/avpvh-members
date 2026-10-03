@@ -171,7 +171,7 @@ class AVPVH_Activity_Participation_Form {
     }
 
     private function can_edit_member(object $own_member, int $target_member_id): bool {
-        if (current_user_can('manage_options')) {
+        if (AVPVH_Roles::can_manage_activities()) {
             return true;
         }
         foreach (AVPVH_DB::get_manageable_members((int) $own_member->id) as $m) {

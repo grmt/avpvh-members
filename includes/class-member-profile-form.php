@@ -25,7 +25,7 @@ class AVPVH_Member_Profile_Form {
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
         $requested_id = absint(wp_unslash($_GET['member_id'] ?? 0));
-        $is_admin_edit = current_user_can('manage_options') && $requested_id > 0;
+        $is_admin_edit = AVPVH_Roles::can_manage_members() && $requested_id > 0;
 
         $is_identity_request_only = false;
         if ($is_admin_edit) {
@@ -127,9 +127,7 @@ class AVPVH_Member_Profile_Form {
                 $lldap_groups = [];
                 if (!empty($member->user_id)) {
                     $lldap_groups = AVPVH_LLDAP::get_user_groups($member->user_id);
-                    if (is_wp_error($lldap_groups)) {
-                        $lldap_groups = [];
-                    }
+                    $lldap_groups = is_wp_error($lldap_groups) ? [] : AVPVH_LLDAP::only_pvh_groups($lldap_groups);
                 }
                 ?>
                 <div class="avpvh-summary-card">
@@ -147,6 +145,13 @@ class AVPVH_Member_Profile_Form {
                         <div class="avpvh-summary-card__row">
                             <span class="avpvh-summary-card__label">Groepen:</span>
                             <?php echo esc_html(implode(', ', wp_list_pluck($lldap_groups, 'displayName'))); ?>
+                        </div>
+                    <?php endif; ?>
+                    <?php $role_lines = AVPVH_Roles::describe_member_roles((int) $member->id); ?>
+                    <?php if ($role_lines) : ?>
+                        <div class="avpvh-summary-card__row">
+                            <span class="avpvh-summary-card__label">Rollen:</span>
+                            <?php echo esc_html(implode(', ', $role_lines)); ?>
                         </div>
                     <?php endif; ?>
                     <?php if (count($housemates) > 1) : ?>
@@ -799,7 +804,7 @@ class AVPVH_Member_Profile_Form {
             wp_send_json_error('Member profile not found');
         }
 
-        $is_admin_edit = current_user_can('manage_options') && !empty($_POST['member_id']);
+        $is_admin_edit = AVPVH_Roles::can_manage_members() && !empty($_POST['member_id']);
         $member_data = $this->sanitize_member_data($_POST, $is_admin_edit);
 
         try {
@@ -865,11 +870,12 @@ class AVPVH_Member_Profile_Form {
     }
 
     /**
-     * Admins can edit any member; everyone else can edit their own profile or
-     * a household member's (same family link or current address).
+     * Member admins (AVPVH_Roles::can_manage_members()) can edit any member;
+     * everyone else can edit their own profile or a household member's
+     * (same family link or current address).
      */
     private function can_edit_member(?object $own_member, int $target_member_id): bool {
-        if (current_user_can('manage_options')) {
+        if (AVPVH_Roles::can_manage_members()) {
             return true;
         }
         if (!$own_member) {
@@ -1234,11 +1240,12 @@ class AVPVH_Member_Profile_Form {
      * adult" fallback. Returns [birth_date, birth_year], always exactly
      * one of the two non-null (or both null for an empty/invalid input) —
      * the two columns are mutually exclusive, never both set at once.
+     * Shared with the "Nieuw lid" form (AVPVH_Admin::handle_add_member()).
      */
-    private static function parse_birth_date(string $raw): array {
+    public static function parse_birth_date(string $raw): array {
         $raw = trim($raw);
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
-            return [$raw, null];
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $raw, $m)) {
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? [$raw, null] : [null, null];
         }
         if (preg_match('/^(\d{4})$/', $raw, $m)) {
             $year = (int) $m[1];

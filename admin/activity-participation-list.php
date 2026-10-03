@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
-if (!current_user_can('manage_options')) wp_die('Geen toegang.');
+if (!AVPVH_Roles::can_manage_activities()) wp_die('Geen toegang.');
 
 require_once AVPVH_PLUGIN_DIR . 'admin/class-activity-participation-list-table.php';
 
@@ -126,6 +126,10 @@ $export_url = wp_nonce_url(
                     <tr>
                         <th><label for="kenmerk">Locatie/kenmerk</label></th>
                         <td><input type="text" id="kenmerk" name="kenmerk" class="regular-text" value="<?php echo esc_attr($activity->kenmerk); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="gallery_taggable">Foto's taggen</label></th>
+                        <td><label><input type="checkbox" id="gallery_taggable" name="gallery_taggable" value="1" <?php checked(!empty($activity->gallery_taggable)); ?>> Deelnemers van deze activiteit gebruiken als tag-suggesties in de fotogalerij</label></td>
                     </tr>
                     <tr>
                         <th><label for="start_date">Startdatum</label></th>

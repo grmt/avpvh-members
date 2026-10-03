@@ -78,6 +78,7 @@ class AVPVH_DB {
             type_id INT UNSIGNED NULL,
             year YEAR NOT NULL,
             kenmerk VARCHAR(150) NOT NULL DEFAULT '',
+            gallery_taggable TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             start_date DATE NULL,
             end_date DATE NULL,
             PRIMARY KEY (id),
@@ -619,9 +620,21 @@ class AVPVH_DB {
             update_option('avpvh_db_version', '2.18');
         }
 
-        // 2.21, not 2.19: production already ran a 2.19 (gallery_taggable,
-        // deployed from a branch) and feature/openldap-directory claims
-        // 2.20, so a lower number here would be skipped on the live site.
+        if (version_compare($version, '2.19', '<')) {
+            // Lets an admin mark an activity as eligible to supply
+            // participant-based tag suggestions in the gallery plugin
+            // (matched there by activity name + year against a Drive
+            // folder name) — an explicit opt-in so non-camp activities
+            // like "Contributie" or "t-shirt" never accidentally match.
+            if (!$wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_activities LIKE 'gallery_taggable'")) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_activities
+                    ADD COLUMN gallery_taggable TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER kenmerk");
+            }
+            update_option('avpvh_db_version', '2.19');
+        }
+
+        // 2.21: 2.19 is gallery_taggable above (live before it was merged)
+        // and feature/openldap-directory claims 2.20.
         if (version_compare($version, '2.21', '<')) {
             // install() alone can't create a new table on an already-active
             // site — dbDelta only handles structure, not seeding — so run it
@@ -983,9 +996,27 @@ class AVPVH_DB {
             return;
         }
 
+        // email is unique across the whole table, whatever the provider.
+        // If another member already holds it, leave everything as it is —
+        // inserting would fail, and clearing this member's primary flag
+        // first (as this used to) left them with no primary at all.
+        $owner = $wpdb->get_var($wpdb->prepare(
+            "SELECT member_id FROM {$wpdb->prefix}avm_member_identities WHERE email = %s LIMIT 1",
+            $email
+        ));
+        if ($owner !== null && (int) $owner !== $member_id) {
+            error_log("AVPVH_DB: primary e-mail of member {$member_id} is already an identity of member {$owner}; left unchanged");
+            return;
+        }
+
+        // Prefer the identity that already has this address (e.g. the same
+        // address verified via Google), then any e-mail identity whose
+        // address should follow the LLDAP one; only insert when neither exists.
         $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}avm_member_identities WHERE member_id = %d AND provider = 'email' LIMIT 1",
-            $member_id
+            "SELECT id FROM {$wpdb->prefix}avm_member_identities
+             WHERE member_id = %d AND (email = %s OR provider = 'email')
+             ORDER BY (email = %s) DESC LIMIT 1",
+            $member_id, $email, $email
         ));
 
         $wpdb->query($wpdb->prepare(
@@ -2061,7 +2092,7 @@ class AVPVH_DB {
     }
 
     /** New member with an already-created LLDAP account (see AVPVH_Admin::handle_add_member()) — mirrors the shape of the avpvh-ops-scripts one-off "create minor member" scripts, now available from the admin UI instead of a hand-run script. */
-    public static function create_member(string $lldap_user_id, string $first_name, string $suffix, string $last_name, ?string $birth_date, string $status): int {
+    public static function create_member(string $lldap_user_id, string $first_name, string $suffix, string $last_name, ?string $birth_date, string $status, ?int $birth_year = null): int {
         global $wpdb;
         $wpdb->insert(
             "{$wpdb->prefix}avm_members",
@@ -2071,9 +2102,10 @@ class AVPVH_DB {
                 'suffix'        => $suffix,
                 'last_name'     => $last_name,
                 'birth_date'    => $birth_date,
+                'birth_year'    => $birth_year,
                 'status'        => $status,
             ],
-            ['%s', '%s', '%s', '%s', '%s', '%s']
+            ['%s', '%s', '%s', '%s', '%s', '%d', '%s']
         );
         return (int) $wpdb->insert_id;
     }
@@ -2180,6 +2212,24 @@ class AVPVH_DB {
                 ['%d', '%d']
             );
         }
+    }
+
+    /** Whether the member currently has a kenmerk that forces inactive status (e.g. geroyeerd, overleden). */
+    public static function member_has_inactivating_flag(int $member_id): bool {
+        global $wpdb;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT 1 FROM {$wpdb->prefix}avm_member_flag_assignments fa
+             JOIN {$wpdb->prefix}avm_member_flags f ON f.id = fa.flag_id
+             WHERE fa.member_id = %d AND f.sets_inactive = 1 LIMIT 1",
+            $member_id
+        ));
+    }
+
+    public static function flag_exists(string $slug): bool {
+        global $wpdb;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_member_flags WHERE slug = %s", $slug
+        ));
     }
 
     /** Adds a new flag to the catalog (admin UI, "extendable" per the club's own ad-hoc categories). Returns the new flag id, or 0 on failure (e.g. duplicate slug). */
