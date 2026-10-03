@@ -149,6 +149,40 @@ class AVPVH_Roles {
     }
 
     /** Active delegations, most recently created first — for the admin screen. */
+    /**
+     * What a member does in the bestuur, as display lines: their real
+     * bestuursfunctie(s) or "Bestuurslid", plus active delegations
+     * ("Secretaris (tijdelijk, tot 12 okt 2026)", "Secretaris (gedelegeerd)"
+     * without end date) and an IT-beheerder appointment (stored as an
+     * it_beheerder delegation by the voorzitter). Empty for an ordinary lid.
+     */
+    public static function describe_member_roles(int $member_id): array {
+        $labels = ['voorzitter' => 'Voorzitter', 'secretaris' => 'Secretaris', 'penningmeester' => 'Penningmeester'];
+        $real   = self::get_member_roles($member_id);
+        $lines  = [];
+        foreach ($labels as $role => $label) {
+            if (in_array($role, $real, true)) {
+                $lines[] = $label;
+            }
+        }
+        if (!$lines && in_array('bestuur', $real, true)) {
+            $lines[] = 'Bestuurslid';
+        }
+        foreach (self::get_active_delegations() as $d) {
+            if ((int) $d->delegated_to_member_id !== $member_id) {
+                continue;
+            }
+            if ($d->role === 'it_beheerder') {
+                $lines[] = 'IT-beheerder';
+            } elseif (isset($labels[$d->role])) {
+                $lines[] = $labels[$d->role] . ($d->ends_at
+                    ? ' (tijdelijk, tot ' . wp_date('j M Y', strtotime($d->ends_at)) . ')'
+                    : ' (gedelegeerd)');
+            }
+        }
+        return $lines;
+    }
+
     public static function get_active_delegations(): array {
         global $wpdb;
         $now = current_time('mysql');

@@ -149,6 +149,13 @@ class AVPVH_Member_Profile_Form {
                             <?php echo esc_html(implode(', ', wp_list_pluck($lldap_groups, 'displayName'))); ?>
                         </div>
                     <?php endif; ?>
+                    <?php $role_lines = AVPVH_Roles::describe_member_roles((int) $member->id); ?>
+                    <?php if ($role_lines) : ?>
+                        <div class="avpvh-summary-card__row">
+                            <span class="avpvh-summary-card__label">Rollen:</span>
+                            <?php echo esc_html(implode(', ', $role_lines)); ?>
+                        </div>
+                    <?php endif; ?>
                     <?php if (count($housemates) > 1) : ?>
                         <div class="avpvh-summary-card__row">
                             <span class="avpvh-summary-card__label">Huisgenoten:</span>
