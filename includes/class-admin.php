@@ -27,6 +27,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_create_flag',        [$this, 'handle_create_flag']);
         add_action('admin_post_avpvh_delete_flag',        [$this, 'handle_delete_flag']);
         add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
+        add_action('admin_post_avpvh_merge_members',      [$this, 'handle_merge_members']);
     }
 
     // manage_options (real WP admins) or bestuur (incl. voorzitter/
@@ -83,6 +84,12 @@ class AVPVH_Admin {
             'avpvh-members', 'Nieuw lid', 'Nieuw lid', $members_cap,
             'avpvh-add-member', [$this, 'render_add_member']
         );
+        // manage_options only, not secretaris — a merge deletes an account
+        // and can't be undone (same reasoning as handle_save_groups()).
+        add_submenu_page(
+            'avpvh-members', 'Leden samenvoegen', 'Leden samenvoegen', 'manage_options',
+            'avpvh-merge-members', [$this, 'render_merge_members']
+        );
         add_submenu_page(
             'avpvh-members', 'Activiteiten', 'Activiteiten', 'manage_options',
             'avpvh-activity-participation', [$this, 'render_activity_participation_list']
@@ -136,6 +143,10 @@ class AVPVH_Admin {
 
     public function render_add_member(): void {
         require AVPVH_PLUGIN_DIR . 'admin/add-member.php';
+    }
+
+    public function render_merge_members(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/merge-members.php';
     }
 
     public function render_login_attempts(): void {
@@ -697,6 +708,48 @@ class AVPVH_Admin {
 
         $notice_key = $had_error ? 'groups_error' : 'groups_saved';
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', $notice_key => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_merge_members(): void {
+        check_admin_referer('avpvh_merge_members');
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $keep_id     = absint(wp_unslash($_POST['keep'] ?? 0));
+        $remove_id   = absint(wp_unslash($_POST['remove'] ?? 0));
+        $fingerprint = sanitize_text_field(wp_unslash($_POST['fingerprint'] ?? ''));
+        $choices = [
+            'fields'    => array_filter(
+                array_map('sanitize_key', (array) wp_unslash($_POST['fields'] ?? [])),
+                fn($choice) => in_array($choice, ['keep', 'remove'], true)
+            ),
+            'addresses' => array_filter(
+                array_map('sanitize_key', (array) wp_unslash($_POST['addresses'] ?? [])),
+                fn($action) => in_array($action, ['move', 'history', 'delete'], true)
+            ),
+        ];
+        $choices['addresses'] = array_combine(array_map('intval', array_keys($choices['addresses'])), $choices['addresses']) ?: [];
+
+        $result = empty($_POST['confirm'])
+            ? new \WP_Error('unconfirmed', 'Bevestig eerst dat het om dezelfde persoon gaat.')
+            : AVPVH_Member_Merge::execute($keep_id, $remove_id, $choices, $fingerprint);
+
+        $transient = 'avpvh_merge_result_' . get_current_user_id();
+        if (is_wp_error($result)) {
+            set_transient($transient, ['error' => $result->get_error_message()], 10 * MINUTE_IN_SECONDS);
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members', 'keep' => $keep_id, 'remove' => $remove_id], admin_url('admin.php')));
+            exit;
+        }
+
+        $keep = AVPVH_Member_Merge::get_raw_member($keep_id);
+        set_transient($transient, [
+            'keep_id'   => $keep_id,
+            'keep_name' => $keep ? avpvh_format_name($keep) : '#' . $keep_id,
+            'warnings'  => $result,
+        ], 10 * MINUTE_IN_SECONDS);
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members'], admin_url('admin.php')));
         exit;
     }
 

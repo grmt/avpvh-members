@@ -84,6 +84,11 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     &nbsp;|&nbsp;
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
        class="button button-small" title="Meestal niet nodig — een naamwijziging op het profiel synchroniseert al automatisch. Vooral bedoeld om een record bij te werken dat van vóór die automatische sync dateert.">Sync naar LLDAP</a>
+    <?php if (current_user_can('manage_options')) : ?>
+        &nbsp;|&nbsp;
+        <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-merge-members', 'keep' => $member_id], admin_url('admin.php'))); ?>"
+           class="button button-small" title="Een dubbel ledenrecord samenvoegen met dit lid">Dubbel lid samenvoegen</a>
+    <?php endif; ?>
 
     <?php if ($updated) : ?>
         <div class="notice notice-success is-dismissible"><p>Bijgewerkt.</p></div>
