@@ -800,7 +800,8 @@ class AVPVH_Admin {
         $first_name = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
         $suffix     = sanitize_text_field(wp_unslash($_POST['suffix'] ?? ''));
         $last_name  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
-        $birth_date = sanitize_text_field(wp_unslash($_POST['birth_date'] ?? '')) ?: null;
+        $birth_raw  = trim(sanitize_text_field(wp_unslash($_POST['birth_date'] ?? '')));
+        [$birth_date, $birth_year] = AVPVH_Member_Profile_Form::parse_birth_date($birth_raw);
         $status     = sanitize_key(wp_unslash($_POST['status'] ?? 'inactive'));
         $status     = in_array($status, ['active', 'inactive', 'visitor'], true) ? $status : 'inactive';
         $confirmed  = !empty($_POST['confirmed']);
@@ -812,12 +813,19 @@ class AVPVH_Admin {
             exit;
         }
 
+        if ($birth_raw !== '' && $birth_date === null && $birth_year === null) {
+            wp_safe_redirect(add_query_arg([
+                'page' => 'avpvh-add-member', 'add_member_error' => 'geboortedatum',
+            ], admin_url('admin.php')));
+            exit;
+        }
+
         if (!$confirmed) {
             $matches = AVPVH_DB::find_members_by_name_or_alias($first_name, $suffix, $last_name);
             if ($matches) {
                 set_transient('avpvh_add_member_pending_' . get_current_user_id(), [
                     'first_name' => $first_name, 'suffix' => $suffix, 'last_name' => $last_name,
-                    'birth_date' => $birth_date, 'status' => $status,
+                    'birth_date' => $birth_raw, 'status' => $status,
                     'matches'    => wp_list_pluck($matches, 'matched_via', 'id'),
                 ], 10 * MINUTE_IN_SECONDS);
                 wp_safe_redirect(add_query_arg(['page' => 'avpvh-add-member', 'add_member_duplicate' => '1'], admin_url('admin.php')));
@@ -861,7 +869,7 @@ class AVPVH_Admin {
             AVPVH_LLDAP::add_to_group($uid, $group_id);
         }
 
-        $member_id = AVPVH_DB::create_member($uid, $first_name, $suffix, $last_name, $birth_date, $status);
+        $member_id = AVPVH_DB::create_member($uid, $first_name, $suffix, $last_name, $birth_date, $status, $birth_year);
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'created' => '1'], admin_url('admin.php')));
         exit;

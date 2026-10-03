@@ -2079,7 +2079,7 @@ class AVPVH_DB {
     }
 
     /** New member with an already-created LLDAP account (see AVPVH_Admin::handle_add_member()) — mirrors the shape of the avpvh-ops-scripts one-off "create minor member" scripts, now available from the admin UI instead of a hand-run script. */
-    public static function create_member(string $lldap_user_id, string $first_name, string $suffix, string $last_name, ?string $birth_date, string $status): int {
+    public static function create_member(string $lldap_user_id, string $first_name, string $suffix, string $last_name, ?string $birth_date, string $status, ?int $birth_year = null): int {
         global $wpdb;
         $wpdb->insert(
             "{$wpdb->prefix}avm_members",
@@ -2089,9 +2089,10 @@ class AVPVH_DB {
                 'suffix'        => $suffix,
                 'last_name'     => $last_name,
                 'birth_date'    => $birth_date,
+                'birth_year'    => $birth_year,
                 'status'        => $status,
             ],
-            ['%s', '%s', '%s', '%s', '%s', '%s']
+            ['%s', '%s', '%s', '%s', '%s', '%d', '%s']
         );
         return (int) $wpdb->insert_id;
     }
