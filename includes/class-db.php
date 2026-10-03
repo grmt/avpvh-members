@@ -244,6 +244,31 @@ class AVPVH_DB {
             KEY role_active (role, delegated_to_member_id, ends_at)
         ) $charset;");
 
+        // Verified alternate spellings/forms of a member's name — never a
+        // second member record. See AVPVH_Name_Matcher::normalize_person_name()
+        // for how normalized_key is derived; deliberately NOT unique across
+        // members (the same alias existing on two different members is a
+        // real ambiguity for a human to resolve, not a constraint violation
+        // to silently prevent — see plan.md §1/§3).
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_member_name_aliases (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            member_id INT UNSIGNED NOT NULL,
+            first_name VARCHAR(100) NOT NULL DEFAULT '',
+            suffix VARCHAR(50) NOT NULL DEFAULT '',
+            last_name VARCHAR(100) NOT NULL DEFAULT '',
+            alias_type ENUM('maiden','married','nickname','spelling','abbreviation','historical') NOT NULL DEFAULT 'historical',
+            normalized_key VARCHAR(160) NOT NULL DEFAULT '',
+            valid_from DATE NULL,
+            valid_until DATE NULL,
+            source VARCHAR(150) NOT NULL DEFAULT '',
+            note VARCHAR(255) NOT NULL DEFAULT '',
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY member_alias (member_id, normalized_key),
+            KEY normalized_key (normalized_key)
+        ) $charset;");
+
         // Note: avm_registrations / avm_registration_attendance /
         // avm_sync_conflicts (a never-launched Google-Forms-based signup +
         // sync system, unlinked to real members) were removed in favour of
@@ -592,6 +617,14 @@ class AVPVH_DB {
                     ADD COLUMN sets_inactive TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER affects_fees");
             }
             update_option('avpvh_db_version', '2.18');
+        }
+
+        if (version_compare($version, '2.19', '<')) {
+            // install() alone can't create a new table on an already-active
+            // site — dbDelta only handles structure, not seeding — so run it
+            // here too, same pattern as the 2.17 migration above.
+            self::install();
+            update_option('avpvh_db_version', '2.19');
         }
     }
 
