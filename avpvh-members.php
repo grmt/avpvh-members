@@ -32,6 +32,8 @@ function avpvh_asset_version(string $relative_path): string {
 
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-directory.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-directory-cache.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-roles.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-profile-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-access.php';
@@ -73,6 +75,7 @@ new AVPVH_Email_Identity();
 new AVPVH_Ledenlijst();
 new AVPVH_Activity_Overview();
 new AVPVH_Bestuur_Page();
+AVPVH_Directory_Cache::init();
 new AVPVH_Activity_Participation_Form();
 new AVPVH_Directory_Consent();
 new AVPVH_Newsletter_Consent();

@@ -167,6 +167,10 @@ class AVPVH_Access {
             return;
         }
 
+        // With OpenLDAP the member lookup JOINs the local cache: refresh this
+        // one account first, so a brand-new or just-changed account works
+        // without waiting for the 15-minute sync.
+        AVPVH_Directory_Cache::refresh_user($lldap_uid);
         $member = AVPVH_DB::get_member_by_lldap_uid($lldap_uid);
         if (!$member) {
             return;

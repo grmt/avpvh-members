@@ -7,6 +7,16 @@ class AVPVH_DB {
         return AVPVH_LLDAP_DB;
     }
 
+    /**
+     * Table holding uid/email/display_name for JOINs: LLDAP's own users table
+     * (cross-DB) with the LLDAP backend, the plugin's cache of OpenLDAP with
+     * the OpenLDAP backend. Same column names in both (user_id, email,
+     * lowercase_email, display_name). See AVPVH_Directory_Cache.
+     */
+    public static function identity_table(): string {
+        return AVPVH_Directory::is_openldap() ? AVPVH_Directory_Cache::table() : self::lldap() . '.users';
+    }
+
     public static function install(): void {
         global $wpdb;
         $charset = $wpdb->get_charset_collate();
@@ -242,6 +252,19 @@ class AVPVH_DB {
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             KEY role_active (role, delegated_to_member_id, ends_at)
+        ) $charset;");
+
+        // Local copy of uid/email/display_name from OpenLDAP for SQL JOINs,
+        // same columns as lldap.users — see AVPVH_Directory_Cache. Only
+        // filled and used with the OpenLDAP directory backend.
+        dbDelta("CREATE TABLE {$wpdb->prefix}avm_directory_users (
+            user_id VARCHAR(100) NOT NULL,
+            email VARCHAR(255) NOT NULL DEFAULT '',
+            lowercase_email VARCHAR(255) NOT NULL DEFAULT '',
+            display_name VARCHAR(255) NOT NULL DEFAULT '',
+            synced_at DATETIME NOT NULL,
+            PRIMARY KEY (user_id),
+            KEY lowercase_email (lowercase_email)
         ) $charset;");
 
         // Note: avm_registrations / avm_registration_attendance /
@@ -593,6 +616,13 @@ class AVPVH_DB {
             }
             update_option('avpvh_db_version', '2.18');
         }
+
+        // 2.19 is taken by the gallery_taggable column (deployed on live
+        // before it was committed), so the directory cache is 2.20.
+        if (version_compare($version, '2.20', '<')) {
+            self::install();
+            update_option('avpvh_db_version', '2.20');
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -844,7 +874,7 @@ class AVPVH_DB {
 
     private static function member_select(): string {
         global $wpdb;
-        $lldap = self::lldap();
+        $identity = self::identity_table();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
                        m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.birth_year, m.is_student,
@@ -853,7 +883,7 @@ class AVPVH_DB {
                        m.directory_consent, m.directory_consent_at,
                        m.share_email, m.share_phone, m.share_address, m.share_activity_history,
                        m.created_at, m.updated_at
-                FROM {$lldap}.users u
+                FROM {$identity} u
                 JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id";
     }
 
@@ -1276,10 +1306,10 @@ class AVPVH_DB {
 
     public static function get_members_with_address(int $viewer_member_id = 0, bool $viewer_sees_minors = false): array {
         global $wpdb;
-        $lldap = self::lldap();
+        $identity = self::identity_table();
         $today = current_time('Y-m-d');
-        // $lldap/$wpdb->prefix below are fixed, hardcoded identifiers (AVPVH_LLDAP_DB
-        // constant / WP's own table prefix), never user input; the two %s values
+        // $identity/$wpdb->prefix below are fixed, hardcoded identifiers
+        // (identity_table() / WP's own table prefix), never user input; the two %s values
         // are properly prepared — phpcs:disable, block form since the flagged
         // interpolation is deep inside a multi-line string literal, too far from
         // any single line an inline phpcs:ignore comment could attach to.
@@ -1289,7 +1319,7 @@ class AVPVH_DB {
                     m.id, m.lldap_user_id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
                     m.birth_date, m.share_email, m.share_phone, m.share_address,
                     a.street, a.house_number, a.postal_code, a.city, a.country
-             FROM {$lldap}.users u
+             FROM {$identity} u
              JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
              LEFT JOIN {$wpdb->prefix}avm_addresses a ON a.id = (
                  SELECT a2.id FROM {$wpdb->prefix}avm_addresses a2

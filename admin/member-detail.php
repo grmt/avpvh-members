@@ -70,8 +70,8 @@ $tab_url = fn(string $tab): string => add_query_arg(
 $sync_msg = null;
 $sync_ok  = false;
 if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $member_id)) {
-    $result = AVPVH_LLDAP::update_user($member->lldap_user_id, [
-        'displayName' => avpvh_format_name($member),
+    $result = AVPVH_Directory::update_user($member->lldap_user_id, [
+        'display_name' => avpvh_format_name($member),
     ]);
     $sync_ok  = !is_wp_error($result);
     $sync_msg = $sync_ok ? 'Naam bijgewerkt in het account.' : 'Bijwerken van het account is mislukt: ' . $result->get_error_message();
@@ -321,17 +321,15 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <h2>Groepen (toegangsrechten)</h2>
     <p class="description">Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor "Zoeken in documenten") — los van de kenmerken hierboven, die alleen labels/filters zijn.</p>
     <?php
-    $all_groups     = AVPVH_LLDAP::list_groups();
-    $current_groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
+    $all_groups     = AVPVH_Directory::list_groups();
+    $current_groups = AVPVH_Directory::get_user_groups($member->lldap_user_id);
     if (!is_wp_error($all_groups)) {
-        $all_groups = AVPVH_LLDAP::only_pvh_groups($all_groups);
+        $all_groups = AVPVH_Directory::only_pvh_groups($all_groups);
     }
     ?>
     <?php if (is_wp_error($all_groups) || is_wp_error($current_groups)) : ?>
         <p class="description">Kon de groepen niet ophalen.</p>
-    <?php else :
-        $current_group_ids = array_map('intval', array_column($current_groups, 'id'));
-    ?>
+    <?php else : ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <?php wp_nonce_field('avpvh_save_groups'); ?>
             <input type="hidden" name="action" value="avpvh_save_groups">
@@ -339,9 +337,9 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             <p>
                 <?php foreach ($all_groups as $group) : ?>
                     <label style="display:inline-block;margin-right:1.5rem">
-                        <input type="checkbox" name="groups[]" value="<?php echo esc_attr($group['id']); ?>"
-                            <?php checked(in_array((int) $group['id'], $current_group_ids, true)); ?>>
-                        <?php echo esc_html($group['displayName']); ?>
+                        <input type="checkbox" name="groups[]" value="<?php echo esc_attr($group); ?>"
+                            <?php checked(in_array($group, $current_groups, true)); ?>>
+                        <?php echo esc_html($group); ?>
                     </label>
                 <?php endforeach; ?>
                 <?php if (!$all_groups) : ?>

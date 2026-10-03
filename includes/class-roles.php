@@ -24,18 +24,7 @@ class AVPVH_Roles {
             return [];
         }
 
-        $cache_key = 'avpvh_lldap_groups_' . $member->user_id;
-        $groups = get_transient($cache_key);
-        if ($groups === false) {
-            $result = AVPVH_LLDAP::get_user_groups($member->user_id);
-            $groups = is_wp_error($result) ? [] : $result;
-            set_transient($cache_key, $groups, is_wp_error($result) ? MINUTE_IN_SECONDS : 15 * MINUTE_IN_SECONDS);
-        }
-
-        $names = array_map(
-            static fn($g) => strtolower($g['displayName'] ?? ''),
-            is_array($groups) ? $groups : []
-        );
+        $names = AVPVH_Directory::cached_user_groups($member->user_id);
 
         $roles = array_values(array_intersect(self::ALL_ROLES, $names));
         if (array_intersect($roles, self::OFFICER_ROLES) && !in_array('bestuur', $roles, true)) {
@@ -296,19 +285,14 @@ class AVPVH_Roles {
             return new \WP_Error('avpvh_not_eligible', 'Alleen actieve leden met een eigen login kunnen bestuurslid worden.');
         }
 
-        $group_id = self::lldap_group_id('bestuur');
-        if (is_wp_error($group_id)) {
-            return $group_id;
-        }
         $result = $add
-            ? AVPVH_LLDAP::add_to_group($member->lldap_user_id, $group_id)
-            : AVPVH_LLDAP::remove_from_group($member->lldap_user_id, $group_id);
+            ? AVPVH_Directory::add_to_group($member->lldap_user_id, 'bestuur')
+            : AVPVH_Directory::remove_from_group($member->lldap_user_id, 'bestuur');
         if (is_wp_error($result)) {
             return $result;
         }
 
-        delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
-        delete_transient('avpvh_all_group_memberships');
+        AVPVH_Directory::forget_groups($member->lldap_user_id);
         if (!$add) {
             self::mark_oud_bestuurder_if_left($member_id);
         }
@@ -331,19 +315,6 @@ class AVPVH_Roles {
         AVPVH_DB::set_member_flag_by_slug($member_id, 'oud-bestuurder', true);
     }
 
-    private static function lldap_group_id(string $name): int|\WP_Error {
-        $groups = AVPVH_LLDAP::list_groups();
-        if (is_wp_error($groups)) {
-            return $groups;
-        }
-        foreach ($groups as $group) {
-            if (strtolower($group['displayName']) === $name) {
-                return (int) $group['id'];
-            }
-        }
-        return new \WP_Error('avpvh_no_group', "Groep \"{$name}\" niet gevonden.");
-    }
-
     /**
      * Lay down $role (voorzitter, secretaris or penningmeester): $member_id
      * leaves that LLDAP group but stays an ordinary bestuurslid (added to
@@ -359,21 +330,12 @@ class AVPVH_Roles {
         if (!in_array($role, self::get_member_roles($member_id), true)) {
             return new \WP_Error('avpvh_not_holder', 'Dit lid heeft deze rol niet.');
         }
-        $role_group    = self::lldap_group_id($role);
-        $bestuur_group = self::lldap_group_id('bestuur');
-        if (is_wp_error($role_group)) {
-            return $role_group;
-        }
-        if (is_wp_error($bestuur_group)) {
-            return $bestuur_group;
-        }
-        $added = AVPVH_LLDAP::add_to_group($member->lldap_user_id, $bestuur_group);
+        $added = AVPVH_Directory::add_to_group($member->lldap_user_id, 'bestuur');
         if (is_wp_error($added)) {
             return $added;
         }
-        $removed = AVPVH_LLDAP::remove_from_group($member->lldap_user_id, $role_group);
-        delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
-        delete_transient('avpvh_all_group_memberships');
+        $removed = AVPVH_Directory::remove_from_group($member->lldap_user_id, $role);
+        AVPVH_Directory::forget_groups($member->lldap_user_id);
         return is_wp_error($removed) ? $removed : true;
     }
 
@@ -390,20 +352,20 @@ class AVPVH_Roles {
         if (!$member || empty($member->lldap_user_id)) {
             return false;
         }
-        $groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
+        $groups = AVPVH_Directory::get_user_groups($member->lldap_user_id);
         if (is_wp_error($groups)) {
-            error_log("AVPVH_Roles: could not read LLDAP groups of member {$member_id}: " . $groups->get_error_message());
+            error_log("AVPVH_Roles: could not read groups of member {$member_id}: " . $groups->get_error_message());
             return false;
         }
 
         $changed = false;
         foreach ($groups as $group) {
-            if (!in_array(strtolower((string) $group['displayName']), self::ALL_ROLES, true)) {
+            if (!in_array($group, self::ALL_ROLES, true)) {
                 continue;
             }
-            $removed = AVPVH_LLDAP::remove_from_group($member->lldap_user_id, (int) $group['id']);
+            $removed = AVPVH_Directory::remove_from_group($member->lldap_user_id, $group);
             if (is_wp_error($removed)) {
-                error_log("AVPVH_Roles: could not remove member {$member_id} from {$group['displayName']}: " . $removed->get_error_message());
+                error_log("AVPVH_Roles: could not remove member {$member_id} from {$group}: " . $removed->get_error_message());
                 continue;
             }
             $changed = true;
@@ -416,8 +378,7 @@ class AVPVH_Roles {
             $now, $member_id, $now
         ));
 
-        delete_transient('avpvh_lldap_groups_' . $member->lldap_user_id);
-        delete_transient('avpvh_all_group_memberships');
+        AVPVH_Directory::forget_groups($member->lldap_user_id);
         if ($changed) {
             self::mark_oud_bestuurder_if_left($member_id);
         }
@@ -442,13 +403,8 @@ class AVPVH_Roles {
             return new \WP_Error('avpvh_no_member', 'Lid niet gevonden.');
         }
 
-        $group_id = self::lldap_group_id($role);
-        if (is_wp_error($group_id)) {
-            return $group_id;
-        }
-
         $previous = self::get_role_holders($role);
-        $added = AVPVH_LLDAP::add_to_group($to->lldap_user_id, $group_id);
+        $added = AVPVH_Directory::add_to_group($to->lldap_user_id, $role);
         if (is_wp_error($added)) {
             return $added;
         }
@@ -459,7 +415,7 @@ class AVPVH_Roles {
             if ((int) $holder->id === $to_member_id) {
                 continue;
             }
-            $removed = AVPVH_LLDAP::remove_from_group($holder->lldap_user_id, $group_id);
+            $removed = AVPVH_Directory::remove_from_group($holder->lldap_user_id, $role);
             if (is_wp_error($removed)) {
                 error_log("AVPVH_Roles: {$role} appointment could not remove member {$holder->id}: " . $removed->get_error_message());
             }
@@ -474,10 +430,7 @@ class AVPVH_Roles {
             $now, $role, $now
         ));
 
-        foreach ($affected as $uid) {
-            delete_transient('avpvh_lldap_groups_' . $uid);
-        }
-        delete_transient('avpvh_all_group_memberships');
+        AVPVH_Directory::forget_groups(...$affected);
         foreach ($replaced as $member_id) {
             self::mark_oud_bestuurder_if_left($member_id);
         }
@@ -486,12 +439,12 @@ class AVPVH_Roles {
 
     /**
      * Every member currently holding $role for real (LLDAP group), for the
-     * admin "who holds what" list. Uses AVPVH_LLDAP::get_all_group_memberships()
+     * admin "who holds what" list. Uses AVPVH_Directory::get_all_group_memberships()
      * (one round-trip for every group) rather than a per-member lookup.
      */
     public static function get_role_holders(string $role, bool $include_implied = true): array {
         $role = strtolower($role);
-        $memberships = AVPVH_LLDAP::get_all_group_memberships();
+        $memberships = AVPVH_Directory::get_all_group_memberships();
         if (is_wp_error($memberships)) {
             return [];
         }

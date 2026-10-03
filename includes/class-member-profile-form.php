@@ -126,8 +126,8 @@ class AVPVH_Member_Profile_Form {
 
                 $lldap_groups = [];
                 if (!empty($member->user_id)) {
-                    $lldap_groups = AVPVH_LLDAP::get_user_groups($member->user_id);
-                    $lldap_groups = is_wp_error($lldap_groups) ? [] : AVPVH_LLDAP::only_pvh_groups($lldap_groups);
+                    $lldap_groups = AVPVH_Directory::get_user_groups($member->user_id);
+                    $lldap_groups = is_wp_error($lldap_groups) ? [] : AVPVH_Directory::only_pvh_groups($lldap_groups);
                 }
                 ?>
                 <div class="avpvh-summary-card">
@@ -144,7 +144,7 @@ class AVPVH_Member_Profile_Form {
                     <?php if ($lldap_groups) : ?>
                         <div class="avpvh-summary-card__row">
                             <span class="avpvh-summary-card__label">Groepen:</span>
-                            <?php echo esc_html(implode(', ', wp_list_pluck($lldap_groups, 'displayName'))); ?>
+                            <?php echo esc_html(implode(', ', $lldap_groups)); ?>
                         </div>
                     <?php endif; ?>
                     <?php $role_lines = AVPVH_Roles::describe_member_roles((int) $member->id); ?>
@@ -826,7 +826,7 @@ class AVPVH_Member_Profile_Form {
                 // drift from LLDAP until someone remembered the manual
                 // "Sync naar LLDAP" button on Ledendetail.
                 $updated_member = (object) array_merge((array) $member, $member_data);
-                $result = AVPVH_LLDAP::update_user($member->lldap_user_id, ['displayName' => avpvh_format_name($updated_member)]);
+                $result = AVPVH_Directory::update_user($member->lldap_user_id, ['display_name' => avpvh_format_name($updated_member)]);
                 if (is_wp_error($result)) {
                     error_log("AVPVH_Member_Profile_Form: failed to sync displayName to LLDAP for member {$member->id}: " . $result->get_error_message());
                 }
@@ -1001,7 +1001,7 @@ class AVPVH_Member_Profile_Form {
 
         if ($target) {
             AVPVH_DB::set_primary_identity($member_id, $identity_id);
-            $result = AVPVH_LLDAP::update_user($member->lldap_user_id, ['email' => $target->email]);
+            $result = AVPVH_Directory::update_user($member->lldap_user_id, ['mail' => $target->email]);
             if (is_wp_error($result)) {
                 error_log("AVPVH_Member_Profile_Form: failed to sync primary identity ({$target->email}) to LLDAP for member {$member_id}: " . $result->get_error_message());
             }
