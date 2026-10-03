@@ -674,14 +674,19 @@ class AVPVH_Admin {
             wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
         }
 
+        $all_groups     = AVPVH_LLDAP::list_groups();
         $current_groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
-        if (is_wp_error($current_groups)) {
+        if (is_wp_error($all_groups) || is_wp_error($current_groups)) {
             wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'groups_error' => '1'], admin_url('admin.php')));
             exit;
         }
 
-        $selected_ids = array_map('intval', (array) wp_unslash($_POST['groups'] ?? []));
-        $current_ids  = array_map('intval', array_column($current_groups, 'id'));
+        // Only PvH groups are on the form, so only those may change: a
+        // member's groups of other tenants (or lldap_* system groups) must
+        // survive a save untouched, and a forged POST can't add them.
+        $pvh_ids      = array_map('intval', array_column(AVPVH_LLDAP::only_pvh_groups($all_groups), 'id'));
+        $selected_ids = array_intersect(array_map('intval', (array) wp_unslash($_POST['groups'] ?? [])), $pvh_ids);
+        $current_ids  = array_map('intval', array_column(AVPVH_LLDAP::only_pvh_groups($current_groups), 'id'));
 
         $had_error = false;
         foreach (array_diff($selected_ids, $current_ids) as $group_id) {

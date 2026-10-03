@@ -323,6 +323,9 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <?php
     $all_groups     = AVPVH_LLDAP::list_groups();
     $current_groups = AVPVH_LLDAP::get_user_groups($member->lldap_user_id);
+    if (!is_wp_error($all_groups)) {
+        $all_groups = AVPVH_LLDAP::only_pvh_groups($all_groups);
+    }
     ?>
     <?php if (is_wp_error($all_groups) || is_wp_error($current_groups)) : ?>
         <p class="description">Kon de groepen niet ophalen.</p>

@@ -127,9 +127,7 @@ class AVPVH_Member_Profile_Form {
                 $lldap_groups = [];
                 if (!empty($member->user_id)) {
                     $lldap_groups = AVPVH_LLDAP::get_user_groups($member->user_id);
-                    if (is_wp_error($lldap_groups)) {
-                        $lldap_groups = [];
-                    }
+                    $lldap_groups = is_wp_error($lldap_groups) ? [] : AVPVH_LLDAP::only_pvh_groups($lldap_groups);
                 }
                 ?>
                 <div class="avpvh-summary-card">
