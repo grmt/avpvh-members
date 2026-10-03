@@ -619,12 +619,15 @@ class AVPVH_DB {
             update_option('avpvh_db_version', '2.18');
         }
 
-        if (version_compare($version, '2.19', '<')) {
+        // 2.21, not 2.19: production already ran a 2.19 (gallery_taggable,
+        // deployed from a branch) and feature/openldap-directory claims
+        // 2.20, so a lower number here would be skipped on the live site.
+        if (version_compare($version, '2.21', '<')) {
             // install() alone can't create a new table on an already-active
             // site — dbDelta only handles structure, not seeding — so run it
             // here too, same pattern as the 2.17 migration above.
             self::install();
-            update_option('avpvh_db_version', '2.19');
+            update_option('avpvh_db_version', '2.21');
         }
     }
 
