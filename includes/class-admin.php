@@ -84,7 +84,7 @@ class AVPVH_Admin {
             'avpvh-member-detail', [$this, 'render_member_detail']
         );
         add_submenu_page(
-            'avpvh-members', 'Nieuw lid', 'Nieuw lid', $members_cap,
+            'avpvh-members', 'Nieuwe persoon', 'Nieuwe persoon', $members_cap,
             'avpvh-add-member', [$this, 'render_add_member']
         );
         add_submenu_page(
@@ -559,6 +559,9 @@ class AVPVH_Admin {
             if (AVPVH_DB::member_has_inactivating_flag($member_id)) {
                 $stripped = AVPVH_Roles::strip_bestuur_roles($member_id);
             }
+            // A kenmerk like Overleden may just have made them inactive:
+            // keep leden / ex-leden in step with the status.
+            AVPVH_Roles::sync_status_group($member_id);
         }
 
         wp_safe_redirect(add_query_arg(array_filter(['page' => 'avpvh-member-detail', 'id' => $member_id, 'flags_saved' => '1', 'bestuur_stripped' => $stripped ? '1' : null]), admin_url('admin.php')));
@@ -789,9 +792,27 @@ class AVPVH_Admin {
         $last_name  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
         $birth_raw  = trim(sanitize_text_field(wp_unslash($_POST['birth_date'] ?? '')));
         [$birth_date, $birth_year] = AVPVH_Member_Profile_Form::parse_birth_date($birth_raw);
-        $status     = sanitize_key(wp_unslash($_POST['status'] ?? 'inactive'));
-        $status     = in_array($status, ['active', 'inactive', 'visitor'], true) ? $status : 'inactive';
+        $status     = sanitize_key(wp_unslash($_POST['status'] ?? ''));
         $confirmed  = !empty($_POST['confirmed']);
+
+        // Kenmerken: only ids that exist in the catalog. One that makes a
+        // member inactive (Overleden, Geroyeerd) makes them an ex-lid.
+        $all_flags = AVPVH_DB::get_all_flags();
+        $flag_ids  = array_values(array_intersect(
+            array_map('intval', (array) wp_unslash($_POST['flag_ids'] ?? [])),
+            array_map(static fn($f) => (int) $f->id, $all_flags)
+        ));
+        foreach ($all_flags as $flag) {
+            if (!empty($flag->sets_inactive) && in_array((int) $flag->id, $flag_ids, true)) {
+                $status = 'inactive';
+            }
+        }
+        if (!isset(AVPVH_Roles::STATUS_GROUPS[$status])) {
+            wp_safe_redirect(add_query_arg([
+                'page' => 'avpvh-add-member', 'add_member_error' => 'soort',
+            ], admin_url('admin.php')));
+            exit;
+        }
 
         if ($first_name === '' || $last_name === '') {
             wp_safe_redirect(add_query_arg([
@@ -812,7 +833,7 @@ class AVPVH_Admin {
             if ($matches) {
                 set_transient('avpvh_add_member_pending_' . get_current_user_id(), [
                     'first_name' => $first_name, 'suffix' => $suffix, 'last_name' => $last_name,
-                    'birth_date' => $birth_raw, 'status' => $status,
+                    'birth_date' => $birth_raw, 'status' => $status, 'flag_ids' => $flag_ids,
                     'matches'    => wp_list_pluck($matches, 'id'),
                 ], 10 * MINUTE_IN_SECONDS);
                 wp_safe_redirect(add_query_arg(['page' => 'avpvh-add-member', 'add_member_duplicate' => '1'], admin_url('admin.php')));
@@ -842,14 +863,16 @@ class AVPVH_Admin {
             exit;
         }
 
-        $added = AVPVH_Directory::add_to_group($uid, 'leden');
-        if (is_wp_error($added)) {
-            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
-            error_log("AVPVH_Admin: new member {$uid} not added to leden: " . $added->get_error_message());
-        }
-        AVPVH_Directory::forget_groups($uid);
-
         $member_id = AVPVH_DB::create_member($uid, $first_name, $suffix, $last_name, $birth_date, $status, $birth_year);
+        if ($flag_ids) {
+            AVPVH_DB::set_member_flags($member_id, $flag_ids);
+        }
+        // leden / ex-leden / neither, matching the chosen soort.
+        $synced = AVPVH_Roles::sync_status_group($member_id);
+        if (is_wp_error($synced)) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
+            error_log("AVPVH_Admin: new person {$uid} not put in the matching membership group: " . $synced->get_error_message());
+        }
 
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'created' => '1'], admin_url('admin.php')));
         exit;

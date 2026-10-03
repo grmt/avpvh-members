@@ -24,10 +24,10 @@ if ($pending) {
 }
 ?>
 <div class="wrap">
-    <h1>Nieuw lid</h1>
+    <h1>Nieuwe persoon</h1>
     <p class="description">
-        Maakt een plaatsvervangend account aan (@avpvh.local, geen echte inlog — clubbeleid: leden onder de
-        16 krijgen geen eigen login) en het bijbehorende ledenrecord.
+        Voegt een lid, ex-lid of bezoeker toe: een plaatsvervangend account (@avpvh.local, geen echte inlog — clubbeleid:
+        leden onder de 16 krijgen geen eigen login) en het bijbehorende ledenrecord.
     </p>
 
     <?php if (!empty($_GET['add_member_error'])) :
@@ -36,6 +36,8 @@ if ($pending) {
             <p>
                 <?php if ($err === 'onvolledig') : ?>
                     Voornaam en achternaam zijn verplicht.
+                <?php elseif ($err === 'soort') : ?>
+                    Kies of het om een lid, ex-lid of bezoeker gaat.
                 <?php elseif ($err === 'geboortedatum') : ?>
                     Ongeldige geboortedatum. Vul een volledige datum in (JJJJ-MM-DD) of alleen een geboortejaar (JJJJ).
                 <?php elseif ($err === 'lldap') : ?>
@@ -70,7 +72,10 @@ if ($pending) {
                 <input type="hidden" name="last_name" value="<?php echo esc_attr($pending['last_name']); ?>">
                 <input type="hidden" name="birth_date" value="<?php echo esc_attr($pending['birth_date'] ?? ''); ?>">
                 <input type="hidden" name="status" value="<?php echo esc_attr($pending['status']); ?>">
-                <?php submit_button('Ja, toch toevoegen als nieuw lid', 'secondary', 'submit', false); ?>
+                <?php foreach ((array) ($pending['flag_ids'] ?? []) as $flag_id) : ?>
+                    <input type="hidden" name="flag_ids[]" value="<?php echo esc_attr((int) $flag_id); ?>">
+                <?php endforeach; ?>
+                <?php submit_button('Ja, toch toevoegen als nieuwe persoon', 'secondary', 'submit', false); ?>
             </form>
         </div>
     <?php endif; ?>
@@ -105,18 +110,35 @@ if ($pending) {
                 </td>
             </tr>
             <tr>
-                <th><label for="status">Status</label></th>
+                <th>Soort *</th>
                 <td>
-                    <select id="status" name="status">
-                        <?php $current_status = $pending['status'] ?? 'inactive'; ?>
-                        <option value="inactive" <?php selected($current_status, 'inactive'); ?>>Inactief</option>
-                        <option value="visitor" <?php selected($current_status, 'visitor'); ?>>Bezoeker</option>
-                        <option value="active" <?php selected($current_status, 'active'); ?>>Actief</option>
-                    </select>
+                    <fieldset>
+                        <?php $current_status = $pending['status'] ?? ''; ?>
+                        <?php foreach (AVPVH_Roles::STATUS_LABELS as $value => $label) : ?>
+                            <label style="display:inline-block;margin-right:1.5rem">
+                                <input type="radio" name="status" value="<?php echo esc_attr($value); ?>" required <?php checked($current_status, $value); ?>>
+                                <?php echo esc_html($label); ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </fieldset>
+                    <p class="description">Lid komt in de groep leden, ex-lid in ex-leden, een bezoeker in geen van beide.</p>
+                </td>
+            </tr>
+            <tr>
+                <th>Kenmerken</th>
+                <td>
+                    <?php $chosen_flags = array_map('intval', (array) ($pending['flag_ids'] ?? [])); ?>
+                    <?php foreach (AVPVH_DB::get_all_flags() as $flag) : ?>
+                        <label style="display:inline-block;margin-right:1.5rem">
+                            <input type="checkbox" name="flag_ids[]" value="<?php echo esc_attr($flag->id); ?>" <?php checked(in_array((int) $flag->id, $chosen_flags, true)); ?>>
+                            <?php echo esc_html($flag->label); ?>
+                        </label>
+                    <?php endforeach; ?>
+                    <p class="description">Meerdere mogelijk. Een kenmerk als Overleden of Geroyeerd maakt iemand automatisch ex-lid.</p>
                 </td>
             </tr>
         </table>
 
-        <?php submit_button('Lid toevoegen'); ?>
+        <?php submit_button('Persoon toevoegen'); ?>
     </form>
 </div>

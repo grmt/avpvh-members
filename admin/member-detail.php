@@ -91,7 +91,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-success is-dismissible"><p>Bijgewerkt.</p></div>
     <?php endif; ?>
     <?php if ($created) : ?>
-        <div class="notice notice-success is-dismissible"><p>Nieuw lid aangemaakt.</p></div>
+        <div class="notice notice-success is-dismissible"><p>Persoon aangemaakt.</p></div>
     <?php endif; ?>
     <?php if ($identity_ok) : ?>
         <div class="notice notice-success is-dismissible"><p>E-mailadres gekoppeld.</p></div>

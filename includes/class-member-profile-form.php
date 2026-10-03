@@ -1240,7 +1240,7 @@ class AVPVH_Member_Profile_Form {
      * adult" fallback. Returns [birth_date, birth_year], always exactly
      * one of the two non-null (or both null for an empty/invalid input) —
      * the two columns are mutually exclusive, never both set at once.
-     * Shared with the "Nieuw lid" form (AVPVH_Admin::handle_add_member()).
+     * Shared with the "Nieuwe persoon" form (AVPVH_Admin::handle_add_member()).
      */
     public static function parse_birth_date(string $raw): array {
         $raw = trim($raw);

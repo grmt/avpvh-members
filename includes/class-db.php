@@ -2010,7 +2010,7 @@ class AVPVH_DB {
         }
     }
 
-    /** Case-insensitive first+last name match — used by the "Nieuw lid" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, since a treasurer typing e.g. "Jan Voorbeeld" should still be warned about "Jan van Voorbeeld". */
+    /** Case-insensitive first+last name match — used by the "Nieuwe persoon" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, since a treasurer typing e.g. "Jan Voorbeeld" should still be warned about "Jan van Voorbeeld". */
     public static function find_members_by_name(string $first_name, string $last_name): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare(

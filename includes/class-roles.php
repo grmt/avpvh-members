@@ -42,7 +42,7 @@ class AVPVH_Roles {
     }
 
     // Officer roles that get the same member-management access as a real WP
-    // admin (Ledenbeheer, Ledendetail, Nieuw lid and their save handlers):
+    // admin (Ledenbeheer, Ledendetail, Nieuwe persoon and their save handlers):
     // secretaris as membership registrar, penningmeester for contributie
     // and member records. Either via real LLDAP group membership or a
     // temporary delegation (see admin/roles.php).
@@ -242,6 +242,45 @@ class AVPVH_Roles {
             ['id' => $delegation_id],
             ['%s'], ['%d']
         );
+    }
+
+    // The membership group that goes with each status; bezoekers are in
+    // neither. GEMINI.md: status changes must keep leden/ex-leden in step.
+    const STATUS_GROUPS = ['active' => 'leden', 'inactive' => 'ex-leden', 'visitor' => null];
+    const STATUS_LABELS = ['active' => 'Lid', 'inactive' => 'Ex-lid', 'visitor' => 'Bezoeker'];
+
+    /**
+     * Put the member in exactly the group that matches their status (leden,
+     * ex-leden or neither) and take them out of the other one. Called after
+     * creating a person and whenever status can change (kenmerken such as
+     * Overleden make a member inactive).
+     */
+    public static function sync_status_group(int $member_id): true|\WP_Error {
+        $member = AVPVH_DB::get_member($member_id);
+        if (!$member || empty($member->lldap_user_id)) {
+            return new \WP_Error('avpvh_no_member', 'Lid niet gevonden.');
+        }
+        $target = self::STATUS_GROUPS[$member->status] ?? null;
+        $groups = AVPVH_Directory::get_user_groups($member->lldap_user_id);
+        if (is_wp_error($groups)) {
+            return $groups;
+        }
+        $error = null;
+        foreach (array_filter(self::STATUS_GROUPS) as $group) {
+            $in = in_array($group, $groups, true);
+            if ($group === $target && !$in) {
+                $result = AVPVH_Directory::add_to_group($member->lldap_user_id, $group);
+            } elseif ($group !== $target && $in) {
+                $result = AVPVH_Directory::remove_from_group($member->lldap_user_id, $group);
+            } else {
+                continue;
+            }
+            if (is_wp_error($result) && !$error) {
+                $error = $result;
+            }
+        }
+        AVPVH_Directory::forget_groups($member->lldap_user_id);
+        return $error ?? true;
     }
 
     /**
