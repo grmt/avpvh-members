@@ -2182,6 +2182,24 @@ class AVPVH_DB {
         }
     }
 
+    /** Whether the member currently has a kenmerk that forces inactive status (e.g. geroyeerd, overleden). */
+    public static function member_has_inactivating_flag(int $member_id): bool {
+        global $wpdb;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT 1 FROM {$wpdb->prefix}avm_member_flag_assignments fa
+             JOIN {$wpdb->prefix}avm_member_flags f ON f.id = fa.flag_id
+             WHERE fa.member_id = %d AND f.sets_inactive = 1 LIMIT 1",
+            $member_id
+        ));
+    }
+
+    public static function flag_exists(string $slug): bool {
+        global $wpdb;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_member_flags WHERE slug = %s", $slug
+        ));
+    }
+
     /** Adds a new flag to the catalog (admin UI, "extendable" per the club's own ad-hoc categories). Returns the new flag id, or 0 on failure (e.g. duplicate slug). */
     public static function create_flag(string $slug, string $label, bool $affects_fees = false, bool $sets_inactive = false): int {
         global $wpdb;

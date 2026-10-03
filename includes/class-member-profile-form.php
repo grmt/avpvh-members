@@ -25,7 +25,7 @@ class AVPVH_Member_Profile_Form {
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
         $requested_id = absint(wp_unslash($_GET['member_id'] ?? 0));
-        $is_admin_edit = current_user_can('manage_options') && $requested_id > 0;
+        $is_admin_edit = AVPVH_Roles::can_manage_members() && $requested_id > 0;
 
         $is_identity_request_only = false;
         if ($is_admin_edit) {
@@ -147,6 +147,13 @@ class AVPVH_Member_Profile_Form {
                         <div class="avpvh-summary-card__row">
                             <span class="avpvh-summary-card__label">Groepen:</span>
                             <?php echo esc_html(implode(', ', wp_list_pluck($lldap_groups, 'displayName'))); ?>
+                        </div>
+                    <?php endif; ?>
+                    <?php $role_lines = AVPVH_Roles::describe_member_roles((int) $member->id); ?>
+                    <?php if ($role_lines) : ?>
+                        <div class="avpvh-summary-card__row">
+                            <span class="avpvh-summary-card__label">Rollen:</span>
+                            <?php echo esc_html(implode(', ', $role_lines)); ?>
                         </div>
                     <?php endif; ?>
                     <?php if (count($housemates) > 1) : ?>
@@ -799,7 +806,7 @@ class AVPVH_Member_Profile_Form {
             wp_send_json_error('Member profile not found');
         }
 
-        $is_admin_edit = current_user_can('manage_options') && !empty($_POST['member_id']);
+        $is_admin_edit = AVPVH_Roles::can_manage_members() && !empty($_POST['member_id']);
         $member_data = $this->sanitize_member_data($_POST, $is_admin_edit);
 
         try {
@@ -865,11 +872,12 @@ class AVPVH_Member_Profile_Form {
     }
 
     /**
-     * Admins can edit any member; everyone else can edit their own profile or
-     * a household member's (same family link or current address).
+     * Member admins (AVPVH_Roles::can_manage_members()) can edit any member;
+     * everyone else can edit their own profile or a household member's
+     * (same family link or current address).
      */
     private function can_edit_member(?object $own_member, int $target_member_id): bool {
-        if (current_user_can('manage_options')) {
+        if (AVPVH_Roles::can_manage_members()) {
             return true;
         }
         if (!$own_member) {

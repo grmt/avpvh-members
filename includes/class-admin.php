@@ -18,6 +18,10 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_export_activity_participation', [$this, 'handle_export_activity_participation']);
         add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
         add_action('admin_post_avpvh_revoke_delegation',  [$this, 'handle_revoke_delegation']);
+        add_action('admin_post_avpvh_appoint_officer',   [$this, 'handle_appoint_officer']);
+        add_action('admin_post_avpvh_set_bestuur',       [$this, 'handle_set_bestuur']);
+        add_action('admin_post_avpvh_step_down',         [$this, 'handle_step_down']);
+        add_action('admin_post_avpvh_self_delegate_secretaris', [$this, 'handle_self_delegate_secretaris']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
@@ -30,23 +34,21 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_merge_members',      [$this, 'handle_merge_members']);
     }
 
-    // manage_options (real WP admins) or bestuur (incl. voorzitter/
-    // secretaris/penningmeester, who imply bestuur — see AVPVH_Roles) —
-    // broader than the manage_options-only gate every other screen in this
-    // file uses, since board members log in as plain 'contributor' WP
-    // users and would otherwise never see this menu at all.
+    // See AVPVH_Roles::can_manage_roles(): WP admins plus voorzitter.
+    // Board members log in as plain 'contributor' WP users, so this is
+    // checked by hand rather than through a WP capability.
     private function can_manage_roles(): bool {
-        return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('bestuur');
+        return AVPVH_Roles::can_manage_roles();
     }
 
-    // secretaris (real LLDAP group membership, or a temporary delegation —
-    // see AVPVH_Roles and admin/roles.php's "Nieuwe delegatie" form) is
-    // traditionally the membership registrar, so gets the same member-
-    // management access as a real WP admin: Ledenbeheer/Ledendetail/Nieuw
-    // lid only, not the rest of this menu (Activiteiten, Instellingen,
-    // Nieuwsbrief, Loginpogingen stay manage_options-only).
+    // See AVPVH_Roles::can_manage_members(): WP admins plus the officer
+    // roles in AVPVH_Roles::MEMBER_ADMIN_ROLES get Ledenbeheer/Ledendetail/
+    // Nieuw lid only. Activiteiten has its own, narrower rule
+    // (AVPVH_Roles::can_manage_activities(): secretaris only), as does
+    // Nieuwsbrief (can_send_newsletter(): secretaris); Instellingen and
+    // Loginpogingen stay manage_options-only.
     private function can_manage_members(): bool {
-        return current_user_can('manage_options') || AVPVH_Roles::current_user_has_role('secretaris');
+        return AVPVH_Roles::can_manage_members();
     }
 
     public function register_menus(): void {
@@ -56,6 +58,8 @@ class AVPVH_Admin {
         // re-runs per admin pageview for whoever's viewing, same trick
         // already used below for can_manage_roles()/'Rollen & delegatie'.
         $members_cap = $this->can_manage_members() ? 'read' : 'manage_options';
+        $activities_cap = AVPVH_Roles::can_manage_activities() ? 'read' : 'manage_options';
+        $newsletter_cap = AVPVH_Roles::can_send_newsletter() ? 'read' : 'manage_options';
 
         $hook = add_menu_page(
             'AV-PvH Leden', 'AV-PvH Leden', $members_cap,
@@ -91,7 +95,7 @@ class AVPVH_Admin {
             'avpvh-merge-members', [$this, 'render_merge_members']
         );
         add_submenu_page(
-            'avpvh-members', 'Activiteiten', 'Activiteiten', 'manage_options',
+            'avpvh-members', 'Activiteiten', 'Activiteiten', $activities_cap,
             'avpvh-activity-participation', [$this, 'render_activity_participation_list']
         );
         // Not shown in the sidebar — only reachable via the "Nieuwe
@@ -105,7 +109,7 @@ class AVPVH_Admin {
         // dispatch the request, so a direct link 404s/"not allowed"s
         // instead of just being hidden from the menu.
         add_submenu_page(
-            null, 'Deelname bewerken', 'Deelname bewerken', 'manage_options',
+            null, 'Deelname bewerken', 'Deelname bewerken', $activities_cap,
             'avpvh-activity-participation-detail', [$this, 'render_activity_participation_detail']
         );
         add_submenu_page(
@@ -113,7 +117,7 @@ class AVPVH_Admin {
             'avpvh-login-attempts', [$this, 'render_login_attempts']
         );
         add_submenu_page(
-            'avpvh-members', 'Nieuwsbrief', 'Nieuwsbrief', 'manage_options',
+            'avpvh-members', 'Nieuwsbrief', 'Nieuwsbrief', $newsletter_cap,
             'avpvh-newsletter', [$this, 'render_newsletter']
         );
         add_submenu_page(
@@ -125,7 +129,7 @@ class AVPVH_Admin {
         // only WP capability every logged-in member has, so gating on the
         // real rule here (rather than in add_submenu_page's capability
         // argument) is what keeps this out of the menu for everyone else.
-        if ($this->can_manage_roles()) {
+        if (AVPVH_Roles::can_view_roles_page()) {
             add_submenu_page(
                 'avpvh-members', 'Rollen & delegatie', 'Rollen & delegatie', 'read',
                 'avpvh-roles', [$this, 'render_roles']
@@ -401,7 +405,7 @@ class AVPVH_Admin {
 
     public function handle_mark_fee_paid(): void {
         check_admin_referer('avpvh_mark_fee_paid');
-        if (!current_user_can('manage_options')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $fee_id    = absint(wp_unslash($_POST['fee_id'] ?? 0));
@@ -427,7 +431,7 @@ class AVPVH_Admin {
      */
     public function handle_add_identity(): void {
         check_admin_referer('avpvh_add_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -455,7 +459,7 @@ class AVPVH_Admin {
 
     public function handle_delete_identity(): void {
         check_admin_referer('avpvh_delete_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -482,7 +486,7 @@ class AVPVH_Admin {
 
     public function handle_primary_identity(): void {
         check_admin_referer('avpvh_primary_identity');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -510,17 +514,23 @@ class AVPVH_Admin {
 
     public function handle_save_member_flags(): void {
         check_admin_referer('avpvh_save_member_flags');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $flag_ids  = array_map('intval', (array) wp_unslash($_POST['flag_ids'] ?? []));
+        $stripped = false;
         if ($member_id) {
             AVPVH_DB::set_member_flags($member_id, $flag_ids);
+            // Geroyeerd (or another kenmerk that makes a member inactive):
+            // they can't stay in the bestuur or hold an officer role.
+            if (AVPVH_DB::member_has_inactivating_flag($member_id)) {
+                $stripped = AVPVH_Roles::strip_bestuur_roles($member_id);
+            }
         }
 
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'flags_saved' => '1'], admin_url('admin.php')));
+        wp_safe_redirect(add_query_arg(array_filter(['page' => 'avpvh-member-detail', 'id' => $member_id, 'flags_saved' => '1', 'bestuur_stripped' => $stripped ? '1' : null]), admin_url('admin.php')));
         exit;
     }
 
@@ -564,7 +574,7 @@ class AVPVH_Admin {
      */
     public function handle_send_newsletter(): void {
         check_admin_referer('avpvh_send_newsletter');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_send_newsletter()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -599,7 +609,7 @@ class AVPVH_Admin {
 
     public function handle_update_address(): void {
         check_admin_referer('avpvh_update_address');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
@@ -623,7 +633,7 @@ class AVPVH_Admin {
     // existed and was editable directly in LLDAP.
     public function handle_update_email(): void {
         check_admin_referer('avpvh_update_email');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -755,7 +765,7 @@ class AVPVH_Admin {
 
     public function handle_delete_address(): void {
         check_admin_referer('avpvh_delete_address');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
@@ -778,7 +788,7 @@ class AVPVH_Admin {
      */
     public function handle_add_member(): void {
         check_admin_referer('avpvh_add_member');
-        if (!current_user_can('manage_options') && !AVPVH_Roles::current_user_has_role('secretaris')) {
+        if (!$this->can_manage_members()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -854,7 +864,7 @@ class AVPVH_Admin {
 
     public function handle_save_participation(): void {
         check_admin_referer('avpvh_save_participation');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -912,7 +922,7 @@ class AVPVH_Admin {
      */
     public function handle_create_activity(): void {
         check_admin_referer('avpvh_create_activity');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -939,7 +949,7 @@ class AVPVH_Admin {
 
     public function handle_save_activity(): void {
         check_admin_referer('avpvh_save_activity');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -961,7 +971,7 @@ class AVPVH_Admin {
 
     public function handle_save_activity_types(): void {
         check_admin_referer('avpvh_save_activity_types');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -983,7 +993,7 @@ class AVPVH_Admin {
 
     public function handle_export_activity_participation(): void {
         check_admin_referer('avpvh_export_activity_participation');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_manage_activities()) {
             wp_die('Geen toegang.', 403);
         }
 
@@ -1015,18 +1025,134 @@ class AVPVH_Admin {
         $role      = sanitize_key(wp_unslash($_POST['role'] ?? ''));
         $to_member_id = absint(wp_unslash($_POST['delegated_to_member_id'] ?? 0));
         $ends_at_raw  = sanitize_text_field(wp_unslash($_POST['ends_at'] ?? ''));
-        // Datetime-local input ("2026-08-20T18:00") -> MySQL DATETIME, end of
-        // day if only a date was somehow submitted. Blank = indefinite.
-        $ends_at = $ends_at_raw !== '' ? str_replace('T', ' ', $ends_at_raw) . (strlen($ends_at_raw) === 10 ? ':00' : '') : null;
+        // Datetime-local input ("2026-08-20T18:00") -> MySQL DATETIME; a bare
+        // date means the end of that day. Blank = indefinite.
+        $ends_at = null;
+        if ($ends_at_raw !== '') {
+            // Round-trip check: createFromFormat() silently rolls "2026-13-01"
+            // or "25:00" over into another date instead of failing.
+            $format = strlen($ends_at_raw) === 10 ? 'Y-m-d' : 'Y-m-d\TH:i';
+            $parsed = \DateTime::createFromFormat('!' . $format, $ends_at_raw);
+            if (!$parsed || $parsed->format($format) !== $ends_at_raw) {
+                $this->roles_redirect('delegate_error');
+            }
+            $ends_at = $parsed->format(strlen($ends_at_raw) === 10 ? 'Y-m-d 23:59:59' : 'Y-m-d H:i:s');
+            if ($ends_at <= current_time('mysql')) {
+                $this->roles_redirect('delegate_past');
+            }
+        }
 
-        if (!$by_member || !$to_member_id || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
-            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'delegate_error' => '1'], admin_url('admin.php')));
+        $candidate_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_officer_candidates());
+        // WP admins may delegate without a member record of their own (or
+        // without a club role); everyone else must be a member.
+        $is_admin = current_user_can('manage_options');
+        if ((!$by_member && !$is_admin) || !in_array($to_member_id, $candidate_ids, true) || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
+            $this->roles_redirect('delegate_error');
+        }
+
+        // A non-bestuurslid may stand in for an officer role, but only
+        // temporarily: the end date is required, so it can never quietly
+        // turn into a permanent role outside the bestuur.
+        if ($ends_at === null && !in_array('bestuur', AVPVH_Roles::get_member_roles($to_member_id), true)) {
+            $this->roles_redirect('delegate_needs_end');
+        }
+
+        $ok = AVPVH_Roles::create_delegation($role, $to_member_id, $by_member ? (int) $by_member->id : 0, $ends_at, $is_admin);
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-roles', $ok ? 'delegate_ok' : 'delegate_error' => '1'],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+
+    private function roles_redirect(string $key): never {
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', $key => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_appoint_officer(): void {
+        check_admin_referer('avpvh_appoint_officer');
+        if (!AVPVH_Roles::can_appoint_officers()) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $role          = sanitize_key(wp_unslash($_POST['role'] ?? ''));
+        $to_member_id  = absint(wp_unslash($_POST['new_holder_id'] ?? 0));
+        $candidate_ids = array_map(static fn($m) => (int) $m->id, AVPVH_Roles::get_officer_candidates());
+        if (!in_array($role, AVPVH_Roles::OFFICER_ROLES, true) || !in_array($to_member_id, $candidate_ids, true)) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'appoint_error' => '1'], admin_url('admin.php')));
+            exit;
+        }
+        // Normally only bestuursleden become rolhouder; appointing anyone
+        // else needs the explicit "geen bestuurslid (uitzondering)" box.
+        if (empty($_POST['allow_non_bestuur']) && !in_array('bestuur', AVPVH_Roles::get_member_roles($to_member_id), true)) {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', 'appoint_needs_exception' => '1'], admin_url('admin.php')));
             exit;
         }
 
-        $ok = AVPVH_Roles::create_delegation($role, $to_member_id, (int) $by_member->id, $ends_at);
+        $result = AVPVH_Roles::appoint_officer($role, $to_member_id);
+        if (is_wp_error($result)) {
+            error_log("AVPVH_Admin: appointing {$role} failed: " . $result->get_error_message());
+        }
         wp_safe_redirect(add_query_arg(
-            ['page' => 'avpvh-roles', $ok ? 'delegate_ok' : 'delegate_error' => '1'],
+            ['page' => 'avpvh-roles', is_wp_error($result) ? 'appoint_error' : 'appoint_ok' => $role],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+
+    public function handle_self_delegate_secretaris(): void {
+        check_admin_referer('avpvh_self_delegate_secretaris');
+        if (!AVPVH_Roles::can_self_delegate_secretaris()) {
+            wp_die('Geen toegang.', 403);
+        }
+        $me  = avpvh_get_member_by_wp_user(get_current_user_id());
+        $raw = sanitize_text_field(wp_unslash($_POST['ends_at'] ?? ''));
+        $parsed = \DateTime::createFromFormat('!Y-m-d\TH:i', $raw);
+        if (!$parsed || $parsed->format('Y-m-d\TH:i') !== $raw) {
+            $this->roles_redirect('self_delegate_error');
+        }
+        $ends_at = $parsed->format('Y-m-d H:i:s');
+        $max     = wp_date('Y-m-d H:i:s', time() + AVPVH_Roles::SELF_DELEGATION_MAX_HOURS * HOUR_IN_SECONDS);
+        if ($ends_at <= current_time('mysql') || $ends_at > $max) {
+            $this->roles_redirect('self_delegate_error');
+        }
+        $ok = AVPVH_Roles::create_delegation('secretaris', (int) $me->id, (int) $me->id, $ends_at);
+        $this->roles_redirect($ok ? 'self_delegate_ok' : 'self_delegate_error');
+    }
+
+    public function handle_step_down(): void {
+        check_admin_referer('avpvh_step_down');
+        $role      = sanitize_key(wp_unslash($_POST['role'] ?? ''));
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        if (!AVPVH_Roles::can_step_down($role, $member_id)) {
+            wp_die('Geen toegang.', 403);
+        }
+        $result = AVPVH_Roles::step_down($role, $member_id);
+        if (is_wp_error($result)) {
+            error_log("AVPVH_Admin: stepping down as {$role} failed: " . $result->get_error_message());
+        }
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-roles', is_wp_error($result) ? 'step_down_error' : 'step_down_ok' => $role],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+
+    public function handle_set_bestuur(): void {
+        check_admin_referer('avpvh_set_bestuur');
+        if (!AVPVH_Roles::can_appoint_officers()) {
+            wp_die('Geen toegang.', 403);
+        }
+
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $add       = sanitize_key(wp_unslash($_POST['op'] ?? '')) === 'add';
+        $result    = $member_id ? AVPVH_Roles::set_bestuur_member($member_id, $add) : new \WP_Error('avpvh_no_member', 'Geen lid gekozen.');
+        if (is_wp_error($result)) {
+            error_log('AVPVH_Admin: changing bestuur failed: ' . $result->get_error_message());
+        }
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'avpvh-roles', is_wp_error($result) ? 'bestuur_error' : ($add ? 'bestuur_added' : 'bestuur_removed') => '1'],
             admin_url('admin.php')
         ));
         exit;
