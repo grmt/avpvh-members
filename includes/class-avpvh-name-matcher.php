@@ -15,8 +15,8 @@ defined('ABSPATH') || exit;
  * glued into `last_name` with a comma ("Achternaam, suffix" — legacy bulk
  * import); glued directly onto the front of `last_name` with no comma
  * ("De Voorbeeld"); glued as an abbreviation onto the END of `last_name`
- * ("Berg v/d", historical DGéén import); or glued (as a full word or an
- * abbreviation) onto `first_name` ("Tom van", "v/d Godfried", also
+ * ("Achternaam v/d", historical DGéén import); or glued (as a full word or an
+ * abbreviation) onto `first_name` ("Voornaam van", "v/d Voornaam", also
  * DGéén). Matching must treat all of these as the same person while
  * NEVER guessing which full tussenvoegsel an abbreviation like "v/d"
  * stands for (van de / van den / van der are all possible) — see plan.md
@@ -104,7 +104,7 @@ class AVPVH_Name_Matcher {
         $first = trim($first_name);
         $lowered = strtolower($first);
 
-        // Leading abbreviation: "v/d Godfried" -> "Godfried"
+        // Leading abbreviation: "v/d Voornaam" -> "Voornaam"
         foreach (self::GLUED_ABBREVIATIONS as $abbr) {
             $prefix_pattern = $abbr . ' ';
             if (str_starts_with($lowered, $prefix_pattern)) {
@@ -112,7 +112,7 @@ class AVPVH_Name_Matcher {
             }
         }
 
-        // Trailing full tussenvoegsel word: "Tom van" -> "Tom", "Marieke van" -> "Marieke"
+        // Trailing full tussenvoegsel word: "Voornaam van" -> "Voornaam"
         foreach (self::TUSSENVOEGSEL_PREFIXES as $prefix) {
             $word = rtrim($prefix);
             $suffix_pattern = ' ' . $word;
