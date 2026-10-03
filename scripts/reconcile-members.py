@@ -28,6 +28,8 @@ Dependencies:
 
 import argparse
 from datetime import date, timedelta
+import json
+from pathlib import Path
 
 import openpyxl
 import requests
@@ -43,25 +45,37 @@ from _avpvh_import_common import (
 FIELDS_TO_SYNC = ['birth_date', 'phone', 'mobile', 'emergency_contact']
 ADDRESS_FIELDS = ['street', 'house_number', 'postal_code', 'city', 'country']
 
-# --- Manual overrides confirmed with the user for the 2026-20-07 sheet ---
+# Member-specific reconciliation exceptions belong in ignored local data,
+# never in committed source code. Supported keys are documented here with
+# deliberately fictitious values:
+# {
+#   "db_name_key_corrections": {"123": ["Voornaam", "Achternaam"]},
+#   "preserve_db_fields": {"123": ["house_number"]}
+# }
+OVERRIDES_FILE = Path(__file__).with_name('reconcile-members-overrides.local.json')
 
-# DB rows with a name that wouldn't otherwise match the sheet (spelling
-# variant, nickname unrelated to the formal name, or a wrong surname on
-# file) — confirmed same person in each case. Used only to compute the
-# matching key; the diff still shows the real current DB value being
-# corrected.
-DB_NAME_KEY_CORRECTIONS = {
-    70: ('Voornaam', 'Spelling'),    # DB "Speling, van" — spelling variant
-    74: ('Roepnaam', 'Voorbeeld'),  # DB "Formele Voornamen" — nickname, not a substring match
-    42: ('Voornaam', 'Juistenaam'), # DB wrongly has last_name "Foutenaam" — confirmed error
-    65: ('Roepnaam', 'Anders'),    # DB "Formele Voornamen" — call name unrelated to formal name, confirmed same person
-    60: ('Voornaam', 'Gedeeld'), # ambiguous vs id 61 for the secondary pass (same surname) — disambiguated manually
-    61: ('Andere', 'Gedeeld'),
-}
 
-# Sheet lost formatting on these two shared-household house numbers
-# ("40-1 hoog" -> "40 1") — keep the DB's value instead of overwriting it.
-PRESERVE_DB_FIELDS = {29: {'house_number'}, 31: {'house_number'}}
+def load_reconcile_overrides() -> tuple[
+    dict[int, tuple[str, str]], dict[int, set[str]]
+]:
+    if not OVERRIDES_FILE.exists():
+        return {}, {}
+    with OVERRIDES_FILE.open(encoding='utf-8') as handle:
+        configured = json.load(handle)
+    name_corrections = {
+        int(member_id): (str(names[0]), str(names[1]))
+        for member_id, names
+        in configured.get('db_name_key_corrections', {}).items()
+    }
+    preserve_fields = {
+        int(member_id): {str(field) for field in fields}
+        for member_id, fields
+        in configured.get('preserve_db_fields', {}).items()
+    }
+    return name_corrections, preserve_fields
+
+
+DB_NAME_KEY_CORRECTIONS, PRESERVE_DB_FIELDS = load_reconcile_overrides()
 
 
 def blank(v) -> bool:
@@ -275,8 +289,8 @@ def find_secondary_matches(sheet_only: list, db_only: list,
     """Second pass over rows the exact-match pass missed: match a sheet row
     to a DB member when they share the same core last name AND the sheet's
     short first name appears as a whole word inside the DB's (often fuller)
-    first name — e.g. sheet "Roepnaam" / DB "Roepnaam (Volledige
-    Namen)". Only applied when exactly one candidate exists on the DB
+    first name — for example a short call name inside a longer formal name.
+    Only applied when exactly one candidate exists on the DB
     side for that last name, kept just as conservative as the primary exact
     match — ambiguous cases are left for manual review instead of guessed
     at. Returns {sheet_key: db_key}."""

@@ -54,6 +54,32 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 4. Ensure the WordPress DB user has `SELECT` on the `lldap` database.
 5. Import members using `scripts/import-avpvh-members.py`.
 
+### Camp participation imports
+
+The camp workbook has its own fixed `totaal inschrijvingen` grid and is not
+processed by the configurable generic sheet importer in **Activiteit
+betalingen**. These two camp-specific scripts accept either an overview
+workbook or the camp archive directory. Always run a dry-run before writing
+production data.
+
+```bash
+# Import/update participation records from the newest workbook in a directory.
+python3 scripts/import-avpvh-camps.py /path/to/exports/ --latest --dry-run
+python3 scripts/import-avpvh-camps.py /path/to/exports/ --latest
+
+# Refresh the display snapshot from the newest .xlsx export in a directory.
+python3 scripts/sync-kamp-overzicht.py /path/to/exports/ --dry-run
+python3 scripts/sync-kamp-overzicht.py /path/to/exports/
+```
+
+`import-avpvh-camps.py` exits with status 2 when names remain unmatched or
+ambiguous, after reporting them for manual review. It reads names from column
+D, the day grid from E-T, and nawacht/notes/diet from W-Z. An import replaces
+that participant's day-by-day attendance for the camp. The overview option
+name is derived from the campaign year (for example
+`avpvh_kamp_2026_overzicht`); use `--year` or `--option-name` when the year
+cannot be inferred correctly.
+
 ## Deploy
 
 ```bash
