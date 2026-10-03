@@ -1,6 +1,11 @@
 # Plan: LLDAP vervangen door OpenLDAP
 
-Status: plan, nog niet uitgevoerd (2026-10-02).
+Status: fase 0 uitgevoerd (2026-10-03, docker-scripts PR #40): eigen
+WordPress-image met `ldap`-extensie voor `wordpress-pvh`/`wpcli-pvh`,
+serviceaccount `cn=avpvh-admin,dc=nl` met secret
+`openldap_avpvh_admin_password`, placeholder `cn=vacant,ou=avpvh,dc=nl` en
+de ACL-regel voor `ou=avpvh`; grenstest op live geslaagd. Fase 1 e.v. nog
+niet begonnen.
 
 ## Besluit
 
