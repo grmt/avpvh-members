@@ -1,5 +1,6 @@
 <?php
 defined('ABSPATH') || exit;
+// phpcs:disable WordPress.Security.NonceVerification.Recommended -- the only request data read on this page are the notice flags (delegate_ok, appoint_ok, ...) set by this plugin's own admin-post redirects, to choose which message to show; every action itself is a nonce-checked admin-post handler in AVPVH_Admin
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!AVPVH_Roles::can_view_roles_page()) {
     wp_die('Geen toegang.');

@@ -986,6 +986,7 @@ class AVPVH_DB {
             $email
         ));
         if ($owner !== null && (int) $owner !== $member_id) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
             error_log("AVPVH_DB: primary e-mail of member {$member_id} is already an identity of member {$owner}; left unchanged");
             return;
         }

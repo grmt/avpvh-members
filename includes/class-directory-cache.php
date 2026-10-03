@@ -90,10 +90,12 @@ final class AVPVH_Directory_Cache {
         }
         $users = AVPVH_Directory::list_users();
         if (is_wp_error($users)) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
             error_log('AVPVH_Directory_Cache: sync failed: ' . $users->get_error_message());
             return ['ok' => false, 'error' => $users->get_error_message()];
         }
         if (!$users) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
             error_log('AVPVH_Directory_Cache: directory returned no accounts; cache left unchanged');
             return ['ok' => false, 'error' => 'De directory gaf geen accounts terug; cache ongewijzigd.'];
         }
@@ -103,6 +105,7 @@ final class AVPVH_Directory_Cache {
             self::upsert($user);
             $seen[] = strtolower($user['uid']);
         }
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- fixed table name ($wpdb->prefix + constant), no user input, nothing to prepare
         $existing = $wpdb->get_col('SELECT user_id FROM ' . self::table());
         $gone = array_diff($existing, $seen);
         foreach ($gone as $uid) {

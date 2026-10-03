@@ -326,7 +326,7 @@ class AVPVH_Admin {
                 <tr><th>Backend</th><td><code><?php echo esc_html(AVPVH_Directory::backend_name()); ?></code> <span class="description">(instelbaar met de constante AVPVH_DIRECTORY_BACKEND in wp-config.php)</span></td></tr>
                 <?php if (AVPVH_Directory::is_openldap()) : ?>
                     <tr><th>Cache</th><td>
-                        <?php echo (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . AVPVH_Directory_Cache::table()); ?> accounts,
+                        <?php echo (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . AVPVH_Directory_Cache::table()); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- fixed table name ($wpdb->prefix + constant), no user input ?> accounts,
                         laatst volledig gesynchroniseerd: <?php echo esc_html(get_option('avpvh_directory_synced_at') ?: 'nog nooit'); ?>
                     </td></tr>
                 <?php endif; ?>
@@ -844,6 +844,7 @@ class AVPVH_Admin {
 
         $added = AVPVH_Directory::add_to_group($uid, 'leden');
         if (is_wp_error($added)) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
             error_log("AVPVH_Admin: new member {$uid} not added to leden: " . $added->get_error_message());
         }
         AVPVH_Directory::forget_groups($uid);
