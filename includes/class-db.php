@@ -983,9 +983,27 @@ class AVPVH_DB {
             return;
         }
 
+        // email is unique across the whole table, whatever the provider.
+        // If another member already holds it, leave everything as it is —
+        // inserting would fail, and clearing this member's primary flag
+        // first (as this used to) left them with no primary at all.
+        $owner = $wpdb->get_var($wpdb->prepare(
+            "SELECT member_id FROM {$wpdb->prefix}avm_member_identities WHERE email = %s LIMIT 1",
+            $email
+        ));
+        if ($owner !== null && (int) $owner !== $member_id) {
+            error_log("AVPVH_DB: primary e-mail of member {$member_id} is already an identity of member {$owner}; left unchanged");
+            return;
+        }
+
+        // Prefer the identity that already has this address (e.g. the same
+        // address verified via Google), then any e-mail identity whose
+        // address should follow the LLDAP one; only insert when neither exists.
         $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}avm_member_identities WHERE member_id = %d AND provider = 'email' LIMIT 1",
-            $member_id
+            "SELECT id FROM {$wpdb->prefix}avm_member_identities
+             WHERE member_id = %d AND (email = %s OR provider = 'email')
+             ORDER BY (email = %s) DESC LIMIT 1",
+            $member_id, $email, $email
         ));
 
         $wpdb->query($wpdb->prepare(
