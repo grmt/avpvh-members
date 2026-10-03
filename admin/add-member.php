@@ -15,9 +15,11 @@ if (!empty($_GET['add_member_duplicate'])) {
 }
 $matches = [];
 if ($pending) {
-    foreach ($pending['matches'] as $existing_id) {
+    // id => matched_via ('' = official name, else the name alias it matched on)
+    foreach ($pending['matches'] as $existing_id => $matched_via) {
         $existing = AVPVH_DB::get_member((int) $existing_id);
         if ($existing) {
+            $existing->matched_via = (string) $matched_via;
             $matches[] = $existing;
         }
     }
@@ -46,7 +48,7 @@ if ($pending) {
     <?php if ($pending && $matches) : ?>
         <div class="notice notice-warning">
             <p>
-                <strong>Er <?php echo count($matches) === 1 ? 'bestaat al een lid' : 'bestaan al leden'; ?> met deze naam:</strong>
+                <strong>Er <?php echo count($matches) === 1 ? 'bestaat al een lid' : 'bestaan al leden'; ?> met deze of een vergelijkbare naam:</strong>
             </p>
             <ul style="list-style: disc; margin-left: 1.5rem;">
                 <?php foreach ($matches as $m) : ?>
@@ -54,7 +56,7 @@ if ($pending) {
                         <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $m->id], admin_url('admin.php'))); ?>" target="_blank">
                             <?php echo esc_html(avpvh_format_name($m, 'list_suffix')); ?>
                         </a>
-                        (status: <?php echo esc_html($m->status); ?>)
+                        (status: <?php echo esc_html($m->status); ?><?php echo $m->matched_via !== '' ? esc_html(', via naamvariant ' . $m->matched_via) : ''; ?>)
                     </li>
                 <?php endforeach; ?>
             </ul>

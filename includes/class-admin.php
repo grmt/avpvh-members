@@ -798,12 +798,12 @@ class AVPVH_Admin {
         }
 
         if (!$confirmed) {
-            $matches = AVPVH_DB::find_members_by_name($first_name, $last_name);
+            $matches = AVPVH_DB::find_members_by_name_or_alias($first_name, $suffix, $last_name);
             if ($matches) {
                 set_transient('avpvh_add_member_pending_' . get_current_user_id(), [
                     'first_name' => $first_name, 'suffix' => $suffix, 'last_name' => $last_name,
                     'birth_date' => $birth_date, 'status' => $status,
-                    'matches'    => wp_list_pluck($matches, 'id'),
+                    'matches'    => wp_list_pluck($matches, 'matched_via', 'id'),
                 ], 10 * MINUTE_IN_SECONDS);
                 wp_safe_redirect(add_query_arg(['page' => 'avpvh-add-member', 'add_member_duplicate' => '1'], admin_url('admin.php')));
                 exit;

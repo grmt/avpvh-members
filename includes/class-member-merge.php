@@ -80,14 +80,25 @@ class AVPVH_Member_Merge {
         ) ?: [];
     }
 
-    /** Groups of 2+ members sharing a normalized name key — suggestions only, a human decides. */
+    /**
+     * Groups of 2+ members sharing a normalized name key, through their
+     * official name or a name alias (each row's matched_via says which) —
+     * suggestions only, a human decides. A pair found through both routes
+     * is listed once.
+     */
     public static function find_duplicate_candidates(): array {
         $groups = [];
-        foreach (self::get_member_options() as $member) {
-            $key = AVPVH_Name_Matcher::normalize_person_name($member->first_name, $member->suffix, $member->last_name);
-            $groups[$key][] = $member;
+        foreach (AVPVH_DB::get_name_key_index() as $members) {
+            if (count($members) < 2) {
+                continue;
+            }
+            ksort($members);
+            $signature = implode(',', array_keys($members));
+            if (!isset($groups[$signature])) {
+                $groups[$signature] = array_values($members);
+            }
         }
-        return array_values(array_filter($groups, fn($members) => count($members) > 1));
+        return array_values($groups);
     }
 
     /**

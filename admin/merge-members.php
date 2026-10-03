@@ -234,7 +234,7 @@ $preview = ($keep_id && $remove_id) ? AVPVH_Member_Merge::preview($keep_id, $rem
         $candidates = AVPVH_Member_Merge::find_duplicate_candidates(); ?>
         <hr>
         <h2>Mogelijke dubbelen</h2>
-        <p class="description">Leden met dezelfde voornaam en achternaam (tussenvoegsel en schrijfwijze genegeerd). Dit is alleen een suggestie — controleer altijd of het echt dezelfde persoon is.</p>
+        <p class="description">Leden met dezelfde voornaam en achternaam (hoofdletters en de plek van het tussenvoegsel genegeerd), ook via een vastgelegde naamvariant. Dit is alleen een suggestie — controleer altijd of het echt dezelfde persoon is.</p>
         <?php if (!$candidates) : ?>
             <p>Geen mogelijke dubbelen gevonden.</p>
         <?php else : ?>
@@ -244,7 +244,11 @@ $preview = ($keep_id && $remove_id) ? AVPVH_Member_Merge::preview($keep_id, $rem
                     <tr>
                         <td>
                             <?php foreach ($group as $m) : ?>
-                                <a href="<?php echo esc_url($detail_url((int) $m->id)); ?>" target="_blank"><?php echo esc_html($option_label($m)); ?></a><br>
+                                <a href="<?php echo esc_url($detail_url((int) $m->id)); ?>" target="_blank"><?php echo esc_html($option_label($m)); ?></a>
+                                <?php if ($m->matched_via !== '') : ?>
+                                    <em>(via naamvariant <?php echo esc_html($m->matched_via); ?>)</em>
+                                <?php endif; ?>
+                                <br>
                             <?php endforeach; ?>
                         </td>
                         <td>
