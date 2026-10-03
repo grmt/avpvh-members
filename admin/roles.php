@@ -43,6 +43,10 @@ $role_label = [
         <div class="notice notice-success"><p>Bestuurslid verwijderd.</p></div>
     <?php elseif (isset($_GET['bestuur_error'])) : ?>
         <div class="notice notice-error"><p>Bestuur wijzigen is niet gelukt. Alleen actieve leden met een eigen login kunnen bestuurslid worden.</p></div>
+    <?php elseif (isset($_GET['self_delegate_ok'])) : ?>
+        <div class="notice notice-success"><p>Je bent tijdelijk secretaris tot de gekozen einddatum.</p></div>
+    <?php elseif (isset($_GET['self_delegate_error'])) : ?>
+        <div class="notice notice-error"><p>Tijdelijk secretaris worden is niet gelukt: kies een einddatum in de toekomst, uiterlijk <?php echo (int) AVPVH_Roles::SELF_DELEGATION_MAX_HOURS / 24; ?> dagen vanaf nu.</p></div>
     <?php elseif (isset($_GET['appoint_needs_exception'])) : ?>
         <div class="notice notice-error"><p>Dit lid is geen bestuurslid. Wil je toch iemand buiten het bestuur aanwijzen, vink dan "Lid is geen bestuurslid (uitzondering)" aan.</p></div>
     <?php elseif (isset($_GET['step_down_ok'])) :
@@ -107,6 +111,23 @@ $role_label = [
         </tbody>
     </table>
     </details>
+
+    <?php if (AVPVH_Roles::can_self_delegate_secretaris()) :
+        $self_min = wp_date('Y-m-d\TH:i', time() + 300);
+        $self_max = wp_date('Y-m-d\TH:i', time() + AVPVH_Roles::SELF_DELEGATION_MAX_HOURS * HOUR_IN_SECONDS); ?>
+    <details class="avpvh-roles-section">
+        <summary><h2>Tijdelijk secretaris (penningmeester)</h2></summary>
+        <p class="description">Als penningmeester kun je jezelf tijdelijk de rechten van de secretaris geven, voor maximaal <?php echo (int) AVPVH_Roles::SELF_DELEGATION_MAX_HOURS / 24; ?> dagen. Langer of voor iemand anders gaat via de voorzitter.</p>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <?php wp_nonce_field('avpvh_self_delegate_secretaris'); ?>
+            <input type="hidden" name="action" value="avpvh_self_delegate_secretaris">
+            <label for="self_ends_at">Tot:</label>
+            <input type="datetime-local" id="self_ends_at" name="ends_at" required min="<?php echo esc_attr($self_min); ?>" max="<?php echo esc_attr($self_max); ?>">
+            <?php submit_button('Tijdelijk secretaris worden', 'secondary', 'submit', false); ?>
+        </form>
+    </details>
+
+    <?php endif; ?>
 
     <?php if (AVPVH_Roles::can_appoint_officers()) : ?>
         <details class="avpvh-roles-section">

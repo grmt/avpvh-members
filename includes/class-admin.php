@@ -21,6 +21,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_appoint_officer',   [$this, 'handle_appoint_officer']);
         add_action('admin_post_avpvh_set_bestuur',       [$this, 'handle_set_bestuur']);
         add_action('admin_post_avpvh_step_down',         [$this, 'handle_step_down']);
+        add_action('admin_post_avpvh_self_delegate_secretaris', [$this, 'handle_self_delegate_secretaris']);
         add_action('admin_post_avpvh_update_address',     [$this, 'handle_update_address']);
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
@@ -980,11 +981,11 @@ class AVPVH_Admin {
             $format = strlen($ends_at_raw) === 10 ? 'Y-m-d' : 'Y-m-d\TH:i';
             $parsed = \DateTime::createFromFormat('!' . $format, $ends_at_raw);
             if (!$parsed || $parsed->format($format) !== $ends_at_raw) {
-                $this->delegate_error('delegate_error');
+                $this->roles_redirect('delegate_error');
             }
             $ends_at = $parsed->format(strlen($ends_at_raw) === 10 ? 'Y-m-d 23:59:59' : 'Y-m-d H:i:s');
             if ($ends_at <= current_time('mysql')) {
-                $this->delegate_error('delegate_past');
+                $this->roles_redirect('delegate_past');
             }
         }
 
@@ -993,14 +994,14 @@ class AVPVH_Admin {
         // without a club role); everyone else must be a member.
         $is_admin = current_user_can('manage_options');
         if ((!$by_member && !$is_admin) || !in_array($to_member_id, $candidate_ids, true) || !in_array($role, AVPVH_Roles::OFFICER_ROLES, true)) {
-            $this->delegate_error('delegate_error');
+            $this->roles_redirect('delegate_error');
         }
 
         // A non-bestuurslid may stand in for an officer role, but only
         // temporarily: the end date is required, so it can never quietly
         // turn into a permanent role outside the bestuur.
         if ($ends_at === null && !in_array('bestuur', AVPVH_Roles::get_member_roles($to_member_id), true)) {
-            $this->delegate_error('delegate_needs_end');
+            $this->roles_redirect('delegate_needs_end');
         }
 
         $ok = AVPVH_Roles::create_delegation($role, $to_member_id, $by_member ? (int) $by_member->id : 0, $ends_at, $is_admin);
@@ -1011,7 +1012,7 @@ class AVPVH_Admin {
         exit;
     }
 
-    private function delegate_error(string $key): never {
+    private function roles_redirect(string $key): never {
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-roles', $key => '1'], admin_url('admin.php')));
         exit;
     }
@@ -1045,6 +1046,26 @@ class AVPVH_Admin {
             admin_url('admin.php')
         ));
         exit;
+    }
+
+    public function handle_self_delegate_secretaris(): void {
+        check_admin_referer('avpvh_self_delegate_secretaris');
+        if (!AVPVH_Roles::can_self_delegate_secretaris()) {
+            wp_die('Geen toegang.', 403);
+        }
+        $me  = avpvh_get_member_by_wp_user(get_current_user_id());
+        $raw = sanitize_text_field(wp_unslash($_POST['ends_at'] ?? ''));
+        $parsed = \DateTime::createFromFormat('!Y-m-d\TH:i', $raw);
+        if (!$parsed || $parsed->format('Y-m-d\TH:i') !== $raw) {
+            $this->roles_redirect('self_delegate_error');
+        }
+        $ends_at = $parsed->format('Y-m-d H:i:s');
+        $max     = wp_date('Y-m-d H:i:s', time() + AVPVH_Roles::SELF_DELEGATION_MAX_HOURS * HOUR_IN_SECONDS);
+        if ($ends_at <= current_time('mysql') || $ends_at > $max) {
+            $this->roles_redirect('self_delegate_error');
+        }
+        $ok = AVPVH_Roles::create_delegation('secretaris', (int) $me->id, (int) $me->id, $ends_at);
+        $this->roles_redirect($ok ? 'self_delegate_ok' : 'self_delegate_error');
     }
 
     public function handle_step_down(): void {

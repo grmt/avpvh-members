@@ -99,6 +99,16 @@ class AVPVH_Roles {
         return $member && array_intersect(self::OFFICER_ROLES, self::get_member_roles((int) $member->id));
     }
 
+    // The penningmeester may stand in as secretaris themselves, but only
+    // briefly: a self-delegation of at most this many hours, end required.
+    // (Delegating to anyone else stays with the voorzitter.)
+    const SELF_DELEGATION_MAX_HOURS = 48;
+
+    public static function can_self_delegate_secretaris(): bool {
+        $member = is_user_logged_in() ? avpvh_get_member_by_wp_user(get_current_user_id()) : null;
+        return $member && in_array('penningmeester', self::get_member_roles((int) $member->id), true);
+    }
+
     // A rolhouder may lay down their own (real, LLDAP) role; the voorzitter
     // or a WP admin may do it for any rolhouder.
     public static function can_step_down(string $role, int $holder_id): bool {
