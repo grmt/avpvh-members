@@ -3,29 +3,10 @@ defined('ABSPATH') || exit;
 
 class AVPVH_LLDAP {
 
-    // LLDAP is shared by every tenant on this server (PvH, rechtspreker, ...)
-    // and also holds its own lldap_* system groups. Only these groups are
-    // PvH's to show and hand out from this plugin — anything else stays
-    // invisible here and is never added or removed by a save.
-    public const PVH_GROUPS = [
-        'leden', 'ex-leden', 'ere-leden', 'bestuur', 'voorzitter',
-        'secretaris', 'penningmeester', 'boek', 'bloggers',
-    ];
+    // Only used through AVPVH_Directory_LLDAP (includes/class-directory.php);
+    // goes away with LLDAP itself (phase 4 of PLAN-openldap.md).
 
     private static ?string $token = null;
-
-    public static function is_pvh_group(string $display_name): bool {
-        $allowed = (array) apply_filters('avpvh_lldap_pvh_groups', self::PVH_GROUPS);
-        return in_array(strtolower($display_name), $allowed, true);
-    }
-
-    /** Filters a list_groups()/get_user_groups() result down to PvH groups. */
-    public static function only_pvh_groups(array $groups): array {
-        return array_values(array_filter(
-            $groups,
-            static fn(array $group): bool => self::is_pvh_group((string) ($group['displayName'] ?? ''))
-        ));
-    }
 
     private static function url(): string {
         return rtrim(get_option('avpvh_lldap_url', 'http://lldap:17170'), '/');
@@ -87,6 +68,20 @@ class AVPVH_LLDAP {
             return null;
         }
         return $data['user']['displayName'] ?? null;
+    }
+
+    /** ['id' => ..., 'email' => ..., 'displayName' => ...] or null (also on error). */
+    public static function get_user(string $uid): ?array {
+        $data = self::graphql(
+            'query($id: String!) { user(userId: $id) { id email displayName } }',
+            ['id' => $uid]
+        );
+        return is_wp_error($data) ? null : ($data['user'] ?? null);
+    }
+
+    public static function list_users(): array|\WP_Error {
+        $data = self::graphql('query { users { id email displayName } }');
+        return is_wp_error($data) ? $data : ($data['users'] ?? []);
     }
 
     public static function create_user(string $uid, string $email, string $display_name): array|\WP_Error {

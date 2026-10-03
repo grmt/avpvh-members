@@ -67,7 +67,7 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $join
 <div class="wrap">
     <h1>AVP-PvH Leden</h1>
     <p>
-        <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-add-member'], admin_url('admin.php'))); ?>" class="button">Nieuw lid</a>
+        <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-add-member'], admin_url('admin.php'))); ?>" class="button">Nieuwe persoon</a>
     </p>
 
     <form method="get" id="avpvh-filter-form">
