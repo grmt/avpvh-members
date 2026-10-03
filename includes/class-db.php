@@ -2004,6 +2004,59 @@ class AVPVH_DB {
         )) ?: [];
     }
 
+    /** Shared match key for person names — see AVPVH_Name_Matcher (plan.md §7). */
+    public static function normalize_person_name(string $first_name, string $suffix, string $last_name): string {
+        return AVPVH_Name_Matcher::normalize_person_name($first_name, $suffix, $last_name);
+    }
+
+    /**
+     * Members whose official name or one of whose name aliases has the
+     * same normalized key as the given name. Each row carries matched_via:
+     * '' for the official name, otherwise the alias it matched on. Unlike
+     * find_members_by_name() (kept as-is for avpvh-bookkeeping), this
+     * tolerates tussenvoegsel stored in any of the legacy places.
+     */
+    public static function find_members_by_name_or_alias(string $first_name, string $suffix, string $last_name): array {
+        $key = self::normalize_person_name($first_name, $suffix, $last_name);
+        $matches = self::get_name_key_index()[$key] ?? [];
+        return array_values($matches);
+    }
+
+    /**
+     * normalized key => [member_id => member row + matched_via] over every
+     * member's official name and every alias. The key can't be computed in
+     * SQL, so this reads all members (a few hundred rows) once per call.
+     */
+    public static function get_name_key_index(): array {
+        global $wpdb;
+        $index = [];
+        $members = $wpdb->get_results(
+            "SELECT id, first_name, suffix, last_name, status, birth_date, birth_year
+             FROM {$wpdb->prefix}avm_members"
+        ) ?: [];
+        $by_id = [];
+        foreach ($members as $member) {
+            $by_id[(int) $member->id] = $member;
+            $key = self::normalize_person_name($member->first_name, $member->suffix, $member->last_name);
+            $index[$key][(int) $member->id] = (object) array_merge((array) $member, ['matched_via' => '']);
+        }
+        $aliases = $wpdb->get_results(
+            "SELECT member_id, first_name, suffix, last_name, normalized_key
+             FROM {$wpdb->prefix}avm_member_name_aliases"
+        ) ?: [];
+        foreach ($aliases as $alias) {
+            $member = $by_id[(int) $alias->member_id] ?? null;
+            if (!$member || isset($index[$alias->normalized_key][(int) $member->id])) {
+                continue;
+            }
+            $index[$alias->normalized_key][(int) $member->id] = (object) array_merge(
+                (array) $member,
+                ['matched_via' => avpvh_format_name($alias)]
+            );
+        }
+        return $index;
+    }
+
     /** New member with an already-created LLDAP account (see AVPVH_Admin::handle_add_member()) — mirrors the shape of the avpvh-ops-scripts one-off "create minor member" scripts, now available from the admin UI instead of a hand-run script. */
     public static function create_member(string $lldap_user_id, string $first_name, string $suffix, string $last_name, ?string $birth_date, string $status): int {
         global $wpdb;
