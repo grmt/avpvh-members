@@ -128,6 +128,10 @@ $export_url = wp_nonce_url(
                         <td><input type="text" id="kenmerk" name="kenmerk" class="regular-text" value="<?php echo esc_attr($activity->kenmerk); ?>"></td>
                     </tr>
                     <tr>
+                        <th><label for="gallery_taggable">Foto's taggen</label></th>
+                        <td><label><input type="checkbox" id="gallery_taggable" name="gallery_taggable" value="1" <?php checked(!empty($activity->gallery_taggable)); ?>> Deelnemers van deze activiteit gebruiken als tag-suggesties in de fotogalerij</label></td>
+                    </tr>
+                    <tr>
                         <th><label for="start_date">Startdatum</label></th>
                         <td><input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($activity->start_date); ?>"></td>
                     </tr>

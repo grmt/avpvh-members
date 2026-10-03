@@ -970,10 +970,11 @@ class AVPVH_Admin {
         $type_id = absint(wp_unslash($_POST['type_id'] ?? 0));
         global $wpdb;
         $wpdb->update("{$wpdb->prefix}avm_activities", [
-            'kenmerk'    => sanitize_text_field(wp_unslash($_POST['kenmerk'] ?? '')),
-            'type_id'    => $type_id ?: null,
-            'start_date' => sanitize_text_field(wp_unslash($_POST['start_date'] ?? '')) ?: null,
-            'end_date'   => sanitize_text_field(wp_unslash($_POST['end_date'] ?? '')) ?: null,
+            'kenmerk'          => sanitize_text_field(wp_unslash($_POST['kenmerk'] ?? '')),
+            'type_id'          => $type_id ?: null,
+            'gallery_taggable' => isset($_POST['gallery_taggable']) ? 1 : 0,
+            'start_date'       => sanitize_text_field(wp_unslash($_POST['start_date'] ?? '')) ?: null,
+            'end_date'         => sanitize_text_field(wp_unslash($_POST['end_date'] ?? '')) ?: null,
         ], ['id' => $activity_id]);
 
         wp_safe_redirect(add_query_arg([

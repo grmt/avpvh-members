@@ -78,6 +78,7 @@ class AVPVH_DB {
             type_id INT UNSIGNED NULL,
             year YEAR NOT NULL,
             kenmerk VARCHAR(150) NOT NULL DEFAULT '',
+            gallery_taggable TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             start_date DATE NULL,
             end_date DATE NULL,
             PRIMARY KEY (id),
@@ -619,9 +620,21 @@ class AVPVH_DB {
             update_option('avpvh_db_version', '2.18');
         }
 
-        // 2.21, not 2.19: production already ran a 2.19 (gallery_taggable,
-        // deployed from a branch) and feature/openldap-directory claims
-        // 2.20, so a lower number here would be skipped on the live site.
+        if (version_compare($version, '2.19', '<')) {
+            // Lets an admin mark an activity as eligible to supply
+            // participant-based tag suggestions in the gallery plugin
+            // (matched there by activity name + year against a Drive
+            // folder name) — an explicit opt-in so non-camp activities
+            // like "Contributie" or "t-shirt" never accidentally match.
+            if (!$wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_activities LIKE 'gallery_taggable'")) {
+                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_activities
+                    ADD COLUMN gallery_taggable TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER kenmerk");
+            }
+            update_option('avpvh_db_version', '2.19');
+        }
+
+        // 2.21: 2.19 is gallery_taggable above (live before it was merged)
+        // and feature/openldap-directory claims 2.20.
         if (version_compare($version, '2.21', '<')) {
             // install() alone can't create a new table on an already-active
             // site — dbDelta only handles structure, not seeding — so run it
