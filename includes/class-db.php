@@ -284,7 +284,7 @@ class AVPVH_DB {
         // same columns as lldap.users — see AVPVH_Directory_Cache. Only
         // filled and used with the OpenLDAP directory backend.
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_directory_users (
-            user_id VARCHAR(100) NOT NULL,
+            user_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
             email VARCHAR(255) NOT NULL DEFAULT '',
             lowercase_email VARCHAR(255) NOT NULL DEFAULT '',
             display_name VARCHAR(255) NOT NULL DEFAULT '',
@@ -671,6 +671,17 @@ class AVPVH_DB {
         if (version_compare($version, '2.22', '<')) {
             self::install();
             update_option('avpvh_db_version', '2.22');
+        }
+
+        if (version_compare($version, '2.23', '<')) {
+            // This column joins avm_members.lldap_user_id, whose collation is
+            // deliberately utf8mb4_unicode_ci. The cache originally inherited
+            // the WordPress database default (utf8mb4_unicode_520_ci on the
+            // live site), which makes MariaDB reject every equality join as an
+            // illegal mix of collations once OpenLDAP becomes active.
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_directory_users
+                MODIFY user_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL");
+            update_option('avpvh_db_version', '2.23');
         }
     }
 
