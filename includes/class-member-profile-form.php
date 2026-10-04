@@ -20,7 +20,7 @@ class AVPVH_Member_Profile_Form {
      */
     public function render_shortcode(): string {
         if (!is_user_logged_in()) {
-            return '<p style="color: red;">Please log in to edit your profile.</p>';
+            return '<p style="color: red;">Log in om je profiel te bewerken.</p>';
         }
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
@@ -40,7 +40,7 @@ class AVPVH_Member_Profile_Form {
         }
 
         if (!$member) {
-            return '<p style="color: red;">Member profile not found.</p>';
+            return '<p style="color: red;">Ledenprofiel niet gevonden.</p>';
         }
 
         if ($is_identity_request_only) {
@@ -107,7 +107,7 @@ class AVPVH_Member_Profile_Form {
         ?>
         <div class="avpvh-member-profile-form avpvh-member-profile-form--no-banner">
             <?php if ($is_admin_edit) : ?>
-                <p class="avpvh-profile-note">Administrator editing: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
+                <p class="avpvh-profile-note">Beheerder bewerkt: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
             <?php elseif ($is_household_edit) : ?>
                 <p class="avpvh-profile-note">Je bewerkt het profiel van: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
             <?php endif; ?>
@@ -801,7 +801,7 @@ class AVPVH_Member_Profile_Form {
         $member = $this->get_target_member_for_save();
 
         if (!$member) {
-            wp_send_json_error('Member profile not found');
+            wp_send_json_error('Ledenprofiel niet gevonden');
         }
 
         $is_admin_edit = AVPVH_Roles::can_manage_members() && !empty($_POST['member_id']);
@@ -844,14 +844,24 @@ class AVPVH_Member_Profile_Form {
                 ];
 
                 global $wpdb;
+                // Close any currently active address before adding the new one
+                $wpdb->query($wpdb->prepare(
+                    "UPDATE {$wpdb->prefix}avm_addresses
+                     SET valid_until = %s
+                     WHERE member_id = %d AND (valid_until IS NULL OR valid_until > %s)",
+                    current_time('Y-m-d'),
+                    (int) $member->id,
+                    current_time('Y-m-d')
+                ));
+
                 $wpdb->insert(
                     "{$wpdb->prefix}avm_addresses",
-                    ['member_id' => $member->id] + $address_data,
-                    ['%d'] + array_fill(0, count($address_data), '%s')
+                    array_merge(['member_id' => (int) $member->id], $address_data),
+                    array_merge(['%d'], array_fill(0, count($address_data), '%s'))
                 );
             }
 
-            wp_send_json_success('Profile updated successfully!');
+            wp_send_json_success('Profiel succesvol bijgewerkt!');
         } catch (Exception $e) {
             wp_send_json_error($e->getMessage());
         }
@@ -1306,11 +1316,12 @@ class AVPVH_Member_Profile_Form {
                 true
             );
 
-            wp_localize_script('avpvh-registration', 'avpvhRegistration', [
+            $reg_config = wp_json_encode([
                 'ajaxUrl' => admin_url('admin-ajax.php'),
             ]);
+            add_action('wp_footer', function () use ($reg_config) {
+                wp_print_inline_script_tag($reg_config, ['type' => 'application/json', 'id' => 'avpvh-registration-config']);
+            });
         }
     }
 }
-
-new AVPVH_Member_Profile_Form();

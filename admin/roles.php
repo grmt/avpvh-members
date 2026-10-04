@@ -17,11 +17,6 @@ $role_label = [
     'penningmeester' => 'Penningmeester',
 ];
 ?>
-<style>
-    .avpvh-roles-section { margin: 1.5rem 0; }
-    .avpvh-roles-section > summary { cursor: pointer; }
-    .avpvh-roles-section > summary h2 { display: inline; margin: 0; }
-</style>
 <div class="wrap">
     <h1>Rollen &amp; delegatie</h1>
 

@@ -32,6 +32,40 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_delete_flag',        [$this, 'handle_delete_flag']);
         add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
         add_action('admin_post_avpvh_merge_members',      [$this, 'handle_merge_members']);
+        add_action('admin_enqueue_scripts',               [$this, 'enqueue_admin_assets']);
+    }
+
+    public function enqueue_admin_assets(): void {
+        $page = sanitize_key(wp_unslash($_GET['page'] ?? ''));
+        if (strpos($page, 'avpvh-') !== 0) {
+            return;
+        }
+
+        $base = plugin_dir_url(dirname(__FILE__));
+        wp_enqueue_style(
+            'avpvh-admin',
+            $base . 'assets/admin.css',
+            [],
+            avpvh_asset_version('assets/admin.css')
+        );
+
+        if ($page === 'avpvh-members') {
+            wp_enqueue_script(
+                'avpvh-members-list',
+                $base . 'assets/members-list.js',
+                [],
+                avpvh_asset_version('assets/members-list.js'),
+                true
+            );
+        } elseif ($page === 'avpvh-activity-participation-detail') {
+            wp_enqueue_script(
+                'avpvh-activity-participation-detail',
+                $base . 'assets/activity-participation-detail.js',
+                [],
+                avpvh_asset_version('assets/activity-participation-detail.js'),
+                true
+            );
+        }
     }
 
     // See AVPVH_Roles::can_manage_roles(): WP admins plus voorzitter.

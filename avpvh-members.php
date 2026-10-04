@@ -48,7 +48,6 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-bestuur-page.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-activity-participation-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory-consent.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-newsletter-consent.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/class-fee-popup.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-admin.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-protection.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-token.php';
@@ -81,9 +80,6 @@ AVPVH_Directory_Cache::init();
 new AVPVH_Activity_Participation_Form();
 new AVPVH_Directory_Consent();
 new AVPVH_Newsletter_Consent();
-// AVPVH_Fee_Popup is superseded by avpvh-bookkeeping's own popup (richer
-// ledger: contribution + activities, real balances, QR code) — left in
-// place, unused, rather than deleted, so avm_fees history stays readable.
 new AVPVH_Member_Profile_Form();
 new AVPVH_Admin();
 new AVPVH_Media_Protection();
