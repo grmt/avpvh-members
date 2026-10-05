@@ -105,7 +105,7 @@ $export_url = wp_nonce_url(
             <div class="notice notice-success"><p><?php esc_html_e('Activiteitstypes opgeslagen.', 'avpvh-members'); ?></p></div>
         <?php endif; ?>
         <details style="margin-bottom:1rem;">
-            <summary><?php esc_html_e('Instellingen (type, locatie/kenmerk, start-/einddatum)', 'avpvh-members'); ?></summary>
+            <summary><?php esc_html_e('Instellingen (type, locatie/kenmerk, start-/einddatum, website)', 'avpvh-members'); ?></summary>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:.5rem;">
                 <?php wp_nonce_field('avpvh_save_activity'); ?>
                 <input type="hidden" name="action" value="avpvh_save_activity">
@@ -138,6 +138,27 @@ $export_url = wp_nonce_url(
                     <tr>
                         <th><label for="end_date"><?php esc_html_e('Einddatum', 'avpvh-members'); ?></label></th>
                         <td><input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($activity->end_date); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="show_on_site"><?php esc_html_e('Website', 'avpvh-members'); ?></label></th>
+                        <td>
+                            <label><input type="checkbox" id="show_on_site" name="show_on_site" value="1" <?php checked(!empty($activity->show_on_site)); ?>> <?php esc_html_e('Tonen op de website', 'avpvh-members'); ?></label>
+                            <p class="description"><?php esc_html_e('Komende activiteiten staan in de agenda, geweest activiteiten in de lijsten (reünieweekenden, uitjes).', 'avpvh-members'); ?> <code>[avpvh_activiteiten]</code></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="location"><?php esc_html_e('Waar', 'avpvh-members'); ?></label></th>
+                        <td><textarea id="location" name="location" rows="3" class="large-text"><?php echo esc_textarea($activity->location ?? ''); ?></textarea>
+                            <p class="description"><?php esc_html_e('Plaats, adres en eventueel een link; HTML-opmaak (vet, links) mag. Leeg: "Locatie/kenmerk" wordt getoond.', 'avpvh-members'); ?></p></td>
+                    </tr>
+                    <tr>
+                        <th><label for="description"><?php esc_html_e('Beschrijving', 'avpvh-members'); ?></label></th>
+                        <td><textarea id="description" name="description" rows="3" class="large-text"><?php echo esc_textarea($activity->description ?? ''); ?></textarea>
+                            <p class="description"><?php esc_html_e('Wat er gedaan werd/wordt. Leeg: de naam wordt getoond.', 'avpvh-members'); ?></p></td>
+                    </tr>
+                    <tr>
+                        <th><label for="details"><?php esc_html_e('Details', 'avpvh-members'); ?></label></th>
+                        <td><textarea id="details" name="details" rows="2" class="large-text"><?php echo esc_textarea($activity->details ?? ''); ?></textarea></td>
                     </tr>
                 </table>
                 <p class="submit"><button type="submit" class="button"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button></p>

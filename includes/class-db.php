@@ -91,6 +91,10 @@ class AVPVH_DB {
             gallery_taggable TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             start_date DATE NULL,
             end_date DATE NULL,
+            location TEXT NULL,
+            description TEXT NULL,
+            details TEXT NULL,
+            show_on_site TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
             UNIQUE KEY name_year (name, year),
             KEY type_id (type_id)
@@ -682,6 +686,12 @@ class AVPVH_DB {
             $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_directory_users
                 MODIFY user_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL");
             update_option('avpvh_db_version', '2.23');
+        }
+        if (version_compare($version, '2.24', '<')) {
+            // Activities on the website (AVPVH_Activity_List): where, what
+            // (rich text) and whether to list it at all.
+            self::install();
+            update_option('avpvh_db_version', '2.24');
         }
     }
 
