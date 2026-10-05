@@ -1517,9 +1517,9 @@ msgstr "La connexion a échoué. Veuillez réessayer."
 msgid "Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in."
 msgstr "Votre session a expiré après 24 heures d'inactivité. Veuillez vous reconnecter."
 
-#: includes/class-access.php:160
-msgid "Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat ook wanneer je het laat valideren door Google of Microsoft. Als je al bij Google of Microsoft bent ingelogd, kun je zonder wachtwoord inloggen — al moet het e-mailadres waarmee je daar bent ingelogd dan wel bekend zijn bij deze website. Heb je speciale rechten (bijv. bloggen), dan moet je een extra 2-staps verificatieprocedure doorlopen via “Inloggen met wachtwoord”."
-msgstr "Vous ne pouvez vous connecter qu'avec une adresse e-mail connue de l'association. Si vous utilisez cette même adresse e-mail ailleurs, ce site web lui fait également confiance lorsque vous la faites valider par Google ou Microsoft. Si vous êtes déjà connecté auprès de Google ou Microsoft, vous pouvez vous connecter sans mot de passe — à condition que l'adresse e-mail avec laquelle vous y êtes connecté soit bien connue de ce site web. Si vous disposez de droits spécifiques (par ex. pour bloguer), vous devez suivre une procédure d'authentification en 2 étapes via « Se connecter avec un mot de passe »."
+#: includes/class-access.php:193
+msgid "Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat (bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) gevraagd."
+msgstr "Vous pouvez vous connecter avec une adresse e-mail connue de l'association. Si vous utilisez également cette même adresse e-mail chez Google ou Microsoft, vous pouvez vous connecter directement sans mot de passe distinct. Vous pouvez aussi vous connecter avec votre nom d'utilisateur et votre mot de passe. L'authentification à deux facteurs (2FA) n'est demandée que lorsque vous accédez à une page d'administration (par exemple pour rédiger des articles)."
 
 #: includes/class-access.php:295
 msgid "Deze pagina is alleen beschikbaar voor leden."
