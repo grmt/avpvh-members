@@ -9,6 +9,8 @@ class AVPVH_I18n {
         'en_GB' => 'English (UK)',
         'fr_FR' => 'Français',
         'de_DE' => 'Deutsch',
+        'lb_LU' => 'Lëtzebuergesch',
+        'li_NL' => 'Wieërts',
     ];
 
     public const LANG_TO_LOCALE = [
@@ -16,6 +18,12 @@ class AVPVH_I18n {
         'en'    => 'en_US',
         'fr'    => 'fr_FR',
         'de'    => 'de_DE',
+        'lb'    => 'lb_LU',
+        'lu'    => 'lb_LU',
+        'li'    => 'li_NL',
+        'wie'   => 'li_NL',
+        'weert' => 'li_NL',
+        'wieert'=> 'li_NL',
         'nl_nl' => 'nl_NL',
         'en_us' => 'en_US',
         'en_gb' => 'en_GB',
@@ -24,11 +32,15 @@ class AVPVH_I18n {
         'en-uk' => 'en_GB',
         'fr_fr' => 'fr_FR',
         'de_de' => 'de_DE',
+        'lb_lu' => 'lb_LU',
+        'li_nl' => 'li_NL',
         'nl_NL' => 'nl_NL',
         'en_US' => 'en_US',
         'en_GB' => 'en_GB',
         'fr_FR' => 'fr_FR',
         'de_DE' => 'de_DE',
+        'lb_LU' => 'lb_LU',
+        'li_NL' => 'li_NL',
     ];
 
     public function __construct() {

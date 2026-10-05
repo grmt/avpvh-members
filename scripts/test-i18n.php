@@ -66,6 +66,8 @@ assert_test('contains en_US', isset($locales['en_US']));
 assert_test('contains en_GB', isset($locales['en_GB']));
 assert_test('contains fr_FR', isset($locales['fr_FR']));
 assert_test('contains de_DE', isset($locales['de_DE']));
+assert_test('contains lb_LU', isset($locales['lb_LU']));
+assert_test('contains li_NL', isset($locales['li_NL']));
 
 // 1. GET ?lang=en -> en_US
 $_GET['lang'] = 'en';
@@ -90,6 +92,20 @@ assert_test('GET lang=de resolves to de_DE', $i18n->filter_determine_locale('nl_
 // 4. GET ?lang=nl -> nl_NL
 $_GET['lang'] = 'nl';
 assert_test('GET lang=nl resolves to nl_NL', $i18n->filter_determine_locale('en_US') === 'nl_NL');
+
+// 4b. GET ?lang=lb -> lb_LU, ?lang=lu -> lb_LU
+$_GET['lang'] = 'lb';
+assert_test('GET lang=lb resolves to lb_LU', $i18n->filter_determine_locale('nl_NL') === 'lb_LU');
+$_GET['lang'] = 'lu';
+assert_test('GET lang=lu resolves to lb_LU', $i18n->filter_determine_locale('nl_NL') === 'lb_LU');
+
+// 4c. GET ?lang=wie -> li_NL, ?lang=li -> li_NL, ?lang=weert -> li_NL
+$_GET['lang'] = 'wie';
+assert_test('GET lang=wie resolves to li_NL', $i18n->filter_determine_locale('nl_NL') === 'li_NL');
+$_GET['lang'] = 'li';
+assert_test('GET lang=li resolves to li_NL', $i18n->filter_determine_locale('nl_NL') === 'li_NL');
+$_GET['lang'] = 'weert';
+assert_test('GET lang=weert resolves to li_NL', $i18n->filter_determine_locale('nl_NL') === 'li_NL');
 
 // 5. Invalid GET lang falls through
 $_GET['lang'] = 'es';
