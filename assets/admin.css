@@ -1,0 +1,74 @@
+/* Shared styling for AV-PvH Members admin screens */
+
+.avpvh-member-row-inactive,
+.avpvh-member-row-visitor {
+    background: #f0f0f1 !important;
+    color: #767676;
+}
+.avpvh-member-row-inactive a,
+.avpvh-member-row-visitor a {
+    color: #7e8993;
+}
+
+/* Multiselect dropdown filter in members list */
+.avpvh-multiselect {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+.avpvh-multiselect__toggle {
+    width: 100%;
+    height: 40px !important;
+    text-align: left;
+    background: #fff;
+    border: 1px solid #8c8f94;
+    border-radius: 3px;
+    padding: 3px 8px;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+.avpvh-multiselect__toggle::after {
+    content: "\25BE";
+    float: right;
+}
+.avpvh-multiselect__panel {
+    display: none;
+    position: absolute;
+    z-index: 10;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #8c8f94;
+    border-radius: 3px;
+    padding: .5em .75em;
+    margin-top: 2px;
+    min-width: 100%;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+}
+.avpvh-multiselect__panel.is-open {
+    display: block;
+}
+.avpvh-multiselect__panel label {
+    display: block;
+    white-space: nowrap;
+    padding: .2em 0;
+}
+
+#avpvh-search {
+    width: 280px;
+    height: 40px !important;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+/* Roles & delegation page */
+.avpvh-roles-section {
+    margin: 1.5rem 0;
+}
+.avpvh-roles-section > summary {
+    cursor: pointer;
+}
+.avpvh-roles-section > summary h2 {
+    display: inline;
+    margin: 0;
+}

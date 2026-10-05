@@ -25,24 +25,24 @@ class AVPVH_Members_List_Table extends WP_List_Table {
 
     public function get_columns(): array {
         return [
-            'name'        => 'Naam',
-            'first_name'  => 'Voornaam',
-            'suffix'      => 'Tussenvoegsel',
-            'last_name'   => 'Achternaam',
-            'passport_name' => 'Paspoortnaam',
-            'email'       => 'E-mailadressen',
-            'status'      => 'Status',
-            'joined_year' => 'Lid sinds',
-            'fee_status'  => 'Contributie ' . $this->current_year,
-            'activity_count' => 'Activiteiten',
-            'flags'       => 'Kenmerken',
+            'name'        => __('Naam', 'avpvh-members'),
+            'first_name'  => __('Voornaam', 'avpvh-members'),
+            'suffix'      => __('Tussenvoegsel', 'avpvh-members'),
+            'last_name'   => __('Achternaam', 'avpvh-members'),
+            'passport_name' => __('Paspoortnaam', 'avpvh-members'),
+            'email'       => __('E-mailadressen', 'avpvh-members'),
+            'status'      => __('Status', 'avpvh-members'),
+            'joined_year' => __('Lid sinds', 'avpvh-members'),
+            'fee_status'  => sprintf(__('Contributie %d', 'avpvh-members'), $this->current_year),
+            'activity_count' => __('Activiteiten', 'avpvh-members'),
+            'flags'       => __('Kenmerken', 'avpvh-members'),
             'actions'     => '',
         ];
     }
 
     public function get_sortable_columns(): array {
         return [
-            'last_name'   => ['suffix_last_name', false, 'Achternaam'],
+            'last_name'   => ['suffix_last_name', false, __('Achternaam', 'avpvh-members')],
             'first_name'  => ['first_name', false],
             'status'      => ['status', false],
             'joined_year' => ['joined_year', false],
@@ -56,7 +56,7 @@ class AVPVH_Members_List_Table extends WP_List_Table {
     }
 
     public function no_items(): void {
-        echo 'Geen leden gevonden.';
+        esc_html_e('Geen leden gevonden.', 'avpvh-members');
     }
 
     public function prepare_items(): void {
@@ -84,7 +84,12 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             'suffix'       => esc_html($item->suffix ?: '—'),
             'last_name'    => esc_html($item->last_name),
             'passport_name' => esc_html($item->passport_name ?: '—'),
-            'status'       => esc_html($item->status),
+            'status'       => esc_html(match ($item->status) {
+                'active'   => __('Actief', 'avpvh-members'),
+                'inactive' => __('Ex-lid', 'avpvh-members'),
+                'visitor'  => __('Bezoeker', 'avpvh-members'),
+                default    => $item->status,
+            }),
             'joined_year'  => esc_html($item->joined_year ?: '—'),
             default        => '',
         };
@@ -111,7 +116,11 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             $is_placeholder = str_ends_with(strtolower($identity->email), '@avpvh.local');
             $style = $is_placeholder ? ' style="color:#d63638"' : '';
             $unverified = empty($identity->verified_at)
-                ? ' <span style="color:#b32d2e;font-size:.85em;font-weight:600" title="Toegevoegd door een beheerder, niet zelf geverifieerd">(niet geverifieerd)</span>'
+                ? sprintf(
+                    ' <span style="color:#b32d2e;font-size:.85em;font-weight:600" title="%s">(%s)</span>',
+                    esc_attr__('Toegevoegd door een beheerder, niet zelf geverifieerd', 'avpvh-members'),
+                    esc_html__('niet geverifieerd', 'avpvh-members')
+                )
                 : '';
             $rows[] = '<div' . $style . '>' . esc_html($identity->email) . $unverified . '</div>';
         }
@@ -120,7 +129,15 @@ class AVPVH_Members_List_Table extends WP_List_Table {
 
     public function column_fee_status($item): string {
         $fee = AVPVH_DB::get_fee_for_year((int) $item->id, $this->current_year);
-        return $fee ? esc_html($fee->status) : '—';
+        if (!$fee) {
+            return '—';
+        }
+        return esc_html(match ($fee->status) {
+            'paid'    => __('Betaald', 'avpvh-members'),
+            'pending' => __('Openstaand', 'avpvh-members'),
+            'waived'  => __('Vrijgesteld', 'avpvh-members'),
+            default   => $fee->status,
+        });
     }
 
     public function column_activity_count($item): string {
@@ -142,7 +159,7 @@ class AVPVH_Members_List_Table extends WP_List_Table {
 
     public function column_actions($item): string {
         $detail_url = add_query_arg(['page' => 'avpvh-member-detail', 'id' => $item->id], admin_url('admin.php'));
-        return '<a href="' . esc_url($detail_url) . '" class="button button-small">Details</a>';
+        return '<a href="' . esc_url($detail_url) . '" class="button button-small">' . esc_html__('Details', 'avpvh-members') . '</a>';
     }
 
     public function single_row($item): void {

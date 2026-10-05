@@ -35,15 +35,15 @@ class AVPVH_Activity_Participation_Export {
 
         $rows[] = [
             ['v' => $activity->name . ' ' . $activity->year, 'bold' => true],
-            ['v' => 'Laatst bijgewerkt: ' . date_i18n('j-m-Y')],
+            ['v' => sprintf(__('Laatst bijgewerkt: %s', 'avpvh-members'), date_i18n('j-m-Y'))],
         ];
         $rows[] = [];
 
         $header = [
-            ['v' => 'Naam', 'bold' => true, 'color' => self::COLOR_HEADER],
-            ['v' => 'Nachten', 'bold' => true, 'color' => self::COLOR_HEADER],
-            ['v' => 'Nawacht', 'bold' => true, 'color' => self::COLOR_HEADER],
-            ['v' => 'Dieet', 'bold' => true, 'color' => self::COLOR_HEADER],
+            ['v' => __('Naam', 'avpvh-members'), 'bold' => true, 'color' => self::COLOR_HEADER],
+            ['v' => __('Nachten', 'avpvh-members'), 'bold' => true, 'color' => self::COLOR_HEADER],
+            ['v' => __('Nawacht', 'avpvh-members'), 'bold' => true, 'color' => self::COLOR_HEADER],
+            ['v' => __('Dieet', 'avpvh-members'), 'bold' => true, 'color' => self::COLOR_HEADER],
         ];
         foreach ($date_range as $date) {
             $is_weekend = in_array((int) wp_date('N', strtotime($date)), [6, 7], true);
@@ -53,7 +53,7 @@ class AVPVH_Activity_Participation_Export {
                 'color' => $is_weekend ? self::COLOR_WEEKEND : self::COLOR_HEADER,
             ];
         }
-        $header[] = ['v' => 'Notities', 'bold' => true, 'color' => self::COLOR_HEADER];
+        $header[] = ['v' => __('Notities', 'avpvh-members'), 'bold' => true, 'color' => self::COLOR_HEADER];
         $rows[] = $header;
 
         foreach ($participations as $p) {
@@ -63,7 +63,7 @@ class AVPVH_Activity_Participation_Export {
             $row = [
                 ['v' => $name],
                 ['v' => $p->nights ?? ''],
-                ['v' => $p->nawacht ? 'ja' : ''],
+                ['v' => $p->nawacht ? __('ja', 'avpvh-members') : ''],
                 ['v' => $p->diet ?? ''],
             ];
             foreach ($date_range as $date) {
@@ -85,6 +85,6 @@ class AVPVH_Activity_Participation_Export {
         }
 
         $col_widths = array_merge([22, 9, 9, 14], array_fill(0, count($date_range), 6), [30]);
-        return AVPVH_Xlsx_Writer::build($rows, $col_widths, 'Deelname');
+        return AVPVH_Xlsx_Writer::build($rows, $col_widths, __('Deelname', 'avpvh-members'));
     }
 }

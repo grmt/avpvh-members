@@ -11,12 +11,12 @@ class AVPVH_Directory_Consent {
         check_admin_referer('avpvh_directory_consent');
 
         if (!is_user_logged_in()) {
-            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Je moet ingelogd zijn.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
         if (!$own_member) {
-            wp_die('Ledenprofiel niet gevonden.', 'Fout', ['response' => 404]);
+            wp_die(esc_html__('Ledenprofiel niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
         $member = $own_member;
@@ -31,13 +31,13 @@ class AVPVH_Directory_Consent {
                 }
             }
             if (!$member) {
-                wp_die('Geen toegang tot dit ledenprofiel.', 'Fout', ['response' => 403]);
+                wp_die(esc_html__('Geen toegang tot dit ledenprofiel.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
             }
         }
 
         $decision = sanitize_key(wp_unslash($_POST['consent'] ?? ''));
         if (!in_array($decision, ['granted', 'declined'], true)) {
-            wp_die('Ongeldige keuze.', 'Fout', ['response' => 400]);
+            wp_die(esc_html__('Ongeldige keuze.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 400]);
         }
 
         $granted = $decision === 'granted';

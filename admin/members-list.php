@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
-if (!AVPVH_Roles::can_manage_members()) wp_die('Geen toegang.');
+if (!AVPVH_Roles::can_manage_members()) wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
 
 require_once AVPVH_PLUGIN_DIR . 'admin/class-members-list-table.php';
 
@@ -20,81 +20,37 @@ $all_flags    = AVPVH_DB::get_all_flags();
 $current_year = (int) current_time('Y');
 $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $joined_year || $fee_statuses || $flag_ids;
 ?>
-<style>
-    .avpvh-member-row-inactive,
-    .avpvh-member-row-visitor {
-        background: #f0f0f1 !important;
-        color: #767676;
-    }
-    .avpvh-member-row-inactive a,
-    .avpvh-member-row-visitor a {
-        color: #7e8993;
-    }
-    .avpvh-multiselect { position: relative; display: block; width: 100%; }
-    .avpvh-multiselect__toggle {
-        width: 100%; text-align: left; background: #fff; border: 1px solid #8c8f94;
-        border-radius: 3px; padding: 3px 8px; cursor: pointer;
-    }
-    .avpvh-multiselect__toggle::after { content: "\25BE"; float: right; }
-    .avpvh-multiselect__panel {
-        display: none; position: absolute; z-index: 10; top: 100%; left: 0;
-        background: #fff; border: 1px solid #8c8f94; border-radius: 3px;
-        padding: .5em .75em; margin-top: 2px; min-width: 100%;
-        box-shadow: 0 2px 6px rgba(0,0,0,.15);
-    }
-    .avpvh-multiselect__panel.is-open { display: block; }
-    .avpvh-multiselect__panel label { display: block; white-space: nowrap; padding: .2em 0; }
-
-    /* Align every filter-row control (and the "Filteren"/"Wis" buttons) to
-       the same height — mixing plain inputs, selects and custom buttons
-       otherwise each bring their own default padding/line-height. Matched
-       to 40px (not shrunk to WP core's usual ~30px) because core's own
-       admin.css already renders text inputs/buttons at 40px here with
-       higher specificity than a plain class selector can override without
-       !important — easier to grow the two custom elements to match than
-       fight core's cascade on the rest. */
-    .avpvh-multiselect__toggle {
-        height: 40px !important;
-        box-sizing: border-box;
-    }
-    #avpvh-search {
-        width: 280px;
-        height: 40px !important;
-        box-sizing: border-box;
-        vertical-align: middle;
-    }
-</style>
 <div class="wrap">
-    <h1>AVP-PvH Leden</h1>
+    <h1><?php esc_html_e('AVP-PvH Leden', 'avpvh-members'); ?></h1>
     <p>
-        <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-add-member'], admin_url('admin.php'))); ?>" class="button">Nieuwe persoon</a>
+        <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-add-member'], admin_url('admin.php'))); ?>" class="button"><?php esc_html_e('Nieuwe persoon', 'avpvh-members'); ?></a>
     </p>
 
     <form method="get" id="avpvh-filter-form">
         <input type="hidden" name="page" value="avpvh-members">
 
         <p style="margin-bottom:.25rem">
-            <label for="avpvh-search" style="font-weight:600;margin-right:.4em">Zoeken:</label>
-            <input type="search" id="avpvh-search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Naam of e-mail">
+            <label for="avpvh-search" style="font-weight:600;margin-right:.4em"><?php esc_html_e('Zoeken:', 'avpvh-members'); ?></label>
+            <input type="search" id="avpvh-search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="<?php esc_attr_e('Naam of e-mail', 'avpvh-members'); ?>">
         </p>
 
-        <p style="font-weight:600;margin-bottom:.25rem">Filter:</p>
+        <p style="font-weight:600;margin-bottom:.25rem"><?php esc_html_e('Filter:', 'avpvh-members'); ?></p>
         <table class="avpvh-column-filters" style="margin-bottom: .5rem;">
             <tr>
                 <td>
-                    <input type="text" name="f_first_name" value="<?php echo esc_attr($f_first); ?>" placeholder="Filter voornaam" style="width:100%">
+                    <input type="text" name="f_first_name" value="<?php echo esc_attr($f_first); ?>" placeholder="<?php esc_attr_e('Filter voornaam', 'avpvh-members'); ?>" style="width:100%">
                 </td>
                 <td>
-                    <input type="text" name="f_suffix" value="<?php echo esc_attr($f_suffix); ?>" placeholder="Filter tussenvoegsel" style="width:100%">
+                    <input type="text" name="f_suffix" value="<?php echo esc_attr($f_suffix); ?>" placeholder="<?php esc_attr_e('Filter tussenvoegsel', 'avpvh-members'); ?>" style="width:100%">
                 </td>
                 <td>
-                    <input type="text" name="f_last_name" value="<?php echo esc_attr($f_last); ?>" placeholder="Filter achternaam" style="width:100%">
+                    <input type="text" name="f_last_name" value="<?php echo esc_attr($f_last); ?>" placeholder="<?php esc_attr_e('Filter achternaam', 'avpvh-members'); ?>" style="width:100%">
                 </td>
                 <td>
-                    <div class="avpvh-multiselect" data-default-label="Alle statussen">
-                        <button type="button" class="avpvh-multiselect__toggle">Alle statussen</button>
+                    <div class="avpvh-multiselect" data-default-label="<?php esc_attr_e('Alle statussen', 'avpvh-members'); ?>">
+                        <button type="button" class="avpvh-multiselect__toggle"><?php esc_html_e('Alle statussen', 'avpvh-members'); ?></button>
                         <div class="avpvh-multiselect__panel">
-                            <?php foreach (['active' => 'Actief', 'inactive' => 'Ex-lid', 'visitor' => 'Bezoeker'] as $value => $option_label) : ?>
+                            <?php foreach (['active' => __('Actief', 'avpvh-members'), 'inactive' => __('Ex-lid', 'avpvh-members'), 'visitor' => __('Bezoeker', 'avpvh-members')] as $value => $option_label) : ?>
                                 <label>
                                     <input type="checkbox" name="status[]" value="<?php echo esc_attr($value); ?>"
                                         <?php checked(in_array($value, $statuses, true)); ?>>
@@ -106,13 +62,13 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $join
                 </td>
                 <td>
                     <input type="number" name="joined_year" value="<?php echo esc_attr($joined_year); ?>"
-                           placeholder="Lid sinds jaar" min="1900" max="<?php echo esc_attr($current_year); ?>" style="width:100%">
+                           placeholder="<?php esc_attr_e('Lid sinds jaar', 'avpvh-members'); ?>" min="1900" max="<?php echo esc_attr($current_year); ?>" style="width:100%">
                 </td>
                 <td>
-                    <div class="avpvh-multiselect" data-default-label="Alle contributies">
-                        <button type="button" class="avpvh-multiselect__toggle">Alle contributies</button>
+                    <div class="avpvh-multiselect" data-default-label="<?php esc_attr_e('Alle contributies', 'avpvh-members'); ?>">
+                        <button type="button" class="avpvh-multiselect__toggle"><?php esc_html_e('Alle contributies', 'avpvh-members'); ?></button>
                         <div class="avpvh-multiselect__panel">
-                            <?php foreach (['paid' => 'Betaald', 'pending' => 'Openstaand', 'waived' => 'Vrijgesteld', 'none' => 'Geen record'] as $value => $option_label) : ?>
+                            <?php foreach (['paid' => __('Betaald', 'avpvh-members'), 'pending' => __('Openstaand', 'avpvh-members'), 'waived' => __('Vrijgesteld', 'avpvh-members'), 'none' => __('Geen record', 'avpvh-members')] as $value => $option_label) : ?>
                                 <label>
                                     <input type="checkbox" name="fee_status[]" value="<?php echo esc_attr($value); ?>"
                                         <?php checked(in_array($value, $fee_statuses, true)); ?>>
@@ -124,10 +80,10 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $join
                 </td>
                 <td>
                     <?php if (!$all_flags) : ?>
-                        <em class="description">Geen kenmerken</em>
+                        <em class="description"><?php esc_html_e('Geen kenmerken', 'avpvh-members'); ?></em>
                     <?php else : ?>
-                        <div class="avpvh-multiselect" data-default-label="Alle kenmerken">
-                            <button type="button" class="avpvh-multiselect__toggle">Alle kenmerken</button>
+                        <div class="avpvh-multiselect" data-default-label="<?php esc_attr_e('Alle kenmerken', 'avpvh-members'); ?>">
+                            <button type="button" class="avpvh-multiselect__toggle"><?php esc_html_e('Alle kenmerken', 'avpvh-members'); ?></button>
                             <div class="avpvh-multiselect__panel">
                                 <?php foreach ($all_flags as $flag) : ?>
                                     <label>
@@ -141,9 +97,9 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $join
                     <?php endif; ?>
                 </td>
                 <td>
-                    <button type="submit" class="button">Filteren</button>
+                    <button type="submit" class="button"><?php esc_html_e('Filteren', 'avpvh-members'); ?></button>
                     <?php if ($has_filters) : ?>
-                        <a href="<?php echo esc_url(admin_url('admin.php?page=avpvh-members')); ?>" class="button">Wis</a>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=avpvh-members')); ?>" class="button"><?php esc_html_e('Wis', 'avpvh-members'); ?></a>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -152,45 +108,4 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $join
         <?php $table->display(); ?>
     </form>
 </div>
-<script>
-(function () {
-    var openPanels = function () {
-        return document.querySelectorAll('.avpvh-multiselect__panel.is-open');
-    };
 
-    document.querySelectorAll('.avpvh-multiselect').forEach(function (ms) {
-        var toggle = ms.querySelector('.avpvh-multiselect__toggle');
-        var panel = ms.querySelector('.avpvh-multiselect__panel');
-        var defaultLabel = ms.getAttribute('data-default-label');
-
-        var updateLabel = function () {
-            var checked = panel.querySelectorAll('input[type=checkbox]:checked');
-            if (checked.length === 0) {
-                toggle.textContent = defaultLabel;
-            } else if (checked.length === 1) {
-                toggle.textContent = checked[0].parentElement.textContent.trim();
-            } else {
-                toggle.textContent = checked.length + ' geselecteerd';
-            }
-        };
-
-        toggle.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var wasOpen = panel.classList.contains('is-open');
-            openPanels().forEach(function (p) { p.classList.remove('is-open'); });
-            if (!wasOpen) {
-                panel.classList.add('is-open');
-            }
-        });
-
-        panel.addEventListener('change', updateLabel);
-        panel.addEventListener('click', function (e) { e.stopPropagation(); });
-        updateLabel();
-    });
-
-    document.addEventListener('click', function () {
-        openPanels().forEach(function (p) { p.classList.remove('is-open'); });
-    });
-})();
-</script>

@@ -63,6 +63,15 @@ class AVPVH_Nav_Auth {
                     'logoutUrl'          => rest_url('avpvh/v1/logout'),
                     'loginUrl'           => home_url('/avpvh-login/'),
                     'profileUrl'         => home_url('/member-profile/'),
+                    'labels'             => [
+                        'member'      => __('Lid', 'avpvh-members'),
+                        'nonMember'   => __('Geen lid', 'avpvh-members'),
+                        'myProfile'   => __('Mijn profiel', 'avpvh-members'),
+                        'logout'      => __('Uitloggen', 'avpvh-members'),
+                        'login'       => __('Inloggen', 'avpvh-members'),
+                        'account'     => __('Account', 'avpvh-members'),
+                        'accountMenu' => __('Account submenu', 'avpvh-members'),
+                    ],
                 ])
                 . '</script>';
         });
@@ -95,16 +104,16 @@ class AVPVH_Nav_Auth {
 
     private function role_label(\WP_User $user): string {
         if (empty($user->roles)) {
-            return 'Gebruiker';
+            return __('Gebruiker', 'avpvh-members');
         }
 
         return match ($user->roles[0]) {
-            'administrator' => 'Beheerder',
-            'editor'         => 'Redacteur',
-            'author'         => 'Auteur',
-            'contributor'    => 'Medewerker',
-            'subscriber'     => 'Lid',
-            default          => ucfirst(str_replace('_', ' ', $user->roles[0])),
+            'administrator' => __('Beheerder', 'avpvh-members'),
+            'editor'        => __('Redacteur', 'avpvh-members'),
+            'author'        => __('Auteur', 'avpvh-members'),
+            'contributor'   => __('Medewerker', 'avpvh-members'),
+            'subscriber'    => __('Lid', 'avpvh-members'),
+            default         => ucfirst(str_replace('_', ' ', $user->roles[0])),
         };
     }
 
@@ -115,11 +124,11 @@ class AVPVH_Nav_Auth {
         }
 
         return match (strtolower($role)) {
-            'bestuur'      => 'Bestuur',
-            'feest'        => 'Feest',
-            'boek'         => 'Boek',
-            'fiscus'       => 'Fiscus',
-            'secretariaat'  => 'Secretariaat',
+            'bestuur'      => __('Bestuur', 'avpvh-members'),
+            'feest'        => __('Feest', 'avpvh-members'),
+            'boek'         => __('Boek', 'avpvh-members'),
+            'fiscus'       => __('Fiscus', 'avpvh-members'),
+            'secretariaat' => __('Secretariaat', 'avpvh-members'),
             default        => ucfirst($role),
         };
     }

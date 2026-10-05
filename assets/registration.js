@@ -2,13 +2,9 @@
     'use strict';
 
     $(document).ready(function() {
-        // Support both registration and member profile forms
-        let $form = $('#avpvh-registration-form');
-        let formAction = 'avpvh_save_registration';
-
+        let $form = $('#avpvh-profile-form');
         if ($form.length === 0) {
-            $form = $('#avpvh-profile-form');
-            formAction = 'avpvh_save_member_profile';
+            $form = $('#avpvh-registration-form');
         }
 
         if ($form.length === 0) {
@@ -25,34 +21,46 @@
             const $submit = $form.find('button[type="submit"]');
             const originalText = $submit.text();
 
-            $submit.prop('disabled', true).text('Saving...');
+            var configEl = document.getElementById('avpvh-registration-config');
+            var config = {};
+            if (configEl && configEl.textContent) {
+                try {
+                    config = JSON.parse(configEl.textContent);
+                } catch (e) {}
+            }
+            var strings = config.strings || {};
+            var savingText = strings.saving || 'Bezig met opslaan...';
+            var successText = strings.success || 'Profiel succesvol bijgewerkt!';
+            var errorText = strings.error || 'Er is een fout opgetreden.';
+            var failedText = strings.failed || 'Opslaan van het profiel is mislukt. Probeer het opnieuw.';
+
+            $submit.prop('disabled', true).text(savingText);
             $form.addClass('loading');
 
             const formData = new FormData($form[0]);
-            formData.append('action', formAction);
+            formData.append('action', 'avpvh_save_member_profile');
+
+            var ajaxUrl = config.ajaxUrl || (typeof avpvhRegistration !== 'undefined' ? avpvhRegistration.ajaxUrl : '') || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php');
 
             $.ajax({
                 type: 'POST',
-                url: avpvhRegistration.ajaxUrl,
+                url: ajaxUrl,
                 data: formData,
                 processData: false,
                 contentType: false,
                 success: function(response) {
                     if (response.success) {
-                        // The registration handler sends {message: ...}, the
-                        // profile-save handler sends a plain string — handle both.
-                        var message = typeof response.data === 'string' ? response.data : response.data.message;
+                        var message = typeof response.data === 'string' ? response.data : (response.data && response.data.message ? response.data.message : successText);
                         showMessage('success', message);
-                        // Optionally redirect after success
                         setTimeout(function() {
                             location.reload();
                         }, 2000);
                     } else {
-                        showMessage('error', response.data || 'An error occurred');
+                        showMessage('error', response.data || errorText);
                     }
                 },
                 error: function() {
-                    showMessage('error', 'Failed to save registration. Please try again.');
+                    showMessage('error', failedText);
                 },
                 complete: function() {
                     $submit.prop('disabled', false).text(originalText);
@@ -74,14 +82,6 @@
                 });
             }, 5000);
         }
-
-        // Optional: Auto-save on input change (uncomment if desired)
-        /*
-        $form.on('change', 'input, textarea, select', function() {
-            clearTimeout(autoSaveTimer);
-            autoSaveTimer = setTimeout(submitForm, 2000);
-        });
-        */
     });
 
     // Collapsible profile sections (Persoonlijke gegevens, Contact, etc.) —

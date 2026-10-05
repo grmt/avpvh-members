@@ -43,6 +43,34 @@ class AVPVH_Member_Merge {
         'share_activity_history' => 'Activiteiten delen',
     ];
 
+    public static function get_field_labels(): array {
+        return [
+            'name'                   => __('Naam', 'avpvh-members'),
+            'passport_name'          => __('Naam in paspoort', 'avpvh-members'),
+            'initials'               => __('Voorletters', 'avpvh-members'),
+            'birth_date'             => __('Geboortedatum', 'avpvh-members'),
+            'birth_year'             => __('Geboortejaar', 'avpvh-members'),
+            'is_student'             => __('Student', 'avpvh-members'),
+            'phone'                  => __('Telefoon', 'avpvh-members'),
+            'mobile'                 => __('Mobiel', 'avpvh-members'),
+            'emergency_contact'      => __('Noodcontact', 'avpvh-members'),
+            'diet'                   => __('Dieet', 'avpvh-members'),
+            'status'                 => __('Status', 'avpvh-members'),
+            'joined_year'            => __('Lid sinds', 'avpvh-members'),
+            'left_year'              => __('Lid tot', 'avpvh-members'),
+            'directory_consent'      => __('Ledenlijst-toestemming', 'avpvh-members'),
+            'share_email'            => __('E-mail delen', 'avpvh-members'),
+            'share_phone'            => __('Telefoon delen', 'avpvh-members'),
+            'share_address'          => __('Adres delen', 'avpvh-members'),
+            'share_activity_history' => __('Activiteiten delen', 'avpvh-members'),
+        ];
+    }
+
+    public static function get_field_label(string $field): string {
+        $labels = self::get_field_labels();
+        return $labels[$field] ?? (self::FIELDS[$field] ?? ucfirst($field));
+    }
+
     // Privacy choices default to the most restrictive of the two rows — a
     // member who opted out on either record must stay opted out (AVG).
     private const RESTRICTIVE_FIELDS = ['directory_consent', 'share_email', 'share_phone', 'share_address', 'share_activity_history'];
@@ -111,15 +139,15 @@ class AVPVH_Member_Merge {
         $p = $wpdb->prefix;
 
         if ($keep_id < 1 || $remove_id < 1) {
-            return new \WP_Error('missing', 'Kies twee leden.');
+            return new \WP_Error('missing', __('Kies twee leden.', 'avpvh-members'));
         }
         if ($keep_id === $remove_id) {
-            return new \WP_Error('same', 'Je hebt twee keer hetzelfde lid gekozen.');
+            return new \WP_Error('same', __('Je hebt twee keer hetzelfde lid gekozen.', 'avpvh-members'));
         }
         $keep = self::get_raw_member($keep_id);
         $remove = self::get_raw_member($remove_id);
         if (!$keep || !$remove) {
-            return new \WP_Error('not_found', 'Een van beide leden bestaat niet (meer).');
+            return new \WP_Error('not_found', __('Een van beide leden bestaat niet (meer).', 'avpvh-members'));
         }
 
         $blockers = [];
@@ -127,8 +155,8 @@ class AVPVH_Member_Merge {
 
         if ($remove->wp_user_id !== null) {
             $blockers[] = $keep->wp_user_id === null
-                ? 'Het lid dat verdwijnt heeft al eens ingelogd (gekoppelde WordPress-gebruiker). Wissel de richting om, zodat dat lid behouden blijft.'
-                : 'Beide leden hebben al eens ingelogd (allebei een gekoppelde WordPress-gebruiker). Dat kan deze pagina niet veilig samenvoegen.';
+                ? __('Het lid dat verdwijnt heeft al eens ingelogd (gekoppelde WordPress-gebruiker). Wissel de richting om, zodat dat lid behouden blijft.', 'avpvh-members')
+                : __('Beide leden hebben al eens ingelogd (allebei een gekoppelde WordPress-gebruiker). Dat kan deze pagina niet veilig samenvoegen.', 'avpvh-members');
         }
 
         $accounts = [];
@@ -136,7 +164,7 @@ class AVPVH_Member_Merge {
             $full = AVPVH_DB::get_member((int) $member->id);
             $groups = AVPVH_Directory::get_user_groups((string) $member->lldap_user_id);
             if (is_wp_error($groups)) {
-                $warnings[] = 'De groepen van ' . avpvh_format_name($member) . ' konden niet worden opgehaald.';
+                $warnings[] = sprintf(__('De groepen van %s konden niet worden opgehaald.', 'avpvh-members'), avpvh_format_name($member));
                 $groups = [];
             }
             $accounts[$side] = [
@@ -148,12 +176,13 @@ class AVPVH_Member_Merge {
         }
         $missing_groups = array_values(array_diff($accounts['remove']['groups'], $accounts['keep']['groups']));
         if ($missing_groups) {
-            $warnings[] = 'Het lid dat verdwijnt zit in groepen die het behouden lid niet heeft: '
-                . implode(', ', $missing_groups)
-                . '. Die worden niet overgenomen — voeg ze zo nodig daarna toe via Ledendetail.';
+            $warnings[] = sprintf(
+                __('Het lid dat verdwijnt zit in groepen die het behouden lid niet heeft: %s. Die worden niet overgenomen — voeg ze zo nodig daarna toe via Ledendetail.', 'avpvh-members'),
+                implode(', ', $missing_groups)
+            );
         }
         if (!$accounts['remove']['exists']) {
-            $warnings[] = 'Het lid dat verdwijnt heeft geen account (meer); er wordt dus ook geen account verwijderd.';
+            $warnings[] = __('Het lid dat verdwijnt heeft geen account (meer); er wordt dus ook geen account verwijderd.', 'avpvh-members');
         }
 
         $fields = [];
@@ -257,7 +286,7 @@ class AVPVH_Member_Merge {
             return new \WP_Error('blocked', implode(' ', $preview['blockers']));
         }
         if (!hash_equals($preview['fingerprint'], $fingerprint)) {
-            return new \WP_Error('stale', 'De gegevens van een van beide leden zijn gewijzigd sinds je de vergelijking opende. Bekijk de vergelijking opnieuw.');
+            return new \WP_Error('stale', __('De gegevens van een van beide leden zijn gewijzigd sinds je de vergelijking opende. Bekijk de vergelijking opnieuw.', 'avpvh-members'));
         }
 
         $keep = $preview['keep'];
@@ -339,7 +368,7 @@ class AVPVH_Member_Merge {
             $wpdb->query('COMMIT');
         } catch (\Throwable $exception) {
             $wpdb->query('ROLLBACK');
-            return new \WP_Error('failed', 'Samenvoegen afgebroken, er is niets gewijzigd: ' . $exception->getMessage());
+            return new \WP_Error('failed', sprintf(__('Samenvoegen afgebroken, er is niets gewijzigd: %s', 'avpvh-members'), $exception->getMessage()));
         }
 
         $warnings = [];
@@ -353,15 +382,18 @@ class AVPVH_Member_Merge {
             && !AVPVH_DB::get_identity_by_email($email)
             && strcasecmp($email, $preview['accounts']['keep']['email']) !== 0) {
             if (!AVPVH_DB::ensure_identity($keep_id, 'email', $email)) {
-                $warnings[] = 'Het e-mailadres van het verwijderde account kon niet als inlogadres worden toegevoegd (maximum bereikt?).';
+                $warnings[] = __('Het e-mailadres van het verwijderde account kon niet als inlogadres worden toegevoegd (maximum bereikt?).', 'avpvh-members');
             }
         }
 
         if ($remove_account['exists']) {
             $result = AVPVH_Directory::delete_user($remove_account['uid']);
             if (is_wp_error($result)) {
-                $warnings[] = 'De leden zijn samengevoegd, maar het account "' . $remove_account['uid'] . '" kon niet worden verwijderd: '
-                    . $result->get_error_message();
+                $warnings[] = sprintf(
+                    __('De leden zijn samengevoegd, maar het account "%s" kon niet worden verwijderd: %s', 'avpvh-members'),
+                    $remove_account['uid'],
+                    $result->get_error_message()
+                );
             }
             AVPVH_Directory::forget_groups($remove_account['uid']);
         }
