@@ -63,12 +63,21 @@ $i18n = new AVPVH_I18n();
 $locales = AVPVH_I18n::get_supported_locales();
 assert_test('contains nl_NL', isset($locales['nl_NL']));
 assert_test('contains en_US', isset($locales['en_US']));
+assert_test('contains en_GB', isset($locales['en_GB']));
 assert_test('contains fr_FR', isset($locales['fr_FR']));
 assert_test('contains de_DE', isset($locales['de_DE']));
 
 // 1. GET ?lang=en -> en_US
 $_GET['lang'] = 'en';
 assert_test('GET lang=en resolves to en_US', $i18n->filter_determine_locale('nl_NL') === 'en_US');
+
+// 1b. GET ?lang=en-gb -> en_GB, ?lang=en-uk -> en_GB
+$_GET['lang'] = 'en-gb';
+assert_test('GET lang=en-gb resolves to en_GB', $i18n->filter_determine_locale('nl_NL') === 'en_GB');
+$_GET['lang'] = 'en-uk';
+assert_test('GET lang=en-uk resolves to en_GB', $i18n->filter_determine_locale('nl_NL') === 'en_GB');
+$_GET['lang'] = 'en_GB';
+assert_test('GET lang=en_GB resolves to en_GB', $i18n->filter_determine_locale('nl_NL') === 'en_GB');
 
 // 2. GET ?lang=fr -> fr_FR
 $_GET['lang'] = 'fr';

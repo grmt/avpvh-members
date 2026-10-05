@@ -5,7 +5,8 @@ class AVPVH_I18n {
 
     public const SUPPORTED_LOCALES = [
         'nl_NL' => 'Nederlands',
-        'en_US' => 'English',
+        'en_US' => 'English (US)',
+        'en_GB' => 'English (UK)',
         'fr_FR' => 'Français',
         'de_DE' => 'Deutsch',
     ];
@@ -17,10 +18,15 @@ class AVPVH_I18n {
         'de'    => 'de_DE',
         'nl_nl' => 'nl_NL',
         'en_us' => 'en_US',
+        'en_gb' => 'en_GB',
+        'en-gb' => 'en_GB',
+        'en_uk' => 'en_GB',
+        'en-uk' => 'en_GB',
         'fr_fr' => 'fr_FR',
         'de_de' => 'de_DE',
         'nl_NL' => 'nl_NL',
         'en_US' => 'en_US',
+        'en_GB' => 'en_GB',
         'fr_FR' => 'fr_FR',
         'de_DE' => 'de_DE',
     ];
