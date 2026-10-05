@@ -9,12 +9,14 @@ defined('ABSPATH') || exit;
  *   [avpvh_activiteiten soort="Weekend" kolommen="datum,waar,wat" koppen="Datum,Waar,Activiteit"]
  *   [avpvh_activiteiten soort="Uitje,Wandeling,Feest,Anders" kolommen="datum,wat,waar,details" koppen="wanneer,wat,waar,details"]
  *   [avpvh_activiteiten wanneer="komend"]
+ *   [avpvh_activiteiten tot="2006-07-01"]   (the werkgroep's activities, for the Voorgeschiedenis page)
  *
  * wanneer="geweest" (default) shows a table, newest first, of activities
  * that have started; wanneer="komend" shows the agenda: one heading per
  * activity that hasn't ended yet, soonest first. Columns: datum (start date,
  * or just the year), wat (description, else the name), waar (location, else
- * the kenmerk), details.
+ * the kenmerk), details. vanaf/tot (YYYY-MM-DD) limit the list to activities
+ * starting on or after / before that date.
  */
 class AVPVH_Activity_List {
     private const COLUMNS = [
@@ -35,10 +37,12 @@ class AVPVH_Activity_List {
             'wanneer'  => 'geweest',
             'kolommen' => 'datum,wat,waar,details',
             'koppen'   => '',
+            'vanaf'    => '',
+            'tot'      => '',
         ], $atts, 'avpvh_activiteiten');
 
         $upcoming   = 'komend' === $atts['wanneer'];
-        $activities = self::activities(self::list_attribute($atts['soort']), $upcoming);
+        $activities = self::activities(self::list_attribute($atts['soort']), $upcoming, self::date_attribute($atts['vanaf']), self::date_attribute($atts['tot']));
 
         if (!$activities) {
             return $upcoming ? '<p>Er staan nog geen activiteiten op de agenda.</p>' : '';
@@ -49,6 +53,11 @@ class AVPVH_Activity_List {
             : self::table($activities, self::list_attribute($atts['kolommen']), self::list_attribute($atts['koppen']));
     }
 
+    /** A YYYY-MM-DD attribute, or '' if it isn't one. */
+    private static function date_attribute(string $value): string {
+        return 1 === preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($value)) ? trim($value) : '';
+    }
+
     /** @return array<string> */
     private static function list_attribute(string $value): array {
         return array_values(array_filter(array_map('trim', explode(',', $value)), 'strlen'));
@@ -57,12 +66,13 @@ class AVPVH_Activity_List {
     /**
      * Activities shown on the site, of the given type names (all when
      * empty): those that have started (newest first) or those that haven't
-     * ended (soonest first).
+     * ended (soonest first), optionally only those starting from / before a
+     * date.
      *
      * @param array<string> $types
      * @return array<object>
      */
-    private static function activities(array $types, bool $upcoming): array {
+    private static function activities(array $types, bool $upcoming, string $from = '', string $until = ''): array {
         global $wpdb;
         $today = current_time('Y-m-d');
         $where = ['a.show_on_site = 1'];
@@ -78,7 +88,18 @@ class AVPVH_Activity_List {
             ? 'COALESCE(a.end_date, a.start_date, MAKEDATE(a.year, 1)) >= %s'
             : 'COALESCE(a.start_date, MAKEDATE(a.year, 1)) <= %s';
         $args[]  = $today;
-        $order   = $upcoming ? 'ASC' : 'DESC';
+
+        if ('' !== $from) {
+            $where[] = 'COALESCE(a.start_date, MAKEDATE(a.year, 1)) >= %s';
+            $args[]  = $from;
+        }
+
+        if ('' !== $until) {
+            $where[] = 'COALESCE(a.start_date, MAKEDATE(a.year, 1)) < %s';
+            $args[]  = $until;
+        }
+
+        $order = $upcoming ? 'ASC' : 'DESC';
 
         return $wpdb->get_results($wpdb->prepare(
             "SELECT a.*, t.name AS type_name
