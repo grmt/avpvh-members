@@ -20,22 +20,22 @@ class AVPVH_Activity_Overview {
 
     public function render(): string {
         if (!is_user_logged_in()) {
-            return '<p>Je moet ingelogd zijn om dit overzicht te zien.</p>';
+            return '<p>' . esc_html__('Je moet ingelogd zijn om dit overzicht te zien.', 'avpvh-members') . '</p>';
         }
 
         $member = avpvh_get_member_by_wp_user(get_current_user_id());
         if (!$member || $member->status !== 'active') {
-            return '<p>Dit overzicht is alleen beschikbaar voor actieve leden.</p>';
+            return '<p>' . esc_html__('Dit overzicht is alleen beschikbaar voor actieve leden.', 'avpvh-members') . '</p>';
         }
 
         $activity = AVPVH_DB::get_current_camp_activity();
         if (!$activity) {
-            return '<p>Er is nog geen overzicht beschikbaar.</p>';
+            return '<p>' . esc_html__('Er is nog geen overzicht beschikbaar.', 'avpvh-members') . '</p>';
         }
 
         $participations = AVPVH_DB::get_participation_for_activity((int) $activity->id);
         if (!$participations) {
-            return '<p>Er is nog geen overzicht beschikbaar.</p>';
+            return '<p>' . esc_html__('Er is nog geen overzicht beschikbaar.', 'avpvh-members') . '</p>';
         }
 
         $date_range = [];
@@ -52,14 +52,14 @@ class AVPVH_Activity_Overview {
         ?>
         <div class="avpvh-activiteit-overzicht">
             <h2><?php echo esc_html($activity->name . ' ' . $activity->year); ?></h2>
-            <p class="avpvh-activiteit-overzicht-meta">Laatst bijgewerkt: <?php echo esc_html(date_i18n('j-m-Y')); ?></p>
+            <p class="avpvh-activiteit-overzicht-meta"><?php printf(esc_html__('Laatst bijgewerkt: %s', 'avpvh-members'), esc_html(date_i18n('j-m-Y'))); ?></p>
             <div class="avpvh-activiteit-overzicht-scroll">
                 <table class="avpvh-activiteit-overzicht-tabel">
                     <tr>
-                        <td><strong>Naam</strong></td>
-                        <td><strong>Nachten</strong></td>
-                        <td><strong>Nawacht</strong></td>
-                        <td><strong>Dieet</strong></td>
+                        <td><strong><?php esc_html_e('Naam', 'avpvh-members'); ?></strong></td>
+                        <td><strong><?php esc_html_e('Nachten', 'avpvh-members'); ?></strong></td>
+                        <td><strong><?php esc_html_e('Nawacht', 'avpvh-members'); ?></strong></td>
+                        <td><strong><?php esc_html_e('Dieet', 'avpvh-members'); ?></strong></td>
                         <?php foreach ($date_range as $date) : ?>
                             <td><strong><?php echo esc_html(date_i18n('D j-n', strtotime($date))); ?></strong></td>
                         <?php endforeach; ?>
@@ -71,7 +71,7 @@ class AVPVH_Activity_Overview {
                         <tr>
                             <td><?php echo esc_html($name); ?></td>
                             <td><?php echo esc_html((string) ($p->nights ?? '')); ?></td>
-                            <td><?php echo $p->nawacht ? 'ja' : ''; ?></td>
+                            <td><?php echo $p->nawacht ? esc_html__('ja', 'avpvh-members') : ''; ?></td>
                             <td><?php echo esc_html($p->diet ?? ''); ?></td>
                             <?php foreach ($date_range as $date) :
                                 $status = $days[$date] ?? '';

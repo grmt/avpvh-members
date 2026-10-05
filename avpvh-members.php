@@ -30,6 +30,7 @@ function avpvh_asset_version(string $relative_path): string {
     return $mtime ? (string) $mtime : '1.0';
 }
 
+require_once AVPVH_PLUGIN_DIR . 'includes/class-i18n.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-name-matcher.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-merge.php';
@@ -69,6 +70,7 @@ add_filter('logout_url', function (): string {
 });
 
 
+new AVPVH_I18n();
 new AVPVH_Access();
 new AVPVH_Nav_Auth();
 new AVPVH_OAuth();

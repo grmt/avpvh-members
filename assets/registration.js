@@ -21,12 +21,6 @@
             const $submit = $form.find('button[type="submit"]');
             const originalText = $submit.text();
 
-            $submit.prop('disabled', true).text('Bezig met opslaan...');
-            $form.addClass('loading');
-
-            const formData = new FormData($form[0]);
-            formData.append('action', 'avpvh_save_member_profile');
-
             var configEl = document.getElementById('avpvh-registration-config');
             var config = {};
             if (configEl && configEl.textContent) {
@@ -34,6 +28,18 @@
                     config = JSON.parse(configEl.textContent);
                 } catch (e) {}
             }
+            var strings = config.strings || {};
+            var savingText = strings.saving || 'Bezig met opslaan...';
+            var successText = strings.success || 'Profiel succesvol bijgewerkt!';
+            var errorText = strings.error || 'Er is een fout opgetreden.';
+            var failedText = strings.failed || 'Opslaan van het profiel is mislukt. Probeer het opnieuw.';
+
+            $submit.prop('disabled', true).text(savingText);
+            $form.addClass('loading');
+
+            const formData = new FormData($form[0]);
+            formData.append('action', 'avpvh_save_member_profile');
+
             var ajaxUrl = config.ajaxUrl || (typeof avpvhRegistration !== 'undefined' ? avpvhRegistration.ajaxUrl : '') || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php');
 
             $.ajax({
@@ -44,17 +50,17 @@
                 contentType: false,
                 success: function(response) {
                     if (response.success) {
-                        var message = typeof response.data === 'string' ? response.data : (response.data && response.data.message ? response.data.message : 'Profiel succesvol bijgewerkt!');
+                        var message = typeof response.data === 'string' ? response.data : (response.data && response.data.message ? response.data.message : successText);
                         showMessage('success', message);
                         setTimeout(function() {
                             location.reload();
                         }, 2000);
                     } else {
-                        showMessage('error', response.data || 'Er is een fout opgetreden.');
+                        showMessage('error', response.data || errorText);
                     }
                 },
                 error: function() {
-                    showMessage('error', 'Opslaan van het profiel is mislukt. Probeer het opnieuw.');
+                    showMessage('error', failedText);
                 },
                 complete: function() {
                     $submit.prop('disabled', false).text(originalText);

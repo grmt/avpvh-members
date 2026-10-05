@@ -19,20 +19,24 @@ class AVPVH_Activity_Participation_List_Table extends WP_List_Table {
      * participation found" instead of showing who it actually applies to.
      */
     public function __construct(int $activity_id, bool $show_all_active_members = false) {
-        parent::__construct(['singular' => 'deelname', 'plural' => 'deelnames', 'ajax' => false]);
+        parent::__construct([
+            'singular' => _x('deelname', 'singular', 'avpvh-members'),
+            'plural'   => _x('deelnames', 'plural', 'avpvh-members'),
+            'ajax'     => false,
+        ]);
         $this->activity_id = $activity_id;
         $this->show_all_active_members = $show_all_active_members;
     }
 
     public function get_columns(): array {
         return [
-            'name'       => 'Naam',
-            'nights'     => 'Nachten',
-            'nawacht'    => 'Nawacht',
-            'diet'       => 'Dieet',
-            'days'       => 'Dagen aanwezig',
-            'notes'      => 'Notities',
-            'actions'    => '',
+            'name'    => __('Naam', 'avpvh-members'),
+            'nights'  => __('Nachten', 'avpvh-members'),
+            'nawacht' => __('Nawacht', 'avpvh-members'),
+            'diet'    => __('Dieet', 'avpvh-members'),
+            'days'    => __('Dagen aanwezig', 'avpvh-members'),
+            'notes'   => __('Notities', 'avpvh-members'),
+            'actions' => '',
         ];
     }
 
@@ -41,7 +45,9 @@ class AVPVH_Activity_Participation_List_Table extends WP_List_Table {
     }
 
     public function no_items(): void {
-        echo $this->show_all_active_members ? 'Geen actieve leden gevonden.' : 'Geen deelname gevonden voor deze activiteit.';
+        echo $this->show_all_active_members
+            ? esc_html__('Geen actieve leden gevonden.', 'avpvh-members')
+            : esc_html__('Geen deelname gevonden voor deze activiteit.', 'avpvh-members');
     }
 
     public function prepare_items(): void {
@@ -71,7 +77,7 @@ class AVPVH_Activity_Participation_List_Table extends WP_List_Table {
     public function column_default($item, $column_name) {
         return match ($column_name) {
             'nights'  => $item->nights !== null ? esc_html((string) $item->nights) : '—',
-            'nawacht' => $item->nawacht ? 'Ja' : '—',
+            'nawacht' => $item->nawacht ? esc_html__('Ja', 'avpvh-members') : '—',
             'diet'    => esc_html($item->diet ?: '—'),
             'notes'   => esc_html($item->notes ?: ''),
             default   => '',
@@ -107,6 +113,6 @@ class AVPVH_Activity_Participation_List_Table extends WP_List_Table {
             'activity_id' => $this->activity_id,
             'id' => $item->id,
         ], admin_url('admin.php'));
-        return '<a href="' . esc_url($url) . '" class="button button-small">Bewerken</a>';
+        return '<a href="' . esc_url($url) . '" class="button button-small">' . esc_html__('Bewerken', 'avpvh-members') . '</a>';
     }
 }

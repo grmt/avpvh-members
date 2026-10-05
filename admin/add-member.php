@@ -2,7 +2,7 @@
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!AVPVH_Roles::can_manage_members()) {
-    wp_die('Geen toegang.');
+    wp_die(__('Geen toegang.', 'avpvh-members'));
 }
 
 // A duplicate-name warning survives one redirect via a short-lived
@@ -26,10 +26,9 @@ if ($pending) {
 }
 ?>
 <div class="wrap">
-    <h1>Nieuwe persoon</h1>
+    <h1><?php esc_html_e('Nieuwe persoon', 'avpvh-members'); ?></h1>
     <p class="description">
-        Voegt een lid, ex-lid of bezoeker toe: een plaatsvervangend account (@avpvh.local, geen echte inlog — clubbeleid:
-        leden onder de 16 krijgen geen eigen login) en het bijbehorende ledenrecord.
+        <?php esc_html_e('Voegt een lid, ex-lid of bezoeker toe: een plaatsvervangend account (@avpvh.local, geen echte inlog — clubbeleid: leden onder de 16 krijgen geen eigen login) en het bijbehorende ledenrecord.', 'avpvh-members'); ?>
     </p>
 
     <?php if (!empty($_GET['add_member_error'])) :
@@ -37,13 +36,13 @@ if ($pending) {
         <div class="notice notice-error">
             <p>
                 <?php if ($err === 'onvolledig') : ?>
-                    Voornaam en achternaam zijn verplicht.
+                    <?php esc_html_e('Voornaam en achternaam zijn verplicht.', 'avpvh-members'); ?>
                 <?php elseif ($err === 'soort') : ?>
-                    Kies of het om een lid, ex-lid of bezoeker gaat.
+                    <?php esc_html_e('Kies of het om een lid, ex-lid of bezoeker gaat.', 'avpvh-members'); ?>
                 <?php elseif ($err === 'geboortedatum') : ?>
-                    Ongeldige geboortedatum. Vul een volledige datum in (JJJJ-MM-DD) of alleen een geboortejaar (JJJJ).
+                    <?php esc_html_e('Ongeldige geboortedatum. Vul een volledige datum in (JJJJ-MM-DD) of alleen een geboortejaar (JJJJ).', 'avpvh-members'); ?>
                 <?php elseif ($err === 'lldap') : ?>
-                    Aanmaken van het account is mislukt: <?php echo esc_html(rawurldecode(wp_unslash($_GET['add_member_error_message'] ?? ''))); ?>
+                    <?php echo esc_html(sprintf(__('Aanmaken van het account is mislukt: %s', 'avpvh-members'), rawurldecode(wp_unslash($_GET['add_member_error_message'] ?? '')))); ?>
                 <?php endif; ?>
             </p>
         </div>
@@ -52,7 +51,7 @@ if ($pending) {
     <?php if ($pending && $matches) : ?>
         <div class="notice notice-warning">
             <p>
-                <strong>Er <?php echo count($matches) === 1 ? 'bestaat al een lid' : 'bestaan al leden'; ?> met deze of een vergelijkbare naam:</strong>
+                <strong><?php echo esc_html(count($matches) === 1 ? __('Er bestaat al een lid met deze of een vergelijkbare naam:', 'avpvh-members') : __('Er bestaan al leden met deze of een vergelijkbare naam:', 'avpvh-members')); ?></strong>
             </p>
             <ul style="list-style: disc; margin-left: 1.5rem;">
                 <?php foreach ($matches as $m) : ?>
@@ -60,11 +59,11 @@ if ($pending) {
                         <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $m->id], admin_url('admin.php'))); ?>" target="_blank">
                             <?php echo esc_html(avpvh_format_name($m, 'list_suffix')); ?>
                         </a>
-                        (status: <?php echo esc_html($m->status); ?><?php echo $m->matched_via !== '' ? esc_html(', via naamvariant ' . $m->matched_via) : ''; ?>)
+                        (status: <?php echo esc_html(AVPVH_Roles::get_status_label($m->status)); ?><?php echo $m->matched_via !== '' ? esc_html(sprintf(__(', via naamvariant %s', 'avpvh-members'), $m->matched_via)) : ''; ?>)
                     </li>
                 <?php endforeach; ?>
             </ul>
-            <p>Gaat het om een andere, echte persoon met dezelfde naam? Dan kan je toch doorgaan.</p>
+            <p><?php esc_html_e('Gaat het om een andere, echte persoon met dezelfde naam? Dan kan je toch doorgaan.', 'avpvh-members'); ?></p>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                 <?php wp_nonce_field('avpvh_add_member'); ?>
                 <input type="hidden" name="action" value="avpvh_add_member">
@@ -77,7 +76,7 @@ if ($pending) {
                 <?php foreach ((array) ($pending['flag_ids'] ?? []) as $flag_id) : ?>
                     <input type="hidden" name="flag_ids[]" value="<?php echo esc_attr((int) $flag_id); ?>">
                 <?php endforeach; ?>
-                <?php submit_button('Ja, toch toevoegen als nieuwe persoon', 'secondary', 'submit', false); ?>
+                <?php submit_button(__('Ja, toch toevoegen als nieuwe persoon', 'avpvh-members'), 'secondary', 'submit', false); ?>
             </form>
         </div>
     <?php endif; ?>
@@ -88,46 +87,46 @@ if ($pending) {
 
         <table class="form-table">
             <tr>
-                <th><label for="first_name">Voornaam *</label></th>
+                <th><label for="first_name"><?php esc_html_e('Voornaam *', 'avpvh-members'); ?></label></th>
                 <td><input type="text" id="first_name" name="first_name" required
                            value="<?php echo esc_attr($pending['first_name'] ?? ''); ?>"></td>
             </tr>
             <tr>
-                <th><label for="suffix">Tussenvoegsel</label></th>
+                <th><label for="suffix"><?php esc_html_e('Tussenvoegsel', 'avpvh-members'); ?></label></th>
                 <td><input type="text" id="suffix" name="suffix"
                            value="<?php echo esc_attr($pending['suffix'] ?? ''); ?>"></td>
             </tr>
             <tr>
-                <th><label for="last_name">Achternaam *</label></th>
+                <th><label for="last_name"><?php esc_html_e('Achternaam *', 'avpvh-members'); ?></label></th>
                 <td><input type="text" id="last_name" name="last_name" required
                            value="<?php echo esc_attr($pending['last_name'] ?? ''); ?>"></td>
             </tr>
             <tr>
-                <th><label for="birth_date">Geboortedatum</label></th>
+                <th><label for="birth_date"><?php esc_html_e('Geboortedatum', 'avpvh-members'); ?></label></th>
                 <td>
                     <input type="text" id="birth_date" name="birth_date" inputmode="numeric"
-                           pattern="\d{4}(-\d{2}-\d{2})?" placeholder="JJJJ-MM-DD of alleen JJJJ"
+                           pattern="\d{4}(-\d{2}-\d{2})?" placeholder="<?php echo esc_attr__('JJJJ-MM-DD of alleen JJJJ', 'avpvh-members'); ?>"
                            value="<?php echo esc_attr($pending['birth_date'] ?? ''); ?>">
-                    <p class="description">Volledige datum (JJJJ-MM-DD), of alleen het geboortejaar als de exacte datum niet bekend is.</p>
+                    <p class="description"><?php esc_html_e('Volledige datum (JJJJ-MM-DD), of alleen het geboortejaar als de exacte datum niet bekend is.', 'avpvh-members'); ?></p>
                 </td>
             </tr>
             <tr>
-                <th>Soort *</th>
+                <th><?php esc_html_e('Soort *', 'avpvh-members'); ?></th>
                 <td>
                     <fieldset>
                         <?php $current_status = $pending['status'] ?? ''; ?>
-                        <?php foreach (AVPVH_Roles::STATUS_LABELS as $value => $label) : ?>
+                        <?php foreach (AVPVH_Roles::get_status_labels() as $value => $label) : ?>
                             <label style="display:inline-block;margin-right:1.5rem">
                                 <input type="radio" name="status" value="<?php echo esc_attr($value); ?>" required <?php checked($current_status, $value); ?>>
                                 <?php echo esc_html($label); ?>
                             </label>
                         <?php endforeach; ?>
                     </fieldset>
-                    <p class="description">Lid komt in de groep leden, ex-lid in ex-leden, een bezoeker in geen van beide.</p>
+                    <p class="description"><?php esc_html_e('Lid komt in de groep leden, ex-lid in ex-leden, een bezoeker in geen van beide.', 'avpvh-members'); ?></p>
                 </td>
             </tr>
             <tr>
-                <th>Kenmerken</th>
+                <th><?php esc_html_e('Kenmerken', 'avpvh-members'); ?></th>
                 <td>
                     <?php $chosen_flags = array_map('intval', (array) ($pending['flag_ids'] ?? [])); ?>
                     <?php foreach (AVPVH_DB::get_all_flags() as $flag) : ?>
@@ -136,11 +135,11 @@ if ($pending) {
                             <?php echo esc_html($flag->label); ?>
                         </label>
                     <?php endforeach; ?>
-                    <p class="description">Meerdere mogelijk. Een kenmerk als Overleden of Geroyeerd maakt iemand automatisch ex-lid.</p>
+                    <p class="description"><?php esc_html_e('Meerdere mogelijk. Een kenmerk als Overleden of Geroyeerd maakt iemand automatisch ex-lid.', 'avpvh-members'); ?></p>
                 </td>
             </tr>
         </table>
 
-        <?php submit_button('Persoon toevoegen'); ?>
+        <?php submit_button(__('Persoon toevoegen', 'avpvh-members')); ?>
     </form>
 </div>

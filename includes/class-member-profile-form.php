@@ -20,7 +20,7 @@ class AVPVH_Member_Profile_Form {
      */
     public function render_shortcode(): string {
         if (!is_user_logged_in()) {
-            return '<p style="color: red;">Log in om je profiel te bewerken.</p>';
+            return '<p style="color: red;">' . esc_html__('Log in om je profiel te bewerken.', 'avpvh-members') . '</p>';
         }
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
@@ -40,7 +40,7 @@ class AVPVH_Member_Profile_Form {
         }
 
         if (!$member) {
-            return '<p style="color: red;">Ledenprofiel niet gevonden.</p>';
+            return '<p style="color: red;">' . esc_html__('Ledenprofiel niet gevonden.', 'avpvh-members') . '</p>';
         }
 
         if ($is_identity_request_only) {
@@ -48,8 +48,13 @@ class AVPVH_Member_Profile_Form {
             ?>
             <div class="avpvh-member-profile-form avpvh-member-profile-form--no-banner">
                 <p class="avpvh-profile-note">
-                    Je kunt hier een verzoek sturen aan <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong>
-                    om een e-mailadres te verifiëren. Andere gegevens van dit profiel kun je niet bewerken.
+                    <?php
+                    printf(
+                        /* translators: %s: member name */
+                        esc_html__('Je kunt hier een verzoek sturen aan %s om een e-mailadres te verifiëren. Andere gegevens van dit profiel kun je niet bewerken.', 'avpvh-members'),
+                        '<strong>' . esc_html(avpvh_format_name($member)) . '</strong>'
+                    );
+                    ?>
                 </p>
                 <?php $this->render_identity_request_only($member); ?>
             </div>
@@ -107,9 +112,25 @@ class AVPVH_Member_Profile_Form {
         ?>
         <div class="avpvh-member-profile-form avpvh-member-profile-form--no-banner">
             <?php if ($is_admin_edit) : ?>
-                <p class="avpvh-profile-note">Beheerder bewerkt: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
+                <p class="avpvh-profile-note">
+                    <?php
+                    printf(
+                        /* translators: %s: member name */
+                        esc_html__('Beheerder bewerkt: %s', 'avpvh-members'),
+                        '<strong>' . esc_html(avpvh_format_name($member)) . '</strong>'
+                    );
+                    ?>
+                </p>
             <?php elseif ($is_household_edit) : ?>
-                <p class="avpvh-profile-note">Je bewerkt het profiel van: <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong></p>
+                <p class="avpvh-profile-note">
+                    <?php
+                    printf(
+                        /* translators: %s: member name */
+                        esc_html__('Je bewerkt het profiel van: %s', 'avpvh-members'),
+                        '<strong>' . esc_html(avpvh_format_name($member)) . '</strong>'
+                    );
+                    ?>
+                </p>
             <?php endif; ?>
 
             <?php if (is_user_logged_in()) : ?>
@@ -121,7 +142,9 @@ class AVPVH_Member_Profile_Form {
                 $target_user = !empty($member->wp_user_id) ? get_userdata((int) $member->wp_user_id) : false;
                 $member_role = $target_user ? (string) get_user_meta($target_user->ID, 'avpvh_member_role', true) : '';
                 $member_role_label = $this->member_role_label($member_role);
-                $status_label = $member->status === 'active' ? 'Actief lid' : ($member->status === 'inactive' ? 'Oud lid' : 'Bezoeker');
+                $status_label = $member->status === 'active'
+                    ? __('Actief lid', 'avpvh-members')
+                    : ($member->status === 'inactive' ? __('Oud lid', 'avpvh-members') : __('Bezoeker', 'avpvh-members'));
                 $badges = array_filter([$target_user ? $this->role_label($target_user) : '', $member_role_label, $status_label]);
 
                 $lldap_groups = [];
@@ -138,25 +161,25 @@ class AVPVH_Member_Profile_Form {
                         <?php endforeach; ?>
                     </div>
                     <div class="avpvh-summary-card__row">
-                        <span class="avpvh-summary-card__label">Ingelogd als:</span>
+                        <span class="avpvh-summary-card__label"><?php esc_html_e('Ingelogd als:', 'avpvh-members'); ?></span>
                         <?php echo esc_html($user->user_email); ?>
                     </div>
                     <?php if ($lldap_groups) : ?>
                         <div class="avpvh-summary-card__row">
-                            <span class="avpvh-summary-card__label">Groepen:</span>
+                            <span class="avpvh-summary-card__label"><?php esc_html_e('Groepen:', 'avpvh-members'); ?></span>
                             <?php echo esc_html(implode(', ', $lldap_groups)); ?>
                         </div>
                     <?php endif; ?>
                     <?php $role_lines = AVPVH_Roles::describe_member_roles((int) $member->id); ?>
                     <?php if ($role_lines) : ?>
                         <div class="avpvh-summary-card__row">
-                            <span class="avpvh-summary-card__label">Rollen:</span>
+                            <span class="avpvh-summary-card__label"><?php esc_html_e('Rollen:', 'avpvh-members'); ?></span>
                             <?php echo esc_html(implode(', ', $role_lines)); ?>
                         </div>
                     <?php endif; ?>
                     <?php if (count($housemates) > 1) : ?>
                         <div class="avpvh-summary-card__row">
-                            <span class="avpvh-summary-card__label">Huisgenoten:</span>
+                            <span class="avpvh-summary-card__label"><?php esc_html_e('Huisgenoten:', 'avpvh-members'); ?></span>
                             <?php foreach ($housemates as $i => $hg) : ?>
                                 <?php echo $i > 0 ? ', ' : ''; ?>
                                 <?php if ((int) $hg->id === (int) $member->id) : ?>
@@ -169,7 +192,7 @@ class AVPVH_Member_Profile_Form {
                     <?php endif; ?>
                     <?php if ($family_elsewhere) : ?>
                         <div class="avpvh-summary-card__row">
-                            <span class="avpvh-summary-card__label">Familie (elders wonend):</span>
+                            <span class="avpvh-summary-card__label"><?php esc_html_e('Familie (elders wonend):', 'avpvh-members'); ?></span>
                             <?php foreach ($family_elsewhere as $i => $hg) : ?>
                                 <?php echo $i > 0 ? ', ' : ''; ?>
                                 <a href="<?php echo esc_url(add_query_arg('member_id', $hg->id)); ?>"><?php echo esc_html(avpvh_format_name($hg)); ?></a>
@@ -178,10 +201,10 @@ class AVPVH_Member_Profile_Form {
                     <?php endif; ?>
                     <?php if ($extended_family) : ?>
                         <div class="avpvh-summary-card__row">
-                            <span class="avpvh-summary-card__label">Ook verbonden (partner van familielid):</span>
+                            <span class="avpvh-summary-card__label"><?php esc_html_e('Ook verbonden (partner van familielid):', 'avpvh-members'); ?></span>
                             <?php foreach ($extended_family as $i => $ef) : ?>
                                 <?php echo $i > 0 ? ', ' : ''; ?>
-                                <a href="<?php echo esc_url(add_query_arg('member_id', $ef->id)); ?>" title="E-mailverificatie aanvragen"><?php echo esc_html(avpvh_format_name($ef)); ?></a>
+                                <a href="<?php echo esc_url(add_query_arg('member_id', $ef->id)); ?>" title="<?php esc_attr_e('E-mailverificatie aanvragen', 'avpvh-members'); ?>"><?php echo esc_html(avpvh_format_name($ef)); ?></a>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
@@ -193,40 +216,46 @@ class AVPVH_Member_Profile_Form {
                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
 
                 <fieldset class="avpvh-fields-grid">
-                    <legend>Persoonlijke gegevens</legend>
+                    <legend><?php esc_html_e('Persoonlijke gegevens', 'avpvh-members'); ?></legend>
 
                     <div class="form-group">
-                        <label for="first_name">Voornaam *</label>
+                        <label for="first_name"><?php esc_html_e('Voornaam *', 'avpvh-members'); ?></label>
                         <input type="text" id="first_name" name="first_name"
                             value="<?php echo esc_attr($member->first_name); ?>" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="suffix">Tussenvoegsel</label>
+                        <label for="suffix"><?php esc_html_e('Tussenvoegsel', 'avpvh-members'); ?></label>
                         <input type="text" id="suffix" name="suffix"
                             value="<?php echo esc_attr($member->suffix ?? ''); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="last_name">Achternaam *</label>
+                        <label for="last_name"><?php esc_html_e('Achternaam *', 'avpvh-members'); ?></label>
                         <input type="text" id="last_name" name="last_name"
                             value="<?php echo esc_attr($member->last_name); ?>" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="passport_name">Paspoortnaam</label>
+                        <label for="passport_name"><?php esc_html_e('Paspoortnaam', 'avpvh-members'); ?></label>
                         <input type="text" id="passport_name" name="passport_name"
                             value="<?php echo esc_attr($member->passport_name ?? ''); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="initials">Voorletters (zoals op de bankrekening)</label>
+                        <label for="initials"><?php esc_html_e('Voorletters (zoals op de bankrekening)', 'avpvh-members'); ?></label>
                         <input type="text" id="initials" name="initials"
-                            value="<?php echo esc_attr($member->initials ?? ''); ?>" placeholder="bv. S.J.M.">
+                            value="<?php echo esc_attr($member->initials ?? ''); ?>" placeholder="<?php esc_attr_e('bv. S.J.M.', 'avpvh-members'); ?>">
                         <?php $mismatch = avpvh_initials_mismatch($member); ?>
                         <?php if ($mismatch) : ?>
                             <p class="description" style="color:#b32d2e;font-weight:600">
-                                &#9888; Komt niet overeen met de paspoortnaam (die geeft <?php echo esc_html($mismatch); ?>).
+                                <?php
+                                printf(
+                                    /* translators: %s: calculated initials */
+                                    esc_html__('&#9888; Komt niet overeen met de paspoortnaam (die geeft %s).', 'avpvh-members'),
+                                    esc_html($mismatch)
+                                );
+                                ?>
                             </p>
                         <?php endif; ?>
                     </div>
@@ -235,85 +264,108 @@ class AVPVH_Member_Profile_Form {
                         $birth_value = !empty($member->birth_date) ? $member->birth_date : (!empty($member->birth_year) ? (string) $member->birth_year : '');
                         ?>
                         <div class="form-group">
-                            <label for="birth_date">Geboortedatum</label>
+                            <label for="birth_date"><?php esc_html_e('Geboortedatum', 'avpvh-members'); ?></label>
                             <input type="text" id="birth_date" name="birth_date" inputmode="numeric"
-                                pattern="\d{4}(-\d{2}-\d{2})?" placeholder="JJJJ-MM-DD of alleen JJJJ"
+                                pattern="\d{4}(-\d{2}-\d{2})?" placeholder="<?php esc_attr_e('JJJJ-MM-DD of alleen JJJJ', 'avpvh-members'); ?>"
                                 value="<?php echo esc_attr($birth_value); ?>">
-                            <p class="avpvh-field-hint">Volledige datum (JJJJ-MM-DD), of alleen het geboortejaar als de exacte datum niet bekend is.</p>
+                            <p class="avpvh-field-hint"><?php esc_html_e('Volledige datum (JJJJ-MM-DD), of alleen het geboortejaar als de exacte datum niet bekend is.', 'avpvh-members'); ?></p>
                         </div>
                         <div class="form-group">
                             <label for="is_student">
                                 <input type="checkbox" id="is_student" name="is_student" value="1" <?php checked(!empty($member->is_student)); ?>>
-                                Scholier/student
+                                <?php esc_html_e('Scholier/student', 'avpvh-members'); ?>
                             </label>
                         </div>
                     <?php endif; ?>
 
                     <div class="form-group">
-                        <label for="diet">Eetgewoontes / allergieën</label>
+                        <label for="diet"><?php esc_html_e('Eetgewoontes / allergieën', 'avpvh-members'); ?></label>
                         <input type="text" id="diet" name="diet"
                             value="<?php echo esc_attr($member->diet ?? ''); ?>"
-                            placeholder="bv. vegetarisch, notenallergie">
+                            placeholder="<?php esc_attr_e('bv. vegetarisch, notenallergie', 'avpvh-members'); ?>">
                     </div>
                 </fieldset>
 
                 <fieldset class="avpvh-fields-grid">
-                    <legend>Contact Information</legend>
+                    <legend><?php esc_html_e('Contactgegevens', 'avpvh-members'); ?></legend>
 
                     <div class="form-group">
-                        <label for="phone">Phone (Home)</label>
+                        <label for="phone"><?php esc_html_e('Telefoon vast', 'avpvh-members'); ?></label>
                         <input type="tel" id="phone" name="phone"
                             value="<?php echo esc_attr($member->phone); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="mobile">Mobile (Cell)</label>
+                        <label for="mobile"><?php esc_html_e('Mobiel', 'avpvh-members'); ?></label>
                         <input type="tel" id="mobile" name="mobile"
                             value="<?php echo esc_attr($member->mobile); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="emergency_contact">Emergency Contact Name</label>
+                        <label for="emergency_contact"><?php esc_html_e('Contactpersoon in noodgevallen', 'avpvh-members'); ?></label>
                         <input type="text" id="emergency_contact" name="emergency_contact"
                             value="<?php echo esc_attr($member->emergency_contact); ?>">
                     </div>
                 </fieldset>
 
                 <fieldset class="avpvh-fields-grid">
-                    <legend>Address</legend>
+                    <legend><?php esc_html_e('Adres', 'avpvh-members'); ?></legend>
 
                     <div class="form-group">
-                        <label for="street">Street</label>
+                        <label for="street"><?php esc_html_e('Straat', 'avpvh-members'); ?></label>
                         <input type="text" id="street" name="street"
                             value="<?php echo esc_attr($current_address->street ?? ''); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="house_number">House Number</label>
+                        <label for="house_number"><?php esc_html_e('Huisnummer', 'avpvh-members'); ?></label>
                         <input type="text" id="house_number" name="house_number"
                             value="<?php echo esc_attr($current_address->house_number ?? ''); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="postal_code">Postal Code</label>
+                        <label for="postal_code"><?php esc_html_e('Postcode', 'avpvh-members'); ?></label>
                         <input type="text" id="postal_code" name="postal_code"
                             value="<?php echo esc_attr($current_address->postal_code ?? ''); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="city">City</label>
+                        <label for="city"><?php esc_html_e('Woonplaats', 'avpvh-members'); ?></label>
                         <input type="text" id="city" name="city"
                             value="<?php echo esc_attr($current_address->city ?? ''); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="country">Country</label>
+                        <label for="country"><?php esc_html_e('Land', 'avpvh-members'); ?></label>
                         <input type="text" id="country" name="country"
                             value="<?php echo esc_attr($current_address->country ?? 'Nederland'); ?>">
                     </div>
                 </fieldset>
 
-                <button type="submit" class="button button-primary">Update Profile</button>
+                <fieldset class="avpvh-fields-grid">
+                    <legend><?php esc_html_e('Voorkeuren', 'avpvh-members'); ?></legend>
+
+                    <div class="form-group">
+                        <label for="user_locale"><?php esc_html_e('Taal', 'avpvh-members'); ?></label>
+                        <select id="user_locale" name="user_locale">
+                            <?php
+                            $target_user_id = !empty($member->wp_user_id) ? (int) $member->wp_user_id : get_current_user_id();
+                            $current_user_locale = (string) get_user_meta($target_user_id, 'locale', true);
+                            if (!$current_user_locale) {
+                                $current_user_locale = determine_locale();
+                            }
+                            foreach (AVPVH_I18n::get_supported_locales() as $loc_code => $loc_name) :
+                            ?>
+                                <option value="<?php echo esc_attr($loc_code); ?>" <?php selected($current_user_locale, $loc_code); ?>>
+                                    <?php echo esc_html($loc_name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="avpvh-field-hint"><?php esc_html_e('Kies je gewenste taal voor de website.', 'avpvh-members'); ?></p>
+                    </div>
+                </fieldset>
+
+                <button type="submit" class="button button-primary"><?php esc_html_e('Profiel bijwerken', 'avpvh-members'); ?></button>
             </form>
 
             <?php if (!$is_admin_edit) : ?>
@@ -359,42 +411,40 @@ class AVPVH_Member_Profile_Form {
         $identities = AVPVH_DB::get_member_identities((int) $member->id);
         $current_user = wp_get_current_user();
         $provider_labels = [
-            'email'     => 'E-mail (link)',
+            'email'     => __('E-mail (link)', 'avpvh-members'),
             'google'    => 'Google',
             'microsoft' => 'Microsoft',
         ];
         ?>
         <fieldset class="avpvh-identities">
-            <legend>Inlog-e-mailadressen</legend>
+            <legend><?php esc_html_e('Inlog-e-mailadressen', 'avpvh-members'); ?></legend>
             <p>
-                Je kunt tot drie e-mailadressen koppelen om mee in te loggen, in elke
-                combinatie van methodes. Om een adres toe te voegen moet je er daadwerkelijk
-                mee inloggen, zodat we weten dat het echt van jou is.
+                <?php esc_html_e('Je kunt tot drie e-mailadressen koppelen om mee in te loggen, in elke combinatie van methodes. Om een adres toe te voegen moet je er daadwerkelijk mee inloggen, zodat we weten dat het echt van jou is.', 'avpvh-members'); ?>
             </p>
 
             <?php if (!empty($_GET['identity_added'])) : ?>
-                <p class="avpvh-identity-notice">E-mailadres toegevoegd.</p>
+                <p class="avpvh-identity-notice"><?php esc_html_e('E-mailadres toegevoegd.', 'avpvh-members'); ?></p>
             <?php elseif (!empty($_GET['identity_error'])) : ?>
                 <p class="avpvh-identity-notice avpvh-identity-notice--error">
                     <?php
                     $errors = [
-                        'in_use'        => 'Dat e-mailadres is al aan een ander lid gekoppeld.',
-                        'not_you'       => 'Er ging iets mis met de verificatie — probeer het opnieuw.',
-                        'limit'         => 'Dit adres kon niet worden toegevoegd (maximaal drie).',
-                        'invalid_email' => 'Dat is geen geldig e-mailadres.',
-                        'last_identity' => 'Je hebt maar één geverifieerd inlog-e-mailadres — verifieer en voeg eerst een tweede toe voordat je iets verwijdert.',
+                        'in_use'        => __('Dat e-mailadres is al aan een ander lid gekoppeld.', 'avpvh-members'),
+                        'not_you'       => __('Er ging iets mis met de verificatie — probeer het opnieuw.', 'avpvh-members'),
+                        'limit'         => __('Dit adres kon niet worden toegevoegd (maximaal drie).', 'avpvh-members'),
+                        'invalid_email' => __('Dat is geen geldig e-mailadres.', 'avpvh-members'),
+                        'last_identity' => __('Je hebt maar één geverifieerd inlog-e-mailadres — verifieer en voeg eerst een tweede toe voordat je iets verwijdert.', 'avpvh-members'),
                     ];
-                    echo esc_html($errors[sanitize_key(wp_unslash($_GET['identity_error']))] ?? 'Er ging iets mis.');
+                    echo esc_html($errors[sanitize_key(wp_unslash($_GET['identity_error']))] ?? __('Er ging iets mis.', 'avpvh-members'));
                     ?>
                 </p>
             <?php elseif (!empty($_GET['identity_removed'])) : ?>
-                <p class="avpvh-identity-notice">E-mailadres verwijderd.</p>
+                <p class="avpvh-identity-notice"><?php esc_html_e('E-mailadres verwijderd.', 'avpvh-members'); ?></p>
             <?php elseif (!empty($_GET['identity_primary'])) : ?>
-                <p class="avpvh-identity-notice">Primair e-mailadres gewijzigd.</p>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Primair e-mailadres gewijzigd.', 'avpvh-members'); ?></p>
             <?php elseif (!empty($_GET['identity_requested'])) : ?>
-                <p class="avpvh-identity-notice">Verzoek verstuurd — <?php echo esc_html($member->first_name); ?> heeft een e-mail gekregen met instructies.</p>
+                <p class="avpvh-identity-notice"><?php printf(esc_html__('Verzoek verstuurd — %s heeft een e-mail gekregen met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?></p>
             <?php elseif (!empty($_GET['identity_email_sent'])) : ?>
-                <p class="avpvh-identity-notice">Bevestigingslink verstuurd — check je inbox om het adres te koppelen.</p>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Bevestigingslink verstuurd — check je inbox om het adres te koppelen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
             <?php $verified_count = count(array_filter($identities, fn($i) => !empty($i->verified_at))); ?>
@@ -408,40 +458,42 @@ class AVPVH_Member_Profile_Form {
                         <td><?php echo esc_html($label); ?></td>
                         <td>
                             <?php if (empty($identity->verified_at)) : ?>
-                                <span class="avpvh-identity-unverified" title="Toegevoegd door een beheerder, niet zelf geverifieerd">Niet geverifieerd</span>
+                                <span class="avpvh-identity-unverified" title="<?php esc_attr_e('Toegevoegd door een beheerder, niet zelf geverifieerd', 'avpvh-members'); ?>"><?php esc_html_e('Niet geverifieerd', 'avpvh-members'); ?></span>
                             <?php endif; ?>
                         </td>
-                        <td><?php echo $identity->is_primary ? 'Primair' : ''; ?></td>
+                        <td><?php echo $identity->is_primary ? esc_html__('Primair', 'avpvh-members') : ''; ?></td>
                         <td>
                             <?php if (!$identity->is_primary) : ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block"
-                                title="Wordt ook het contactadres van je account, los van waarmee je inlogt.">
+                                title="<?php esc_attr_e('Wordt ook het contactadres van je account, los van waarmee je inlogt.', 'avpvh-members'); ?>">
                                 <?php wp_nonce_field('avpvh_make_primary_identity'); ?>
                                 <input type="hidden" name="action" value="avpvh_make_primary_identity">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
                                 <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
-                                <button type="submit" class="button button-small">Maak primair</button>
+                                <button type="submit" class="button button-small"><?php esc_html_e('Maak primair', 'avpvh-members'); ?></button>
                             </form>
                             <?php endif; ?>
-                            <?php if ($verified_count > 1) : ?>
+                            <?php if ($verified_count > 1) :
+                                $confirm_msg = $is_current_login
+                                    ? __('Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?', 'avpvh-members')
+                                    : __('Dit e-mailadres verwijderen?', 'avpvh-members');
+                            ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block"
-                                onsubmit="return confirm('<?php echo $is_current_login
-                                    ? esc_js('Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?')
-                                    : esc_js('Dit e-mailadres verwijderen?'); ?>');">
+                                onsubmit="return confirm('<?php echo esc_js($confirm_msg); ?>');">
                                 <?php wp_nonce_field('avpvh_remove_identity'); ?>
                                 <input type="hidden" name="action" value="avpvh_remove_identity">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
                                 <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
-                                <button type="submit" class="button">Verwijderen</button>
+                                <button type="submit" class="button"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
                             </form>
                             <?php else : ?>
-                            <span title="Je hebt maar één geverifieerd adres — voeg eerst een tweede toe om te kunnen verwijderen">—</span>
+                            <span title="<?php esc_attr_e('Je hebt maar één geverifieerd adres — voeg eerst een tweede toe om te kunnen verwijderen', 'avpvh-members'); ?>">—</span>
                             <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$identities) : ?>
-                    <tr><td colspan="5"><em>Nog geen e-mailadressen gekoppeld.</em></td></tr>
+                    <tr><td colspan="5"><em><?php esc_html_e('Nog geen e-mailadressen gekoppeld.', 'avpvh-members'); ?></em></td></tr>
                 <?php endif; ?>
             </table>
 
@@ -452,12 +504,10 @@ class AVPVH_Member_Profile_Form {
                         <?php wp_nonce_field('avpvh_request_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_request_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
-                        <button type="submit" class="button">Vraag <?php echo esc_html($member->first_name); ?> om een e-mailadres te verifiëren</button>
+                        <button type="submit" class="button"><?php printf(esc_html__('Vraag %s om een e-mailadres te verifiëren', 'avpvh-members'), esc_html($member->first_name)); ?></button>
                     </form>
                     <small>
-                        Toevoegen kan alleen door <?php echo esc_html($member->first_name); ?> zelf (moet zelf
-                        inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met
-                        instructies.
+                        <?php printf(esc_html__('Toevoegen kan alleen door %s zelf (moet zelf inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?>
                     </small>
                 </p>
                 <?php endif; ?>
@@ -465,14 +515,14 @@ class AVPVH_Member_Profile_Form {
                 $configured = AVPVH_OAuth::configured_providers();
             ?>
                 <div class="avpvh-identities-add">
-                    <p class="avpvh-identities-add-intro">Voeg een e-mailadres toe en verifieer het:</p>
+                    <p class="avpvh-identities-add-intro"><?php esc_html_e('Voeg een e-mailadres toe en verifieer het:', 'avpvh-members'); ?></p>
 
                     <?php foreach ($configured as $key => $provider) : ?>
                         <div class="avpvh-identities-add-option">
                             <a class="button" href="<?php echo esc_url(AVPVH_OAuth::add_identity_url($key, (int) $member->id)); ?>">
-                                Met <?php echo esc_html($provider['label']); ?>
+                                <?php printf(esc_html__('Met %s', 'avpvh-members'), esc_html($provider['label'])); ?>
                             </a>
-                            <small class="avpvh-field-hint">Handig als je browser al bij <?php echo esc_html($provider['label']); ?> is ingelogd — dan hoef je geen wachtwoord in te typen.</small>
+                            <small class="avpvh-field-hint"><?php printf(esc_html__('Handig als je browser al bij %s is ingelogd — dan hoef je geen wachtwoord in te typen.', 'avpvh-members'), esc_html($provider['label'])); ?></small>
                         </div>
                     <?php endforeach; ?>
 
@@ -482,9 +532,9 @@ class AVPVH_Member_Profile_Form {
                             <input type="hidden" name="action" value="avpvh_start_email_identity">
                             <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
                             <input type="email" name="email" placeholder="naam@voorbeeld.nl" required>
-                            <button type="submit" class="button">Met een e-maillink</button>
+                            <button type="submit" class="button"><?php esc_html_e('Met een e-maillink', 'avpvh-members'); ?></button>
                         </form>
-                        <small class="avpvh-field-hint">Voor adressen zonder Google- of Microsoft-account — je krijgt een bevestigingslink toegestuurd om te verifiëren.</small>
+                        <small class="avpvh-field-hint"><?php esc_html_e('Voor adressen zonder Google- of Microsoft-account — je krijgt een bevestigingslink toegestuurd om te verifiëren.', 'avpvh-members'); ?></small>
                     </div>
                 </div>
             <?php endif; ?>
@@ -503,10 +553,10 @@ class AVPVH_Member_Profile_Form {
         $identities = AVPVH_DB::get_member_identities((int) $member->id);
         ?>
         <fieldset class="avpvh-identities">
-            <legend>Inlog-e-mailadres verifiëren</legend>
+            <legend><?php esc_html_e('Inlog-e-mailadres verifiëren', 'avpvh-members'); ?></legend>
 
             <?php if (!empty($_GET['identity_requested'])) : ?>
-                <p class="avpvh-identity-notice">Verzoek verstuurd — <?php echo esc_html($member->first_name); ?> heeft een e-mail gekregen met instructies.</p>
+                <p class="avpvh-identity-notice"><?php printf(esc_html__('Verzoek verstuurd — %s heeft een e-mail gekregen met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?></p>
             <?php endif; ?>
 
             <?php if (count($identities) < 3) : ?>
@@ -515,16 +565,14 @@ class AVPVH_Member_Profile_Form {
                         <?php wp_nonce_field('avpvh_request_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_request_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
-                        <button type="submit" class="button">Vraag <?php echo esc_html($member->first_name); ?> om een e-mailadres te verifiëren</button>
+                        <button type="submit" class="button"><?php printf(esc_html__('Vraag %s om een e-mailadres te verifiëren', 'avpvh-members'), esc_html($member->first_name)); ?></button>
                     </form>
                     <small>
-                        Toevoegen kan alleen door <?php echo esc_html($member->first_name); ?> zelf (moet zelf
-                        inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met
-                        instructies.
+                        <?php printf(esc_html__('Toevoegen kan alleen door %s zelf (moet zelf inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?>
                     </small>
                 </p>
             <?php else : ?>
-                <p><em><?php echo esc_html($member->first_name); ?> heeft al het maximum van drie inlog-e-mailadressen.</em></p>
+                <p><em><?php printf(esc_html__('%s heeft al het maximum van drie inlog-e-mailadressen.', 'avpvh-members'), esc_html($member->first_name)); ?></em></p>
             <?php endif; ?>
         </fieldset>
         <?php
@@ -546,24 +594,24 @@ class AVPVH_Member_Profile_Form {
         $activities = AVPVH_DB::get_activities();
         ?>
         <fieldset class="avpvh-relationships">
-            <legend>Relaties</legend>
+            <legend><?php esc_html_e('Relaties', 'avpvh-members'); ?></legend>
 
             <?php if (!empty($_GET['relationship_added'])) : ?>
-                <p class="avpvh-identity-notice">Relatie toegevoegd.</p>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Relatie toegevoegd.', 'avpvh-members'); ?></p>
             <?php elseif (!empty($_GET['relationship_removed'])) : ?>
-                <p class="avpvh-identity-notice">Relatie verwijderd.</p>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Relatie verwijderd.', 'avpvh-members'); ?></p>
             <?php elseif (!empty($_GET['relationship_duplicate'])) : ?>
-                <p class="avpvh-identity-notice avpvh-identity-notice--error">Deze relatie staat al hieronder — niet nogmaals toegevoegd.</p>
+                <p class="avpvh-identity-notice avpvh-identity-notice--error"><?php esc_html_e('Deze relatie staat al hieronder — niet nogmaals toegevoegd.', 'avpvh-members'); ?></p>
             <?php elseif (!empty($_GET['relationship_error'])) : ?>
-                <p class="avpvh-identity-notice avpvh-identity-notice--error">Opslaan is niet gelukt — probeer het opnieuw.</p>
+                <p class="avpvh-identity-notice avpvh-identity-notice--error"><?php esc_html_e('Opslaan is niet gelukt — probeer het opnieuw.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
             <table class="avpvh-identities-table">
                 <?php foreach ($relationships as $rel) : ?>
                     <tr>
                         <td>
-                            <strong><?php echo $rel->other_member ? esc_html(avpvh_format_name($rel->other_member)) : '(onbekend lid)'; ?></strong>
-                            is <?php echo esc_html($rel->label); ?>
+                            <strong><?php echo $rel->other_member ? esc_html(avpvh_format_name($rel->other_member)) : esc_html__('(onbekend lid)', 'avpvh-members'); ?></strong>
+                            <?php esc_html_e('is', 'avpvh-members'); ?> <?php echo esc_html($rel->label); ?>
                             <strong><?php echo esc_html(avpvh_format_name($member)); ?></strong>
                         </td>
                         <td>
@@ -573,18 +621,18 @@ class AVPVH_Member_Profile_Form {
                         </td>
                         <td>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                onsubmit="return confirm('<?php echo esc_js('Deze relatie verwijderen?'); ?>');">
+                                onsubmit="return confirm('<?php echo esc_js(__('Deze relatie verwijderen?', 'avpvh-members')); ?>');">
                                 <?php wp_nonce_field('avpvh_remove_relationship'); ?>
                                 <input type="hidden" name="action" value="avpvh_remove_relationship">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
                                 <input type="hidden" name="relationship_id" value="<?php echo esc_attr($rel->id); ?>">
-                                <button type="submit" class="button">Verwijderen</button>
+                                <button type="submit" class="button"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
                             </form>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$relationships) : ?>
-                    <tr><td colspan="3"><em>Nog geen relaties vastgelegd.</em></td></tr>
+                    <tr><td colspan="3"><em><?php esc_html_e('Nog geen relaties vastgelegd.', 'avpvh-members'); ?></em></td></tr>
                 <?php endif; ?>
             </table>
 
@@ -594,9 +642,9 @@ class AVPVH_Member_Profile_Form {
                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
 
                 <div class="form-group">
-                    <label for="rel_related_member_id">Persoon</label>
+                    <label for="rel_related_member_id"><?php esc_html_e('Persoon', 'avpvh-members'); ?></label>
                     <select id="rel_related_member_id" name="related_member_id" required>
-                        <option value="">— Kies —</option>
+                        <option value="">— <?php esc_html_e('Kies', 'avpvh-members'); ?> —</option>
                         <?php foreach ($all_members as $m) : ?>
                             <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m)); ?></option>
                         <?php endforeach; ?>
@@ -604,19 +652,19 @@ class AVPVH_Member_Profile_Form {
                 </div>
 
                 <div class="form-group">
-                    <label for="rel_label_id">is</label>
+                    <label for="rel_label_id"><?php esc_html_e('is', 'avpvh-members'); ?></label>
                     <select id="rel_label_id" name="label_id" required>
                         <?php foreach ($labels as $label) : ?>
                             <option value="<?php echo esc_attr($label->id); ?>"><?php echo esc_html($label->label); ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <p class="avpvh-field-hint">…van <?php echo esc_html(avpvh_format_name($member)); ?>.</p>
+                    <p class="avpvh-field-hint"><?php printf(esc_html__('…van %s.', 'avpvh-members'), esc_html(avpvh_format_name($member))); ?></p>
                 </div>
 
                 <div class="form-group">
-                    <label for="rel_activity_id">Periode: activiteit (optioneel — bijv. tijdelijke voogdij tijdens een kamp)</label>
+                    <label for="rel_activity_id"><?php esc_html_e('Periode: activiteit (optioneel — bijv. tijdelijke voogdij tijdens een kamp)', 'avpvh-members'); ?></label>
                     <select id="rel_activity_id" name="activity_id">
-                        <option value="">— Geen, handmatige data hieronder —</option>
+                        <option value="">— <?php esc_html_e('Geen, handmatige data hieronder', 'avpvh-members'); ?> —</option>
                         <?php foreach ($activities as $activity) : ?>
                             <option value="<?php echo esc_attr($activity->id); ?>">
                                 <?php echo esc_html(($activity->type_name ? $activity->type_name . ': ' : '') . $activity->name . ' (' . $activity->year . ')'); ?>
@@ -626,16 +674,16 @@ class AVPVH_Member_Profile_Form {
                 </div>
 
                 <div class="form-group">
-                    <label for="rel_valid_from">Geldig van (handmatig, tenzij een activiteit is gekozen hierboven)</label>
+                    <label for="rel_valid_from"><?php esc_html_e('Geldig van (handmatig, tenzij een activiteit is gekozen hierboven)', 'avpvh-members'); ?></label>
                     <input type="date" id="rel_valid_from" name="valid_from">
                 </div>
 
                 <div class="form-group">
-                    <label for="rel_valid_until">Geldig tot (handmatig, tenzij een activiteit is gekozen hierboven)</label>
+                    <label for="rel_valid_until"><?php esc_html_e('Geldig tot (handmatig, tenzij een activiteit is gekozen hierboven)', 'avpvh-members'); ?></label>
                     <input type="date" id="rel_valid_until" name="valid_until">
                 </div>
 
-                <button type="submit" class="button">Relatie toevoegen</button>
+                <button type="submit" class="button"><?php esc_html_e('Relatie toevoegen', 'avpvh-members'); ?></button>
             </form>
         </fieldset>
         <?php
@@ -647,21 +695,18 @@ class AVPVH_Member_Profile_Form {
     private function render_directory_consent($member): void {
         ?>
         <fieldset class="avpvh-directory-consent">
-            <legend>Zichtbaarheid in ledenlijst</legend>
+            <legend><?php esc_html_e('Zichtbaarheid in ledenlijst', 'avpvh-members'); ?></legend>
 
             <?php if (!empty($_GET['consent_saved'])) : ?>
-                <p>Je voorkeuren zijn opgeslagen.</p>
+                <p><?php esc_html_e('Je voorkeuren zijn opgeslagen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
             <?php if ($member->directory_consent === 'granted') : ?>
                 <p>
-                    Zoals beschreven in de privacyverklaring zijn je gegevens alleen
-                    zichtbaar voor andere actieve leden, maar alleen als ze ingelogd zijn.
-                    Hieronder kan je door het vinkje te verwijderen aangeven welke gegevens
-                    je ook voor hen wil verbergen.
+                    <?php esc_html_e('Zoals beschreven in de privacyverklaring zijn je gegevens alleen zichtbaar voor andere actieve leden, maar alleen als ze ingelogd zijn. Hieronder kan je door het vinkje te verwijderen aangeven welke gegevens je ook voor hen wil verbergen.', 'avpvh-members'); ?>
                 </p>
             <?php else : ?>
-                <p>Je deelt momenteel geen gegevens met andere leden in de ledenlijst.</p>
+                <p><?php esc_html_e('Je deelt momenteel geen gegevens met andere leden in de ledenlijst.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -672,25 +717,25 @@ class AVPVH_Member_Profile_Form {
                 <div class="form-group">
                     <label>
                         <input type="checkbox" name="share_email" value="1" <?php checked($member->share_email); ?>>
-                        E-mailadres tonen in de ledenlijst
+                        <?php esc_html_e('E-mailadres tonen in de ledenlijst', 'avpvh-members'); ?>
                     </label>
                 </div>
                 <div class="form-group">
                     <label>
                         <input type="checkbox" name="share_phone" value="1" <?php checked($member->share_phone); ?>>
-                        Telefoonnummer tonen in de ledenlijst
+                        <?php esc_html_e('Telefoonnummer tonen in de ledenlijst', 'avpvh-members'); ?>
                     </label>
                 </div>
                 <div class="form-group">
                     <label>
                         <input type="checkbox" name="share_address" value="1" <?php checked($member->share_address); ?>>
-                        Adres tonen in de ledenlijst
+                        <?php esc_html_e('Adres tonen in de ledenlijst', 'avpvh-members'); ?>
                     </label>
                 </div>
 
-                <button type="submit" name="consent" value="granted" class="button button-primary">Voorkeuren opslaan</button>
+                <button type="submit" name="consent" value="granted" class="button button-primary"><?php esc_html_e('Voorkeuren opslaan', 'avpvh-members'); ?></button>
                 <?php if ($member->directory_consent === 'granted') : ?>
-                    <button type="submit" name="consent" value="declined" class="button">Toestemming volledig intrekken</button>
+                    <button type="submit" name="consent" value="declined" class="button"><?php esc_html_e('Toestemming volledig intrekken', 'avpvh-members'); ?></button>
                 <?php endif; ?>
             </form>
         </fieldset>
@@ -708,10 +753,10 @@ class AVPVH_Member_Profile_Form {
         $has_flag = AVPVH_DB::member_has_flag((int) $member->id, 'nieuwsbrief');
         ?>
         <fieldset class="avpvh-newsletter-consent">
-            <legend>Nieuwsbrief &amp; activiteiten-mail</legend>
+            <legend><?php esc_html_e('Nieuwsbrief & activiteiten-mail', 'avpvh-members'); ?></legend>
 
             <?php if (!empty($_GET['newsletter_saved'])) : ?>
-                <p>Je voorkeur is opgeslagen.</p>
+                <p><?php esc_html_e('Je voorkeur is opgeslagen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -722,11 +767,11 @@ class AVPVH_Member_Profile_Form {
                 <div class="form-group">
                     <label>
                         <input type="checkbox" name="newsletter" value="1" <?php checked($has_flag); ?>>
-                        Ik wil e-mail ontvangen over activiteiten en de nieuwsbrief
+                        <?php esc_html_e('Ik wil e-mail ontvangen over activiteiten en de nieuwsbrief', 'avpvh-members'); ?>
                     </label>
                 </div>
 
-                <button type="submit" class="button button-primary">Voorkeur opslaan</button>
+                <button type="submit" class="button button-primary"><?php esc_html_e('Voorkeur opslaan', 'avpvh-members'); ?></button>
             </form>
         </fieldset>
         <?php
@@ -739,7 +784,7 @@ class AVPVH_Member_Profile_Form {
         $audit_log = AVPVH_DB::get_member_audit_log($member->id, 50);
 
         if (empty($audit_log)) {
-            echo '<p style="color: #666; margin-top: 2rem;">No changes recorded yet.</p>';
+            echo '<p style="color: #666; margin-top: 2rem;">' . esc_html__('Nog geen wijzigingen vastgelegd.', 'avpvh-members') . '</p>';
             return;
         }
 
@@ -747,18 +792,18 @@ class AVPVH_Member_Profile_Form {
         <hr style="margin: 2rem 0;">
 
         <fieldset>
-            <legend>Change History</legend>
-            <p style="font-size: 0.9em; color: #666;">All changes to your profile are tracked below:</p>
+            <legend><?php esc_html_e('Wijzigingsgeschiedenis', 'avpvh-members'); ?></legend>
+            <p style="font-size: 0.9em; color: #666;"><?php esc_html_e('Alle wijzigingen aan je profiel worden hieronder bijgehouden:', 'avpvh-members'); ?></p>
 
             <div class="avpvh-audit-table-wrap">
             <table class="avpvh-audit-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
-                        <th>Field</th>
-                        <th>Changed By</th>
-                        <th>Old Value</th>
-                        <th>New Value</th>
+                        <th><?php esc_html_e('Datum', 'avpvh-members'); ?></th>
+                        <th><?php esc_html_e('Veld', 'avpvh-members'); ?></th>
+                        <th><?php esc_html_e('Gewijzigd door', 'avpvh-members'); ?></th>
+                        <th><?php esc_html_e('Oude waarde', 'avpvh-members'); ?></th>
+                        <th><?php esc_html_e('Nieuwe waarde', 'avpvh-members'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -771,13 +816,13 @@ class AVPVH_Member_Profile_Form {
                                 <code><?php echo esc_html($entry->field_name); ?></code>
                             </td>
                             <td>
-                                <?php echo esc_html($entry->user_login ?? 'System'); ?>
+                                <?php echo esc_html($entry->user_login ?? __('Systeem', 'avpvh-members')); ?>
                             </td>
                             <td class="avpvh-audit-old">
-                                <code><?php echo esc_html($entry->old_value ?? '(empty)'); ?></code>
+                                <code><?php echo esc_html($entry->old_value ?? __('(leeg)', 'avpvh-members')); ?></code>
                             </td>
                             <td class="avpvh-audit-new">
-                                <code><?php echo esc_html($entry->new_value ?? '(empty)'); ?></code>
+                                <code><?php echo esc_html($entry->new_value ?? __('(leeg)', 'avpvh-members')); ?></code>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -795,19 +840,32 @@ class AVPVH_Member_Profile_Form {
         check_ajax_referer('avpvh_member_profile', 'avpvh_nonce');
 
         if (!is_user_logged_in()) {
-            wp_send_json_error('Not authenticated');
+            wp_send_json_error(__('Je bent niet ingelogd.', 'avpvh-members'));
         }
 
         $member = $this->get_target_member_for_save();
 
         if (!$member) {
-            wp_send_json_error('Ledenprofiel niet gevonden');
+            wp_send_json_error(__('Ledenprofiel niet gevonden.', 'avpvh-members'));
         }
 
         $is_admin_edit = AVPVH_Roles::can_manage_members() && !empty($_POST['member_id']);
         $member_data = $this->sanitize_member_data($_POST, $is_admin_edit);
 
         try {
+            // Save language preference if provided
+            if (isset($_POST['user_locale'])) {
+                $chosen_locale = sanitize_text_field(wp_unslash($_POST['user_locale']));
+                if (array_key_exists($chosen_locale, AVPVH_I18n::get_supported_locales())) {
+                    $target_wp_uid = !empty($member->wp_user_id) ? (int) $member->wp_user_id : get_current_user_id();
+                    update_user_meta($target_wp_uid, 'locale', $chosen_locale);
+                    if ($target_wp_uid === get_current_user_id()) {
+                        $lang = AVPVH_I18n::locale_to_lang($chosen_locale);
+                        setcookie(AVPVH_I18n::COOKIE_NAME, $lang, time() + YEAR_IN_SECONDS, COOKIEPATH, COOKIE_DOMAIN, is_ssl());
+                    }
+                }
+            }
+
             // Update member with audit trail
             if ($member_data) {
                 $formats = array_fill(0, count($member_data), '%s');
@@ -861,7 +919,7 @@ class AVPVH_Member_Profile_Form {
                 );
             }
 
-            wp_send_json_success('Profiel succesvol bijgewerkt!');
+            wp_send_json_success(__('Profiel succesvol bijgewerkt!', 'avpvh-members'));
         } catch (Exception $e) {
             wp_send_json_error($e->getMessage());
         }
@@ -929,7 +987,7 @@ class AVPVH_Member_Profile_Form {
         check_admin_referer('avpvh_remove_identity');
 
         if (!is_user_logged_in()) {
-            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Je moet ingelogd zijn.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -937,12 +995,12 @@ class AVPVH_Member_Profile_Form {
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
 
         if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
-            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $member = AVPVH_DB::get_member($member_id);
         if (!$member) {
-            wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
+            wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
         $identities = AVPVH_DB::get_member_identities($member_id);
@@ -985,7 +1043,7 @@ class AVPVH_Member_Profile_Form {
         check_admin_referer('avpvh_make_primary_identity');
 
         if (!is_user_logged_in()) {
-            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Je moet ingelogd zijn.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -993,12 +1051,12 @@ class AVPVH_Member_Profile_Form {
         $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
 
         if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
-            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $member = AVPVH_DB::get_member($member_id);
         if (!$member) {
-            wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
+            wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
         $target = null;
@@ -1034,7 +1092,7 @@ class AVPVH_Member_Profile_Form {
         check_admin_referer('avpvh_request_identity');
 
         if (!is_user_logged_in()) {
-            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Je moet ingelogd zijn.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $member_id  = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -1045,21 +1103,21 @@ class AVPVH_Member_Profile_Form {
             || $this->can_request_identity_only($own_member, $member_id)
         );
         if (!$has_access) {
-            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $member = AVPVH_DB::get_member($member_id);
         if (!$member) {
-            wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
+            wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
         if ((int) $member->id === (int) $own_member->id) {
-            wp_die('Je kunt geen verzoek naar jezelf sturen.', 'Fout', ['response' => 400]);
+            wp_die(esc_html__('Je kunt geen verzoek naar jezelf sturen.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 400]);
         }
 
         $requester_user = wp_get_current_user();
         $requester_name = $requester_user->display_name ?: $requester_user->user_login;
-        $subject = 'AV Philips van Horne — vraag om e-mailadres te verifiëren';
+        $subject = __('AV Philips van Horne — vraag om e-mailadres te verifiëren', 'avpvh-members');
         // Links straight into Authelia's own reset-password flow with the
         // username field prefilled (see nginx-config: custom/authelia-custom.js
         // prefillResetUsername() + njs/authelia-nonce.js) — the member only
@@ -1068,11 +1126,13 @@ class AVPVH_Member_Profile_Form {
         // prefilling with the e-mail address works even though LLDAP's
         // actual username differs from it.
         $reset_url = add_query_arg('username', rawurlencode($member->email), AVPVH_Nav_Auth::AUTHELIA_URL . '/reset-password/step1');
-        $body = esc_html($requester_name) . " heeft dit e-mailadres (" . $member->email . ") toegevoegd aan jouw profiel "
-            . "bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n\n"
-            . "Alleen jij kunt dit zelf afronden — " . esc_html($requester_name) . " kan dit niet namens jou doen. "
-            . "Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n" . $reset_url . "\n\n"
-            . "Was dit geen terecht verzoek? Dan hoef je niets te doen.";
+        $body = sprintf(
+            __("%s heeft dit e-mailadres (%s) toegevoegd aan jouw profiel bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n\nAlleen jij kunt dit zelf afronden — %s kan dit niet namens jou doen. Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n%s\n\nWas dit geen terecht verzoek? Dan hoef je niets te doen.", 'avpvh-members'),
+            esc_html($requester_name),
+            $member->email,
+            esc_html($requester_name),
+            $reset_url
+        );
         wp_mail($member->email, $subject, $body);
         set_transient(self::identity_request_transient_key($member_id), get_current_user_id(), 3 * DAY_IN_SECONDS);
 
@@ -1084,7 +1144,7 @@ class AVPVH_Member_Profile_Form {
         check_admin_referer('avpvh_add_relationship');
 
         if (!is_user_logged_in()) {
-            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Je moet ingelogd zijn.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $member_id         = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -1108,11 +1168,11 @@ class AVPVH_Member_Profile_Form {
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
         if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
-            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         if (!$related_member_id || !$label_id || !AVPVH_DB::get_member($related_member_id)) {
-            wp_die('Ongeldige relatie.', 'Fout', ['response' => 400]);
+            wp_die(esc_html__('Ongeldige relatie.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 400]);
         }
 
         $duplicate = AVPVH_DB::relationship_exists($member_id, $related_member_id, $label_id, $valid_from, $valid_until);
@@ -1133,7 +1193,7 @@ class AVPVH_Member_Profile_Form {
         check_admin_referer('avpvh_remove_relationship');
 
         if (!is_user_logged_in()) {
-            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Je moet ingelogd zijn.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $member_id        = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -1141,7 +1201,7 @@ class AVPVH_Member_Profile_Form {
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
         if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
-            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         if ($relationship_id) {
@@ -1162,22 +1222,35 @@ class AVPVH_Member_Profile_Form {
      * only way a requester learns it actually happened.
      */
     public static function notify_identity_change(object $member, ?object $actor_member, string $action, string $provider, string $email, ?\WP_User $actor_user = null): void {
-        $provider_labels = ['email' => 'e-mailadres', 'google' => 'Google-account', 'microsoft' => 'Microsoft-account'];
+        $provider_labels = [
+            'email'     => __('e-mailadres', 'avpvh-members'),
+            'google'    => __('Google-account', 'avpvh-members'),
+            'microsoft' => __('Microsoft-account', 'avpvh-members'),
+        ];
         $provider_label = $provider_labels[$provider] ?? $provider;
         $member_name = avpvh_format_name($member);
 
         $actor_user = $actor_user ?: wp_get_current_user();
         $is_self = $actor_member && (int) $actor_member->id === (int) $member->id;
 
-        $subject = 'AV Philips van Horne — inloggegevens gewijzigd';
-        $body_actor = "Er is zojuist een {$provider_label} ({$email}) {$action} bij het profiel van {$member_name}.\n\n"
-            . "Was jij dit niet? Neem dan contact op met het bestuur.";
+        $subject = __('AV Philips van Horne — inloggegevens gewijzigd', 'avpvh-members');
+        $body_actor = sprintf(
+            __("Er is zojuist een %s (%s) %s bij het profiel van %s.\n\nWas jij dit niet? Neem dan contact op met het bestuur.", 'avpvh-members'),
+            $provider_label,
+            $email,
+            $action,
+            $member_name
+        );
         wp_mail($actor_user->user_email, $subject, $body_actor);
 
         if (!$is_self) {
-            $body_member = "Er is zojuist een {$provider_label} ({$email}) {$action} bij jouw profiel door "
-                . esc_html($actor_user->display_name ?: $actor_user->user_login) . ".\n\n"
-                . "Was jij dit niet? Neem dan contact op met het bestuur.";
+            $body_member = sprintf(
+                __("Er is zojuist een %s (%s) %s bij jouw profiel door %s.\n\nWas jij dit niet? Neem dan contact op met het bestuur.", 'avpvh-members'),
+                $provider_label,
+                $email,
+                $action,
+                esc_html($actor_user->display_name ?: $actor_user->user_login)
+            );
             foreach (AVPVH_DB::get_member_identities((int) $member->id) as $identity) {
                 wp_mail($identity->email, $subject, $body_member);
             }
@@ -1189,8 +1262,12 @@ class AVPVH_Member_Profile_Form {
                 delete_transient(self::identity_request_transient_key((int) $member->id));
                 $requester_user = get_userdata((int) $requester_id);
                 if ($requester_user) {
-                    $body_requester = "Je verzoek is opgevolgd: er is zojuist een {$provider_label} ({$email}) "
-                        . "toegevoegd aan het profiel van {$member_name}.";
+                    $body_requester = sprintf(
+                        __("Je verzoek is opgevolgd: er is zojuist een %s (%s) toegevoegd aan het profiel van %s.", 'avpvh-members'),
+                        $provider_label,
+                        $email,
+                        $member_name
+                    );
                     wp_mail($requester_user->user_email, $subject, $body_requester);
                 }
             }
@@ -1268,15 +1345,15 @@ class AVPVH_Member_Profile_Form {
 
     private function role_label(\WP_User $user): string {
         if (empty($user->roles)) {
-            return 'Gebruiker';
+            return __('Gebruiker', 'avpvh-members');
         }
 
         return match ($user->roles[0]) {
-            'administrator' => 'Beheerder',
-            'editor'         => 'Redacteur',
-            'author'         => 'Auteur',
-            'contributor'    => 'Medewerker',
-            'subscriber'     => 'Lid',
+            'administrator' => __('Beheerder', 'avpvh-members'),
+            'editor'         => __('Redacteur', 'avpvh-members'),
+            'author'         => __('Auteur', 'avpvh-members'),
+            'contributor'    => __('Medewerker', 'avpvh-members'),
+            'subscriber'     => __('Lid', 'avpvh-members'),
             default          => ucfirst(str_replace('_', ' ', $user->roles[0])),
         };
     }
@@ -1286,14 +1363,7 @@ class AVPVH_Member_Profile_Form {
             return '';
         }
 
-        return match (strtolower($role)) {
-            'bestuur'      => 'Bestuur',
-            'feest'        => 'Feest',
-            'boek'         => 'Boek',
-            'fiscus'       => 'Fiscus',
-            'secretariaat'  => 'Secretariaat',
-            default        => ucfirst($role),
-        };
+        return AVPVH_Roles::get_role_label($role);
     }
 
     /**
@@ -1318,6 +1388,12 @@ class AVPVH_Member_Profile_Form {
 
             $reg_config = wp_json_encode([
                 'ajaxUrl' => admin_url('admin-ajax.php'),
+                'strings' => [
+                    'saving'  => __('Bezig met opslaan...', 'avpvh-members'),
+                    'success' => __('Profiel succesvol bijgewerkt!', 'avpvh-members'),
+                    'error'   => __('Er is een fout opgetreden.', 'avpvh-members'),
+                    'failed'  => __('Opslaan van het profiel is mislukt. Probeer het opnieuw.', 'avpvh-members'),
+                ],
             ]);
             add_action('wp_footer', function () use ($reg_config) {
                 wp_print_inline_script_tag($reg_config, ['type' => 'application/json', 'id' => 'avpvh-registration-config']);

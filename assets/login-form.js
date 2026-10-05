@@ -7,15 +7,17 @@ document.addEventListener('DOMContentLoaded', function () {
     var options = document.getElementById('avpvh-login-options');
     if (!options) return;
 
+    var labels = cfg.labels || {};
+
     if (cfg.hasGoogle) {
-        options.appendChild(makeLink('Inloggen met Google', cfg.loginUrls.google, 'avpvh-login-google'));
+        options.appendChild(makeLink(labels.google || 'Inloggen met Google', cfg.loginUrls.google, 'avpvh-login-google'));
     }
 
     if (cfg.hasMicrosoft) {
-        options.appendChild(makeLink('Inloggen met Microsoft', cfg.loginUrls.microsoft, 'avpvh-login-microsoft'));
+        options.appendChild(makeLink(labels.microsoft || 'Inloggen met Microsoft', cfg.loginUrls.microsoft, 'avpvh-login-microsoft'));
     }
 
-    options.appendChild(makeLink('Inloggen met wachtwoord', cfg.autheliaUrl, 'avpvh-login-password'));
+    options.appendChild(makeLink(labels.password || 'Inloggen met wachtwoord', cfg.autheliaUrl, 'avpvh-login-password'));
 
     function makeLink(label, url, cls) {
         var a = document.createElement('a');

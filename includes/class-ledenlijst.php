@@ -32,12 +32,12 @@ class AVPVH_Ledenlijst {
         $data = $this->get_leden_data();
         if (!$data) {
             return is_user_logged_in()
-                ? '<p>De ledenlijst is alleen beschikbaar voor actieve leden.</p>'
-                : '<p>Je moet ingelogd zijn om de ledenlijst te zien.</p>';
+                ? '<p>' . esc_html__('De ledenlijst is alleen beschikbaar voor actieve leden.', 'avpvh-members') . '</p>'
+                : '<p>' . esc_html__('Je moet ingelogd zijn om de ledenlijst te zien.', 'avpvh-members') . '</p>';
         }
         ['own_member' => $own_member, 'is_admin' => $is_admin, 'leden' => $leden, 'group_map' => $group_map] = $data;
         if (!$leden) {
-            return '<p>Geen leden gevonden.</p>';
+            return '<p>' . esc_html__('Geen leden gevonden.', 'avpvh-members') . '</p>';
         }
 
         // A name is only a link to the (edit) profile page for members you're
@@ -68,20 +68,24 @@ class AVPVH_Ledenlijst {
         ?>
         <div class="avpvh-ledenlijst">
             <?php if (!empty($_GET['consent_saved'])) : ?>
-                <p class="avpvh-ledenlijst-melding">Je voorkeuren zijn opgeslagen.</p>
+                <p class="avpvh-ledenlijst-melding"><?php esc_html_e('Je voorkeuren zijn opgeslagen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
             <p class="avpvh-ledenlijst-uitleg">
-                Deze lijst wordt gedeeld met alle ingelogde actieve leden, zoals beschreven
-                in de <a href="https://www.avphilipsvanhorne.nl/wp-content/uploads/public/2024/04/Privacy-Verklaring.pdf" target="_blank" rel="noopener">privacyverklaring</a>.
-                Je kunt via <a href="<?php echo esc_url(home_url('/member-profile/')); ?>">je profiel</a>
-                losse gegevens afschermen of je gegevens volledig verbergen.
+                <?php
+                printf(
+                    /* translators: 1: privacy policy URL, 2: profile page URL */
+                    __('Deze lijst wordt gedeeld met alle ingelogde actieve leden, zoals beschreven in de <a href="%1$s" target="_blank" rel="noopener">privacyverklaring</a>. Je kunt via <a href="%2$s">je profiel</a> losse gegevens afschermen of je gegevens volledig verbergen.', 'avpvh-members'),
+                    'https://www.avphilipsvanhorne.nl/wp-content/uploads/public/2024/04/Privacy-Verklaring.pdf',
+                    esc_url(home_url('/member-profile/'))
+                );
+                ?>
             </p>
 
             <div class="avpvh-ledenlijst-controls">
-                <input type="search" id="avpvh-ledenlijst-zoek" placeholder="Zoeken…" class="avpvh-ledenlijst-zoek">
+                <input type="search" id="avpvh-ledenlijst-zoek" placeholder="<?php esc_attr_e('Zoeken…', 'avpvh-members'); ?>" class="avpvh-ledenlijst-zoek">
 
                 <div class="avpvh-ledenlijst-dropdown" data-dropdown="plaats">
-                    <button type="button" class="avpvh-ledenlijst-dropdown-toggle" aria-expanded="false">Plaats ▾</button>
+                    <button type="button" class="avpvh-ledenlijst-dropdown-toggle" aria-expanded="false"><?php esc_html_e('Plaats', 'avpvh-members'); ?> ▾</button>
                     <div class="avpvh-ledenlijst-dropdown-menu" hidden>
                         <?php foreach (array_keys($cities) as $city) : ?>
                             <label><input type="checkbox" value="<?php echo esc_attr($city); ?>"> <?php echo esc_html($city); ?></label>
@@ -90,7 +94,7 @@ class AVPVH_Ledenlijst {
                 </div>
 
                 <div class="avpvh-ledenlijst-dropdown" data-dropdown="groep">
-                    <button type="button" class="avpvh-ledenlijst-dropdown-toggle" aria-expanded="false">Groep ▾</button>
+                    <button type="button" class="avpvh-ledenlijst-dropdown-toggle" aria-expanded="false"><?php esc_html_e('Groep', 'avpvh-members'); ?> ▾</button>
                     <div class="avpvh-ledenlijst-dropdown-menu" hidden>
                         <?php foreach (array_keys($groups) as $group) : ?>
                             <label><input type="checkbox" value="<?php echo esc_attr($group); ?>"> <?php echo esc_html(ucfirst($group)); ?></label>
@@ -99,18 +103,18 @@ class AVPVH_Ledenlijst {
                 </div>
 
                 <a class="avpvh-ledenlijst-export"
-                   href="<?php echo esc_url(wp_nonce_url(add_query_arg('action', 'avpvh_export_ledenlijst', admin_url('admin-post.php')), 'avpvh_export_ledenlijst')); ?>">Exporteer naar Excel</a>
+                   href="<?php echo esc_url(wp_nonce_url(add_query_arg('action', 'avpvh_export_ledenlijst', admin_url('admin-post.php')), 'avpvh_export_ledenlijst')); ?>"><?php esc_html_e('Exporteer naar Excel', 'avpvh-members'); ?></a>
 
                 <div class="avpvh-ledenlijst-dropdown" data-dropdown="kolommen">
-                    <button type="button" class="avpvh-ledenlijst-dropdown-toggle" aria-expanded="false">Kolommen ▾</button>
+                    <button type="button" class="avpvh-ledenlijst-dropdown-toggle" aria-expanded="false"><?php esc_html_e('Kolommen', 'avpvh-members'); ?> ▾</button>
                     <div class="avpvh-ledenlijst-dropdown-menu" hidden>
-                        <label><input type="checkbox" data-col="naam" checked> Naam</label>
-                        <label><input type="checkbox" data-col="email" checked> E-mail</label>
-                        <label><input type="checkbox" data-col="telefoon" checked> Telefoon</label>
-                        <label><input type="checkbox" data-col="adres" checked> Adres</label>
-                        <label><input type="checkbox" data-col="postcode"> Postcode</label>
-                        <label><input type="checkbox" data-col="plaats"> Plaats</label>
-                        <label><input type="checkbox" data-col="groepen"> Groepen</label>
+                        <label><input type="checkbox" data-col="naam" checked> <?php esc_html_e('Naam', 'avpvh-members'); ?></label>
+                        <label><input type="checkbox" data-col="email" checked> <?php esc_html_e('E-mail', 'avpvh-members'); ?></label>
+                        <label><input type="checkbox" data-col="telefoon" checked> <?php esc_html_e('Telefoon', 'avpvh-members'); ?></label>
+                        <label><input type="checkbox" data-col="adres" checked> <?php esc_html_e('Adres', 'avpvh-members'); ?></label>
+                        <label><input type="checkbox" data-col="postcode"> <?php esc_html_e('Postcode', 'avpvh-members'); ?></label>
+                        <label><input type="checkbox" data-col="plaats"> <?php esc_html_e('Plaats', 'avpvh-members'); ?></label>
+                        <label><input type="checkbox" data-col="groepen"> <?php esc_html_e('Groepen', 'avpvh-members'); ?></label>
                     </div>
                 </div>
             </div>
@@ -119,13 +123,13 @@ class AVPVH_Ledenlijst {
             <table class="avpvh-ledenlijst-tabel" id="avpvh-ledenlijst-tabel">
                 <thead>
                     <tr>
-                        <th class="col-naam is-sortable" data-sort-key="naam">Naam</th>
-                        <th class="col-email is-sortable" data-sort-key="email">E-mail</th>
-                        <th class="col-telefoon is-sortable" data-sort-key="telefoon">Telefoon</th>
-                        <th class="col-adres">Adres</th>
-                        <th class="col-postcode avpvh-col-hidden is-sortable" data-sort-key="postcode">Postcode</th>
-                        <th class="col-plaats avpvh-col-hidden is-sortable" data-sort-key="plaats">Plaats</th>
-                        <th class="col-groepen avpvh-col-hidden is-sortable" data-sort-key="groepen">Groepen</th>
+                        <th class="col-naam is-sortable" data-sort-key="naam"><?php esc_html_e('Naam', 'avpvh-members'); ?></th>
+                        <th class="col-email is-sortable" data-sort-key="email"><?php esc_html_e('E-mail', 'avpvh-members'); ?></th>
+                        <th class="col-telefoon is-sortable" data-sort-key="telefoon"><?php esc_html_e('Telefoon', 'avpvh-members'); ?></th>
+                        <th class="col-adres"><?php esc_html_e('Adres', 'avpvh-members'); ?></th>
+                        <th class="col-postcode avpvh-col-hidden is-sortable" data-sort-key="postcode"><?php esc_html_e('Postcode', 'avpvh-members'); ?></th>
+                        <th class="col-plaats avpvh-col-hidden is-sortable" data-sort-key="plaats"><?php esc_html_e('Plaats', 'avpvh-members'); ?></th>
+                        <th class="col-groepen avpvh-col-hidden is-sortable" data-sort-key="groepen"><?php esc_html_e('Groepen', 'avpvh-members'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -165,24 +169,24 @@ class AVPVH_Ledenlijst {
                     ?>
                     <tr data-city="<?php echo esc_attr($lid->share_address ? $lid->city : ''); ?>"
                         data-groups="<?php echo esc_attr(implode(',', $lid_groups)); ?>">
-                        <td class="col-naam" data-label="Naam" data-sort-value="<?php echo esc_attr(strtolower(avpvh_format_name($lid, 'list'))); ?>">
+                        <td class="col-naam" data-label="<?php esc_attr_e('Naam', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr(strtolower(avpvh_format_name($lid, 'list'))); ?>">
                             <?php
                             // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built above from esc_html()/esc_url() pieces
                             echo $naam;
                             ?>
-                            <button type="button" class="avpvh-vcard-btn" title="Downloaden als contact (vCard)"<?php
+                            <button type="button" class="avpvh-vcard-btn" title="<?php esc_attr_e('Downloaden als contact (vCard)', 'avpvh-members'); ?>"<?php
                                 // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute value above is already esc_attr()'d
                                 echo $vcard_attrs;
                             ?>>📇</button>
                         </td>
-                        <td class="col-email" data-label="E-mail" data-sort-value="<?php echo esc_attr($show_email ? strtolower($lid->email) : ''); ?>">
+                        <td class="col-email" data-label="<?php esc_attr_e('E-mail', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($show_email ? strtolower($lid->email) : ''); ?>">
                             <?php if ($show_email) : ?>
                                 <a href="mailto:<?php echo esc_attr($lid->email); ?>"><?php echo esc_html($lid->email); ?></a>
                             <?php else : ?>
                                 —
                             <?php endif; ?>
                         </td>
-                        <td class="col-telefoon" data-label="Telefoon" data-sort-value="<?php echo esc_attr($lid->share_phone ? ($lid->mobile ?: $lid->phone) : ''); ?>">
+                        <td class="col-telefoon" data-label="<?php esc_attr_e('Telefoon', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($lid->share_phone ? ($lid->mobile ?: $lid->phone) : ''); ?>">
                             <?php if ($lid->share_phone) : ?>
                                 <?php if ($lid->mobile) : ?>
                                     <a href="<?php echo esc_attr(self::tel_href($lid->mobile)); ?>"><?php echo esc_html($lid->mobile); ?></a><br>
@@ -194,7 +198,7 @@ class AVPVH_Ledenlijst {
                                 —
                             <?php endif; ?>
                         </td>
-                        <td class="col-adres" data-label="Adres">
+                        <td class="col-adres" data-label="<?php esc_attr_e('Adres', 'avpvh-members'); ?>">
                             <?php if ($lid->share_address && $lid->street) : ?>
                                 <?php echo esc_html($lid->street . ' ' . $lid->house_number); ?><br>
                                 <?php echo esc_html($lid->postal_code . ' ' . $lid->city); ?>
@@ -205,13 +209,13 @@ class AVPVH_Ledenlijst {
                                 —
                             <?php endif; ?>
                         </td>
-                        <td class="col-postcode avpvh-col-hidden" data-label="Postcode" data-sort-value="<?php echo esc_attr($lid->share_address ? strtolower($lid->postal_code) : ''); ?>">
+                        <td class="col-postcode avpvh-col-hidden" data-label="<?php esc_attr_e('Postcode', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($lid->share_address ? strtolower($lid->postal_code) : ''); ?>">
                             <?php echo esc_html($lid->share_address ? ($lid->postal_code ?: '—') : '—'); ?>
                         </td>
-                        <td class="col-plaats avpvh-col-hidden" data-label="Plaats" data-sort-value="<?php echo esc_attr($lid->share_address ? strtolower($lid->city) : ''); ?>">
+                        <td class="col-plaats avpvh-col-hidden" data-label="<?php esc_attr_e('Plaats', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($lid->share_address ? strtolower($lid->city) : ''); ?>">
                             <?php echo esc_html($lid->share_address ? ($lid->city ?: '—') : '—'); ?>
                         </td>
-                        <td class="col-groepen avpvh-col-hidden" data-label="Groepen" data-sort-value="<?php echo esc_attr(strtolower(implode(', ', $lid_groups))); ?>">
+                        <td class="col-groepen avpvh-col-hidden" data-label="<?php esc_attr_e('Groepen', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr(strtolower(implode(', ', $lid_groups))); ?>">
                             <?php echo esc_html($lid_groups ? implode(', ', array_map('ucfirst', $lid_groups)) : '—'); ?>
                         </td>
                     </tr>
@@ -249,7 +253,7 @@ class AVPVH_Ledenlijst {
 
         $data = $this->get_leden_data();
         if (!$data) {
-            wp_die('De ledenlijst is alleen beschikbaar voor actieve leden.', 'Geen toegang', ['response' => 403]);
+            wp_die(esc_html__('De ledenlijst is alleen beschikbaar voor actieve leden.', 'avpvh-members'), esc_html__('Geen toegang', 'avpvh-members'), ['response' => 403]);
         }
 
         require_once AVPVH_PLUGIN_DIR . 'includes/class-ledenlijst-export.php';
