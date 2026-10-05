@@ -63,6 +63,9 @@ jobs:
             DESIGN-workspace-sync.md
             WORKFLOW-version-test-deploy.md
             ROLLBACK-email-login.md
+            CLAUDE.md
+            PLAN-openldap.md
+            PLAN-name-aliases-and-address-normalization.md
           # direct_db_queries flags any use of $wpdb without an object-cache
           # wrapper — this plugin's whole DB layer is custom $wpdb queries
           # joining WordPress and LLDAP tables (see class-db.php's

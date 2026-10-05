@@ -494,10 +494,6 @@ class AVPVH_Admin {
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         if ($fee_id > 0) {
             AVPVH_DB::mark_fee_paid($fee_id);
-            $member = AVPVH_DB::get_member($member_id);
-            if ($member && $member->wp_user_id) {
-                delete_user_meta((int) $member->wp_user_id, '_avpvh_show_fee_popup');
-            }
         }
         wp_safe_redirect(add_query_arg(
             ['page' => 'avpvh-member-detail', 'id' => $member_id, 'updated' => '1'],

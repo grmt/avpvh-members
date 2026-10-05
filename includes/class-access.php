@@ -6,6 +6,7 @@ class AVPVH_Access {
     public function __construct() {
         add_action('init',               [$this, 'auto_login_from_proxy_header'], 1);
         add_action('init',               [$this, 'enforce_session_idle_timeout'], 1);
+        add_action('init',               [$this, 'handle_sso_callback'], 2);
         add_action('wp_login',           [$this, 'reset_session_idle_timer'], 10, 2);
         add_action('template_redirect',  [$this, 'handle_login_bridge']);
         add_filter('the_content',        [$this, 'inject_login_form'], 5);
@@ -36,13 +37,35 @@ class AVPVH_Access {
         return new \WP_REST_Response(['ok' => true], 200);
     }
 
+    // SSO callback after Authelia 1FA password login. Authelia redirects to /avpvh-sso/
+    // where auto_login_from_proxy_header() (priority 1) has authenticated the user.
+    // This handler (priority 2) redirects the user to their target page or the home page.
+    public function handle_sso_callback(): void {
+        $path = wp_parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+        if ($path === null || trim($path, '/') !== 'avpvh-sso') {
+            return;
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
+        $target = (!empty($redirect_to) && is_user_logged_in())
+            ? wp_validate_redirect($redirect_to, home_url('/'))
+            : (is_user_logged_in() ? home_url('/') : home_url('/avpvh-login/'));
+
+        wp_safe_redirect($target);
+        exit;
+    }
+
     // Called on the /avpvh-login/ page. If already logged in (via proxy header or
-    // OAuth), redirect to home. Otherwise let inject_login_form render the form.
+    // OAuth), redirect to target or home. Otherwise let inject_login_form render the form.
     // Also redirects non-members away from member-only pages and posts.
     public function handle_login_bridge(): void {
         if (is_page('avpvh-login')) {
             if (is_user_logged_in()) {
-                wp_safe_redirect(home_url('/'));
+                // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+                $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
+                $target = !empty($redirect_to) ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
+                wp_safe_redirect($target);
                 exit;
             }
             return;
@@ -118,8 +141,18 @@ class AVPVH_Access {
             [], avpvh_asset_version('assets/login-form.js'), true
         );
 
+        // Pass the 1FA SSO target as the 'rd' redirection URL so Authelia only requires
+        // 1FA (username/password). Step-up to 2FA is only triggered on protected areas like /wp-admin/.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
+        $sso_target  = home_url('/avpvh-sso/');
+        if (!empty($redirect_to)) {
+            $sso_target = add_query_arg('redirect_to', $redirect_to, $sso_target);
+        }
+        $authelia_url = add_query_arg('rd', $sso_target, 'https://auth.avphilipsvanhorne.nl/');
+
         $login_config = wp_json_encode([
-            'autheliaUrl'    => 'https://auth.avphilipsvanhorne.nl',
+            'autheliaUrl'    => $authelia_url,
             'loginUrls'      => $login_urls,
             'hasGoogle'      => isset($providers['google']),
             'hasMicrosoft'   => isset($providers['microsoft']),
@@ -157,7 +190,7 @@ class AVPVH_Access {
             <?php if (isset($error_messages[$error])): ?>
             <p class="avpvh-login-error"><?php echo esc_html($error_messages[$error]); ?></p>
             <?php endif; ?>
-            <p class="avpvh-login-intro"><?php echo esc_html__('Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat ook wanneer je het laat valideren door Google of Microsoft. Als je al bij Google of Microsoft bent ingelogd, kun je zonder wachtwoord inloggen — al moet het e-mailadres waarmee je daar bent ingelogd dan wel bekend zijn bij deze website. Heb je speciale rechten (bijv. bloggen), dan moet je een extra 2-staps verificatieprocedure doorlopen via “Inloggen met wachtwoord”.', 'avpvh-members'); ?></p>
+            <p class="avpvh-login-intro"><?php echo esc_html__('Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat (bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) gevraagd.', 'avpvh-members'); ?></p>
             <div class="avpvh-login-options" id="avpvh-login-options"></div>
         </div>
         <?php

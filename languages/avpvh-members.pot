@@ -1645,15 +1645,8 @@ msgstr ""
 msgid "Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in."
 msgstr ""
 
-#: includes/class-access.php:160
-msgid ""
-"Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. "
-"Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat "
-"ook wanneer je het laat valideren door Google of Microsoft. Als je al bij "
-"Google of Microsoft bent ingelogd, kun je zonder wachtwoord inloggen — al "
-"moet het e-mailadres waarmee je daar bent ingelogd dan wel bekend zijn bij "
-"deze website. Heb je speciale rechten (bijv. bloggen), dan moet je een extra "
-"2-staps verificatieprocedure doorlopen via “Inloggen met wachtwoord”."
+#: includes/class-access.php:193
+msgid "Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat (bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) gevraagd."
 msgstr ""
 
 #: includes/class-access.php:295

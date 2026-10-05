@@ -27,8 +27,8 @@ final class AVPVH_Directory {
     private static ?AVPVH_Directory_Backend $backend = null;
 
     public static function backend_name(): string {
-        $name = defined('AVPVH_DIRECTORY_BACKEND') ? strtolower((string) AVPVH_DIRECTORY_BACKEND) : 'lldap';
-        return $name === 'openldap' ? 'openldap' : 'lldap';
+        $name = defined('AVPVH_DIRECTORY_BACKEND') ? strtolower((string) AVPVH_DIRECTORY_BACKEND) : 'openldap';
+        return $name === 'lldap' ? 'lldap' : 'openldap';
     }
 
     public static function is_openldap(): bool {

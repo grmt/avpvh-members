@@ -1,39 +1,40 @@
 # AVP-PvH Members Plugin
 
-WordPress plugin for AVP Philips van Horne to manage members, camp participation, and fees, integrated with LLDAP and Authelia.
+WordPress plugin for AVP Philips van Horne to manage members, camp participation, and fees, integrated with OpenLDAP and Authelia.
 
 ## Features
 
 - **OAuth2 Login:** Members log in with Google or Microsoft. Login flow matches their registered email address to the member database.
-- **SSO Fallback:** Authelia/LLDAP username+password login via "Inloggen met wachtwoord".
-- **Auto-login via proxy header:** When Authelia is active (e.g. for wp-admin), `HTTP_REMOTE_USER` is trusted for automatic WP session setup.
-- **Identity Management:** LLDAP is the single source of truth for identity (emails, user IDs). Cross-DB JOINs between `lldap.users` and `pvh_avm_*` tables.
+- **SSO Password Login:** Authelia username+password login via "Inloggen met wachtwoord" using a 1FA SSO callback (`/avpvh-sso/`).
+- **Step-Up 2FA:** Normal member access requires only 1FA (OAuth or password). Stepping up to administrative areas (`/wp-admin/**`) triggers Authelia two-factor authentication (TOTP/WebAuthn).
+- **Auto-login via proxy header:** When an Authelia session is active, `HTTP_REMOTE_USER` is trusted for automatic WP session setup.
+- **Identity Management:** OpenLDAP (`ou=avpvh,dc=nl`) is the single source of truth for identity (emails, user IDs, groups). Fast local SQL JOINs via the `pvh_avm_directory_users` cache table.
 - **Access Control:** Bypasses post passwords for active members; shows notices to ex-members.
-- **Fee Popup:** Notifies members on login if current year's fees are pending.
-- **Admin UI:** Member list, detail views, fee management in the WordPress backend.
-- **LLDAP connection test:** Test LLDAP credentials from the settings page without saving them.
+- **Admin UI:** Member list, detail views, fee management, and roles/delegation in the WordPress backend.
 
 ## Architecture
 
 ```
-Browser ──► nginx ──auth_request──► Authelia ──LDAP──► LLDAP (MariaDB: lldap.*)
+Browser ──► nginx ──auth_request──► Authelia ──LDAP──► OpenLDAP (ou=avpvh,dc=nl)
                  └── HTTP_REMOTE_USER header ────────► WordPress
                                                            └── avpvh-members plugin
-                                                                 ├── reads lldap.users (email, user_id)
+                                                                 ├── pvh_avm_directory_users (read cache)
                                                                  └── pvh_avm_* tables (business data)
 ```
 
 ### Authentication flows
 
-| Flow | When |
-|------|------|
-| Google / Microsoft OAuth2 | Member logs in via `/avpvh-login/` using their Google or Microsoft account |
-| Authelia (wachtwoord) | Member logs in via Authelia with LLDAP username + password |
-| Proxy header (auto-login) | Authelia session active (e.g. after wp-admin login); `HTTP_REMOTE_USER` set by nginx |
+| Flow | When | Factor Level |
+|------|------|--------------|
+| Google / Microsoft OAuth2 | Member logs in via `/avpvh-login/` using their personal account | 1FA |
+| Authelia (wachtwoord) | Member logs in via Authelia with username + password via `/avpvh-sso/` | 1FA |
+| Proxy header (auto-login) | Authelia session active; `HTTP_REMOTE_USER` passed by nginx to WordPress | 1FA or 2FA |
+| Step-Up 2FA | Member accesses `/wp-admin/**` or admin tools | 2FA (TOTP/WebAuthn) |
 
 ### Authelia access control
 
 - `/wp-admin/**` → `two_factor`
+- `/avpvh-sso/` → `one_factor` (SSO callback for password login)
 - Everything else → `bypass` (WordPress plugin handles access)
 
 ## Login page (`/avpvh-login/`)
@@ -42,7 +43,7 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 - Explanation of which email address to use
 - "Inloggen met Google" (if configured)
 - "Inloggen met Microsoft" (if configured)
-- "Inloggen met wachtwoord" → Authelia
+- "Inloggen met wachtwoord" → Authelia 1FA portal, returning to `/avpvh-sso/`
 
 ## Setup
 
@@ -51,8 +52,7 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 2. Register a Microsoft OAuth2 app at portal.azure.com.
    - Redirect URI: `https://www.avphilipsvanhorne.nl/wp-json/avpvh/v1/oauth/microsoft/callback`
 3. Enter client IDs and secrets in **WP Admin → AVP-PvH Leden → Instellingen**.
-4. Ensure the WordPress DB user has `SELECT` on the `lldap` database.
-5. Import members using `scripts/import-avpvh-members.py`.
+4. Import members using `scripts/import-avpvh-members.py`.
 
 ### Camp participation imports
 
@@ -87,19 +87,12 @@ cannot be inferred correctly.
 sudo rsync -a --delete ~/03-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/
 
 # Authelia config
-sudo cp ~/03-src/avpvh-members/config/authelia-configuration.yml /opt/docker/volumes/authelia/config/configuration.yml
+sudo cp ~/03-src/avpvh-members/config/authelia-configuration.local.yml /opt/docker/volumes/authelia/config/configuration.yml
 docker compose -f /opt/docker/scripts/docker-compose.yml restart authelia
-```
-
-## Test users
-
-Use `scripts/test-user.sh` to add/remove temporary test users:
-
-```bash
-./scripts/test-user.sh add test.member test.member@example.invalid Test "Member (fictief)"
-./scripts/test-user.sh remove test.member
 ```
 
 ## Development Workflow
 
-Changes are committed locally, pushed to GitHub, then deployed on the remote host via git pull and rsync.
+- Never commit or push directly to `main`.
+- Create a feature branch: `git checkout -b <type>/<short-description>`.
+- Push to origin and open a PR.

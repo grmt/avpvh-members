@@ -1,4 +1,6 @@
 <?php
+defined('ABSPATH') || exit;
+
 // Known disposable/throwaway email domains. Add more as needed.
 return [
     '10minutemail.com', '10minutemail.net', '10minutemail.org',
