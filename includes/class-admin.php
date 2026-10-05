@@ -1031,6 +1031,10 @@ class AVPVH_Admin {
             'gallery_taggable' => isset($_POST['gallery_taggable']) ? 1 : 0,
             'start_date'       => sanitize_text_field(wp_unslash($_POST['start_date'] ?? '')) ?: null,
             'end_date'         => sanitize_text_field(wp_unslash($_POST['end_date'] ?? '')) ?: null,
+            'show_on_site'     => isset($_POST['show_on_site']) ? 1 : 0,
+            'location'         => wp_kses_post(wp_unslash($_POST['location'] ?? '')),
+            'description'      => wp_kses_post(wp_unslash($_POST['description'] ?? '')),
+            'details'          => wp_kses_post(wp_unslash($_POST['details'] ?? '')),
         ], ['id' => $activity_id]);
 
         wp_safe_redirect(add_query_arg([
