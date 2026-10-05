@@ -123,6 +123,11 @@ class AVPVH_Access {
             'loginUrls'      => $login_urls,
             'hasGoogle'      => isset($providers['google']),
             'hasMicrosoft'   => isset($providers['microsoft']),
+            'labels'         => [
+                'google'    => __('Inloggen met Google', 'avpvh-members'),
+                'microsoft' => __('Inloggen met Microsoft', 'avpvh-members'),
+                'password'  => __('Inloggen met wachtwoord', 'avpvh-members'),
+            ],
         ]);
         add_action('wp_footer', function () use ($login_config) {
             // wp_print_inline_script_tag() (WP core, 5.7+) is the standard
@@ -140,10 +145,10 @@ class AVPVH_Access {
         $error = sanitize_key(wp_unslash($_GET['login_error'] ?? ''));
 
         $error_messages = [
-            'no_member'      => 'Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.',
-            'oauth_expired'  => 'Je inlogpoging duurde te lang en is verlopen. Probeer het opnieuw.',
-            'oauth_failed'   => 'Inloggen is niet gelukt. Probeer het opnieuw.',
-            'session_expired' => 'Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in.',
+            'no_member'       => __('Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat.', 'avpvh-members'),
+            'oauth_expired'   => __('Je inlogpoging duurde te lang en is verlopen. Probeer het opnieuw.', 'avpvh-members'),
+            'oauth_failed'    => __('Inloggen is niet gelukt. Probeer het opnieuw.', 'avpvh-members'),
+            'session_expired' => __('Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in.', 'avpvh-members'),
         ];
 
         ob_start();
@@ -152,7 +157,7 @@ class AVPVH_Access {
             <?php if (isset($error_messages[$error])): ?>
             <p class="avpvh-login-error"><?php echo esc_html($error_messages[$error]); ?></p>
             <?php endif; ?>
-            <p class="avpvh-login-intro">Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat ook wanneer je het laat valideren door Google of Microsoft. Als je al bij Google of Microsoft bent ingelogd, kun je zonder wachtwoord inloggen — al moet het e-mailadres waarmee je daar bent ingelogd dan wel bekend zijn bij deze website. Heb je speciale rechten (bijv. bloggen), dan moet je een extra 2-staps verificatieprocedure doorlopen via &ldquo;Inloggen met wachtwoord&rdquo;.</p>
+            <p class="avpvh-login-intro"><?php echo esc_html__('Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat ook wanneer je het laat valideren door Google of Microsoft. Als je al bij Google of Microsoft bent ingelogd, kun je zonder wachtwoord inloggen — al moet het e-mailadres waarmee je daar bent ingelogd dan wel bekend zijn bij deze website. Heb je speciale rechten (bijv. bloggen), dan moet je een extra 2-staps verificatieprocedure doorlopen via “Inloggen met wachtwoord”.', 'avpvh-members'); ?></p>
             <div class="avpvh-login-options" id="avpvh-login-options"></div>
         </div>
         <?php
@@ -287,8 +292,8 @@ class AVPVH_Access {
             return $form;
         }
         return '<div class="avpvh-members-only">
-            <p>Deze pagina is alleen beschikbaar voor leden.</p>
-            <a class="avpvh-login-btn" href="' . esc_url(home_url('/avpvh-login/')) . '">Inloggen</a>
+            <p>' . esc_html__('Deze pagina is alleen beschikbaar voor leden.', 'avpvh-members') . '</p>
+            <a class="avpvh-login-btn" href="' . esc_url(home_url('/avpvh-login/')) . '">' . esc_html__('Inloggen', 'avpvh-members') . '</a>
         </div>';
     }
 
@@ -298,7 +303,7 @@ class AVPVH_Access {
         }
         $member = avpvh_get_member_by_wp_user(get_current_user_id());
         if ($member && $member->status === 'inactive') {
-            return '<div class="avpvh-notice">Je lidmaatschap is beëindigd. Neem contact op met het bestuur.</div>';
+            return '<div class="avpvh-notice">' . esc_html__('Je lidmaatschap is beëindigd. Neem contact op met het bestuur.', 'avpvh-members') . '</div>';
         }
         return $content;
     }

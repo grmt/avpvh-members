@@ -30,6 +30,7 @@ function avpvh_asset_version(string $relative_path): string {
     return $mtime ? (string) $mtime : '1.0';
 }
 
+require_once AVPVH_PLUGIN_DIR . 'includes/class-i18n.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-name-matcher.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-merge.php';
@@ -49,7 +50,6 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-bestuur-page.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-activity-participation-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory-consent.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-newsletter-consent.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/class-fee-popup.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-admin.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-protection.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-token.php';
@@ -71,6 +71,7 @@ add_filter('logout_url', function (): string {
 });
 
 
+new AVPVH_I18n();
 new AVPVH_Access();
 new AVPVH_Nav_Auth();
 new AVPVH_OAuth();
@@ -83,9 +84,6 @@ AVPVH_Directory_Cache::init();
 new AVPVH_Activity_Participation_Form();
 new AVPVH_Directory_Consent();
 new AVPVH_Newsletter_Consent();
-// AVPVH_Fee_Popup is superseded by avpvh-bookkeeping's own popup (richer
-// ledger: contribution + activities, real balances, QR code) — left in
-// place, unused, rather than deleted, so avm_fees history stays readable.
 new AVPVH_Member_Profile_Form();
 new AVPVH_Admin();
 new AVPVH_Media_Protection();

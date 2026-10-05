@@ -15,7 +15,18 @@ class AVPVH_Ledenlijst_Export {
     public static function build(array $leden, array $group_map): string {
         $rows = [];
 
-        $header = ['Naam', 'E-mail', 'Mobiel', 'Telefoon', 'Straat', 'Huisnummer', 'Postcode', 'Plaats', 'Land', 'Groepen'];
+        $header = [
+            __('Naam', 'avpvh-members'),
+            __('E-mail', 'avpvh-members'),
+            __('Mobiel', 'avpvh-members'),
+            __('Telefoon', 'avpvh-members'),
+            __('Straat', 'avpvh-members'),
+            __('Huisnummer', 'avpvh-members'),
+            __('Postcode', 'avpvh-members'),
+            __('Plaats', 'avpvh-members'),
+            __('Land', 'avpvh-members'),
+            __('Groepen', 'avpvh-members'),
+        ];
         $rows[] = array_map(fn($h) => ['v' => $h, 'bold' => true, 'color' => self::COLOR_HEADER], $header);
 
         foreach ($leden as $lid) {

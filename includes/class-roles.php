@@ -503,4 +503,31 @@ class AVPVH_Roles {
         }
         return $holders;
     }
+
+    public static function get_role_labels(): array {
+        return [
+            'bestuur'        => __('Bestuur', 'avpvh-members'),
+            'voorzitter'     => __('Voorzitter', 'avpvh-members'),
+            'secretaris'     => __('Secretaris', 'avpvh-members'),
+            'penningmeester' => __('Penningmeester', 'avpvh-members'),
+        ];
+    }
+
+    public static function get_role_label(string $role): string {
+        $labels = self::get_role_labels();
+        return $labels[strtolower($role)] ?? ucfirst($role);
+    }
+
+    public static function get_status_labels(): array {
+        return [
+            'active'   => __('Lid', 'avpvh-members'),
+            'inactive' => __('Ex-lid', 'avpvh-members'),
+            'visitor'  => __('Bezoeker', 'avpvh-members'),
+        ];
+    }
+
+    public static function get_status_label(string $status): string {
+        $labels = self::get_status_labels();
+        return $labels[strtolower($status)] ?? ucfirst($status);
+    }
 }

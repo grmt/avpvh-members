@@ -57,13 +57,15 @@ class AVPVH_Bestuur_Page {
         ob_start();
         ?>
         <div class="avpvh-bestuur">
-            <p>Het bestuur van de vereniging bestaat uit:</p>
+            <p><?php esc_html_e('Het bestuur van de vereniging bestaat uit:', 'avpvh-members'); ?></p>
             <?php if (!$officers && !$others) : ?>
-                <p><em>Het bestuur kon op dit moment niet worden opgehaald.</em></p>
+                <p><em><?php esc_html_e('Het bestuur kon op dit moment niet worden opgehaald.', 'avpvh-members'); ?></em></p>
             <?php else : ?>
                 <p>
-                    <?php foreach ($officers as $officer) : ?>
-                        <?php echo esc_html(avpvh_format_name($officer['member'])); ?> (<?php echo esc_html(implode(', ', $officer['roles'])); ?>)<br>
+                    <?php foreach ($officers as $officer) :
+                        $translated_roles = array_map([AVPVH_Roles::class, 'get_role_label'], $officer['roles']);
+                    ?>
+                        <?php echo esc_html(avpvh_format_name($officer['member'])); ?> (<?php echo esc_html(implode(', ', $translated_roles)); ?>)<br>
                     <?php endforeach; ?>
                     <?php foreach ($others as $member) : ?>
                         <?php echo esc_html(avpvh_format_name($member)); ?><br>
@@ -71,7 +73,7 @@ class AVPVH_Bestuur_Page {
                 </p>
             <?php endif; ?>
             <?php if ($former) : ?>
-                <p><strong>Voormalig bestuursleden:</strong></p>
+                <p><strong><?php esc_html_e('Voormalig bestuursleden:', 'avpvh-members'); ?></strong></p>
                 <p><?php echo esc_html(implode(', ', array_map(static fn($m) => avpvh_format_name($m), $former))); ?></p>
             <?php endif; ?>
         </div>

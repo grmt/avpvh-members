@@ -969,7 +969,6 @@ class AVPVH_DB {
 
     public static function get_member_by_email(string $email): ?object {
         global $wpdb;
-        $lldap = self::lldap();
         // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- member_select() is a fixed, hardcoded SELECT/JOIN with no interpolation; the %s value is properly prepared
         return $wpdb->get_row($wpdb->prepare(
             self::member_select() . " WHERE u.lowercase_email = LOWER(%s) LIMIT 1",
@@ -990,7 +989,6 @@ class AVPVH_DB {
             return null;
         }
 
-        $lldap = self::lldap();
         return $wpdb->get_row($wpdb->prepare(
             "SELECT i.*, m.id AS member_id, m.lldap_user_id, m.wp_user_id
              FROM {$wpdb->prefix}avm_member_identities i
@@ -1226,7 +1224,6 @@ class AVPVH_DB {
 
     public static function get_members(array $args = []): array {
         global $wpdb;
-        $lldap  = self::lldap();
         $where  = '1=1';
         $params = [];
         $join   = '';

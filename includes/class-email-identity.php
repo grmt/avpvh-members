@@ -42,7 +42,7 @@ class AVPVH_Email_Identity {
         check_admin_referer('avpvh_start_email_identity');
 
         if (!is_user_logged_in()) {
-            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Je moet ingelogd zijn.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
@@ -51,7 +51,7 @@ class AVPVH_Email_Identity {
         $profile_url = home_url('/member-profile/');
 
         if (!$own_member || !$member_id || $member_id !== (int) $own_member->id) {
-            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         if (!is_email($email)) {
@@ -75,13 +75,13 @@ class AVPVH_Email_Identity {
             'email'     => $email,
         ], self::TOKEN_TTL_ADD);
 
-        wp_mail(
+        $subject = __('AV Philips van Horne — bevestig je e-mailadres', 'avpvh-members');
+        $body = sprintf(
+            __("Klik op deze link om %s te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n\n%s\n\nDeze link is een uur geldig. Was jij dit niet? Dan hoef je niets te doen.", 'avpvh-members'),
             $email,
-            'AV Philips van Horne — bevestig je e-mailadres',
-            "Klik op deze link om {$email} te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n\n"
-                . $this->confirm_url($token) . "\n\n"
-                . "Deze link is een uur geldig. Was jij dit niet? Dan hoef je niets te doen."
+            $this->confirm_url($token)
         );
+        wp_mail($email, $subject, $body);
 
         wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_email_sent' => '1'], $profile_url));
         exit;
@@ -100,7 +100,7 @@ class AVPVH_Email_Identity {
 
         $payload = $stored ? json_decode((string) $stored, true) : null;
         if (!is_array($payload) || ($payload['mode'] ?? '') !== 'add') {
-            wp_die('Deze link is ongeldig of verlopen. Vraag een nieuwe aan.', 'Link verlopen', ['response' => 400]);
+            wp_die(esc_html__('Deze link is ongeldig of verlopen. Vraag een nieuwe aan.', 'avpvh-members'), esc_html__('Link verlopen', 'avpvh-members'), ['response' => 400]);
         }
 
         $this->confirm_add($payload);
@@ -113,7 +113,7 @@ class AVPVH_Email_Identity {
 
         $member = $member_id ? AVPVH_DB::get_member($member_id) : null;
         if (!$member) {
-            wp_die('Lid niet gevonden.', 'Fout', ['response' => 404]);
+            wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
         // Re-check at click time too — the address could have been claimed

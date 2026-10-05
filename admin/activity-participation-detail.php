@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
-if (!AVPVH_Roles::can_manage_activities()) wp_die('Geen toegang.');
+if (!AVPVH_Roles::can_manage_activities()) wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
 
 $participation_id = absint(wp_unslash($_GET['id'] ?? 0));
 $activity_id = absint(wp_unslash($_GET['activity_id'] ?? 0));
@@ -17,7 +17,13 @@ if (!$activity_id) {
 }
 $activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
 if (!$activity) {
-    wp_die('Geen activiteit gevonden. Maak eerst een activiteit aan via <a href="' . esc_url(add_query_arg(['page' => 'avpvh-activity-participation'], admin_url('admin.php'))) . '">Activiteiten</a>.');
+    wp_die(
+        sprintf(
+            /* translators: %s: URL to activities page */
+            __('Geen activiteit gevonden. Maak eerst een activiteit aan via <a href="%s">Activiteiten</a>.', 'avpvh-members'),
+            esc_url(add_query_arg(['page' => 'avpvh-activity-participation'], admin_url('admin.php')))
+        )
+    );
 }
 
 $member = $participation ? AVPVH_DB::get_member((int) $participation->member_id) : null;
@@ -37,11 +43,11 @@ if ($activity->start_date && $activity->end_date) {
 }
 ?>
 <div class="wrap">
-    <h1><?php echo $participation ? 'Deelname bewerken' : 'Nieuwe deelname'; ?></h1>
-    <p><a href="<?php echo esc_url($list_url); ?>">&larr; Terug naar overzicht</a></p>
+    <h1><?php echo $participation ? esc_html__('Deelname bewerken', 'avpvh-members') : esc_html__('Nieuwe deelname', 'avpvh-members'); ?></h1>
+    <p><a href="<?php echo esc_url($list_url); ?>">&larr; <?php esc_html_e('Terug naar overzicht', 'avpvh-members'); ?></a></p>
 
     <?php if ($updated) : ?>
-        <div class="notice notice-success"><p>Opgeslagen.</p></div>
+        <div class="notice notice-success"><p><?php esc_html_e('Opgeslagen.', 'avpvh-members'); ?></p></div>
     <?php endif; ?>
 
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -54,14 +60,14 @@ if ($activity->start_date && $activity->end_date) {
 
         <table class="form-table">
             <tr>
-                <th><label for="member_id">Lid</label></th>
+                <th><label for="member_id"><?php esc_html_e('Lid', 'avpvh-members'); ?></label></th>
                 <td>
                     <?php if ($member) : ?>
                         <strong><?php echo esc_html(avpvh_format_name($member, 'list')); ?></strong>
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
                     <?php else : ?>
                         <select name="member_id" id="member_id" required style="min-width:300px">
-                            <option value="">— Kies lid —</option>
+                            <option value="">— <?php esc_html_e('Kies lid', 'avpvh-members'); ?> —</option>
                             <?php foreach (AVPVH_DB::get_members(['status' => 'active']) as $m) : ?>
                                 <option value="<?php echo esc_attr($m->id); ?>">
                                     <?php echo esc_html(avpvh_format_name($m, 'list')); ?>
@@ -72,36 +78,36 @@ if ($activity->start_date && $activity->end_date) {
                 </td>
             </tr>
             <tr>
-                <th><label for="nights">Nachten</label></th>
+                <th><label for="nights"><?php esc_html_e('Nachten', 'avpvh-members'); ?></label></th>
                 <td>
                     <?php if ($date_range) : ?>
                         <strong id="nights-computed"><?php echo esc_html((string) ($participation->nights ?? 0)); ?></strong>
-                        <p class="description">Berekend uit de dagen hieronder (aantal dagen met code <code>n</code>) &mdash; pas de dagen aan om dit te wijzigen.</p>
+                        <p class="description"><?php echo wp_kses(__('Berekend uit de dagen hieronder (aantal dagen met code <code>n</code>) &mdash; pas de dagen aan om dit te wijzigen.', 'avpvh-members'), ['code' => []]); ?></p>
                     <?php else : ?>
                         <input type="number" id="nights" name="nights" min="0" value="<?php echo esc_attr($participation->nights ?? ''); ?>">
-                        <p class="description">Geen datumbereik ingesteld voor deze activiteit, dus geen dagen om uit te berekenen &mdash; hier handmatig invullen.</p>
+                        <p class="description"><?php esc_html_e('Geen datumbereik ingesteld voor deze activiteit, dus geen dagen om uit te berekenen — hier handmatig invullen.', 'avpvh-members'); ?></p>
                     <?php endif; ?>
                 </td>
             </tr>
             <tr>
-                <th><label for="nawacht">Nawacht</label></th>
-                <td><label><input type="checkbox" id="nawacht" name="nawacht" value="1" <?php checked(!empty($participation->nawacht)); ?>> Ja</label></td>
+                <th><label for="nawacht"><?php esc_html_e('Nawacht', 'avpvh-members'); ?></label></th>
+                <td><label><input type="checkbox" id="nawacht" name="nawacht" value="1" <?php checked(!empty($participation->nawacht)); ?>> <?php esc_html_e('Ja', 'avpvh-members'); ?></label></td>
             </tr>
             <tr>
-                <th><label for="diet">Dieet</label></th>
+                <th><label for="diet"><?php esc_html_e('Dieet', 'avpvh-members'); ?></label></th>
                 <td><input type="text" id="diet" name="diet" class="regular-text" value="<?php echo esc_attr($participation->diet ?? ''); ?>"></td>
             </tr>
             <tr>
-                <th><label for="notes">Notities</label></th>
+                <th><label for="notes"><?php esc_html_e('Notities', 'avpvh-members'); ?></label></th>
                 <td><textarea id="notes" name="notes" class="large-text" rows="3"><?php echo esc_textarea($participation->notes ?? ''); ?></textarea></td>
             </tr>
         </table>
 
         <?php if ($date_range) : ?>
-            <h2>Dagen</h2>
-            <p class="description">Vul per dag een code in (bijv. <code>n</code> = aanwezig, <code>on</code> = ochtend-nawacht, <code>?</code> = onzeker), of laat leeg.</p>
+            <h2><?php esc_html_e('Dagen', 'avpvh-members'); ?></h2>
+            <p class="description"><?php echo wp_kses(__('Vul per dag een code in (bijv. <code>n</code> = aanwezig, <code>on</code> = ochtend-nawacht, <code>?</code> = onzeker), of laat leeg.', 'avpvh-members'), ['code' => []]); ?></p>
             <table class="widefat striped" style="max-width:500px">
-                <thead><tr><th>Datum</th><th>Status</th></tr></thead>
+                <thead><tr><th><?php esc_html_e('Datum', 'avpvh-members'); ?></th><th><?php esc_html_e('Status', 'avpvh-members'); ?></th></tr></thead>
                 <tbody>
                 <?php foreach ($date_range as $date) : ?>
                     <tr>
@@ -113,26 +119,10 @@ if ($activity->start_date && $activity->end_date) {
                 </tbody>
             </table>
         <?php else : ?>
-            <p class="description">Stel eerst een start- en einddatum in voor deze activiteit om dagen te kunnen registreren.</p>
+            <p class="description"><?php esc_html_e('Stel eerst een start- en einddatum in voor deze activiteit om dagen te kunnen registreren.', 'avpvh-members'); ?></p>
         <?php endif; ?>
 
-        <p class="submit"><button type="submit" class="button button-primary">Opslaan</button></p>
+        <p class="submit"><button type="submit" class="button button-primary"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button></p>
     </form>
 </div>
-<?php if ($date_range) : ?>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var display = document.getElementById('nights-computed');
-    var dayInputs = document.querySelectorAll('input[name^="day["]');
-    if (!display || !dayInputs.length) return;
-    function recompute() {
-        var count = 0;
-        dayInputs.forEach(function (input) {
-            if (input.value.trim() === 'n') count++;
-        });
-        display.textContent = count;
-    }
-    dayInputs.forEach(function (input) { input.addEventListener('input', recompute); });
-});
-</script>
-<?php endif; ?>
+

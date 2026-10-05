@@ -122,11 +122,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // The icon acts as the item's "label" — same role as the <a> text
         // ("Welkom!", "De vereniging", ...) other top-level items use — so
-        // it picks up their sizing/spacing instead of being an orphan toggle.
+        var labels = cfg.labels || {};
+
         var content = document.createElement('button');
         content.type = 'button';
         content.className = 'wp-block-navigation-item__content avpvh-auth-status__content';
-        content.setAttribute('aria-label', 'Account');
+        content.setAttribute('aria-label', labels.account || 'Account');
         content.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
             + '<path fill="currentColor" d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z"/>'
             + '</svg>';
@@ -136,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function () {
         chevron.type = 'button';
         chevron.className = 'wp-block-navigation__submenu-icon wp-block-navigation-submenu__toggle';
         chevron.setAttribute('aria-expanded', 'false');
-        chevron.setAttribute('aria-label', 'Account submenu');
+        chevron.setAttribute('aria-label', labels.accountMenu || 'Account submenu');
         chevron.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false"><path d="M1.50002 4L6.00002 8L10.5 4" stroke-width="1.5"></path></svg>';
         chevron.addEventListener('click', toggleOpen);
 
@@ -144,12 +145,13 @@ document.addEventListener('DOMContentLoaded', function () {
         menu.className = 'wp-block-navigation__submenu-container wp-block-navigation-submenu';
 
         if (cfg.isLoggedIn) {
-            var nameLabel = cfg.userLabel + ' · ' + (cfg.isActiveMember ? 'Lid' : 'Geen lid');
+            var memberStatus = cfg.isActiveMember ? (labels.member || 'Lid') : (labels.nonMember || 'Geen lid');
+            var nameLabel = cfg.userLabel + ' · ' + memberStatus;
             menu.appendChild(makeMenuLabel(nameLabel, [cfg.userLabel, cfg.roleLabel, cfg.memberRoleLabel].filter(Boolean).join(' · ')));
-            menu.appendChild(makeMenuLink('Mijn profiel', cfg.profileUrl));
-            menu.appendChild(makeMenuLink('Uitloggen', cfg.logoutUrl));
+            menu.appendChild(makeMenuLink(labels.myProfile || 'Mijn profiel', cfg.profileUrl));
+            menu.appendChild(makeMenuLink(labels.logout || 'Uitloggen', cfg.logoutUrl));
         } else {
-            menu.appendChild(makeMenuLink('Inloggen', cfg.loginUrl));
+            menu.appendChild(makeMenuLink(labels.login || 'Inloggen', cfg.loginUrl));
         }
 
         li.appendChild(content);

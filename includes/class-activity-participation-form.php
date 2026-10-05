@@ -18,17 +18,17 @@ class AVPVH_Activity_Participation_Form {
 
     public function render_shortcode(): string {
         if (!is_user_logged_in()) {
-            return '<p>Je moet ingelogd zijn om je deelname te wijzigen.</p>';
+            return '<p>' . esc_html__('Je moet ingelogd zijn om je deelname te wijzigen.', 'avpvh-members') . '</p>';
         }
 
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
         if (!$own_member) {
-            return '<p>Geen lidprofiel gevonden.</p>';
+            return '<p>' . esc_html__('Geen lidprofiel gevonden.', 'avpvh-members') . '</p>';
         }
 
         $activity = AVPVH_DB::get_current_camp_activity();
         if (!$activity) {
-            return '<p>Er is nog geen activiteit beschikbaar om je voor in te schrijven.</p>';
+            return '<p>' . esc_html__('Er is nog geen activiteit beschikbaar om je voor in te schrijven.', 'avpvh-members') . '</p>';
         }
 
         $member = $this->get_target_member($own_member);
@@ -56,7 +56,7 @@ class AVPVH_Activity_Participation_Form {
 
             <?php if (count($huisgenoten) > 1) : ?>
                 <p>
-                    <label for="avpvh-activiteit-member-select">Voor wie:</label>
+                    <label for="avpvh-activiteit-member-select"><?php esc_html_e('Voor wie:', 'avpvh-members'); ?></label>
                     <select id="avpvh-activiteit-member-select" onchange="location.href=this.value">
                         <?php foreach ($huisgenoten as $h) :
                             $url = add_query_arg('member_id', $h->id);
@@ -70,7 +70,7 @@ class AVPVH_Activity_Participation_Form {
             <?php endif; ?>
 
             <?php if ($updated) : ?>
-                <p style="color:green">Je deelname is opgeslagen.</p>
+                <p style="color:green"><?php esc_html_e('Je deelname is opgeslagen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -81,23 +81,23 @@ class AVPVH_Activity_Participation_Form {
                 <input type="hidden" name="_wp_http_referer" value="<?php echo esc_attr(remove_query_arg('activiteit_updated')); ?>">
 
                 <p>
-                    <label for="nights">Aantal nachten</label><br>
+                    <label for="nights"><?php esc_html_e('Aantal nachten', 'avpvh-members'); ?></label><br>
                     <input type="number" id="nights" name="nights" min="0" value="<?php echo esc_attr($participation->nights ?? ''); ?>">
                 </p>
                 <p>
-                    <label><input type="checkbox" name="nawacht" value="1" <?php checked(!empty($participation->nawacht)); ?>> Ik doe nawacht</label>
+                    <label><input type="checkbox" name="nawacht" value="1" <?php checked(!empty($participation->nawacht)); ?>> <?php esc_html_e('Ik doe nawacht', 'avpvh-members'); ?></label>
                 </p>
                 <p>
-                    <label for="diet">Dieetwensen</label><br>
+                    <label for="diet"><?php esc_html_e('Dieetwensen', 'avpvh-members'); ?></label><br>
                     <input type="text" id="diet" name="diet" value="<?php echo esc_attr($participation->diet ?? ''); ?>">
                 </p>
                 <p>
-                    <label for="notes">Opmerkingen</label><br>
+                    <label for="notes"><?php esc_html_e('Opmerkingen', 'avpvh-members'); ?></label><br>
                     <textarea id="notes" name="notes" rows="3"><?php echo esc_textarea($participation->notes ?? ''); ?></textarea>
                 </p>
 
                 <?php if ($date_range) : ?>
-                    <p><strong>Welke dagen ben je aanwezig?</strong></p>
+                    <p><strong><?php esc_html_e('Welke dagen ben je aanwezig?', 'avpvh-members'); ?></strong></p>
                     <ul class="avpvh-activiteit-deelname-dagen">
                         <?php foreach ($date_range as $date) : ?>
                             <li>
@@ -110,7 +110,7 @@ class AVPVH_Activity_Participation_Form {
                     </ul>
                 <?php endif; ?>
 
-                <p><button type="submit" class="button">Opslaan</button></p>
+                <p><button type="submit" class="button"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button></p>
             </form>
         </div>
         <?php
@@ -121,7 +121,7 @@ class AVPVH_Activity_Participation_Form {
         check_admin_referer('avpvh_save_own_participation');
 
         if (!is_user_logged_in()) {
-            wp_die('Je moet ingelogd zijn.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Je moet ingelogd zijn.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
@@ -129,12 +129,12 @@ class AVPVH_Activity_Participation_Form {
         $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
 
         if (!$own_member || !$this->can_edit_member($own_member, $member_id)) {
-            wp_die('Geen toegang.', 'Fout', ['response' => 403]);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $activity = AVPVH_DB::get_activity($activity_id);
         if (!$activity) {
-            wp_die('Activiteit niet gevonden.', 'Fout', ['response' => 404]);
+            wp_die(esc_html__('Activiteit niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
         $fields = [

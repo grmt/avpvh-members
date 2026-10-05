@@ -1,0 +1,2577 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: AVP-PvH Members\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-05 15:43+0200\n"
+"PO-Revision-Date: 2026-10-05 16:00+0200\n"
+"Last-Translator: Antigravity AI\n"
+"Language: fr_FR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: admin/activity-participation-detail.php:4
+#: admin/activity-participation-list.php:4 admin/add-member.php:5
+#: admin/login-attempts.php:4 admin/member-detail.php:4
+#: admin/members-list.php:4 admin/merge-members.php:5 admin/newsletter.php:4
+#: admin/roles.php:6 includes/class-activity-participation-form.php:132
+#: includes/class-admin.php:421 includes/class-admin.php:438
+#: includes/class-admin.php:491 includes/class-admin.php:517
+#: includes/class-admin.php:545 includes/class-admin.php:572
+#: includes/class-admin.php:600 includes/class-admin.php:625
+#: includes/class-admin.php:640 includes/class-admin.php:663
+#: includes/class-admin.php:698 includes/class-admin.php:722
+#: includes/class-admin.php:764 includes/class-admin.php:815
+#: includes/class-admin.php:857 includes/class-admin.php:880
+#: includes/class-admin.php:977 includes/class-admin.php:1035
+#: includes/class-admin.php:1062 includes/class-admin.php:1085
+#: includes/class-admin.php:1107 includes/class-admin.php:1131
+#: includes/class-admin.php:1186 includes/class-admin.php:1217
+#: includes/class-admin.php:1239 includes/class-admin.php:1255
+#: includes/class-admin.php:1274 includes/class-email-identity.php:54
+#: includes/class-member-profile-form.php:998
+#: includes/class-member-profile-form.php:1054
+#: includes/class-member-profile-form.php:1106
+#: includes/class-member-profile-form.php:1171
+#: includes/class-member-profile-form.php:1204
+msgid "Geen toegang."
+msgstr "Accès refusé."
+
+#. translators: %s: URL to activities page
+#: admin/activity-participation-detail.php:23
+#, php-format
+msgid "Geen activiteit gevonden. Maak eerst een activiteit aan via <a href=\"%s\">Activiteiten</a>."
+msgstr "Aucune activité trouvée. Créez d'abord une activité via <a href=\"%s\">Activités</a>."
+
+#: admin/activity-participation-detail.php:46 includes/class-admin.php:146
+msgid "Deelname bewerken"
+msgstr "Modifier la participation"
+
+#: admin/activity-participation-detail.php:46
+#: admin/activity-participation-list.php:30
+msgid "Nieuwe deelname"
+msgstr "Nouvelle participation"
+
+#: admin/activity-participation-detail.php:47
+msgid "Terug naar overzicht"
+msgstr "Retour à la vue d'ensemble"
+
+#: admin/activity-participation-detail.php:50
+msgid "Opgeslagen."
+msgstr "Enregistré."
+
+#: admin/activity-participation-detail.php:63 admin/roles.php:143
+#: admin/roles.php:184 includes/class-member-profile-form.php:1356
+#: includes/class-nav-auth.php:67 includes/class-nav-auth.php:115
+#: includes/class-roles.php:523
+msgid "Lid"
+msgstr "Membre"
+
+#: admin/activity-participation-detail.php:70 admin/roles.php:146
+#: admin/roles.php:219 admin/roles.php:319
+msgid "Kies lid"
+msgstr "Sélectionner un membre"
+
+#: admin/activity-participation-detail.php:81
+#: admin/class-activity-participation-list-table.php:34
+#: admin/member-detail.php:361 includes/class-activity-overview.php:60
+#: includes/class-activity-participation-export.php:44
+msgid "Nachten"
+msgstr "Nuits"
+
+#: admin/activity-participation-detail.php:85
+msgid "Berekend uit de dagen hieronder (aantal dagen met code <code>n</code>) &mdash; pas de dagen aan om dit te wijzigen."
+msgstr "Calculé à partir des jours ci-dessous (nombre de jours avec le code <code>n</code>) &mdash; modifiez les jours pour changer cette valeur."
+
+#: admin/activity-participation-detail.php:88
+msgid "Geen datumbereik ingesteld voor deze activiteit, dus geen dagen om uit te berekenen — hier handmatig invullen."
+msgstr "Aucune plage de dates définie pour cette activité, donc aucun jour à calculer — saisissez la valeur manuellement ici."
+
+#: admin/activity-participation-detail.php:93
+#: admin/class-activity-participation-list-table.php:35
+#: admin/member-detail.php:361 includes/class-activity-overview.php:61
+#: includes/class-activity-participation-export.php:45
+msgid "Nawacht"
+msgstr "Arrière-garde"
+
+#: admin/activity-participation-detail.php:94
+#: admin/class-activity-participation-list-table.php:80
+#: admin/member-detail.php:188 admin/member-detail.php:207
+#: admin/member-detail.php:214 admin/member-detail.php:371
+#: includes/class-admin.php:333 includes/class-admin.php:334
+msgid "Ja"
+msgstr "Oui"
+
+#: admin/activity-participation-detail.php:97
+#: admin/class-activity-participation-list-table.php:36
+#: admin/member-detail.php:361 includes/class-activity-overview.php:62
+#: includes/class-activity-participation-export.php:46
+#: includes/class-member-merge.php:57
+msgid "Dieet"
+msgstr "Régime alimentaire"
+
+#: admin/activity-participation-detail.php:101
+#: admin/class-activity-participation-list-table.php:38
+#: admin/member-detail.php:361
+#: includes/class-activity-participation-export.php:56
+msgid "Notities"
+msgstr "Remarques"
+
+#: admin/activity-participation-detail.php:107
+msgid "Dagen"
+msgstr "Jours"
+
+#: admin/activity-participation-detail.php:108
+msgid "Vul per dag een code in (bijv. <code>n</code> = aanwezig, <code>on</code> = ochtend-nawacht, <code>?</code> = onzeker), of laat leeg."
+msgstr "Saisissez un code par jour (par ex. <code>n</code> = présent, <code>on</code> = matin-arrière-garde, <code>?</code> = incertain), ou laissez vide."
+
+#: admin/activity-participation-detail.php:110
+#: includes/class-member-profile-form.php:802
+msgid "Datum"
+msgstr "Date"
+
+#: admin/activity-participation-detail.php:110
+#: admin/class-members-list-table.php:34 admin/member-detail.php:25
+#: admin/member-detail.php:172 admin/member-detail.php:382
+#: includes/class-member-merge.php:58
+msgid "Status"
+msgstr "Statut"
+
+#: admin/activity-participation-detail.php:122
+msgid "Stel eerst een start- en einddatum in voor deze activiteit om dagen te kunnen registreren."
+msgstr "Définissez d'abord une date de début et de fin pour cette activité afin de pouvoir enregistrer les jours."
+
+#: admin/activity-participation-detail.php:125
+#: admin/activity-participation-list.php:143
+#: admin/activity-participation-list.php:169 admin/member-detail.php:311
+#: includes/class-activity-participation-form.php:113
+#: includes/class-admin.php:311
+msgid "Opslaan"
+msgstr "Enregistrer"
+
+#: admin/activity-participation-list.php:28
+#: admin/class-members-list-table.php:37 admin/member-detail.php:136
+#: includes/class-admin.php:132
+msgid "Activiteiten"
+msgstr "Activités"
+
+#: admin/activity-participation-list.php:32 includes/class-ledenlijst.php:106
+msgid "Exporteer naar Excel"
+msgstr "Exporter vers Excel"
+
+#: admin/activity-participation-list.php:38
+msgid "Activiteit:"
+msgstr "Activité :"
+
+#: admin/activity-participation-list.php:47
+msgid "Bekijken"
+msgstr "Afficher"
+
+#: admin/activity-participation-list.php:52
+msgid "Activiteit aangemaakt."
+msgstr "Activité créée."
+
+#: admin/activity-participation-list.php:53
+msgid "Tarieven instellen voor deze activiteit →"
+msgstr "Définir les tarifs pour cette activité →"
+
+#: admin/activity-participation-list.php:58
+msgid "Nieuwe activiteit aanmaken"
+msgstr "Créer une nouvelle activité"
+
+#: admin/activity-participation-list.php:64
+#: admin/class-activity-participation-list-table.php:33
+#: admin/class-members-list-table.php:28 admin/member-detail.php:25
+#: includes/class-activity-overview.php:59
+#: includes/class-activity-participation-export.php:43
+#: includes/class-admin.php:355 includes/class-ledenlijst-export.php:19
+#: includes/class-ledenlijst.php:111 includes/class-ledenlijst.php:126
+#: includes/class-ledenlijst.php:172 includes/class-member-merge.php:48
+msgid "Naam"
+msgstr "Nom"
+
+#: admin/activity-participation-list.php:65
+msgid "bijv. Contributie, of een locatienaam voor een kamp"
+msgstr "par ex. Cotisation, ou le nom du lieu pour un camp"
+
+#: admin/activity-participation-list.php:68 admin/member-detail.php:361
+#: admin/member-detail.php:382
+msgid "Jaar"
+msgstr "Année"
+
+#: admin/activity-participation-list.php:72
+#: admin/activity-participation-list.php:115
+#: admin/activity-participation-list.php:156
+msgid "Type"
+msgstr "Type"
+
+#: admin/activity-participation-list.php:75 admin/merge-members.php:167
+msgid "geen"
+msgstr "aucun"
+
+#: admin/activity-participation-list.php:83
+#: admin/activity-participation-list.php:127 admin/member-detail.php:361
+msgid "Locatie/kenmerk"
+msgstr "Lieu/caractéristique"
+
+#: admin/activity-participation-list.php:87
+#: admin/activity-participation-list.php:135
+msgid "Startdatum"
+msgstr "Date de début"
+
+#: admin/activity-participation-list.php:91
+#: admin/activity-participation-list.php:139
+msgid "Einddatum"
+msgstr "Date de fin"
+
+#: admin/activity-participation-list.php:95
+msgid "Bestaat er al een activiteit met deze naam en dit jaar, dan wordt die geopend in plaats van een dubbele aan te maken."
+msgstr "S'il existe déjà une activité portant ce nom et cette année, elle sera ouverte au lieu d'en créer un doublon."
+
+#: admin/activity-participation-list.php:96
+msgid "Activiteit aanmaken"
+msgstr "Créer l'activité"
+
+#: admin/activity-participation-list.php:102
+msgid "Instellingen opgeslagen."
+msgstr "Réglages enregistrés."
+
+#: admin/activity-participation-list.php:105
+msgid "Activiteitstypes opgeslagen."
+msgstr "Types d'activités enregistrés."
+
+#: admin/activity-participation-list.php:108
+msgid "Instellingen (type, locatie/kenmerk, start-/einddatum)"
+msgstr "Réglages (type, lieu/caractéristique, date de début/fin)"
+
+#: admin/activity-participation-list.php:131
+msgid "Foto's taggen"
+msgstr "Identifier des photos"
+
+#: admin/activity-participation-list.php:132
+msgid "Deelnemers van deze activiteit gebruiken als tag-suggesties in de fotogalerij"
+msgstr "Utiliser les participants de cette activité comme suggestions de tags dans la galerie photo"
+
+#: admin/activity-participation-list.php:148
+msgid "Activiteitstypes beheren (hernoemen of nieuwe toevoegen)"
+msgstr "Gérer les types d'activités (renommer ou en ajouter de nouveaux)"
+
+#: admin/activity-participation-list.php:165
+msgid "Nieuw type"
+msgstr "Nouveau type"
+
+#: admin/activity-participation-list.php:166
+msgid "bijv. Excursie"
+msgstr "par ex. Excursion"
+
+#: admin/add-member.php:29 admin/members-list.php:26
+#: includes/class-admin.php:122
+msgid "Nieuwe persoon"
+msgstr "Nouvelle personne"
+
+#: admin/add-member.php:31
+msgid "Voegt een lid, ex-lid of bezoeker toe: een plaatsvervangend account (@avpvh.local, geen echte inlog — clubbeleid: leden onder de 16 krijgen geen eigen login) en het bijbehorende ledenrecord."
+msgstr "Ajoute un membre, un ancien membre ou un visiteur : un compte de remplacement (@avpvh.local, pas de véritable connexion — politique du club : les membres de moins de 16 ans n'ont pas d'identifiant propre) et la fiche de membre correspondante."
+
+#: admin/add-member.php:39
+msgid "Voornaam en achternaam zijn verplicht."
+msgstr "Le prénom et le nom de famille sont obligatoires."
+
+#: admin/add-member.php:41
+msgid "Kies of het om een lid, ex-lid of bezoeker gaat."
+msgstr "Choisissez s'il s'agit d'un membre, d'un ancien membre ou d'un visiteur."
+
+#: admin/add-member.php:43
+msgid "Ongeldige geboortedatum. Vul een volledige datum in (JJJJ-MM-DD) of alleen een geboortejaar (JJJJ)."
+msgstr "Date de naissance invalide. Saisissez une date complète (AAAA-MM-JJ) ou seulement une année de naissance (AAAA)."
+
+#: admin/add-member.php:45
+#, php-format
+msgid "Aanmaken van het account is mislukt: %s"
+msgstr "Échec de la création du compte : %s"
+
+#: admin/add-member.php:54
+msgid "Er bestaat al een lid met deze of een vergelijkbare naam:"
+msgstr "Il existe déjà un membre portant ce nom ou un nom similaire :"
+
+#: admin/add-member.php:54
+msgid "Er bestaan al leden met deze of een vergelijkbare naam:"
+msgstr "Il existe déjà des membres portant ce nom ou un nom similaire :"
+
+#: admin/add-member.php:62
+#, php-format
+msgid ", via naamvariant %s"
+msgstr ", via la variante de nom %s"
+
+#: admin/add-member.php:66
+msgid "Gaat het om een andere, echte persoon met dezelfde naam? Dan kan je toch doorgaan."
+msgstr "S'agit-il d'une autre personne réelle portant le même nom ? Vous pouvez quand même continuer."
+
+#: admin/add-member.php:79
+msgid "Ja, toch toevoegen als nieuwe persoon"
+msgstr "Oui, ajouter quand même comme nouvelle personne"
+
+#: admin/add-member.php:90 includes/class-member-profile-form.php:222
+msgid "Voornaam *"
+msgstr "Prénom *"
+
+#: admin/add-member.php:95 admin/class-members-list-table.php:30
+#: admin/member-detail.php:145 includes/class-member-profile-form.php:228
+msgid "Tussenvoegsel"
+msgstr "Particule"
+
+#: admin/add-member.php:100 includes/class-member-profile-form.php:234
+msgid "Achternaam *"
+msgstr "Nom *"
+
+#: admin/add-member.php:105 admin/member-detail.php:177
+#: includes/class-member-merge.php:51
+#: includes/class-member-profile-form.php:267
+msgid "Geboortedatum"
+msgstr "Date de naissance"
+
+#: admin/add-member.php:108 includes/class-member-profile-form.php:269
+msgid "JJJJ-MM-DD of alleen JJJJ"
+msgstr "AAAA-MM-JJ ou seulement AAAA"
+
+#: admin/add-member.php:110 includes/class-member-profile-form.php:271
+msgid "Volledige datum (JJJJ-MM-DD), of alleen het geboortejaar als de exacte datum niet bekend is."
+msgstr "Date complète (AAAA-MM-JJ), ou seulement l'année de naissance si la date exacte n'est pas connue."
+
+#: admin/add-member.php:114
+msgid "Soort *"
+msgstr "Statut *"
+
+#: admin/add-member.php:125
+msgid "Lid komt in de groep leden, ex-lid in ex-leden, een bezoeker in geen van beide."
+msgstr "Un membre est placé dans le groupe des membres, un ancien membre dans les anciens membres, un visiteur dans aucun des deux."
+
+#: admin/add-member.php:129 admin/class-members-list-table.php:38
+#: admin/member-detail.php:257 admin/merge-members.php:196
+#: includes/class-admin.php:315
+msgid "Kenmerken"
+msgstr "Attributs"
+
+#: admin/add-member.php:138
+msgid "Meerdere mogelijk. Een kenmerk als Overleden of Geroyeerd maakt iemand automatisch ex-lid."
+msgstr "Plusieurs choix possibles. Un attribut tel que Décédé ou Exclu transforme automatiquement la personne en ancien membre."
+
+#: admin/add-member.php:143
+msgid "Persoon toevoegen"
+msgstr "Ajouter la personne"
+
+#: admin/class-activity-participation-list-table.php:23
+msgctxt "singular"
+msgid "deelname"
+msgstr "participation"
+
+#: admin/class-activity-participation-list-table.php:24
+msgctxt "plural"
+msgid "deelnames"
+msgstr "participations"
+
+#: admin/class-activity-participation-list-table.php:37
+msgid "Dagen aanwezig"
+msgstr "Jours de présence"
+
+#: admin/class-activity-participation-list-table.php:49
+msgid "Geen actieve leden gevonden."
+msgstr "Aucun membre actif trouvé."
+
+#: admin/class-activity-participation-list-table.php:50
+msgid "Geen deelname gevonden voor deze activiteit."
+msgstr "Aucune participation trouvée pour cette activité."
+
+#: admin/class-activity-participation-list-table.php:116
+msgid "Bewerken"
+msgstr "Modifier"
+
+#: admin/class-members-list-table.php:29 admin/member-detail.php:144
+msgid "Voornaam"
+msgstr "Prénom"
+
+#: admin/class-members-list-table.php:31 admin/class-members-list-table.php:45
+#: admin/member-detail.php:146
+msgid "Achternaam"
+msgstr "Nom"
+
+#: admin/class-members-list-table.php:32 admin/member-detail.php:147
+#: includes/class-member-profile-form.php:240
+msgid "Paspoortnaam"
+msgstr "Nom sur le passeport"
+
+#: admin/class-members-list-table.php:33
+msgid "E-mailadressen"
+msgstr "Adresses e-mail"
+
+#: admin/class-members-list-table.php:35 admin/member-detail.php:189
+#: includes/class-member-merge.php:59
+msgid "Lid sinds"
+msgstr "Membre depuis"
+
+#: admin/class-members-list-table.php:36
+#, php-format
+msgid "Contributie %d"
+msgstr "Cotisation %d"
+
+#: admin/class-members-list-table.php:59 admin/member-detail.php:22
+#: includes/class-ledenlijst.php:40
+msgid "Geen leden gevonden."
+msgstr "Aucun membre trouvé."
+
+#: admin/class-members-list-table.php:88 admin/members-list.php:53
+msgid "Actief"
+msgstr "Actif"
+
+#: admin/class-members-list-table.php:89 admin/members-list.php:53
+#: includes/class-roles.php:524
+msgid "Ex-lid"
+msgstr "Ancien membre"
+
+#: admin/class-members-list-table.php:90 admin/members-list.php:53
+#: includes/class-member-profile-form.php:147 includes/class-roles.php:525
+msgid "Bezoeker"
+msgstr "Visiteur"
+
+#: admin/class-members-list-table.php:121
+#: includes/class-member-profile-form.php:461
+msgid "Toegevoegd door een beheerder, niet zelf geverifieerd"
+msgstr "Ajouté par un administrateur, non vérifié par l'utilisateur"
+
+#: admin/class-members-list-table.php:122
+msgid "niet geverifieerd"
+msgstr "non vérifié"
+
+#: admin/class-members-list-table.php:136 admin/member-detail.php:382
+#: admin/member-detail.php:392 admin/members-list.php:71
+#: admin/merge-members.php:214
+msgid "Betaald"
+msgstr "Payé"
+
+#: admin/class-members-list-table.php:137 admin/member-detail.php:392
+#: admin/members-list.php:71 admin/merge-members.php:214
+msgid "Openstaand"
+msgstr "En attente"
+
+#: admin/class-members-list-table.php:138 admin/members-list.php:71
+msgid "Vrijgesteld"
+msgstr "Exonéré"
+
+#: admin/class-members-list-table.php:162
+msgid "Details"
+msgstr "Détails"
+
+#: admin/login-attempts.php:9
+msgid "Wachtwoord (Authelia)"
+msgstr "Mot de passe (Authelia)"
+
+#: admin/login-attempts.php:12
+msgid "Wachtwoord instellen"
+msgstr "Définir le mot de passe"
+
+#: admin/login-attempts.php:15
+msgid "✓ Gelukt"
+msgstr "✓ Réussi"
+
+#: admin/login-attempts.php:16
+msgid "✗ Onbekend e-mailadres"
+msgstr "✗ Adresse e-mail inconnue"
+
+#: admin/login-attempts.php:17
+msgid "⚠ Gelekt wachtwoord gekozen"
+msgstr "⚠ Mot de passe compromis choisi"
+
+#: admin/login-attempts.php:22 includes/class-admin.php:150
+msgid "Loginpogingen"
+msgstr "Tentatives de connexion"
+
+#. translators: %s: number of login attempts
+#: admin/login-attempts.php:26
+#, php-format
+msgid "%s meest recente poging."
+msgid_plural "%s meest recente pogingen."
+msgstr[0] "%s tentative la plus récente."
+msgstr[1] "%s tentatives les plus récentes."
+
+#: admin/login-attempts.php:33
+msgid "Tijdstip"
+msgstr "Date et heure"
+
+#: admin/login-attempts.php:34
+msgid "E-mailadres"
+msgstr "Adresse e-mail"
+
+#: admin/login-attempts.php:35
+msgid "Methode"
+msgstr "Méthode"
+
+#: admin/login-attempts.php:36
+msgid "Resultaat"
+msgstr "Résultat"
+
+#: admin/login-attempts.php:37
+msgid "IP-adres"
+msgstr "Adresse IP"
+
+#: admin/login-attempts.php:42
+msgid "Nog geen loginpogingen geregistreerd."
+msgstr "Aucune tentative de connexion enregistrée pour le moment."
+
+#: admin/member-detail.php:13 includes/class-admin.php:118
+msgid "Ledendetail"
+msgstr "Détail du membre"
+
+#: admin/member-detail.php:17 admin/members-list.php:34
+msgid "Naam of e-mail"
+msgstr "Nom ou e-mail"
+
+#: admin/member-detail.php:18
+msgid "Zoeken"
+msgstr "Rechercher"
+
+#: admin/member-detail.php:25 admin/member-detail.php:159
+#: admin/member-detail.php:195 admin/member-detail.php:247
+#: admin/merge-members.php:118 includes/class-ledenlijst-export.php:20
+#: includes/class-ledenlijst.php:112 includes/class-ledenlijst.php:127
+#: includes/class-ledenlijst.php:182
+msgid "E-mail"
+msgstr "E-mail"
+
+#: admin/member-detail.php:77
+msgid "Naam bijgewerkt in het account."
+msgstr "Nom mis à jour dans le compte."
+
+#: admin/member-detail.php:77
+#, php-format
+msgid "Bijwerken van het account is mislukt: %s"
+msgstr "Échec de la mise à jour du compte : %s"
+
+#: admin/member-detail.php:82
+msgid "Terug naar ledenlijst"
+msgstr "Retour à la liste des membres"
+
+#: admin/member-detail.php:85
+msgid "Bewerk profiel"
+msgstr "Modifier le profil"
+
+#: admin/member-detail.php:88
+msgid "Meestal niet nodig — een naamwijziging op het profiel werkt het account al automatisch bij. Vooral bedoeld voor een lid van vóór die automatische koppeling."
+msgstr "Généralement inutile — une modification du nom sur le profil met déjà à jour le compte automatiquement. Destiné principalement à un membre inscrit avant cette synchronisation automatique."
+
+#: admin/member-detail.php:88
+msgid "Naam bijwerken in account"
+msgstr "Mettre à jour le nom dans le compte"
+
+#: admin/member-detail.php:92
+msgid "Een dubbel ledenrecord samenvoegen met dit lid"
+msgstr "Fusionner une fiche de membre en doublon avec ce membre"
+
+#: admin/member-detail.php:92
+msgid "Dubbel lid samenvoegen"
+msgstr "Fusionner un membre en doublon"
+
+#: admin/member-detail.php:96
+msgid "Bijgewerkt."
+msgstr "Mis à jour."
+
+#: admin/member-detail.php:99
+msgid "Persoon aangemaakt."
+msgstr "Personne créée."
+
+#: admin/member-detail.php:102
+msgid "E-mailadres gekoppeld."
+msgstr "Adresse e-mail associée."
+
+#: admin/member-detail.php:104 includes/class-member-profile-form.php:441
+msgid "E-mailadres verwijderd."
+msgstr "Adresse e-mail supprimée."
+
+#: admin/member-detail.php:106
+msgid "Primaire identiteit aangepast."
+msgstr "Identité principale modifiée."
+
+#: admin/member-detail.php:108
+msgid "Dit lid heeft al het maximale aantal van 3 e-mailadressen."
+msgstr "Ce membre a déjà le nombre maximal de 3 adresses e-mail."
+
+#: admin/member-detail.php:110
+msgid "Vul een e-mailadres in."
+msgstr "Veuillez saisir une adresse e-mail."
+
+#: admin/member-detail.php:112
+msgid "Dit lid heeft nog maar één geverifieerd inlogadres — voeg eerst een tweede toe voordat je er een verwijdert."
+msgstr "Ce membre ne dispose plus que d'une seule adresse de connexion vérifiée — ajoutez-en d'abord une deuxième avant d'en supprimer une."
+
+#: admin/member-detail.php:114
+msgid "Adres bijgewerkt."
+msgstr "Adresse mise à jour."
+
+#: admin/member-detail.php:116
+msgid "Adres verwijderd."
+msgstr "Adresse supprimée."
+
+#: admin/member-detail.php:118
+msgid "Kenmerken opgeslagen. Dit lid is daardoor uit het bestuur en alle bestuursrollen gehaald en lopende delegaties zijn beëindigd. Vergeet de KVK niet als diegene daar als bestuurder staat."
+msgstr "Attributs enregistrés. Ce membre a par conséquent été retiré du conseil d'administration et de toutes ses fonctions d'administrateur, et les délégations en cours ont pris fin. N'oubliez pas la KVK si cette personne y est inscrite en tant qu'administrateur."
+
+#: admin/member-detail.php:120
+msgid "Kenmerken opgeslagen."
+msgstr "Attributs enregistrés."
+
+#: admin/member-detail.php:122
+msgid "E-mailadres bijgewerkt."
+msgstr "Adresse e-mail mise à jour."
+
+#: admin/member-detail.php:124
+msgid "Kon e-mailadres niet bijwerken (ongeldig adres, of fout bij het bijwerken van het account)."
+msgstr "Impossible de mettre à jour l'adresse e-mail (adresse invalide ou erreur lors de la mise à jour du compte)."
+
+#: admin/member-detail.php:126
+msgid "Groepen bijgewerkt."
+msgstr "Groupes mis à jour."
+
+#: admin/member-detail.php:128
+msgid "Groepen konden niet (volledig) worden bijgewerkt — zie het serverlog."
+msgstr "Les groupes n'ont pas pu être (entièrement) mis à jour — consultez les journaux du serveur."
+
+#: admin/member-detail.php:135
+msgid "Contact & Adressen"
+msgstr "Contact et adresses"
+
+#: admin/member-detail.php:137
+msgid "Contributie"
+msgstr "Cotisation"
+
+#: admin/member-detail.php:141 includes/class-member-profile-form.php:290
+msgid "Contactgegevens"
+msgstr "Coordonnées"
+
+#: admin/member-detail.php:143 includes/class-admin.php:404
+msgid "Gebruikersnaam"
+msgstr "Nom d'utilisateur"
+
+#: admin/member-detail.php:149 includes/class-member-merge.php:50
+msgid "Voorletters"
+msgstr "Initiales"
+
+#: admin/member-detail.php:154
+#, php-format
+msgid "Komt niet overeen met de paspoortnaam (die geeft %s)."
+msgstr "Ne correspond pas au nom sur le passeport (qui indique %s)."
+
+#: admin/member-detail.php:162
+msgid "Contactadres van het account wijzigen?"
+msgstr "Modifier l'adresse de contact du compte ?"
+
+#: admin/member-detail.php:167
+msgid "Wijzigen"
+msgstr "Modifier"
+
+#: admin/member-detail.php:169
+#, php-format
+msgid "Dit is het contactadres van het account zelf, los van de Inlogadressen hieronder — al wordt het automatisch bijgewerkt naar het adres dat daar als primair wordt ingesteld. Leeg laten en opslaan zet het om naar een placeholder-adres (%s@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres."
+msgstr "Il s'agit de l'adresse de contact du compte lui-même, indépendamment des adresses de connexion ci-dessous — bien qu'elle soit automatiquement mise à jour vers l'adresse définie comme principale. Laisser vide et enregistrer la remplace par une adresse temporaire (%s@avpvh.local), tout comme pour un membre sans véritable adresse e-mail."
+
+#: admin/member-detail.php:173 includes/class-ledenlijst-export.php:22
+#: includes/class-ledenlijst.php:113 includes/class-ledenlijst.php:128
+#: includes/class-ledenlijst.php:189 includes/class-member-merge.php:54
+msgid "Telefoon"
+msgstr "Téléphone"
+
+#: admin/member-detail.php:174 includes/class-ledenlijst-export.php:21
+#: includes/class-member-merge.php:55
+#: includes/class-member-profile-form.php:299
+msgid "Mobiel"
+msgstr "Téléphone portable"
+
+#: admin/member-detail.php:175 includes/class-member-merge.php:56
+msgid "Noodcontact"
+msgstr "Contact d'urgence"
+
+#: admin/member-detail.php:182
+msgid "(alleen geboortejaar bekend)"
+msgstr "(seule l'année de naissance est connue)"
+
+#: admin/member-detail.php:188 includes/class-member-profile-form.php:276
+msgid "Scholier/student"
+msgstr "Élève/étudiant"
+
+#: admin/member-detail.php:188 admin/member-detail.php:214
+#: admin/member-detail.php:371 includes/class-admin.php:333
+#: includes/class-admin.php:334
+msgid "Nee"
+msgstr "Non"
+
+#: admin/member-detail.php:190
+msgid "Vertrokken"
+msgstr "Départ"
+
+#: admin/member-detail.php:193 admin/merge-members.php:195
+msgid "Inlogadressen"
+msgstr "Adresses de connexion"
+
+#: admin/member-detail.php:195
+msgid "Provider"
+msgstr "Fournisseur"
+
+#: admin/member-detail.php:195
+msgid "Geverifieerd"
+msgstr "Vérifié"
+
+#: admin/member-detail.php:195
+msgid "Eerste login"
+msgstr "Première connexion"
+
+#: admin/member-detail.php:195
+msgid "Laatste login"
+msgstr "Dernière connexion"
+
+#: admin/member-detail.php:195 includes/class-member-profile-form.php:464
+msgid "Primair"
+msgstr "Principal"
+
+#: admin/member-detail.php:195 admin/member-detail.php:382
+#: admin/merge-members.php:173
+msgid "Actie"
+msgstr "Action"
+
+#: admin/member-detail.php:198
+msgid "Geen gekoppelde adressen."
+msgstr "Aucune adresse associée."
+
+#: admin/member-detail.php:209
+msgid "Nee (door beheerder toegevoegd)"
+msgstr "Non (ajouté par un administrateur)"
+
+#: admin/member-detail.php:218
+msgid "Wordt ook het contactadres van het account hierboven, los van waarmee wordt ingelogd."
+msgstr "Devient également l'adresse de contact du compte ci-dessus, indépendamment de celle utilisée pour la connexion."
+
+#: admin/member-detail.php:223 includes/class-member-profile-form.php:473
+msgid "Maak primair"
+msgstr "Définir comme principale"
+
+#: admin/member-detail.php:227 includes/class-member-profile-form.php:479
+msgid "Dit e-mailadres verwijderen?"
+msgstr "Supprimer cette adresse e-mail ?"
+
+#: admin/member-detail.php:232 includes/class-admin.php:341
+msgid "Verwijder"
+msgstr "Supprimer"
+
+#: admin/member-detail.php:240
+msgid "Nieuw e-mailadres koppelen"
+msgstr "Associer une nouvelle adresse e-mail"
+
+#: admin/member-detail.php:250
+msgid "Wordt als niet-geverifieerd toegevoegd — de daadwerkelijke inlogmethode (Google, Microsoft, of e-maillink) wordt vastgesteld zodra het lid er zelf mee inlogt."
+msgstr "Sera ajoutée comme non vérifiée — le mode de connexion effectif (Google, Microsoft ou lien par e-mail) sera déterminé dès que le membre se connectera avec celle-ci."
+
+#: admin/member-detail.php:254
+msgid "Koppelen"
+msgstr "Associer"
+
+#: admin/member-detail.php:263
+msgid "Nog geen kenmerken aangemaakt."
+msgstr "Aucun attribut créé pour le moment."
+
+#: admin/member-detail.php:273 includes/class-admin.php:325
+#: includes/class-admin.php:359
+msgid "Vrijgesteld van contributie"
+msgstr "Exonéré de cotisation"
+
+#: admin/member-detail.php:273
+msgid "vrijgesteld van contributie"
+msgstr "exonéré de cotisation"
+
+#: admin/member-detail.php:276
+msgid "Zet status automatisch op inactief"
+msgstr "Définit automatiquement le statut sur inactif"
+
+#: admin/member-detail.php:276
+msgid "zet op inactief"
+msgstr "définit sur inactif"
+
+#: admin/member-detail.php:283
+msgid "Kenmerken opslaan"
+msgstr "Enregistrer les attributs"
+
+#: admin/member-detail.php:286
+#, php-format
+msgid "Nieuw kenmerk nodig? %s bij Instellingen."
+msgstr "Besoin d'un nouvel attribut ? %s dans les Réglages."
+
+#: admin/member-detail.php:286
+msgid "Beheer de lijst met kenmerken"
+msgstr "Gérer la liste des attributs"
+
+#: admin/member-detail.php:289
+msgid "Adreshistorie"
+msgstr "Historique des adresses"
+
+#: admin/member-detail.php:290
+msgid "Elke keer dat een adres wordt opgeslagen via het profiel komt er een nieuwe rij bij (nooit een wijziging van een bestaande) — hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen."
+msgstr "Chaque fois qu'une adresse est enregistrée via le profil, une nouvelle ligne est ajoutée (jamais de modification d'une ligne existante) — vous pouvez corriger ici les dates de validité d'une ligne ou supprimer une ligne erronée ou en doublon."
+
+#: admin/member-detail.php:292 includes/class-ledenlijst-export.php:23
+#: includes/class-member-profile-form.php:315
+msgid "Straat"
+msgstr "Rue"
+
+#: admin/member-detail.php:292
+msgid "Nr"
+msgstr "N°"
+
+#: admin/member-detail.php:292 includes/class-ledenlijst-export.php:25
+#: includes/class-ledenlijst.php:115 includes/class-ledenlijst.php:130
+#: includes/class-ledenlijst.php:212 includes/class-member-profile-form.php:327
+msgid "Postcode"
+msgstr "Code postal"
+
+#: admin/member-detail.php:292
+msgid "Stad"
+msgstr "Ville"
+
+#: admin/member-detail.php:292 includes/class-ledenlijst-export.php:27
+#: includes/class-member-profile-form.php:339
+msgid "Land"
+msgstr "Pays"
+
+#: admin/member-detail.php:292 admin/roles.php:275
+msgid "Van"
+msgstr "Du"
+
+#: admin/member-detail.php:292 admin/roles.php:240 admin/roles.php:275
+#: admin/roles.php:339
+msgid "Tot"
+msgstr "Au"
+
+#: admin/member-detail.php:295
+msgid "Geen adressen."
+msgstr "Aucune adresse."
+
+#: admin/member-detail.php:318
+msgid "Dit adres verwijderen?"
+msgstr "Supprimer cette adresse ?"
+
+#: admin/member-detail.php:318 admin/merge-members.php:183 admin/roles.php:202
+#: includes/class-member-profile-form.php:487
+#: includes/class-member-profile-form.php:629
+msgid "Verwijderen"
+msgstr "Supprimer"
+
+#: admin/member-detail.php:326
+msgid "Groepen (toegangsrechten)"
+msgstr "Groupes (droits d'accès)"
+
+#: admin/member-detail.php:327
+msgid "Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor \"Zoeken in documenten\") — los van de kenmerken hierboven, die alleen labels/filters zijn."
+msgstr "L'appartenance à un groupe régit l'accès réel (par ex. droits de secrétaire, groupe pour « Recherche dans les documents ») — indépendamment des attributs ci-dessus, qui ne sont que des libellés/filtres."
+
+#: admin/member-detail.php:336
+msgid "Kon de groepen niet ophalen."
+msgstr "Impossible de récupérer les groupes."
+
+#: admin/member-detail.php:351
+msgid "Geen groepen gevonden."
+msgstr "Aucun groupe trouvé."
+
+#: admin/member-detail.php:354
+msgid "Groepen opslaan"
+msgstr "Enregistrer les groupes"
+
+#: admin/member-detail.php:359
+#: includes/class-activity-participation-export.php:88
+msgid "Deelname"
+msgstr "Participation"
+
+#: admin/member-detail.php:361
+msgid "Activiteit"
+msgstr "Activité"
+
+#: admin/member-detail.php:364
+msgid "Geen activiteiten."
+msgstr "Aucune activité."
+
+#: admin/member-detail.php:380
+msgid "Contributieoverzicht"
+msgstr "Aperçu des cotisations"
+
+#: admin/member-detail.php:382
+msgid "Verschuldigd"
+msgstr "Montant dû"
+
+#: admin/member-detail.php:382
+msgid "Betaaldatum"
+msgstr "Date de paiement"
+
+#: admin/member-detail.php:385
+msgid "Geen contributierecords."
+msgstr "Aucun enregistrement de cotisation."
+
+#: admin/member-detail.php:400
+msgid "Markeer als betaald"
+msgstr "Marquer comme payé"
+
+#: admin/members-list.php:24
+msgid "AVP-PvH Leden"
+msgstr "Membres AVP-PvH"
+
+#: admin/members-list.php:33
+msgid "Zoeken:"
+msgstr "Recherche :"
+
+#: admin/members-list.php:37
+msgid "Filter:"
+msgstr "Filtrer :"
+
+#: admin/members-list.php:41
+msgid "Filter voornaam"
+msgstr "Filtrer par prénom"
+
+#: admin/members-list.php:44
+msgid "Filter tussenvoegsel"
+msgstr "Filtrer par particule"
+
+#: admin/members-list.php:47
+msgid "Filter achternaam"
+msgstr "Filtrer par nom"
+
+#: admin/members-list.php:50 admin/members-list.php:51
+msgid "Alle statussen"
+msgstr "Tous les statuts"
+
+#: admin/members-list.php:65
+msgid "Lid sinds jaar"
+msgstr "Membre depuis l'année"
+
+#: admin/members-list.php:68 admin/members-list.php:69
+msgid "Alle contributies"
+msgstr "Toutes les cotisations"
+
+#: admin/members-list.php:71
+msgid "Geen record"
+msgstr "Aucun enregistrement"
+
+#: admin/members-list.php:83
+msgid "Geen kenmerken"
+msgstr "Aucun attribut"
+
+#: admin/members-list.php:85 admin/members-list.php:86
+msgid "Alle kenmerken"
+msgstr "Tous les attributs"
+
+#: admin/members-list.php:100
+msgid "Filteren"
+msgstr "Filtrer"
+
+#: admin/members-list.php:102
+msgid "Wis"
+msgstr "Effacer"
+
+#: admin/merge-members.php:26 includes/class-admin.php:128
+msgid "Leden samenvoegen"
+msgstr "Fusionner des membres"
+
+#: admin/merge-members.php:28
+msgid "Voeg een dubbel ledenrecord samen met het lid dat blijft bestaan. Activiteiten, contributie, adressen, inlogadressen, relaties, kenmerken en boekhoudregels gaan mee; het dubbele lid en zijn account worden daarna verwijderd. Dit kan niet ongedaan worden gemaakt."
+msgstr "Fusionnez une fiche de membre en doublon avec le membre conservé. Les activités, cotisations, adresses, adresses de connexion, relations, attributs et écritures comptables sont transférés ; le membre en doublon et son compte sont ensuite supprimés. Cette opération est irréversible."
+
+#: admin/merge-members.php:37
+msgid "Samengevoegd in"
+msgstr "Fusionné dans"
+
+#: admin/merge-members.php:52 admin/merge-members.php:110
+#: admin/merge-members.php:142
+msgid "Behouden"
+msgstr "Conserver"
+
+#: admin/merge-members.php:55
+msgid "kies het lid dat blijft"
+msgstr "choisissez le membre à conserver"
+
+#: admin/merge-members.php:63
+msgid "Opheffen (dubbel)"
+msgstr "Supprimer (doublon)"
+
+#: admin/merge-members.php:66
+msgid "kies het dubbele lid"
+msgstr "choisissez le membre en doublon"
+
+#: admin/merge-members.php:74 admin/merge-members.php:263
+msgid "Vergelijken"
+msgstr "Comparer"
+
+#: admin/merge-members.php:76
+msgid "Richting omwisselen"
+msgstr "Inverser le sens"
+
+#: admin/merge-members.php:108 admin/merge-members.php:113
+#: includes/class-nav-auth.php:72
+msgid "Account"
+msgstr "Compte"
+
+#: admin/merge-members.php:110 admin/merge-members.php:142
+msgid "Opheffen"
+msgstr "Supprimer"
+
+#: admin/merge-members.php:115
+msgid "wordt verwijderd"
+msgstr "sera supprimé"
+
+#: admin/merge-members.php:123 includes/class-ledenlijst-export.php:28
+#: includes/class-ledenlijst.php:117 includes/class-ledenlijst.php:132
+#: includes/class-ledenlijst.php:218
+msgid "Groepen"
+msgstr "Groupes"
+
+#: admin/merge-members.php:128
+msgid "Ingelogd"
+msgstr "Connecté"
+
+#: admin/merge-members.php:129 admin/merge-members.php:130
+#: includes/class-activity-overview.php:74
+#: includes/class-activity-participation-export.php:66
+msgid "ja"
+msgstr "oui"
+
+#: admin/merge-members.php:129 admin/merge-members.php:130
+msgid "nee"
+msgstr "non"
+
+#: admin/merge-members.php:134
+msgid "Een echt e-mailadres van het dubbele account wordt als (onbevestigd) inlogadres aan het behouden lid toegevoegd."
+msgstr "Une véritable adresse e-mail du compte en doublon sera ajoutée comme adresse de connexion (non confirmée) au membre conservé."
+
+#: admin/merge-members.php:136
+msgid "Gegevens"
+msgstr "Données"
+
+#: admin/merge-members.php:138
+msgid "Alle gegevens zijn gelijk."
+msgstr "Toutes les données sont identiques."
+
+#: admin/merge-members.php:140
+msgid "Alleen velden die verschillen. Privacykeuzes staan standaard op de strengste van de twee. Een naam die wegvalt wordt bewaard als naamvariant."
+msgstr "Uniquement les champs qui diffèrent. Les choix de confidentialité sont réglés par défaut sur le plus strict des deux. Tout nom supprimé est conservé comme variante de nom."
+
+#: admin/merge-members.php:142 includes/class-member-profile-form.php:803
+msgid "Veld"
+msgstr "Champ"
+
+#: admin/merge-members.php:151
+msgid "leeg"
+msgstr "vide"
+
+#: admin/merge-members.php:161
+msgid "Adressen"
+msgstr "Adresses"
+
+#: admin/merge-members.php:164
+msgid "heden"
+msgstr "présent"
+
+#: admin/merge-members.php:166
+msgid "Behouden lid:"
+msgstr "Membre conservé :"
+
+#: admin/merge-members.php:170
+msgid "Het dubbele lid heeft geen adressen."
+msgstr "Le membre en doublon n'a pas d'adresses."
+
+#: admin/merge-members.php:173
+msgid "Adres van het dubbele lid"
+msgstr "Adresse du membre en doublon"
+
+#: admin/merge-members.php:181
+msgid "Overnemen"
+msgstr "Reprendre"
+
+#: admin/merge-members.php:182
+msgid "Overnemen als oud adres (einddatum vandaag)"
+msgstr "Reprendre comme ancienne adresse (date de fin aujourd'hui)"
+
+#: admin/merge-members.php:192
+msgid "Wat er verder meegaat"
+msgstr "Autres éléments transférés"
+
+#: admin/merge-members.php:197 includes/class-member-profile-form.php:597
+msgid "Relaties"
+msgstr "Relations"
+
+#: admin/merge-members.php:198
+msgid "Naamvarianten"
+msgstr "Variantes de nom"
+
+#: admin/merge-members.php:199
+msgid "Wijzigingslog-regels"
+msgstr "Lignes du journal des modifications"
+
+#: admin/merge-members.php:200
+msgid "Roldelegaties"
+msgstr "Délégations de rôle"
+
+#: admin/merge-members.php:206
+#, php-format
+msgid "Activiteit %s"
+msgstr "Activité %s"
+
+#: admin/merge-members.php:208
+msgid "beiden deden mee: de bestaande deelname blijft, aangevuld met ontbrekende gegevens en dagen"
+msgstr "tous deux ont participé : la participation existante est conservée, complétée par les données et jours manquants"
+
+#: admin/merge-members.php:214
+#, php-format
+msgid "Contributie %s (%s)"
+msgstr "Cotisation %s (%s)"
+
+#: admin/merge-members.php:216
+msgid "deze vervangt de openstaande regel van het behouden lid"
+msgstr "celle-ci remplace la ligne en attente du membre conservé"
+
+#: admin/merge-members.php:216
+msgid "de regel van het behouden lid blijft, deze vervalt"
+msgstr "la ligne du membre conservé est conservée, celle-ci est annulée"
+
+#: admin/merge-members.php:224
+msgid "andere plugin"
+msgstr "autre extension"
+
+#: admin/merge-members.php:227
+msgid "Niets — het dubbele lid heeft geen verdere gegevens."
+msgstr "Rien — le membre en doublon n'a pas d'autres données."
+
+#: admin/merge-members.php:235
+msgid "Ik heb gecontroleerd dat dit dezelfde persoon is."
+msgstr "J'ai vérifié qu'il s'agit de la même personne."
+
+#: admin/merge-members.php:238
+msgid "Samenvoegen"
+msgstr "Fusionner"
+
+#: admin/merge-members.php:244
+msgid "Mogelijke dubbelen"
+msgstr "Doublons potentiels"
+
+#: admin/merge-members.php:245
+msgid "Leden met dezelfde voornaam en achternaam (hoofdletters en de plek van het tussenvoegsel genegeerd), ook via een vastgelegde naamvariant. Dit is alleen een suggestie — controleer altijd of het echt dezelfde persoon is."
+msgstr "Membres ayant le même prénom et nom de famille (sans tenir compte des majuscules ni de la place de la particule), y compris via une variante de nom enregistrée. Il ne s'agit que d'une suggestion — vérifiez toujours s'il s'agit bien de la même personne."
+
+#: admin/merge-members.php:247
+msgid "Geen mogelijke dubbelen gevonden."
+msgstr "Aucun doublon potentiel trouvé."
+
+#: admin/merge-members.php:257
+#, php-format
+msgid "via naamvariant %s"
+msgstr "via la variante de nom %s"
+
+#: admin/newsletter.php:19
+#, php-format
+msgid "%s lid"
+msgid_plural "%s leden"
+msgstr[0] "%s membre"
+msgstr[1] "%s membres"
+
+#. translators: %s: number of members (e.g. "5 leden")
+#: admin/newsletter.php:24
+#, php-format
+msgid "E-mail versturen naar %s?"
+msgstr "Envoyer un e-mail à %s ?"
+
+#: admin/newsletter.php:29 includes/class-admin.php:154
+msgid "Nieuwsbrief"
+msgstr "Lettre d'information"
+
+#. translators: %s: recipient count formatted with bold tags
+#: admin/newsletter.php:35
+#, php-format
+msgid "Stuurt direct (geen concept/inplannen) een losse e-mail naar elk actief lid dat “Ik wil e-mail ontvangen over activiteiten en de nieuwsbrief” heeft aangevinkt op hun profiel — nu <strong>%s</strong>. Elke e-mail wordt los verzonden (geen BCC), dus niemand ziet de rest van de lijst."
+msgstr "Envoie directement (sans brouillon ni planification) un e-mail individuel à chaque membre actif ayant coché « Je souhaite recevoir des e-mails concernant les activités et la lettre d'information » sur son profil — actuellement <strong>%s</strong>. Chaque e-mail est envoyé individuellement (sans Cci), personne ne voit donc le reste de la liste."
+
+#. translators: %s: number of members
+#: admin/newsletter.php:47
+#, php-format
+msgid "Verzonden aan %s lid."
+msgid_plural "Verzonden aan %s leden."
+msgstr[0] "Envoyé à %s membre."
+msgstr[1] "Envoyé à %s membres."
+
+#: admin/newsletter.php:52
+msgid "Vul onderwerp en tekst in."
+msgstr "Veuillez saisir un objet et un texte."
+
+#: admin/newsletter.php:56
+msgid "Kenmerk \"nieuwsbrief\" bestaat niet (zou automatisch aangemaakt moeten zijn) — controleer Instellingen → Kenmerken."
+msgstr "L'attribut « nieuwsbrief » n'existe pas (il devrait être créé automatiquement) — vérifiez Réglages → Attributs."
+
+#: admin/newsletter.php:65
+msgid "Onderwerp"
+msgstr "Objet"
+
+#: admin/newsletter.php:69
+msgid "Tekst"
+msgstr "Texte"
+
+#: admin/newsletter.php:73
+msgid "Versturen"
+msgstr "Envoyer"
+
+#: admin/roles.php:16 includes/class-admin.php:168
+msgid "Rollen & delegatie"
+msgstr "Rôles et délégation"
+
+#: admin/roles.php:19
+msgid "Delegatie aangemaakt."
+msgstr "Délégation créée."
+
+#: admin/roles.php:21
+msgid "Delegeren aan iemand die geen bestuurslid is kan alleen tijdelijk: vul bij \"Tot\" een einddatum in."
+msgstr "La délégation à une personne qui n'est pas membre du conseil d'administration ne peut être que temporaire : renseignez une date de fin sous « Au »."
+
+#: admin/roles.php:23
+msgid "De einddatum bij \"Tot\" moet in de toekomst liggen."
+msgstr "La date de fin sous « Au » doit être dans le futur."
+
+#: admin/roles.php:25
+msgid "Delegatie kon niet worden aangemaakt — controleer de invoer, of je hebt zelf niet de rechten om deze rol te delegeren."
+msgstr "Impossible de créer la délégation — vérifiez votre saisie ou vérifiez que vous disposez des droits nécessaires pour déléguer ce rôle."
+
+#: admin/roles.php:27
+msgid "Delegatie ingetrokken."
+msgstr "Délégation révoquée."
+
+#: admin/roles.php:30
+#, php-format
+msgid "Nieuwe %s aangewezen."
+msgstr "Nouveau %s désigné."
+
+#: admin/roles.php:30
+msgid "functionaris"
+msgstr "responsable"
+
+#: admin/roles.php:32
+msgid "Bestuurslid toegevoegd."
+msgstr "Membre du conseil d'administration ajouté."
+
+#: admin/roles.php:34
+msgid "Bestuurslid verwijderd."
+msgstr "Membre du conseil d'administration retiré."
+
+#: admin/roles.php:36
+msgid "Bestuur wijzigen is niet gelukt. Alleen actieve leden met een eigen login kunnen bestuurslid worden."
+msgstr "Échec de la modification du conseil d'administration. Seuls les membres actifs disposant de leur propre identifiant de connexion peuvent devenir membres du conseil d'administration."
+
+#: admin/roles.php:38
+msgid "Je bent tijdelijk secretaris tot de gekozen einddatum."
+msgstr "Vous êtes secrétaire temporaire jusqu'à la date de fin sélectionnée."
+
+#: admin/roles.php:40
+#, php-format
+msgid "Tijdelijk secretaris worden is niet gelukt: kies een einddatum in de toekomst, uiterlijk %d dagen vanaf nu."
+msgstr "Impossible de devenir secrétaire temporaire : choisissez une date de fin future, au plus tard %d jours à compter d'aujourd'hui."
+
+#: admin/roles.php:42
+msgid "Dit lid is geen bestuurslid. Wil je toch iemand buiten het bestuur aanwijzen, vink dan \"Lid is geen bestuurslid (uitzondering)\" aan."
+msgstr "Ce membre ne fait pas partie du conseil d'administration. Si vous souhaitez néanmoins désigner une personne extérieure au conseil, cochez « Le membre ne fait pas partie du conseil d'administration (exception) »."
+
+#: admin/roles.php:45
+#, php-format
+msgid "Functie %s neergelegd; diegene blijft bestuurslid. De functie is nu niet ingevuld tot er iemand wordt aangewezen."
+msgstr "Fonction %s libérée ; la personne reste membre du conseil d'administration. La fonction reste vacante jusqu'à ce que quelqu'un soit désigné."
+
+#: admin/roles.php:47
+msgid "Aftreden is niet gelukt; neem contact op met de beheerder."
+msgstr "Échec de la démission ; veuillez contacter l'administrateur."
+
+#: admin/roles.php:49
+msgid "Aanwijzen is niet gelukt. Kies een rol en een lid en vink de bevestiging aan; lukt het dan nog niet, neem contact op met de beheerder."
+msgstr "Échec de la désignation. Choisissez un rôle et un membre, puis cochez la confirmation ; si le problème persiste, contactez l'administrateur."
+
+#: admin/roles.php:55
+msgid "Vergeet de KVK niet:"
+msgstr "N'oubliez pas la Chambre de commerce (KVK) :"
+
+#: admin/roles.php:57
+#, php-format
+msgid "een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%s, via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het %s. Dit gaat niet automatisch."
+msgstr "un changement au sein du conseil d'administration doit être signalé dans un délai d'une semaine à la KVK (%s, via Mijn KVK ; les nouveaux membres du bureau signent avec DigiD), puis dans le %s. Cela ne se fait pas automatiquement."
+
+#: admin/roles.php:58
+msgid "bestuurswissel doorgeven"
+msgstr "déclarer un changement au conseil d'administration"
+
+#: admin/roles.php:59
+msgid "UBO-register"
+msgstr "Registre UBO"
+
+#: admin/roles.php:66
+msgid "Dagelijks bestuur"
+msgstr "Bureau"
+
+#: admin/roles.php:68
+msgid "Voorzitter, secretaris en penningmeester vormen het dagelijks bestuur. Wie aftreedt blijft gewoon bestuurslid; de functie is dan tijdelijk niet ingevuld. Treedt de voorzitter af, dan kan alleen de beheerder een nieuwe voorzitter aanwijzen. Een nieuwe voorzitter, secretaris of penningmeester wijs je hieronder aan bij \"Bestuursfuncties aanwijzen\"; bestuursleden toevoegen of verwijderen doe je bij \"Bestuursleden\"."
+msgstr "Le président, le secrétaire et le trésorier constituent le bureau. Si l'un d'eux démissionne, il reste simple membre du conseil ; le poste est alors temporairement vacant. Si le président démissionne, seul l'administrateur peut désigner un nouveau président. Vous pouvez désigner un nouveau président, secrétaire ou trésorier ci-dessous sous « Désigner les fonctions du bureau » ; pour ajouter ou supprimer des membres du conseil, utilisez « Membres du conseil »."
+
+#: admin/roles.php:71 admin/roles.php:133 admin/roles.php:240
+#: admin/roles.php:275 admin/roles.php:306
+msgid "Rol"
+msgstr "Rôle"
+
+#: admin/roles.php:71
+msgid "Leden"
+msgstr "Membres"
+
+#: admin/roles.php:79
+msgid "niet ingevuld"
+msgstr "non pourvu"
+
+#: admin/roles.php:89
+msgid "Voorzitterschap neerleggen? Diegene blijft bestuurslid. Daarna kan alleen de beheerder een nieuwe voorzitter aanwijzen."
+msgstr "Renoncer à la présidence ? Cette personne restera membre du conseil. Ensuite, seul l'administrateur pourra désigner un nouveau président."
+
+#: admin/roles.php:89
+msgid "Functie neerleggen? Diegene blijft bestuurslid; de functie is daarna niet ingevuld."
+msgstr "Renoncer à la fonction ? Cette personne restera membre du conseil ; le poste sera ensuite vacant."
+
+#: admin/roles.php:89
+msgid "Aftreden"
+msgstr "Démissionner"
+
+#: admin/roles.php:98
+msgid "Alle bestuursleden"
+msgstr "Tous les membres du conseil"
+
+#: admin/roles.php:109
+msgid "Tijdelijk secretaris (penningmeester)"
+msgstr "Secrétaire temporaire (trésorier)"
+
+#: admin/roles.php:110
+#, php-format
+msgid "Als penningmeester kun je jezelf tijdelijk de rechten van de secretaris geven, voor maximaal %d dagen. Langer of voor iemand anders gaat via de voorzitter."
+msgstr "En tant que trésorier, vous pouvez vous attribuer temporairement les droits du secrétaire, pour un maximum de %d jours. Pour une durée plus longue ou pour une autre personne, cela passe par le président."
+
+#: admin/roles.php:114
+msgid "Tot:"
+msgstr "Jusqu'au :"
+
+#: admin/roles.php:116
+msgid "Tijdelijk secretaris worden"
+msgstr "Devenir secrétaire temporaire"
+
+#: admin/roles.php:124
+msgid "Bestuursfuncties aanwijzen"
+msgstr "Désigner les fonctions du bureau"
+
+#: admin/roles.php:126
+msgid "Wijs een nieuwe voorzitter, secretaris of penningmeester aan, ook voor een rol die niet ingevuld is. Diegene krijgt de rol, wie de functie nu heeft raakt die kwijt en actieve delegaties van die functie worden beëindigd. Dit is blijvend, geen tijdelijke delegatie."
+msgstr "Désignez un nouveau président, secrétaire ou trésorier, y compris pour un rôle non pourvu. Cette personne reçoit le rôle, le titulaire actuel le perd et les délégations actives de cette fonction sont résiliées. Ceci est définitif et ne constitue pas une délégation temporaire."
+
+#: admin/roles.php:147 admin/roles.php:178 admin/roles.php:320
+msgid "Bestuursleden"
+msgstr "Membres du conseil"
+
+#: admin/roles.php:152
+msgid "Overige leden (alleen met uitzondering hieronder)"
+msgstr "Autres membres (uniquement avec l'exception ci-dessous)"
+
+#: admin/roles.php:166
+msgid "Uitzondering"
+msgstr "Exception"
+
+#: admin/roles.php:168
+msgid "Lid is geen bestuurslid (uitzondering)"
+msgstr "Le membre n'est pas membre du conseil (exception)"
+
+#: admin/roles.php:169
+msgid "Normaal wordt alleen een bestuurslid voorzitter, secretaris of penningmeester. Vink dit aan om toch een ander lid aan te wijzen; diegene wordt daarmee bestuurslid via de rol."
+msgstr "Normalement, seul un membre du conseil peut devenir président, secrétaire ou trésorier. Cochez cette case pour désigner néanmoins un autre membre ; cette personne deviendra ainsi membre du conseil par le biais de ce rôle."
+
+#: admin/roles.php:173
+msgid "Aanwijzen"
+msgstr "Désigner"
+
+#: admin/roles.php:179
+msgid "Bestuursleden moeten actieve leden met een eigen login zijn. Voorzitter, secretaris en penningmeester zijn als dagelijks bestuur automatisch bestuurslid; die vervang je via \"Bestuursfuncties aanwijzen\". Wie uit het bestuur gaat (verwijderd, of als voorzitter, secretaris of penningmeester vervangen en geen bestuurslid meer) krijgt het kenmerk Oud-bestuurder."
+msgstr "Les membres du conseil doivent être des membres actifs disposant de leur propre identifiant. Le président, le secrétaire et le trésorier sont automatiquement membres du conseil en tant que membres du bureau ; vous les remplacez via « Désigner les fonctions du bureau ». Quiconque quitte le conseil (supprimé, ou remplacé en tant que président, secrétaire ou trésorier sans rester membre du conseil) reçoit l'attribut Oud-bestuurder."
+
+#: admin/roles.php:187
+msgid "Geen bestuursleden."
+msgstr "Aucun membre du conseil."
+
+#: admin/roles.php:202
+msgid "Uit het bestuur verwijderen? Diegene krijgt het kenmerk Oud-bestuurder."
+msgstr "Retirer du conseil ? Cette personne recevra l'attribut Oud-bestuurder."
+
+#: admin/roles.php:206
+msgid "dagelijks bestuur"
+msgstr "bureau"
+
+#: admin/roles.php:217
+msgid "Bestuurslid toevoegen:"
+msgstr "Ajouter un membre du conseil :"
+
+#: admin/roles.php:229
+msgid "Toevoegen"
+msgstr "Ajouter"
+
+#: admin/roles.php:237
+msgid "Actieve delegaties"
+msgstr "Délégations actives"
+
+#: admin/roles.php:240 admin/roles.php:275
+msgid "Gedelegeerd aan"
+msgstr "Délégué à"
+
+#: admin/roles.php:240 admin/roles.php:275
+msgid "Door"
+msgstr "Par"
+
+#: admin/roles.php:240
+msgid "Sinds"
+msgstr "Depuis"
+
+#: admin/roles.php:244
+msgid "Geen actieve delegaties."
+msgstr "Aucune délégation active."
+
+#: admin/roles.php:252 admin/roles.php:287
+#: includes/class-member-profile-form.php:1352 includes/class-nav-auth.php:111
+msgid "Beheerder"
+msgstr "Administrateur"
+
+#: admin/roles.php:253
+msgid "Onbepaalde tijd"
+msgstr "Durée indéterminée"
+
+#: admin/roles.php:260
+msgid "Delegatie intrekken?"
+msgstr "Révoquer la délégation ?"
+
+#: admin/roles.php:260
+msgid "Intrekken"
+msgstr "Révoquer"
+
+#: admin/roles.php:270
+msgid "Verlopen delegaties"
+msgstr "Délégations expirées"
+
+#: admin/roles.php:271
+msgid "De laatste 10 verlopen of ingetrokken delegaties."
+msgstr "Les 10 dernières délégations expirées ou révoquées."
+
+#: admin/roles.php:279
+msgid "Geen verlopen delegaties."
+msgstr "Aucune délégation expirée."
+
+#: admin/roles.php:297
+msgid "Nieuwe delegatie"
+msgstr "Nouvelle délégation"
+
+#: admin/roles.php:299
+msgid "Tijdelijk delegeren (bijv. tijdens kamp, of secretariaat overdragen aan een ander bestuurslid). Laat \"Tot\" leeg voor onbepaalde tijd. Een rol kan ook tijdelijk worden uitgevoerd door een lid dat geen bestuurslid is; dan is \"Tot\" verplicht. Diegene krijgt de rechten van de rol, maar wordt geen bestuurslid."
+msgstr "Déléguer temporairement (par ex. pendant un camp, ou pour transférer le secrétariat à un autre membre du conseil). Laissez « Jusqu'au » vide pour une durée indéterminée. Un rôle peut également être exercé temporairement par un membre qui ne fait pas partie du conseil ; dans ce cas, « Jusqu'au » est obligatoire. Cette personne reçoit les droits du rôle, mais ne devient pas membre du conseil."
+
+#: admin/roles.php:316
+msgid "Delegeren aan"
+msgstr "Déléguer à"
+
+#: admin/roles.php:325
+msgid "Overige leden (alleen tijdelijk, Tot verplicht)"
+msgstr "Autres membres (uniquement temporaire, « Jusqu'au » obligatoire)"
+
+#: admin/roles.php:342
+msgid "Optioneel voor bestuursleden, verplicht voor overige leden."
+msgstr "Facultatif pour les membres du conseil, obligatoire pour les autres membres."
+
+#: admin/roles.php:346
+msgid "Delegeren"
+msgstr "Déléguer"
+
+#: includes/class-access.php:127
+msgid "Inloggen met Google"
+msgstr "Se connecter avec Google"
+
+#: includes/class-access.php:128
+msgid "Inloggen met Microsoft"
+msgstr "Se connecter avec Microsoft"
+
+#: includes/class-access.php:129
+msgid "Inloggen met wachtwoord"
+msgstr "Se connecter avec un mot de passe"
+
+#: includes/class-access.php:148
+msgid "Het gebruikte account is niet gekoppeld aan een lid. Probeer het opnieuw met het e-mailadres waarmee je bij de vereniging geregistreerd staat."
+msgstr "Le compte utilisé n'est associé à aucun membre. Veuillez réessayer avec l'adresse e-mail avec laquelle vous êtes enregistré auprès de l'association."
+
+#: includes/class-access.php:149
+msgid "Je inlogpoging duurde te lang en is verlopen. Probeer het opnieuw."
+msgstr "Votre tentative de connexion a pris trop de temps et a expiré. Veuillez réessayer."
+
+#: includes/class-access.php:150
+msgid "Inloggen is niet gelukt. Probeer het opnieuw."
+msgstr "La connexion a échoué. Veuillez réessayer."
+
+#: includes/class-access.php:151
+msgid "Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in."
+msgstr "Votre session a expiré après 24 heures d'inactivité. Veuillez vous reconnecter."
+
+#: includes/class-access.php:160
+msgid "Je kunt alleen inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook elders, dan vertrouwt deze website dat ook wanneer je het laat valideren door Google of Microsoft. Als je al bij Google of Microsoft bent ingelogd, kun je zonder wachtwoord inloggen — al moet het e-mailadres waarmee je daar bent ingelogd dan wel bekend zijn bij deze website. Heb je speciale rechten (bijv. bloggen), dan moet je een extra 2-staps verificatieprocedure doorlopen via “Inloggen met wachtwoord”."
+msgstr "Vous ne pouvez vous connecter qu'avec une adresse e-mail connue de l'association. Si vous utilisez cette même adresse e-mail ailleurs, ce site web lui fait également confiance lorsque vous la faites valider par Google ou Microsoft. Si vous êtes déjà connecté auprès de Google ou Microsoft, vous pouvez vous connecter sans mot de passe — à condition que l'adresse e-mail avec laquelle vous y êtes connecté soit bien connue de ce site web. Si vous disposez de droits spécifiques (par ex. pour bloguer), vous devez suivre une procédure d'authentification en 2 étapes via « Se connecter avec un mot de passe »."
+
+#: includes/class-access.php:295
+msgid "Deze pagina is alleen beschikbaar voor leden."
+msgstr "Cette page est réservée aux membres."
+
+#: includes/class-access.php:296 includes/class-nav-auth.php:71
+msgid "Inloggen"
+msgstr "Se connecter"
+
+#: includes/class-access.php:306
+msgid "Je lidmaatschap is beëindigd. Neem contact op met het bestuur."
+msgstr "Votre adhésion a pris fin. Veuillez contacter le bureau."
+
+#: includes/class-activity-overview.php:23
+msgid "Je moet ingelogd zijn om dit overzicht te zien."
+msgstr "Vous devez être connecté pour voir cet aperçu."
+
+#: includes/class-activity-overview.php:28
+msgid "Dit overzicht is alleen beschikbaar voor actieve leden."
+msgstr "Cet aperçu est réservé aux membres actifs."
+
+#: includes/class-activity-overview.php:33
+#: includes/class-activity-overview.php:38
+msgid "Er is nog geen overzicht beschikbaar."
+msgstr "Aucun aperçu n'est encore disponible."
+
+#: includes/class-activity-overview.php:55
+#: includes/class-activity-participation-export.php:38
+#, php-format
+msgid "Laatst bijgewerkt: %s"
+msgstr "Dernière mise à jour : %s"
+
+#: includes/class-activity-participation-form.php:21
+msgid "Je moet ingelogd zijn om je deelname te wijzigen."
+msgstr "Vous devez être connecté pour modifier votre participation."
+
+#: includes/class-activity-participation-form.php:26
+msgid "Geen lidprofiel gevonden."
+msgstr "Aucun profil de membre trouvé."
+
+#: includes/class-activity-participation-form.php:31
+msgid "Er is nog geen activiteit beschikbaar om je voor in te schrijven."
+msgstr "Aucune activité n'est encore disponible pour s'inscrire."
+
+#: includes/class-activity-participation-form.php:59
+msgid "Voor wie:"
+msgstr "Pour qui :"
+
+#: includes/class-activity-participation-form.php:73
+msgid "Je deelname is opgeslagen."
+msgstr "Votre participation a été enregistrée."
+
+#: includes/class-activity-participation-form.php:84
+msgid "Aantal nachten"
+msgstr "Nombre de nuits"
+
+#: includes/class-activity-participation-form.php:88
+msgid "Ik doe nawacht"
+msgstr "Je fais la garde de nuit"
+
+#: includes/class-activity-participation-form.php:91
+msgid "Dieetwensen"
+msgstr "Régime alimentaire"
+
+#: includes/class-activity-participation-form.php:95
+msgid "Opmerkingen"
+msgstr "Remarques"
+
+#: includes/class-activity-participation-form.php:100
+msgid "Welke dagen ben je aanwezig?"
+msgstr "Quels jours serez-vous présent ?"
+
+#: includes/class-activity-participation-form.php:124
+#: includes/class-directory-consent.php:14 includes/class-email-identity.php:45
+#: includes/class-member-profile-form.php:990
+#: includes/class-member-profile-form.php:1046
+#: includes/class-member-profile-form.php:1095
+#: includes/class-member-profile-form.php:1147
+#: includes/class-member-profile-form.php:1196
+#: includes/class-newsletter-consent.php:14
+msgid "Je moet ingelogd zijn."
+msgstr "Vous devez être connecté."
+
+#: includes/class-activity-participation-form.php:124
+#: includes/class-activity-participation-form.php:132
+#: includes/class-activity-participation-form.php:137
+#: includes/class-admin.php:730 includes/class-admin.php:770
+#: includes/class-directory-consent.php:14
+#: includes/class-directory-consent.php:19
+#: includes/class-directory-consent.php:34
+#: includes/class-directory-consent.php:40 includes/class-email-identity.php:45
+#: includes/class-email-identity.php:54 includes/class-email-identity.php:116
+#: includes/class-member-profile-form.php:990
+#: includes/class-member-profile-form.php:998
+#: includes/class-member-profile-form.php:1003
+#: includes/class-member-profile-form.php:1046
+#: includes/class-member-profile-form.php:1054
+#: includes/class-member-profile-form.php:1059
+#: includes/class-member-profile-form.php:1095
+#: includes/class-member-profile-form.php:1106
+#: includes/class-member-profile-form.php:1111
+#: includes/class-member-profile-form.php:1115
+#: includes/class-member-profile-form.php:1147
+#: includes/class-member-profile-form.php:1171
+#: includes/class-member-profile-form.php:1175
+#: includes/class-member-profile-form.php:1196
+#: includes/class-member-profile-form.php:1204
+#: includes/class-newsletter-consent.php:14
+#: includes/class-newsletter-consent.php:19
+#: includes/class-newsletter-consent.php:34
+msgid "Fout"
+msgstr "Erreur"
+
+#: includes/class-activity-participation-form.php:137
+#: includes/class-admin.php:1113
+msgid "Activiteit niet gevonden."
+msgstr "Activité introuvable."
+
+#: includes/class-admin.php:99
+msgid "AV-PvH Leden"
+msgstr "Membres AV-PvH"
+
+#: includes/class-admin.php:104
+msgid "Ledenbeheer"
+msgstr "Gestion des membres"
+
+#: includes/class-admin.php:158
+msgid "Instellingen"
+msgstr "Paramètres"
+
+#: includes/class-admin.php:234
+msgid "AVP-PvH Instellingen"
+msgstr "Paramètres AVP-PvH"
+
+#: includes/class-admin.php:236
+msgid "LLDAP-verbinding OK."
+msgstr "Connexion LLDAP OK."
+
+#: includes/class-admin.php:238
+#, php-format
+msgid "LLDAP-fout: %s"
+msgstr "Erreur LLDAP : %s"
+
+#: includes/class-admin.php:241
+msgid "Directory-verbinding OK."
+msgstr "Connexion à l'annuaire OK."
+
+#: includes/class-admin.php:243
+#, php-format
+msgid "Directory-fout: %s"
+msgstr "Erreur d'annuaire : %s"
+
+#: includes/class-admin.php:248
+#, php-format
+msgid "Gesynchroniseerd: %d accounts, %d verwijderd."
+msgstr "Synchronisé : %d comptes, %d supprimés."
+
+#: includes/class-admin.php:249
+#, php-format
+msgid "Synchroniseren mislukt: %s"
+msgstr "Échec de la synchronisation : %s"
+
+#: includes/class-admin.php:253
+#, php-format
+msgid "%s credentials OK — client ID en secret zijn geldig."
+msgstr "Identifiants %s OK — l'ID client et le secret sont valides."
+
+#: includes/class-admin.php:257
+msgid "Google credentials ongeldig — controleer de client ID en secret in de Google Cloud Console."
+msgstr "Identifiants Google non valides — vérifiez l'ID client et le secret dans la Google Cloud Console."
+
+#: includes/class-admin.php:259
+msgid "Microsoft credentials ongeldig — controleer de client ID en secret in de Azure portal."
+msgstr "Identifiants Microsoft non valides — vérifiez l'ID client et le secret dans le portail Azure."
+
+#: includes/class-admin.php:262
+#, php-format
+msgid "Fout: %s"
+msgstr "Erreur : %s"
+
+#: includes/class-admin.php:272 includes/class-admin.php:292
+msgid "Client ID"
+msgstr "ID client"
+
+#: includes/class-admin.php:277 includes/class-admin.php:297
+msgid "Client Secret"
+msgstr "Secret client"
+
+#: includes/class-admin.php:280
+msgid "Redirect URI voor Google Console:"
+msgstr "URI de redirection pour Google Console :"
+
+#: includes/class-admin.php:287
+msgid "Google credentials testen"
+msgstr "Tester les identifiants Google"
+
+#: includes/class-admin.php:300
+msgid "Redirect URI voor Azure:"
+msgstr "URI de redirection pour Azure :"
+
+#: includes/class-admin.php:307
+msgid "Microsoft credentials testen"
+msgstr "Tester les identifiants Microsoft"
+
+#: includes/class-admin.php:316
+msgid "Vrij uitbreidbare lijst met kenmerken die aan een lid toegekend kunnen worden (Ledendetail → Kenmerken), en waarop de ledenlijst gefilterd kan worden. \"Vrijgesteld van contributie\" (bijv. ere-lid) zorgt dat er nooit een contributie-item voor dat lid wordt aangemaakt. \"Zet lid op inactief\" (bijv. geroyeerd) zet de status van een lid automatisch op inactief zodra dit kenmerk wordt toegekend (nooit andersom bij het weghalen)."
+msgstr "Liste librement extensible d'attributs pouvant être attribués à un membre (Détails du membre → Attributs), et selon lesquels la liste des membres peut être filtrée. « Exonéré de cotisation » (par ex. membre d'honneur) garantit qu'aucun élément de cotisation ne sera jamais créé pour ce membre. « Définir le membre comme inactif » (par ex. radié) fait passer automatiquement le statut d'un membre à inactif dès que cet attribut lui est attribué (jamais l'inverse lors de son retrait)."
+
+#: includes/class-admin.php:318
+msgid "Kenmerk aangemaakt."
+msgstr "Attribut créé."
+
+#: includes/class-admin.php:320
+msgid "Kon kenmerk niet aanmaken (naam al in gebruik?)."
+msgstr "Impossible de créer l'attribut (nom déjà utilisé ?)."
+
+#: includes/class-admin.php:322
+msgid "Kenmerk verwijderd."
+msgstr "Attribut supprimé."
+
+#: includes/class-admin.php:325
+msgid "Label"
+msgstr "Libellé"
+
+#: includes/class-admin.php:325
+msgid "Zet op inactief"
+msgstr "Définir comme inactif"
+
+#: includes/class-admin.php:329
+msgid "Nog geen kenmerken."
+msgstr "Aucun attribut pour l'instant."
+
+#: includes/class-admin.php:337
+#, php-format
+msgid "Kenmerk \"%s\" verwijderen? Dit haalt het ook weg bij alle leden die het hebben."
+msgstr "Supprimer l'attribut « %s » ? Cela le retirera également de tous les membres qui le possèdent."
+
+#: includes/class-admin.php:349
+msgid "Nieuw kenmerk"
+msgstr "Nouvel attribut"
+
+#: includes/class-admin.php:356
+msgid "bv. Belangrijk voor opgraving X"
+msgstr "par ex. Important pour les fouilles X"
+
+#: includes/class-admin.php:363
+msgid "Zet lid op inactief"
+msgstr "Définir le membre comme inactif"
+
+#: includes/class-admin.php:367
+msgid "Kenmerk aanmaken"
+msgstr "Créer un attribut"
+
+#: includes/class-admin.php:371
+msgid "Directory (accounts en groepen)"
+msgstr "Annuaire (comptes et groupes)"
+
+#: includes/class-admin.php:374
+msgid "Backend"
+msgstr "Backend"
+
+#: includes/class-admin.php:374
+msgid "(instelbaar met de constante AVPVH_DIRECTORY_BACKEND in wp-config.php)"
+msgstr "(configurable via la constante AVPVH_DIRECTORY_BACKEND dans wp-config.php)"
+
+#: includes/class-admin.php:376
+msgid "Cache"
+msgstr "Cache"
+
+#: includes/class-admin.php:378
+#, php-format
+msgid "%d accounts, laatst volledig gesynchroniseerd: %s"
+msgstr "%d comptes, dernière synchronisation complète : %s"
+
+#: includes/class-admin.php:380
+msgid "nog nooit"
+msgstr "jamais"
+
+#: includes/class-admin.php:387 includes/class-admin.php:412
+msgid "Verbinding testen"
+msgstr "Tester la connexion"
+
+#: includes/class-admin.php:389
+msgid "Nu synchroniseren"
+msgstr "Synchroniser maintenant"
+
+#: includes/class-admin.php:394
+msgid "LLDAP-verbinding testen"
+msgstr "Tester la connexion LLDAP"
+
+#: includes/class-admin.php:400
+msgid "URL"
+msgstr "URL"
+
+#: includes/class-admin.php:408
+msgid "Wachtwoord"
+msgstr "Mot de passe"
+
+#: includes/class-admin.php:434
+msgid "Onbekende provider."
+msgstr "Fournisseur inconnu."
+
+#: includes/class-admin.php:449
+msgid "Client ID of secret is niet ingevuld."
+msgstr "L'ID client ou le secret n'est pas renseigné."
+
+#: includes/class-admin.php:480
+msgid "Onbekende fout."
+msgstr "Erreur inconnue."
+
+#: includes/class-admin.php:730 includes/class-admin.php:770
+#: includes/class-email-identity.php:116
+#: includes/class-member-profile-form.php:1003
+#: includes/class-member-profile-form.php:1059
+#: includes/class-member-profile-form.php:1111
+msgid "Lid niet gevonden."
+msgstr "Membre introuvable."
+
+#: includes/class-admin.php:983
+msgid "Activiteit of lid ontbreekt."
+msgstr "Activité ou membre manquant."
+
+#: includes/class-admin.php:1041
+msgid "Naam en jaar zijn verplicht."
+msgstr "Le nom et l'année sont obligatoires."
+
+#: includes/class-bestuur-page.php:60
+msgid "Het bestuur van de vereniging bestaat uit:"
+msgstr "Le conseil d'administration de l'association est composé de :"
+
+#: includes/class-bestuur-page.php:62
+msgid "Het bestuur kon op dit moment niet worden opgehaald."
+msgstr "Impossible de récupérer les informations du conseil pour le moment."
+
+#: includes/class-bestuur-page.php:76
+msgid "Voormalig bestuursleden:"
+msgstr "Anciens membres du conseil :"
+
+#: includes/class-directory-consent.php:19
+#: includes/class-member-profile-form.php:43
+#: includes/class-member-profile-form.php:849
+#: includes/class-newsletter-consent.php:19
+msgid "Ledenprofiel niet gevonden."
+msgstr "Profil de membre introuvable."
+
+#: includes/class-directory-consent.php:34
+#: includes/class-newsletter-consent.php:34
+msgid "Geen toegang tot dit ledenprofiel."
+msgstr "Accès refusé à ce profil de membre."
+
+#: includes/class-directory-consent.php:40
+msgid "Ongeldige keuze."
+msgstr "Choix non valide."
+
+#: includes/class-email-identity.php:78
+msgid "AV Philips van Horne — bevestig je e-mailadres"
+msgstr "AV Philips van Horne — confirmez votre adresse e-mail"
+
+#: includes/class-email-identity.php:80
+#, php-format
+msgid ""
+"Klik op deze link om %s te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n"
+"\n"
+"%s\n"
+"\n"
+"Deze link is een uur geldig. Was jij dit niet? Dan hoef je niets te doen."
+msgstr ""
+"Cliquez sur ce lien pour associer %s comme adresse e-mail de connexion auprès d'AV Philips van Horne :\n"
+"\n"
+"%s\n"
+"\n"
+"Ce lien est valable une heure. S'il ne s'agissait pas de vous, vous n'avez rien à faire."
+
+#: includes/class-email-identity.php:103
+msgid "Deze link is ongeldig of verlopen. Vraag een nieuwe aan."
+msgstr "Ce lien n'est pas valide ou a expiré. Veuillez en demander un nouveau."
+
+#: includes/class-email-identity.php:103
+msgid "Link verlopen"
+msgstr "Lien expiré"
+
+#: includes/class-ledenlijst-export.php:24
+#: includes/class-member-profile-form.php:321
+msgid "Huisnummer"
+msgstr "Numéro"
+
+#: includes/class-ledenlijst-export.php:26 includes/class-ledenlijst.php:88
+#: includes/class-ledenlijst.php:116 includes/class-ledenlijst.php:131
+#: includes/class-ledenlijst.php:215
+msgid "Plaats"
+msgstr "Ville"
+
+#: includes/class-ledenlijst.php:35 includes/class-ledenlijst.php:256
+msgid "De ledenlijst is alleen beschikbaar voor actieve leden."
+msgstr "La liste des membres est uniquement accessible aux membres actifs."
+
+#: includes/class-ledenlijst.php:36
+msgid "Je moet ingelogd zijn om de ledenlijst te zien."
+msgstr "Vous devez être connecté pour voir la liste des membres."
+
+#: includes/class-ledenlijst.php:71 includes/class-member-profile-form.php:701
+msgid "Je voorkeuren zijn opgeslagen."
+msgstr "Vos préférences ont été enregistrées."
+
+#. translators: 1: privacy policy URL, 2: profile page URL
+#: includes/class-ledenlijst.php:77
+#, php-format
+msgid "Deze lijst wordt gedeeld met alle ingelogde actieve leden, zoals beschreven in de <a href=\"%1$s\" target=\"_blank\" rel=\"noopener\">privacyverklaring</a>. Je kunt via <a href=\"%2$s\">je profiel</a> losse gegevens afschermen of je gegevens volledig verbergen."
+msgstr "Cette liste est partagée avec tous les membres actifs connectés, comme décrit dans la <a href=\"%1$s\" target=\"_blank\" rel=\"noopener\">déclaration de confidentialité</a>. Vous pouvez masquer certaines données ou masquer complètement vos informations depuis <a href=\"%2$s\">votre profil</a>."
+
+#: includes/class-ledenlijst.php:85
+msgid "Zoeken…"
+msgstr "Rechercher…"
+
+#: includes/class-ledenlijst.php:97
+msgid "Groep"
+msgstr "Groupe"
+
+#: includes/class-ledenlijst.php:109
+msgid "Kolommen"
+msgstr "Colonnes"
+
+#: includes/class-ledenlijst.php:114 includes/class-ledenlijst.php:129
+#: includes/class-ledenlijst.php:201 includes/class-member-profile-form.php:312
+msgid "Adres"
+msgstr "Adresse"
+
+#: includes/class-ledenlijst.php:177
+msgid "Downloaden als contact (vCard)"
+msgstr "Télécharger comme contact (vCard)"
+
+#: includes/class-ledenlijst.php:256
+msgid "Geen toegang"
+msgstr "Accès refusé"
+
+#: includes/class-member-merge.php:49
+msgid "Naam in paspoort"
+msgstr "Nom sur le passeport"
+
+#: includes/class-member-merge.php:52
+msgid "Geboortejaar"
+msgstr "Année de naissance"
+
+#: includes/class-member-merge.php:53
+msgid "Student"
+msgstr "Étudiant"
+
+#: includes/class-member-merge.php:60
+msgid "Lid tot"
+msgstr "Membre jusqu'au"
+
+#: includes/class-member-merge.php:61
+msgid "Ledenlijst-toestemming"
+msgstr "Consentement pour la liste des membres"
+
+#: includes/class-member-merge.php:62
+msgid "E-mail delen"
+msgstr "Partager l'e-mail"
+
+#: includes/class-member-merge.php:63
+msgid "Telefoon delen"
+msgstr "Partager le téléphone"
+
+#: includes/class-member-merge.php:64
+msgid "Adres delen"
+msgstr "Partager l'adresse"
+
+#: includes/class-member-merge.php:65
+msgid "Activiteiten delen"
+msgstr "Partager les activités"
+
+#: includes/class-member-merge.php:142
+msgid "Kies twee leden."
+msgstr "Choisissez deux membres."
+
+#: includes/class-member-merge.php:145
+msgid "Je hebt twee keer hetzelfde lid gekozen."
+msgstr "Vous avez sélectionné deux fois le même membre."
+
+#: includes/class-member-merge.php:150
+msgid "Een van beide leden bestaat niet (meer)."
+msgstr "L'un des deux membres n'existe plus."
+
+#: includes/class-member-merge.php:158
+msgid "Het lid dat verdwijnt heeft al eens ingelogd (gekoppelde WordPress-gebruiker). Wissel de richting om, zodat dat lid behouden blijft."
+msgstr "Le membre à supprimer s'est déjà connecté par le passé (utilisateur WordPress lié). Inversez le sens pour conserver ce membre."
+
+#: includes/class-member-merge.php:159
+msgid "Beide leden hebben al eens ingelogd (allebei een gekoppelde WordPress-gebruiker). Dat kan deze pagina niet veilig samenvoegen."
+msgstr "Les deux membres se sont déjà connectés (chacun a un utilisateur WordPress lié). Cette page ne peut pas les fusionner en toute sécurité."
+
+#: includes/class-member-merge.php:167
+#, php-format
+msgid "De groepen van %s konden niet worden opgehaald."
+msgstr "Impossible de récupérer les groupes de %s."
+
+#: includes/class-member-merge.php:180
+#, php-format
+msgid "Het lid dat verdwijnt zit in groepen die het behouden lid niet heeft: %s. Die worden niet overgenomen — voeg ze zo nodig daarna toe via Ledendetail."
+msgstr "Le membre à supprimer appartient à des groupes que le membre conservé n'a pas : %s. Ceux-ci ne seront pas repris — ajoutez-les si nécessaire par la suite via Détails du membre."
+
+#: includes/class-member-merge.php:185
+msgid "Het lid dat verdwijnt heeft geen account (meer); er wordt dus ook geen account verwijderd."
+msgstr "Le membre à supprimer n'a plus de compte ; aucun compte ne sera donc supprimé."
+
+#: includes/class-member-merge.php:289
+msgid "De gegevens van een van beide leden zijn gewijzigd sinds je de vergelijking opende. Bekijk de vergelijking opnieuw."
+msgstr "Les données de l'un des deux membres ont été modifiées depuis l'ouverture de la comparaison. Veuillez consulter à nouveau la comparaison."
+
+#: includes/class-member-merge.php:371
+#, php-format
+msgid "Samenvoegen afgebroken, er is niets gewijzigd: %s"
+msgstr "Fusion annulée, rien n'a été modifié : %s"
+
+#: includes/class-member-merge.php:385
+msgid "Het e-mailadres van het verwijderde account kon niet als inlogadres worden toegevoegd (maximum bereikt?)."
+msgstr "L'adresse e-mail du compte supprimé n'a pas pu être ajoutée comme adresse de connexion (limite maximale atteinte ?)."
+
+#: includes/class-member-merge.php:393
+#, php-format
+msgid "De leden zijn samengevoegd, maar het account \"%s\" kon niet worden verwijderd: %s"
+msgstr "Les membres ont été fusionnés, mais le compte « %s » n'a pas pu être supprimé : %s"
+
+#: includes/class-member-profile-form.php:23
+msgid "Log in om je profiel te bewerken."
+msgstr "Connectez-vous pour modifier votre profil."
+
+#. translators: %s: member name
+#: includes/class-member-profile-form.php:54
+#, php-format
+msgid "Je kunt hier een verzoek sturen aan %s om een e-mailadres te verifiëren. Andere gegevens van dit profiel kun je niet bewerken."
+msgstr "Vous pouvez envoyer ici une demande à %s pour vérifier une adresse e-mail. Vous ne pouvez pas modifier les autres données de ce profil."
+
+#. translators: %s: member name
+#: includes/class-member-profile-form.php:119
+#, php-format
+msgid "Beheerder bewerkt: %s"
+msgstr "Modification par l'administrateur : %s"
+
+#. translators: %s: member name
+#: includes/class-member-profile-form.php:129
+#, php-format
+msgid "Je bewerkt het profiel van: %s"
+msgstr "Vous modifiez le profil de : %s"
+
+#: includes/class-member-profile-form.php:146
+msgid "Actief lid"
+msgstr "Membre actif"
+
+#: includes/class-member-profile-form.php:147
+msgid "Oud lid"
+msgstr "Ancien membre"
+
+#: includes/class-member-profile-form.php:164
+msgid "Ingelogd als:"
+msgstr "Connecté en tant que :"
+
+#: includes/class-member-profile-form.php:169
+msgid "Groepen:"
+msgstr "Groupes :"
+
+#: includes/class-member-profile-form.php:176
+msgid "Rollen:"
+msgstr "Rôles :"
+
+#: includes/class-member-profile-form.php:182
+msgid "Huisgenoten:"
+msgstr "Membres du foyer :"
+
+#: includes/class-member-profile-form.php:195
+msgid "Familie (elders wonend):"
+msgstr "Famille (résidant ailleurs) :"
+
+#: includes/class-member-profile-form.php:204
+msgid "Ook verbonden (partner van familielid):"
+msgstr "Également lié (conjoint d'un membre de la famille) :"
+
+#: includes/class-member-profile-form.php:207
+msgid "E-mailverificatie aanvragen"
+msgstr "Demander une vérification par e-mail"
+
+#: includes/class-member-profile-form.php:219
+msgid "Persoonlijke gegevens"
+msgstr "Données personnelles"
+
+#: includes/class-member-profile-form.php:246
+msgid "Voorletters (zoals op de bankrekening)"
+msgstr "Initiales (comme sur le compte bancaire)"
+
+#: includes/class-member-profile-form.php:248
+msgid "bv. S.J.M."
+msgstr "par ex. S.J.M."
+
+#. translators: %s: calculated initials
+#: includes/class-member-profile-form.php:255
+#, php-format
+msgid "&#9888; Komt niet overeen met de paspoortnaam (die geeft %s)."
+msgstr "&#9888; Ne correspond pas au nom figurant sur le passeport (%s indiqué)."
+
+#: includes/class-member-profile-form.php:282
+msgid "Eetgewoontes / allergieën"
+msgstr "Régime alimentaire / allergies"
+
+#: includes/class-member-profile-form.php:285
+msgid "bv. vegetarisch, notenallergie"
+msgstr "par ex. végétarien, allergie aux fruits à coque"
+
+#: includes/class-member-profile-form.php:293
+msgid "Telefoon vast"
+msgstr "Téléphone fixe"
+
+#: includes/class-member-profile-form.php:305
+msgid "Contactpersoon in noodgevallen"
+msgstr "Personne à contacter en cas d'urgence"
+
+#: includes/class-member-profile-form.php:333
+msgid "Woonplaats"
+msgstr "Ville de résidence"
+
+#: includes/class-member-profile-form.php:346
+msgid "Voorkeuren"
+msgstr "Préférences"
+
+#: includes/class-member-profile-form.php:349
+msgid "Taal"
+msgstr "Langue"
+
+#: includes/class-member-profile-form.php:364
+msgid "Kies je gewenste taal voor de website."
+msgstr "Choisissez votre langue préférée pour le site web."
+
+#: includes/class-member-profile-form.php:368
+msgid "Profiel bijwerken"
+msgstr "Mettre à jour le profil"
+
+#: includes/class-member-profile-form.php:414
+msgid "E-mail (link)"
+msgstr "E-mail (lien)"
+
+#: includes/class-member-profile-form.php:420
+msgid "Inlog-e-mailadressen"
+msgstr "Adresses e-mail de connexion"
+
+#: includes/class-member-profile-form.php:422
+msgid "Je kunt tot drie e-mailadressen koppelen om mee in te loggen, in elke combinatie van methodes. Om een adres toe te voegen moet je er daadwerkelijk mee inloggen, zodat we weten dat het echt van jou is."
+msgstr "Vous pouvez associer jusqu'à trois adresses e-mail de connexion, dans n'importe quelle combinaison de méthodes. Pour ajouter une adresse, vous devez vous connecter avec celle-ci, afin de prouver qu'elle vous appartient bien."
+
+#: includes/class-member-profile-form.php:426
+msgid "E-mailadres toegevoegd."
+msgstr "Adresse e-mail ajoutée."
+
+#: includes/class-member-profile-form.php:431
+msgid "Dat e-mailadres is al aan een ander lid gekoppeld."
+msgstr "Cette adresse e-mail est déjà associée à un autre membre."
+
+#: includes/class-member-profile-form.php:432
+msgid "Er ging iets mis met de verificatie — probeer het opnieuw."
+msgstr "Un problème est survenu lors de la vérification — veuillez réessayer."
+
+#: includes/class-member-profile-form.php:433
+msgid "Dit adres kon niet worden toegevoegd (maximaal drie)."
+msgstr "Cette adresse n'a pas pu être ajoutée (trois au maximum)."
+
+#: includes/class-member-profile-form.php:434
+msgid "Dat is geen geldig e-mailadres."
+msgstr "Ce n'est pas une adresse e-mail valide."
+
+#: includes/class-member-profile-form.php:435
+msgid "Je hebt maar één geverifieerd inlog-e-mailadres — verifieer en voeg eerst een tweede toe voordat je iets verwijdert."
+msgstr "Vous n'avez qu'une seule adresse e-mail de connexion vérifiée — vérifiez et ajoutez d'abord une deuxième adresse avant d'en supprimer une."
+
+#: includes/class-member-profile-form.php:437
+msgid "Er ging iets mis."
+msgstr "Un problème est survenu."
+
+#: includes/class-member-profile-form.php:443
+msgid "Primair e-mailadres gewijzigd."
+msgstr "Adresse e-mail principale modifiée."
+
+#: includes/class-member-profile-form.php:445
+#: includes/class-member-profile-form.php:559
+#, php-format
+msgid "Verzoek verstuurd — %s heeft een e-mail gekregen met instructies."
+msgstr "Demande envoyée — un e-mail contenant les instructions a été envoyé à %s."
+
+#: includes/class-member-profile-form.php:447
+msgid "Bevestigingslink verstuurd — check je inbox om het adres te koppelen."
+msgstr "Lien de confirmation envoyé — consultez votre boîte de réception pour associer l'adresse."
+
+#: includes/class-member-profile-form.php:461
+msgid "Niet geverifieerd"
+msgstr "Non vérifié"
+
+#: includes/class-member-profile-form.php:468
+msgid "Wordt ook het contactadres van je account, los van waarmee je inlogt."
+msgstr "Devient également l'adresse de contact de votre compte, indépendamment de celle utilisée pour vous connecter."
+
+#: includes/class-member-profile-form.php:478
+msgid "Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?"
+msgstr "Attention : il s'agit de l'adresse avec laquelle vous êtes actuellement connecté. Si vous la supprimez, vous ne pourrez plus vous connecter avec celle-ci. Continuer ?"
+
+#: includes/class-member-profile-form.php:490
+msgid "Je hebt maar één geverifieerd adres — voeg eerst een tweede toe om te kunnen verwijderen"
+msgstr "Vous n'avez qu'une seule adresse vérifiée — ajoutez d'abord une deuxième adresse pour pouvoir en supprimer une"
+
+#: includes/class-member-profile-form.php:496
+msgid "Nog geen e-mailadressen gekoppeld."
+msgstr "Aucune adresse e-mail associée pour l'instant."
+
+#: includes/class-member-profile-form.php:507
+#: includes/class-member-profile-form.php:568
+#, php-format
+msgid "Vraag %s om een e-mailadres te verifiëren"
+msgstr "Demander à %s de vérifier une adresse e-mail"
+
+#: includes/class-member-profile-form.php:510
+#: includes/class-member-profile-form.php:571
+#, php-format
+msgid "Toevoegen kan alleen door %s zelf (moet zelf inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met instructies."
+msgstr "L'ajout ne peut être fait que par %s en personne (doit se connecter soi-même pour vérifier que l'adresse lui appartient bien) — ceci envoie un e-mail avec les instructions."
+
+#: includes/class-member-profile-form.php:518
+msgid "Voeg een e-mailadres toe en verifieer het:"
+msgstr "Ajoutez une adresse e-mail et vérifiez-la :"
+
+#: includes/class-member-profile-form.php:523
+#, php-format
+msgid "Met %s"
+msgstr "Avec %s"
+
+#: includes/class-member-profile-form.php:525
+#, php-format
+msgid "Handig als je browser al bij %s is ingelogd — dan hoef je geen wachtwoord in te typen."
+msgstr "Pratique si votre navigateur est déjà connecté à %s — vous n'aurez pas besoin de saisir de mot de passe."
+
+#: includes/class-member-profile-form.php:535
+msgid "Met een e-maillink"
+msgstr "Avec un lien par e-mail"
+
+#: includes/class-member-profile-form.php:537
+msgid "Voor adressen zonder Google- of Microsoft-account — je krijgt een bevestigingslink toegestuurd om te verifiëren."
+msgstr "Pour les adresses sans compte Google ou Microsoft — un lien de confirmation vous sera envoyé pour vérification."
+
+#: includes/class-member-profile-form.php:556
+msgid "Inlog-e-mailadres verifiëren"
+msgstr "Vérifier l'adresse e-mail de connexion"
+
+#: includes/class-member-profile-form.php:575
+#, php-format
+msgid "%s heeft al het maximum van drie inlog-e-mailadressen."
+msgstr "%s a déjà atteint le maximum de trois adresses e-mail de connexion."
+
+#: includes/class-member-profile-form.php:600
+msgid "Relatie toegevoegd."
+msgstr "Relation ajoutée."
+
+#: includes/class-member-profile-form.php:602
+msgid "Relatie verwijderd."
+msgstr "Relation supprimée."
+
+#: includes/class-member-profile-form.php:604
+msgid "Deze relatie staat al hieronder — niet nogmaals toegevoegd."
+msgstr "Cette relation figure déjà ci-dessous — elle n'a pas été ajoutée une seconde fois."
+
+#: includes/class-member-profile-form.php:606
+msgid "Opslaan is niet gelukt — probeer het opnieuw."
+msgstr "L'enregistrement a échoué — veuillez réessayer."
+
+#: includes/class-member-profile-form.php:613
+msgid "(onbekend lid)"
+msgstr "(membre inconnu)"
+
+#: includes/class-member-profile-form.php:614
+#: includes/class-member-profile-form.php:655
+msgid "is"
+msgstr "est"
+
+#: includes/class-member-profile-form.php:624
+msgid "Deze relatie verwijderen?"
+msgstr "Supprimer cette relation ?"
+
+#: includes/class-member-profile-form.php:635
+msgid "Nog geen relaties vastgelegd."
+msgstr "Aucune relation enregistrée pour l'instant."
+
+#: includes/class-member-profile-form.php:645
+msgid "Persoon"
+msgstr "Personne"
+
+#: includes/class-member-profile-form.php:647
+msgid "Kies"
+msgstr "Choisir"
+
+#: includes/class-member-profile-form.php:661
+#, php-format
+msgid "…van %s."
+msgstr "…de %s."
+
+#: includes/class-member-profile-form.php:665
+msgid "Periode: activiteit (optioneel — bijv. tijdelijke voogdij tijdens een kamp)"
+msgstr "Période : activité (facultatif — par ex. tutelle temporaire pendant un camp)"
+
+#: includes/class-member-profile-form.php:667
+msgid "Geen, handmatige data hieronder"
+msgstr "Aucune, dates manuelles ci-dessous"
+
+#: includes/class-member-profile-form.php:677
+msgid "Geldig van (handmatig, tenzij een activiteit is gekozen hierboven)"
+msgstr "Valable du (manuel, sauf si une activité est sélectionnée ci-dessus)"
+
+#: includes/class-member-profile-form.php:682
+msgid "Geldig tot (handmatig, tenzij een activiteit is gekozen hierboven)"
+msgstr "Valable jusqu'au (manuel, sauf si une activité est sélectionnée ci-dessus)"
+
+#: includes/class-member-profile-form.php:686
+msgid "Relatie toevoegen"
+msgstr "Ajouter une relation"
+
+#: includes/class-member-profile-form.php:698
+msgid "Zichtbaarheid in ledenlijst"
+msgstr "Visibilité dans la liste des membres"
+
+#: includes/class-member-profile-form.php:706
+msgid "Zoals beschreven in de privacyverklaring zijn je gegevens alleen zichtbaar voor andere actieve leden, maar alleen als ze ingelogd zijn. Hieronder kan je door het vinkje te verwijderen aangeven welke gegevens je ook voor hen wil verbergen."
+msgstr "Comme décrit dans la déclaration de confidentialité, vos informations ne sont visibles que par les autres membres actifs, et uniquement lorsqu'ils sont connectés. Ci-dessous, vous pouvez décocher les cases pour choisir les données que vous souhaitez également leur masquer."
+
+#: includes/class-member-profile-form.php:709
+msgid "Je deelt momenteel geen gegevens met andere leden in de ledenlijst."
+msgstr "Vous ne partagez actuellement aucune donnée avec les autres membres dans la liste des membres."
+
+#: includes/class-member-profile-form.php:720
+msgid "E-mailadres tonen in de ledenlijst"
+msgstr "Afficher l'adresse e-mail dans la liste des membres"
+
+#: includes/class-member-profile-form.php:726
+msgid "Telefoonnummer tonen in de ledenlijst"
+msgstr "Afficher le numéro de téléphone dans la liste des membres"
+
+#: includes/class-member-profile-form.php:732
+msgid "Adres tonen in de ledenlijst"
+msgstr "Afficher l'adresse dans la liste des membres"
+
+#: includes/class-member-profile-form.php:736
+msgid "Voorkeuren opslaan"
+msgstr "Enregistrer les préférences"
+
+#: includes/class-member-profile-form.php:738
+msgid "Toestemming volledig intrekken"
+msgstr "Révoquer entièrement le consentement"
+
+#: includes/class-member-profile-form.php:756
+msgid "Nieuwsbrief & activiteiten-mail"
+msgstr "Newsletter & e-mails d'activités"
+
+#: includes/class-member-profile-form.php:759
+msgid "Je voorkeur is opgeslagen."
+msgstr "Votre préférence a été enregistrée."
+
+#: includes/class-member-profile-form.php:770
+msgid "Ik wil e-mail ontvangen over activiteiten en de nieuwsbrief"
+msgstr "Je souhaite recevoir des e-mails concernant les activités et la newsletter"
+
+#: includes/class-member-profile-form.php:774
+msgid "Voorkeur opslaan"
+msgstr "Enregistrer la préférence"
+
+#: includes/class-member-profile-form.php:787
+msgid "Nog geen wijzigingen vastgelegd."
+msgstr "Aucune modification enregistrée pour l'instant."
+
+#: includes/class-member-profile-form.php:795
+msgid "Wijzigingsgeschiedenis"
+msgstr "Historique des modifications"
+
+#: includes/class-member-profile-form.php:796
+msgid "Alle wijzigingen aan je profiel worden hieronder bijgehouden:"
+msgstr "Toutes les modifications apportées à votre profil sont consignées ci-dessous :"
+
+#: includes/class-member-profile-form.php:804
+msgid "Gewijzigd door"
+msgstr "Modifié par"
+
+#: includes/class-member-profile-form.php:805
+msgid "Oude waarde"
+msgstr "Ancienne valeur"
+
+#: includes/class-member-profile-form.php:806
+msgid "Nieuwe waarde"
+msgstr "Nouvelle valeur"
+
+#: includes/class-member-profile-form.php:819
+msgid "Systeem"
+msgstr "Système"
+
+#: includes/class-member-profile-form.php:822
+#: includes/class-member-profile-form.php:825
+msgid "(leeg)"
+msgstr "(vide)"
+
+#: includes/class-member-profile-form.php:843
+msgid "Je bent niet ingelogd."
+msgstr "Vous n'êtes pas connecté."
+
+#: includes/class-member-profile-form.php:922
+#: includes/class-member-profile-form.php:1393
+msgid "Profiel succesvol bijgewerkt!"
+msgstr "Profil mis à jour avec succès !"
+
+#: includes/class-member-profile-form.php:1115
+msgid "Je kunt geen verzoek naar jezelf sturen."
+msgstr "Vous ne pouvez pas vous envoyer une demande à vous-même."
+
+#: includes/class-member-profile-form.php:1120
+msgid "AV Philips van Horne — vraag om e-mailadres te verifiëren"
+msgstr "AV Philips van Horne — demande de vérification de l'adresse e-mail"
+
+#: includes/class-member-profile-form.php:1130
+#, php-format
+msgid ""
+"%s heeft dit e-mailadres (%s) toegevoegd aan jouw profiel bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n"
+"\n"
+"Alleen jij kunt dit zelf afronden — %s kan dit niet namens jou doen. Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n"
+"%s\n"
+"\n"
+"Was dit geen terecht verzoek? Dan hoef je niets te doen."
+msgstr ""
+"%s a ajouté cette adresse e-mail (%s) à votre profil auprès d'AV Philips van Horne et vous invite à la vérifier comme méthode de connexion.\n"
+"\n"
+"Vous seul pouvez finaliser cette démarche — %s ne peut pas le faire à votre place. Cliquez ci-dessous pour vérifier l'adresse et définir un mot de passe :\n"
+"%s\n"
+"\n"
+"S'il ne s'agissait pas d'une demande légitime, vous n'avez rien à faire."
+
+#: includes/class-member-profile-form.php:1175
+msgid "Ongeldige relatie."
+msgstr "Relation non valide."
+
+#: includes/class-member-profile-form.php:1226
+msgid "e-mailadres"
+msgstr "adresse e-mail"
+
+#: includes/class-member-profile-form.php:1227
+msgid "Google-account"
+msgstr "compte Google"
+
+#: includes/class-member-profile-form.php:1228
+msgid "Microsoft-account"
+msgstr "compte Microsoft"
+
+#: includes/class-member-profile-form.php:1236
+msgid "AV Philips van Horne — inloggegevens gewijzigd"
+msgstr "AV Philips van Horne — identifiants de connexion modifiés"
+
+#: includes/class-member-profile-form.php:1238
+#, php-format
+msgid ""
+"Er is zojuist een %s (%s) %s bij het profiel van %s.\n"
+"\n"
+"Was jij dit niet? Neem dan contact op met het bestuur."
+msgstr ""
+"Un(e) %s (%s) vient d'être %s sur le profil de %s.\n"
+"\n"
+"S'il ne s'agissait pas de vous, veuillez contacter le bureau."
+
+#: includes/class-member-profile-form.php:1248
+#, php-format
+msgid ""
+"Er is zojuist een %s (%s) %s bij jouw profiel door %s.\n"
+"\n"
+"Was jij dit niet? Neem dan contact op met het bestuur."
+msgstr ""
+"Un(e) %s (%s) vient d'être %s sur votre profil par %s.\n"
+"\n"
+"S'il ne s'agissait pas de vous, veuillez contacter le bureau."
+
+#: includes/class-member-profile-form.php:1266
+#, php-format
+msgid "Je verzoek is opgevolgd: er is zojuist een %s (%s) toegevoegd aan het profiel van %s."
+msgstr "Votre demande a été traitée : un(e) %s (%s) vient d'être ajouté(e) au profil de %s."
+
+#: includes/class-member-profile-form.php:1348 includes/class-nav-auth.php:107
+msgid "Gebruiker"
+msgstr "Utilisateur"
+
+#: includes/class-member-profile-form.php:1353 includes/class-nav-auth.php:112
+msgid "Redacteur"
+msgstr "Éditeur"
+
+#: includes/class-member-profile-form.php:1354 includes/class-nav-auth.php:113
+msgid "Auteur"
+msgstr "Auteur"
+
+#: includes/class-member-profile-form.php:1355 includes/class-nav-auth.php:114
+msgid "Medewerker"
+msgstr "Contributeur"
+
+#: includes/class-member-profile-form.php:1392
+msgid "Bezig met opslaan..."
+msgstr "Enregistrement en cours..."
+
+#: includes/class-member-profile-form.php:1394
+msgid "Er is een fout opgetreden."
+msgstr "Une erreur est survenue."
+
+#: includes/class-member-profile-form.php:1395
+msgid "Opslaan van het profiel is mislukt. Probeer het opnieuw."
+msgstr "L'enregistrement du profil a échoué. Veuillez réessayer."
+
+#: includes/class-nav-auth.php:68
+msgid "Geen lid"
+msgstr "Non-membre"
+
+#: includes/class-nav-auth.php:69
+msgid "Mijn profiel"
+msgstr "Mon profil"
+
+#: includes/class-nav-auth.php:70
+msgid "Uitloggen"
+msgstr "Se déconnecter"
+
+#: includes/class-nav-auth.php:73
+msgid "Account submenu"
+msgstr "Sous-menu du compte"
+
+#: includes/class-nav-auth.php:127 includes/class-roles.php:509
+msgid "Bestuur"
+msgstr "Conseil"
+
+#: includes/class-nav-auth.php:128
+msgid "Feest"
+msgstr "Fêtes"
+
+#: includes/class-nav-auth.php:129
+msgid "Boek"
+msgstr "Livre"
+
+#: includes/class-nav-auth.php:130
+msgid "Fiscus"
+msgstr "Trésorerie"
+
+#: includes/class-nav-auth.php:131
+msgid "Secretariaat"
+msgstr "Secrétariat"
+
+#: includes/class-roles.php:510
+msgid "Voorzitter"
+msgstr "Président"
+
+#: includes/class-roles.php:511
+msgid "Secretaris"
+msgstr "Secrétaire"
+
+#: includes/class-roles.php:512
+msgid "Penningmeester"
+msgstr "Trésorier"

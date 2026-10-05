@@ -45,7 +45,7 @@ class AVPVH_Activity_List {
         $activities = self::activities(self::list_attribute($atts['soort']), $upcoming, self::date_attribute($atts['vanaf']), self::date_attribute($atts['tot']));
 
         if (!$activities) {
-            return $upcoming ? '<p>Er staan nog geen activiteiten op de agenda.</p>' : '';
+            return $upcoming ? '<p>' . esc_html__('Er staan nog geen activiteiten op de agenda.', 'avpvh-members') . '</p>' : '';
         }
 
         return $upcoming
@@ -121,7 +121,7 @@ class AVPVH_Activity_List {
         $html    = '<figure class="wp-block-table avpvh-activity-list"><table><thead><tr>';
 
         foreach ($columns as $index => $column) {
-            $html .= '<th>' . esc_html($headings[$index] ?? self::COLUMNS[$column]) . '</th>';
+            $html .= '<th>' . esc_html($headings[$index] ?? __(self::COLUMNS[$column], 'avpvh-members')) . '</th>'; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- fixed column names.
         }
 
         $html .= '</tr></thead><tbody>';

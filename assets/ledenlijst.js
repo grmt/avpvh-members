@@ -58,9 +58,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // --- show a selection count on the Plaats/Groep toggle buttons ---
-    function updateDropdownLabel(selector, baseLabel, boxes) {
+    function updateDropdownLabel(selector, defaultLabel, boxes) {
         const toggle = document.querySelector(selector + ' .avpvh-ledenlijst-dropdown-toggle');
         if (!toggle) return;
+        if (!toggle.dataset.baseLabel) {
+            toggle.dataset.baseLabel = toggle.textContent.replace(/\s*\(.*\)\s*▾|\s*▾/, '').trim() || defaultLabel;
+        }
+        const baseLabel = toggle.dataset.baseLabel;
         const count = checkedValues(boxes).length;
         toggle.textContent = baseLabel + (count ? ' (' + count + ')' : '') + ' ▾';
     }
