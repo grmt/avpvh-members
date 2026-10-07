@@ -61,6 +61,57 @@
     vertical-align: middle;
 }
 
+/* Member detail page — WP core's default .form-table row height/heading
+   margins add up to a lot of scrolling for a long field list like this. */
+.avpvh-member-detail .form-table th,
+.avpvh-member-detail .form-table td {
+    padding: 6px 10px;
+}
+.avpvh-member-detail h2 {
+    margin: 1.2em 0 .4em;
+}
+.avpvh-member-detail h3 {
+    margin: .8em 0 .3em;
+}
+
+/* Collapsed-by-default sections (Inlogadressen/Kenmerken/Adreshistorie/
+   Groepen) — only Contactgegevens stays always expanded, so the page
+   opens short instead of a long scroll through everything at once. */
+.avpvh-detail-section {
+    margin-bottom: .5em;
+}
+.avpvh-detail-section > summary {
+    cursor: pointer;
+    list-style: revert;
+}
+.avpvh-detail-section > summary h2 {
+    display: inline;
+    margin: 1.2em 0 .4em;
+}
+.avpvh-detail-section[open] {
+    margin-bottom: 1.5em;
+}
+
+/* Small screens: the action-button row and tabs wrap instead of forcing
+   horizontal scroll, and tables scroll within their own width (see the
+   overflow-x:auto wrappers in member-detail.php) instead of the whole
+   page. */
+@media (max-width: 782px) {
+    .avpvh-member-detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4em .6em;
+        align-items: center;
+    }
+    .avpvh-member-detail-actions > span {
+        display: none;
+    }
+    .avpvh-member-detail .nav-tab-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+    }
+}
+
 /* Roles & delegation page */
 .avpvh-roles-section {
     margin: 1.5rem 0;

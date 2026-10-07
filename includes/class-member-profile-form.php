@@ -646,9 +646,43 @@ class AVPVH_Member_Profile_Form {
                     <select id="rel_related_member_id" name="related_member_id" required>
                         <option value="">— <?php esc_html_e('Kies', 'avpvh-members'); ?> —</option>
                         <?php foreach ($all_members as $m) : ?>
-                            <option value="<?php echo esc_attr($m->id); ?>"><?php echo esc_html(avpvh_format_name($m)); ?></option>
+                            <option value="<?php echo esc_attr($m->id); ?>" data-avpvh-plain="1"><?php echo esc_html(avpvh_format_name($m)); ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <input type="text" id="rel_related_member_filter" placeholder="<?php echo esc_attr__('Filter op naam&hellip;', 'avpvh-members'); ?>" autocomplete="off" style="width:9em;margin-left:.3rem;font-size:.85em;padding:.1rem .3rem;box-sizing:border-box">
+                    <script type="application/json" id="rel_related_member_data"><?php echo wp_json_encode(array_map(fn($m) => [
+                        'id'    => (int) $m->id,
+                        'label' => avpvh_format_name($m),
+                        'first' => $m->first_name,
+                        'last'  => $m->last_name,
+                    ], $all_members)); ?></script>
+                    <script>
+                    (function () {
+                        var select = document.getElementById('rel_related_member_id');
+                        var input = document.getElementById('rel_related_member_filter');
+                        var members = JSON.parse(document.getElementById('rel_related_member_data').textContent);
+                        if (!select || !input) return;
+                        function apply() {
+                            var term = input.value.trim().toLowerCase();
+                            var selectedValue = select.value;
+                            Array.prototype.slice.call(select.querySelectorAll('option[data-avpvh-plain]')).forEach(function (opt) {
+                                opt.remove();
+                            });
+                            members.forEach(function (m) {
+                                if (term !== ''
+                                    && (m.first || '').toLowerCase().indexOf(term) === -1
+                                    && (m.last || '').toLowerCase().indexOf(term) === -1) return;
+                                var opt = document.createElement('option');
+                                opt.value = m.id;
+                                opt.textContent = m.label;
+                                opt.setAttribute('data-avpvh-plain', '1');
+                                select.appendChild(opt);
+                            });
+                            select.value = selectedValue;
+                        }
+                        input.addEventListener('input', apply);
+                    })();
+                    </script>
                 </div>
 
                 <div class="form-group">
