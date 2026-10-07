@@ -72,3 +72,60 @@
     display: inline;
     margin: 0;
 }
+
+/* Address comparison on the member-merge screen */
+.avpvh-address-history,
+.avpvh-address-merge {
+    max-width: 1100px;
+    margin-bottom: 1.25rem;
+}
+.avpvh-address-history th:nth-child(2),
+.avpvh-address-history th:nth-child(3),
+.avpvh-address-history td:nth-child(2),
+.avpvh-address-history td:nth-child(3) {
+    width: 10rem;
+    white-space: nowrap;
+}
+.avpvh-address-merge th:last-child,
+.avpvh-address-merge td:last-child {
+    width: 18rem;
+}
+.avpvh-address-merge select {
+    width: 100%;
+    min-width: 16rem;
+}
+.avpvh-address-fit {
+    display: inline-block;
+    font-weight: 600;
+}
+.avpvh-address-fit--ok {
+    color: #008a20;
+}
+.avpvh-address-fit--warning {
+    color: #996800;
+}
+.avpvh-address-overlaps {
+    margin: .35rem 0 0 1.25rem;
+    list-style: disc;
+}
+
+@media screen and (max-width: 782px) {
+    .avpvh-address-merge thead {
+        display: none;
+    }
+    .avpvh-address-merge tr,
+    .avpvh-address-merge td {
+        display: block;
+        width: auto !important;
+    }
+    .avpvh-address-merge td::before {
+        content: attr(data-col);
+        display: block;
+        margin-bottom: .25rem;
+        color: #50575e;
+        font-weight: 600;
+    }
+    .avpvh-address-merge select {
+        min-width: 0;
+    }
+}
