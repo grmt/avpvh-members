@@ -2575,3 +2575,53 @@ msgstr "Sekretär"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Tresorier"
+
+#: admin/class-login-attempts-list-table.php
+#, php-format
+msgid "%1$s: %2$d gekozen"
+msgstr "%1$s: %2$d gewielt"
+
+#: admin/class-login-attempts-list-table.php
+#, php-format
+msgid "%s: alle"
+msgstr "%s: all"
+
+#: admin/class-login-attempts-list-table.php
+msgid "E-maillink"
+msgstr "E-Mail-Link"
+
+#: admin/class-login-attempts-list-table.php
+msgid "E-maillink verzonden"
+msgstr "E-Mail-Link geschéckt"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Gebruik een geldige datum als dd-mmm-yyyy."
+msgstr "Benotzt en gëltegen Datum als dd-mmm-yyyy."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Geen loginpogingen gevonden."
+msgstr "Keng Login-Versich fonnt."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Loginpogingen per pagina"
+msgstr "Login-Versich pro Säit"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Loginpogingen zoeken"
+msgstr "Login-Versich sichen"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Tot kan niet later zijn dan vandaag."
+msgstr "Bis kann net méi spéit wéi haut sinn."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Tot moet later zijn dan van."
+msgstr "Bis muss méi spéit wéi Vun sinn."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Van moet vóór vandaag liggen."
+msgstr "Vun muss virun haut leien."
+
+#: admin/class-login-attempts-list-table.php
+msgid "tot"
+msgstr "bis"

@@ -2575,3 +2575,53 @@ msgstr "Secretaris"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Penningmeister"
+
+#: admin/class-login-attempts-list-table.php
+#, php-format
+msgid "%1$s: %2$d gekozen"
+msgstr "%1$s: %2$d gekoze"
+
+#: admin/class-login-attempts-list-table.php
+#, php-format
+msgid "%s: alle"
+msgstr "%s: alle"
+
+#: admin/class-login-attempts-list-table.php
+msgid "E-maillink"
+msgstr "E-mailling"
+
+#: admin/class-login-attempts-list-table.php
+msgid "E-maillink verzonden"
+msgstr "E-mailling verstuurd"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Gebruik een geldige datum als dd-mmm-yyyy."
+msgstr "Gebroek ein geljige datum es dd-mmm-yyyy."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Geen loginpogingen gevonden."
+msgstr "Gein inlogpoginge gevónje."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Loginpogingen per pagina"
+msgstr "Inlogpoginge per pagina"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Loginpogingen zoeken"
+msgstr "Inlogpoginge zeuke"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Tot kan niet later zijn dan vandaag."
+msgstr "Tot kan neet later zeen es vandaag."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Tot moet later zijn dan van."
+msgstr "Tot mót later zeen es van."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Van moet vóór vandaag liggen."
+msgstr "Van mót vuur vandaag ligke."
+
+#: admin/class-login-attempts-list-table.php
+msgid "tot"
+msgstr "tot"
