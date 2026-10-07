@@ -372,7 +372,7 @@ class AVPVH_Member_Profile_Form {
                 <?php $this->render_identities($member, $is_household_edit); ?>
             <?php endif; ?>
 
-            <?php $this->render_relationships($member); ?>
+            <?php self::render_relationships($member); ?>
 
             <?php if (!$is_admin_edit) : ?>
                 <?php $this->render_directory_consent($member); ?>
@@ -583,7 +583,7 @@ class AVPVH_Member_Profile_Form {
      * section for the data model. Available on both self/household and
      * admin edits (unlike identities, which are self-service-only).
      */
-    private function render_relationships($member): void {
+    public static function render_relationships($member): void {
         $relationships = AVPVH_DB::get_relationships((int) $member->id);
         $labels = AVPVH_DB::get_relationship_labels();
         $all_members = array_filter(
