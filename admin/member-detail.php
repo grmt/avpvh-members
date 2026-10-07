@@ -135,6 +135,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <a href="<?php echo esc_url($tab_url('contact')); ?>" class="nav-tab <?php echo $active_tab === 'contact' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Contact & Adressen', 'avpvh-members'); ?></a>
         <a href="<?php echo esc_url($tab_url('activities')); ?>" class="nav-tab <?php echo $active_tab === 'activities' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Activiteiten', 'avpvh-members'); ?></a>
         <a href="<?php echo esc_url($tab_url('fees')); ?>"    class="nav-tab <?php echo $active_tab === 'fees'    ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Contributie', 'avpvh-members'); ?></a>
+        <a href="<?php echo esc_url($tab_url('relationships')); ?>" class="nav-tab <?php echo $active_tab === 'relationships' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Relaties', 'avpvh-members'); ?></a>
     </nav>
 
     <?php if ($active_tab === 'contact') : ?>
@@ -405,5 +406,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+
+    <?php elseif ($active_tab === 'relationships') : ?>
+    <?php AVPVH_Member_Profile_Form::render_relationships($member); ?>
     <?php endif; ?>
 </div>
