@@ -1,5 +1,43 @@
 /* Shared styling for AV-PvH Members admin screens */
 
+/* Filterable activiteit-picker (Activiteiten) — flat text+list combobox,
+   same idea as avpvh-bookkeeping's review-queue person-picker. */
+.avpvh-activity-combo {
+    position: relative;
+    display: inline-block;
+    width: 22em;
+    max-width: 100%;
+    vertical-align: top;
+}
+.avpvh-activity-combo-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+.avpvh-activity-combo-list {
+    position: absolute;
+    z-index: 100;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 16em;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #8c8f94;
+    border-radius: 3px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    margin-top: 2px;
+}
+.avpvh-activity-combo-item {
+    padding: .3rem .6rem;
+    cursor: pointer;
+    font-size: .9em;
+}
+.avpvh-activity-combo-item:hover,
+.avpvh-activity-combo-item.is-active {
+    background: #2271b1;
+    color: #fff;
+}
+
 .avpvh-member-row-inactive,
 .avpvh-member-row-visitor {
     background: #f0f0f1 !important;
