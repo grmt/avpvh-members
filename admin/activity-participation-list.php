@@ -14,6 +14,25 @@ $types_saved = !empty($_GET['types_saved']);
 $activity_created = !empty($_GET['activity_created']);
 $activity_types = AVPVH_DB::get_activity_types();
 
+$activity_years = array_values(array_unique(array_map(fn($a) => (int) $a->year, $activities)));
+rsort($activity_years);
+$activity_type_names = array_values(array_unique(array_map(fn($a) => (string) ($a->type_name ?? ''), $activities)));
+sort($activity_type_names);
+$filter_year = isset($_GET['activity_year']) ? absint(wp_unslash($_GET['activity_year'])) : (int) ($activity->year ?? 0);
+$filter_type = isset($_GET['activity_type'])
+    ? sanitize_text_field(wp_unslash($_GET['activity_type']))
+    : (string) ($activity->type_name ?? '');
+$filtered_activities = array_values(array_filter($activities, static function ($candidate) use ($filter_year, $filter_type) {
+    $type = (string) ($candidate->type_name ?? '');
+    return (!$filter_year || (int) $candidate->year === $filter_year)
+        && ($filter_type === '' || ($filter_type === '__none__' ? $type === '' : $type === $filter_type));
+}));
+$matching_ids = array_map(fn($a) => (int) $a->id, $filtered_activities);
+if (!$activity || !in_array($activity_id, $matching_ids, true)) {
+    $activity_id = count($filtered_activities) === 1 ? (int) $filtered_activities[0]->id : 0;
+    $activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
+}
+
 $is_contribution = $activity && ($activity->type_name ?? '') === 'Contributie';
 $table = new AVPVH_Activity_Participation_List_Table($activity_id, $is_contribution);
 $table->prepare_items();
@@ -24,10 +43,6 @@ $export_url = wp_nonce_url(
     'avpvh_export_activity_participation'
 );
 
-$activity_years = array_values(array_unique(array_map(fn($a) => (int) $a->year, $activities)));
-rsort($activity_years);
-$activity_type_names = array_values(array_unique(array_map(fn($a) => (string) ($a->type_name ?? ''), $activities)));
-sort($activity_type_names);
 ?>
 <script type="application/json" id="avpvh-activity-picker-config"><?php echo wp_json_encode([
     'activities' => array_map(fn($a) => [
@@ -39,44 +54,63 @@ sort($activity_type_names);
 ]); ?></script>
 <div class="wrap">
     <h1 class="wp-heading-inline"><?php esc_html_e('Activiteiten', 'avpvh-members'); ?></h1>
-    <?php if (!$is_contribution) : ?>
+    <?php if ($activity && !$is_contribution) : ?>
         <a href="<?php echo esc_url($new_url); ?>" class="page-title-action"><?php esc_html_e('Nieuwe deelname', 'avpvh-members'); ?></a>
         <?php if ($activity_id) : ?>
             <a href="<?php echo esc_url($export_url); ?>" class="page-title-action"><?php esc_html_e('Exporteer naar Excel', 'avpvh-members'); ?></a>
         <?php endif; ?>
     <?php endif; ?>
 
-    <form method="get" style="margin: 1rem 0;" id="avpvh-activity-picker-form">
+    <form method="get" class="avpvh-activity-picker" id="avpvh-activity-picker-form">
         <input type="hidden" name="page" value="avpvh-activity-participation">
-        <label><?php esc_html_e('Jaar:', 'avpvh-members'); ?>
-            <select id="avpvh-activity-year-filter">
-                <option value="">&mdash; <?php esc_html_e('alle jaren', 'avpvh-members'); ?> &mdash;</option>
+        <div class="avpvh-activity-picker__fields">
+        <label for="avpvh-activity-year-filter"><?php esc_html_e('Jaar', 'avpvh-members'); ?>
+            <select name="activity_year" id="avpvh-activity-year-filter">
+                <option value="0"><?php esc_html_e('Alle jaren', 'avpvh-members'); ?></option>
                 <?php foreach ($activity_years as $year) : ?>
-                    <option value="<?php echo esc_attr($year); ?>" <?php selected($activity && (int) $activity->year === $year); ?>>
+                    <option value="<?php echo esc_attr($year); ?>" <?php selected($filter_year, $year); ?>>
                         <?php echo esc_html((string) $year); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
         </label>
-        <label><?php esc_html_e('Type:', 'avpvh-members'); ?>
-            <select id="avpvh-activity-type-filter">
-                <option value="">&mdash; <?php esc_html_e('alle types', 'avpvh-members'); ?> &mdash;</option>
+        <label for="avpvh-activity-type-filter"><?php esc_html_e('Type', 'avpvh-members'); ?>
+            <select name="activity_type" id="avpvh-activity-type-filter">
+                <option value=""><?php esc_html_e('Alle types', 'avpvh-members'); ?></option>
                 <?php foreach ($activity_type_names as $type_name) : ?>
-                    <option value="<?php echo esc_attr($type_name); ?>" <?php selected($activity && ($activity->type_name ?? '') === $type_name); ?>>
+                    <option value="<?php echo esc_attr($type_name !== '' ? $type_name : '__none__'); ?>" <?php selected($filter_type, $type_name !== '' ? $type_name : '__none__'); ?>>
                         <?php echo esc_html($type_name !== '' ? $type_name : __('(geen type)', 'avpvh-members')); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
         </label>
-        <label><?php esc_html_e('Activiteit:', 'avpvh-members'); ?>
-            <div class="avpvh-activity-combo">
-                <input type="hidden" name="activity_id" id="avpvh-activity-combo-value" value="<?php echo esc_attr($activity_id ?: ''); ?>">
-                <input type="text" class="avpvh-activity-combo-input" autocomplete="off" placeholder="&mdash; <?php esc_attr_e('kies activiteit', 'avpvh-members'); ?> &mdash;" value="<?php echo esc_attr($activity ? $activity->name . ' (' . $activity->year . ')' : ''); ?>">
-                <div class="avpvh-activity-combo-list" hidden></div>
-            </div>
+        <label for="avpvh-activity-name-filter" class="avpvh-activity-picker__search" hidden>
+            <?php esc_html_e('Zoek activiteit', 'avpvh-members'); ?>
+            <input type="search" id="avpvh-activity-name-filter" placeholder="<?php echo esc_attr__('Zoek op naam', 'avpvh-members'); ?>">
         </label>
-        <noscript><button type="submit" class="button"><?php esc_html_e('Bekijken', 'avpvh-members'); ?></button></noscript>
+        <label for="avpvh-activity-select" class="avpvh-activity-picker__selection">
+            <?php esc_html_e('Activiteit', 'avpvh-members'); ?>
+            <select name="activity_id" id="avpvh-activity-select"
+                    data-placeholder="<?php echo esc_attr__('Kies een activiteit…', 'avpvh-members'); ?>"
+                    data-empty="<?php echo esc_attr__('Geen activiteiten gevonden', 'avpvh-members'); ?>">
+                <option value="0"><?php echo esc_html($filtered_activities ? __('Kies een activiteit…', 'avpvh-members') : __('Geen activiteiten gevonden', 'avpvh-members')); ?></option>
+                <?php foreach ($filtered_activities as $activity_option) : ?>
+                    <option value="<?php echo esc_attr($activity_option->id); ?>" <?php selected($activity_id, $activity_option->id); ?>>
+                        <?php echo esc_html($activity_option->name . ' (' . $activity_option->year . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <button type="submit" class="button"><?php esc_html_e('Bekijken', 'avpvh-members'); ?></button>
+        </div>
+        <p class="description"><?php esc_html_e('Jaar en type bepalen welke activiteiten je kunt kiezen. Kies daarna een activiteit om de deelnemers te bekijken.', 'avpvh-members'); ?></p>
     </form>
+
+    <?php if (!$activity) : ?>
+        <div class="notice notice-info inline"><p><?php echo esc_html($filtered_activities
+            ? __('Kies hierboven een activiteit om de deelnemers te bekijken.', 'avpvh-members')
+            : __('Geen activiteiten gevonden voor dit jaar en type. Pas je filters aan.', 'avpvh-members')); ?></p></div>
+    <?php endif; ?>
 
     <?php if ($activity_created) : ?>
         <div class="notice notice-success"><p>
@@ -223,6 +257,11 @@ sort($activity_type_names);
         </details>
     <?php endif; ?>
 
+    <?php if ($activity) : ?>
+    <h2 class="avpvh-activity-current"><?php
+        /* translators: %s: selected activity name and year. */
+        echo esc_html(sprintf(__('Deelnemers — %s', 'avpvh-members'), $activity->name . ' (' . $activity->year . ')'));
+    ?></h2>
     <div class="avpvh-activity-list" data-avpvh-activity-list>
         <div class="avpvh-activity-list__tools" hidden>
             <label class="avpvh-activity-list__search" for="avpvh-activity-search">
@@ -258,4 +297,5 @@ sort($activity_type_names);
             <?php $table->display(); ?>
         </div>
     </div>
+    <?php endif; ?>
 </div>
