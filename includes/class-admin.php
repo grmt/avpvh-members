@@ -65,6 +65,14 @@ class AVPVH_Admin {
                 avpvh_asset_version('assets/activity-participation-detail.js'),
                 true
             );
+        } elseif ($page === 'avpvh-activity-participation') {
+            wp_enqueue_script(
+                'avpvh-activity-participation-list',
+                $base . 'assets/activity-participation-list.js',
+                [],
+                avpvh_asset_version('assets/activity-participation-list.js'),
+                true
+            );
         } elseif ($page === 'avpvh-merge-members') {
             wp_enqueue_script(
                 'avpvh-merge-members',
