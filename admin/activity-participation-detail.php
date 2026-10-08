@@ -68,7 +68,12 @@ if ($activity->start_date && $activity->end_date) {
                     <?php else : ?>
                         <select name="member_id" id="member_id" required style="min-width:300px">
                             <option value="">— <?php esc_html_e('Kies lid', 'avpvh-members'); ?> —</option>
-                            <?php foreach (AVPVH_DB::get_members(['status' => 'active']) as $m) : ?>
+                            <?php
+                            // Not just 'active': a Congres-achtige activiteit
+                            // registreert regelmatig ex-leden en bezoekers
+                            // (partners, gastsprekers, ...) die hier anders
+                            // niet te kiezen zouden zijn.
+                            foreach (AVPVH_DB::get_members(['status' => ['active', 'inactive', 'visitor']]) as $m) : ?>
                                 <option value="<?php echo esc_attr($m->id); ?>">
                                     <?php echo esc_html(avpvh_format_name($m, 'list')); ?>
                                 </option>
