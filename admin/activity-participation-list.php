@@ -192,5 +192,38 @@ $export_url = wp_nonce_url(
         </details>
     <?php endif; ?>
 
-    <?php $table->display(); ?>
+    <div class="avpvh-activity-list" data-avpvh-activity-list>
+        <div class="avpvh-activity-list__tools">
+            <label class="avpvh-activity-list__search" for="avpvh-activity-search">
+                <span><?php esc_html_e('Zoeken:', 'avpvh-members'); ?></span>
+                <input type="search" id="avpvh-activity-search" placeholder="<?php echo esc_attr__('Naam, dieet of notities', 'avpvh-members'); ?>">
+            </label>
+
+            <div class="avpvh-activity-columns">
+                <button type="button" class="button avpvh-activity-columns__toggle" aria-expanded="false" aria-controls="avpvh-activity-columns-panel">
+                    <?php esc_html_e('Kolommen', 'avpvh-members'); ?>
+                </button>
+                <div id="avpvh-activity-columns-panel" class="avpvh-activity-columns__panel" hidden>
+                    <?php foreach ($table->get_columns() as $column_key => $column_label) : ?>
+                        <?php if (in_array($column_key, ['name', 'actions'], true)) : ?>
+                            <?php continue; ?>
+                        <?php endif; ?>
+                        <label>
+                            <input type="checkbox" value="<?php echo esc_attr($column_key); ?>" checked>
+                            <?php echo esc_html($column_label); ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <button type="button" class="button avpvh-activity-list__reset"><?php esc_html_e('Filters wissen', 'avpvh-members'); ?></button>
+            <span class="avpvh-activity-list__count" aria-live="polite"></span>
+        </div>
+
+        <div class="avpvh-activity-list__table"
+             data-filter-label="<?php echo esc_attr__('Filter', 'avpvh-members'); ?>"
+             data-no-results="<?php echo esc_attr__('Geen deelnemers gevonden met deze filters.', 'avpvh-members'); ?>">
+            <?php $table->display(); ?>
+        </div>
+    </div>
 </div>
