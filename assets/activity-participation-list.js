@@ -12,7 +12,11 @@
         if (!table || !headerRow || !body) return;
 
         const rows = Array.from(body.rows).filter((row) => !row.classList.contains('no-items'));
-        if (!rows.length) return;
+        if (!rows.length) {
+            root.querySelector('.avpvh-activity-list__tools').hidden = true;
+            return;
+        }
+        root.querySelector('.avpvh-activity-list__tools').hidden = false;
 
         const columns = Array.from(headerRow.cells).map((cell, index) => {
             const className = Array.from(cell.classList).find((name) => name.indexOf('column-') === 0);
@@ -44,6 +48,10 @@
 
         function cellValue(row, column) {
             const cell = row.cells[column.index];
+            if (cell && column.key === 'name') {
+                const link = cell.querySelector('a');
+                if (link) return link.textContent.trim();
+            }
             return cell ? cell.textContent.trim() : '';
         }
 
@@ -60,7 +68,9 @@
                 const columnMatch = searchableColumns.every((column) => {
                     const control = filters.get(column.key);
                     if (!control || !control.value) return true;
-                    return normalized(cellValue(row, column)).includes(normalized(control.value));
+                    const value = normalized(cellValue(row, column));
+                    const filter = normalized(control.value);
+                    return control.tagName === 'SELECT' ? value === filter : value.includes(filter);
                 });
                 row.hidden = !(globalMatch && columnMatch);
                 if (!row.hidden) visible += 1;
@@ -76,11 +86,26 @@
             const cell = document.createElement('th');
             cell.className = column.cell.className;
             if (column.key && column.key !== 'actions') {
-                const input = document.createElement('input');
-                input.type = 'search';
+                const exact = ['nights', 'days', 'nawacht'].includes(column.key);
+                const input = document.createElement(exact ? 'select' : 'input');
+                if (exact) {
+                    const all = document.createElement('option');
+                    all.value = '';
+                    all.textContent = tableArea.dataset.allLabel;
+                    input.appendChild(all);
+                    const values = Array.from(new Set(rows.map((row) => cellValue(row, column))));
+                    values.sort(collator.compare).forEach((value) => {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.textContent = value;
+                        input.appendChild(option);
+                    });
+                } else {
+                    input.type = 'search';
+                    input.placeholder = tableArea.dataset.filterLabel;
+                }
                 input.setAttribute('aria-label', tableArea.dataset.filterLabel + ' ' + column.label);
-                input.placeholder = tableArea.dataset.filterLabel;
-                input.addEventListener('input', applyFilters);
+                input.addEventListener(exact ? 'change' : 'input', applyFilters);
                 filters.set(column.key, input);
                 cell.appendChild(input);
             }
@@ -128,6 +153,8 @@
             table.querySelectorAll('.column-' + key).forEach((cell) => {
                 cell.classList.toggle('avpvh-column-hidden', !visible);
             });
+            if (!visible && filters.has(key)) filters.get(key).value = '';
+            noResultsCell.colSpan = columns.filter((column) => !column.cell.classList.contains('avpvh-column-hidden')).length;
         }
 
         function saveColumnVisibility() {
@@ -152,6 +179,7 @@
             check.addEventListener('change', () => {
                 setColumnVisibility(check.value, check.checked);
                 saveColumnVisibility();
+                applyFilters();
             });
         });
 
@@ -169,7 +197,10 @@
             if (!event.target.closest('.avpvh-activity-columns')) closeColumnPanel();
         });
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') closeColumnPanel();
+            if (event.key === 'Escape' && !columnPanel.hidden) {
+                closeColumnPanel();
+                columnToggle.focus();
+            }
         });
 
         applyFilters();

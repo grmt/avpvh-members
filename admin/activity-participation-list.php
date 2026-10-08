@@ -193,7 +193,7 @@ $export_url = wp_nonce_url(
     <?php endif; ?>
 
     <div class="avpvh-activity-list" data-avpvh-activity-list>
-        <div class="avpvh-activity-list__tools">
+        <div class="avpvh-activity-list__tools" hidden>
             <label class="avpvh-activity-list__search" for="avpvh-activity-search">
                 <span><?php esc_html_e('Zoeken:', 'avpvh-members'); ?></span>
                 <input type="search" id="avpvh-activity-search" placeholder="<?php echo esc_attr__('Naam, dieet of notities', 'avpvh-members'); ?>">
@@ -222,6 +222,7 @@ $export_url = wp_nonce_url(
 
         <div class="avpvh-activity-list__table"
              data-filter-label="<?php echo esc_attr__('Filter', 'avpvh-members'); ?>"
+             data-all-label="<?php echo esc_attr__('Alle', 'avpvh-members'); ?>"
              data-no-results="<?php echo esc_attr__('Geen deelnemers gevonden met deze filters.', 'avpvh-members'); ?>">
             <?php $table->display(); ?>
         </div>
