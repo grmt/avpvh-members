@@ -92,6 +92,44 @@
     padding: .2em 0;
 }
 
+/* Filterable member combobox (e.g. Leden samenvoegen) — same idea as
+   avpvh-bookkeeping's review-queue member picker. */
+.avpvh-member-combo {
+    position: relative;
+    display: inline-block;
+    width: 28em;
+    max-width: 100%;
+    vertical-align: top;
+}
+.avpvh-member-combo-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+.avpvh-member-combo-list {
+    position: absolute;
+    z-index: 100;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 16em;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #8c8f94;
+    border-radius: 3px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    margin-top: 2px;
+}
+.avpvh-member-combo-item {
+    padding: .3rem .6rem;
+    cursor: pointer;
+    font-size: .9em;
+}
+.avpvh-member-combo-item:hover,
+.avpvh-member-combo-item.is-active {
+    background: #2271b1;
+    color: #fff;
+}
+
 #avpvh-search {
     width: 280px;
     height: 40px !important;
