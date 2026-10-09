@@ -129,18 +129,6 @@ class AVPVH_Access {
             return $content;
         }
 
-        $providers  = AVPVH_OAuth::configured_providers();
-        $login_urls = [];
-        foreach ($providers as $key => $provider) {
-            $login_urls[$key] = AVPVH_OAuth::login_url($key);
-        }
-
-        wp_enqueue_script(
-            'avpvh-login-form',
-            plugin_dir_url(dirname(__FILE__)) . 'assets/login-form.js',
-            [], avpvh_asset_version('assets/login-form.js'), true
-        );
-
         // Pass the 1FA SSO target as the 'rd' redirection URL so Authelia only requires
         // 1FA (username/password). Step-up to 2FA is only triggered on protected areas like /wp-admin/.
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -150,6 +138,18 @@ class AVPVH_Access {
             $sso_target = add_query_arg('redirect_to', $redirect_to, $sso_target);
         }
         $authelia_url = add_query_arg('rd', $sso_target, 'https://auth.avphilipsvanhorne.nl/');
+
+        $providers  = AVPVH_OAuth::configured_providers();
+        $login_urls = [];
+        foreach ($providers as $key => $provider) {
+            $login_urls[$key] = AVPVH_OAuth::login_url($key, $redirect_to);
+        }
+
+        wp_enqueue_script(
+            'avpvh-login-form',
+            plugin_dir_url(dirname(__FILE__)) . 'assets/login-form.js',
+            [], avpvh_asset_version('assets/login-form.js'), true
+        );
 
         $login_config = wp_json_encode([
             'autheliaUrl'    => $authelia_url,

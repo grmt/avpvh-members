@@ -62,7 +62,13 @@ add_action('wp_enqueue_scripts', function () {
 });
 
 add_action('login_init', function () {
-    wp_safe_redirect(home_url('/avpvh-login/'));
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
+    $login_url   = home_url('/avpvh-login/');
+    if (!empty($redirect_to)) {
+        $login_url = add_query_arg('redirect_to', $redirect_to, $login_url);
+    }
+    wp_safe_redirect($login_url);
     exit;
 });
 
