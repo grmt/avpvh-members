@@ -5,6 +5,9 @@ class AVPVH_Admin {
 
     public function __construct() {
         add_action('admin_menu', [$this, 'register_menus'], 5);
+        add_filter('set_screen_option_avpvh_login_attempts_per_page', static function ($status, $option, $value) {
+            return max(1, min(500, (int) $value));
+        }, 10, 3);
         add_action('admin_post_avpvh_mark_fee_paid', [$this, 'handle_mark_fee_paid']);
         add_action('admin_post_avpvh_save_settings', [$this, 'handle_save_settings']);
         add_action('admin_post_avpvh_test_oauth',    [$this, 'handle_test_oauth']);
@@ -162,10 +165,39 @@ class AVPVH_Admin {
             null, __('Deelname bewerken', 'avpvh-members'), __('Deelname bewerken', 'avpvh-members'), $activities_cap,
             'avpvh-activity-participation-detail', [$this, 'render_activity_participation_detail']
         );
-        add_submenu_page(
+        $login_attempts_hook = add_submenu_page(
             'avpvh-members', __('Loginpogingen', 'avpvh-members'), __('Loginpogingen', 'avpvh-members'), 'manage_options',
             'avpvh-login-attempts', [$this, 'render_login_attempts']
         );
+        // Sortable/filterable WP_List_Table: Screen Options give per-page
+        // count and column toggles (WordPress remembers both per user).
+        add_action('load-' . $login_attempts_hook, function () {
+            require_once AVPVH_PLUGIN_DIR . 'admin/class-login-attempts-list-table.php';
+            wp_enqueue_style(
+                'avpvh-login-attempts-admin',
+                plugin_dir_url(dirname(__FILE__)) . 'assets/login-attempts.css',
+                [], avpvh_asset_version('assets/login-attempts.css')
+            );
+            wp_enqueue_script(
+                'avpvh-login-attempts-admin',
+                plugin_dir_url(dirname(__FILE__)) . 'assets/login-attempts.js',
+                ['jquery-ui-datepicker'], avpvh_asset_version('assets/login-attempts.js'), true
+            );
+            add_screen_option('per_page', [
+                'label'   => __('Loginpogingen per pagina', 'avpvh-members'),
+                'default' => 50,
+                'option'  => 'avpvh_login_attempts_per_page',
+            ]);
+            add_filter('manage_' . get_current_screen()->id . '_columns', static function () {
+                return (new AVPVH_Login_Attempts_List_Table())->get_columns();
+            });
+            add_filter('default_hidden_columns', static function (array $hidden, $screen): array {
+                if ($screen && $screen->id === get_current_screen()->id) {
+                    $hidden[] = 'id';
+                }
+                return array_values(array_unique($hidden));
+            }, 10, 2);
+        });
         add_submenu_page(
             'avpvh-members', __('Nieuwsbrief', 'avpvh-members'), __('Nieuwsbrief', 'avpvh-members'), $newsletter_cap,
             'avpvh-newsletter', [$this, 'render_newsletter']

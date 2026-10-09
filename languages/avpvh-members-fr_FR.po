@@ -2575,3 +2575,53 @@ msgstr "Secrétaire"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Trésorier"
+
+#: admin/class-login-attempts-list-table.php
+#, php-format
+msgid "%1$s: %2$d gekozen"
+msgstr "%1$s : %2$d sélectionnés"
+
+#: admin/class-login-attempts-list-table.php
+#, php-format
+msgid "%s: alle"
+msgstr "%s : tous"
+
+#: admin/class-login-attempts-list-table.php
+msgid "E-maillink"
+msgstr "Lien par e-mail"
+
+#: admin/class-login-attempts-list-table.php
+msgid "E-maillink verzonden"
+msgstr "Lien par e-mail envoyé"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Gebruik een geldige datum als dd-mmm-yyyy."
+msgstr "Utilisez une date valide au format jj-mmm-aaaa."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Geen loginpogingen gevonden."
+msgstr "Aucune tentative de connexion trouvée."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Loginpogingen per pagina"
+msgstr "Tentatives de connexion par page"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Loginpogingen zoeken"
+msgstr "Rechercher des tentatives de connexion"
+
+#: admin/class-login-attempts-list-table.php
+msgid "Tot kan niet later zijn dan vandaag."
+msgstr "La date de fin ne peut pas être postérieure à aujourd'hui."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Tot moet later zijn dan van."
+msgstr "La date de fin doit être postérieure à la date de début."
+
+#: admin/class-login-attempts-list-table.php
+msgid "Van moet vóór vandaag liggen."
+msgstr "La date de début doit être antérieure à aujourd'hui."
+
+#: admin/class-login-attempts-list-table.php
+msgid "tot"
+msgstr "au"
