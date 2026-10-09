@@ -1,107 +1,66 @@
 document.addEventListener('DOMContentLoaded', function () {
-    var configEl = document.getElementById('avpvh-activity-picker-config');
-    if (!configEl) return;
-    var cfg = JSON.parse(configEl.textContent);
+    'use strict';
 
-    var form = document.getElementById('avpvh-activity-picker-form');
-    var yearFilter = document.getElementById('avpvh-activity-year-filter');
-    var typeFilter = document.getElementById('avpvh-activity-type-filter');
-    var wrapper = form.querySelector('.avpvh-activity-combo');
-    var hidden = document.getElementById('avpvh-activity-combo-value');
-    var input = wrapper.querySelector('.avpvh-activity-combo-input');
-    var list = wrapper.querySelector('.avpvh-activity-combo-list');
-    if (!hidden || !input || !list) return;
+    const config = document.getElementById('avpvh-activity-picker-config');
+    const form = document.getElementById('avpvh-activity-picker-form');
+    if (!config || !form) return;
 
-    var activeIndex = -1;
-    var renderedItems = [];
+    const activities = JSON.parse(config.textContent).activities;
+    const year = document.getElementById('avpvh-activity-year-filter');
+    const type = document.getElementById('avpvh-activity-type-filter');
+    const search = document.getElementById('avpvh-activity-name-filter');
+    const select = document.getElementById('avpvh-activity-select');
+    const view = form.querySelector('button[type="submit"]');
+    if (!year || !type || !search || !select) return;
 
-    function labelFor(id) {
-        var a = cfg.activities.filter(function (x) { return String(x.id) === String(id); })[0];
-        return a ? a.label : '';
-    }
+    search.closest('label').hidden = false;
 
-    function closeList() {
-        list.hidden = true;
-        activeIndex = -1;
-    }
-
-    function selectActivity(id, label) {
-        hidden.value = id;
-        input.value = label;
-        closeList();
-        form.submit();
-    }
-
-    function setActive(index) {
-        var children = Array.prototype.slice.call(list.querySelectorAll('.avpvh-activity-combo-item'));
-        children.forEach(function (el, i) { el.classList.toggle('is-active', i === index); });
-        if (children[index]) children[index].scrollIntoView({ block: 'nearest' });
-        activeIndex = index;
-    }
-
-    function render(forceEmptyTerm) {
-        var term = forceEmptyTerm ? '' : input.value.trim().toLowerCase();
-        var year = yearFilter.value;
-        var type = typeFilter.value;
-        list.innerHTML = '';
-        renderedItems = [];
-        cfg.activities.forEach(function (a) {
-            if (year !== '' && String(a.year) !== year) return;
-            if (type !== '' && a.type !== type) return;
-            if (term !== '' && a.label.toLowerCase().indexOf(term) === -1) return;
-            var item = document.createElement('div');
-            item.className = 'avpvh-activity-combo-item';
-            item.textContent = a.label;
-            item.dataset.id = a.id;
-            item.addEventListener('mousedown', function (e) {
-                e.preventDefault();
-                selectActivity(a.id, a.label);
-            });
-            list.appendChild(item);
-            renderedItems.push(item);
+    function render() {
+        const selected = select.value;
+        const term = search.value.trim().toLocaleLowerCase('nl');
+        const matches = activities.filter((activity) => {
+            return (year.value === '0' || year.value === '' || String(activity.year) === year.value)
+                && (type.value === '' || (type.value === '__none__' ? activity.type === '' : activity.type === type.value))
+                && (!term || activity.label.toLocaleLowerCase('nl').includes(term));
         });
-        list.hidden = renderedItems.length === 0;
-        activeIndex = -1;
+
+        select.replaceChildren(new Option(matches.length ? select.dataset.placeholder : select.dataset.empty, '0'));
+        matches.forEach((activity) => {
+            select.add(new Option(activity.label, String(activity.id)));
+        });
+        select.value = matches.some((activity) => String(activity.id) === selected) ? selected : '0';
+        if (view) view.disabled = select.value === '0';
+        return matches;
     }
 
-    input.addEventListener('input', function () { render(false); });
-    input.addEventListener('focus', function () {
-        input.select();
-        render(true);
-    });
-    input.addEventListener('keydown', function (e) {
-        if (list.hidden && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-            render(true);
-            return;
+    function openSelection() {
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+        } else {
+            form.submit();
         }
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setActive(Math.min(activeIndex + 1, renderedItems.length - 1));
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setActive(Math.max(activeIndex - 1, 0));
-        } else if (e.key === 'Enter') {
-            if (!list.hidden && activeIndex >= 0 && renderedItems[activeIndex]) {
-                e.preventDefault();
-                var item = renderedItems[activeIndex];
-                selectActivity(item.dataset.id, item.textContent);
-            }
-        } else if (e.key === 'Escape') {
-            closeList();
+    }
+
+    function changeFilters() {
+        search.value = '';
+        const matches = render();
+        if (matches.length === 1) select.value = String(matches[0].id);
+        openSelection();
+    }
+
+    year.addEventListener('change', changeFilters);
+    type.addEventListener('change', changeFilters);
+    search.addEventListener('input', render);
+    search.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (select.options.length === 2) select.value = select.options[1].value;
+            if (select.value !== '0') openSelection();
         }
     });
-    input.addEventListener('blur', function () {
-        setTimeout(function () {
-            closeList();
-            input.value = hidden.value ? labelFor(hidden.value) : '';
-        }, 150);
+    select.addEventListener('change', () => {
+        if (view) view.disabled = select.value === '0';
+        openSelection();
     });
-    // Kiezen van een jaar/type is zelf geen keuze van activiteit — alleen
-    // de kandidatenlijst versmallen, direct zichtbaar als die al open staat.
-    yearFilter.addEventListener('change', function () {
-        if (!list.hidden) render(false);
-    });
-    typeFilter.addEventListener('change', function () {
-        if (!list.hidden) render(false);
-    });
+    render();
 });
