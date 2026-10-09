@@ -526,13 +526,20 @@ class AVPVH_Member_Merge {
                 continue;
             }
             self::check($wpdb->insert("{$p}avm_member_name_aliases", [
-                'member_id'      => $keep_id,
-                'first_name'     => $member->first_name,
-                'suffix'         => $member->suffix,
-                'last_name'      => $member->last_name,
-                'alias_type'     => 'historical',
-                'normalized_key' => $key,
-                'source'         => 'samenvoeging lid #' . $remove_id,
+                'member_id'           => $keep_id,
+                'first_name'          => $member->first_name,
+                'suffix'              => $member->suffix,
+                'last_name'           => $member->last_name,
+                'alias_type'          => 'historical',
+                'normalized_key'      => $key,
+                // member_normalized's UNIQUE KEY is (member_id,
+                // normalized_key_hash) — this column was never actually
+                // populated anywhere, so every row silently kept the
+                // column's '' default, and a member's *second* alias ever
+                // (from a later, separate merge) collided with their
+                // first on that index and aborted the whole merge.
+                'normalized_key_hash' => hash('sha256', $key),
+                'source'              => 'samenvoeging lid #' . $remove_id,
             ]), 'naamvariant toevoegen');
         }
     }

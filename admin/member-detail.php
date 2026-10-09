@@ -77,20 +77,22 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     $sync_msg = $sync_ok ? __('Naam bijgewerkt in het account.', 'avpvh-members') : sprintf(__('Bijwerken van het account is mislukt: %s', 'avpvh-members'), $result->get_error_message());
 }
 ?>
-<div class="wrap">
+<div class="wrap avpvh-member-detail">
     <h1><?php echo esc_html(avpvh_format_name($member, 'list')); ?></h1>
+    <p class="avpvh-member-detail-actions">
     <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-members'], admin_url('admin.php'))); ?>">&larr; <?php esc_html_e('Terug naar ledenlijst', 'avpvh-members'); ?></a>
-    &nbsp;|&nbsp;
+    <span>&nbsp;|&nbsp;</span>
     <a href="<?php echo esc_url(add_query_arg(['member_id' => $member_id], home_url('/member-profile/'))); ?>"
        class="button button-small"><?php esc_html_e('Bewerk profiel', 'avpvh-members'); ?></a>
-    &nbsp;|&nbsp;
+    <span>&nbsp;|&nbsp;</span>
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
        class="button button-small" title="<?php echo esc_attr__('Meestal niet nodig — een naamwijziging op het profiel werkt het account al automatisch bij. Vooral bedoeld voor een lid van vóór die automatische koppeling.', 'avpvh-members'); ?>"><?php esc_html_e('Naam bijwerken in account', 'avpvh-members'); ?></a>
     <?php if (current_user_can('manage_options')) : ?>
-        &nbsp;|&nbsp;
+        <span>&nbsp;|&nbsp;</span>
         <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-merge-members', 'keep' => $member_id], admin_url('admin.php'))); ?>"
            class="button button-small" title="<?php echo esc_attr__('Een dubbel ledenrecord samenvoegen met dit lid', 'avpvh-members'); ?>"><?php esc_html_e('Dubbel lid samenvoegen', 'avpvh-members'); ?></a>
     <?php endif; ?>
+    </p>
 
     <?php if ($updated) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Bijgewerkt.', 'avpvh-members'); ?></p></div>
@@ -191,7 +193,9 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th><?php esc_html_e('Vertrokken', 'avpvh-members'); ?></th><td><?php echo esc_html($member->left_year ?: '—'); ?></td></tr>
     </table>
 
-    <h2><?php esc_html_e('Inlogadressen', 'avpvh-members'); ?></h2>
+    <details class="avpvh-detail-section" name="avpvh-detail-section">
+    <summary><h2><?php esc_html_e('Inlogadressen', 'avpvh-members'); ?></h2></summary>
+    <div style="overflow-x:auto">
     <table class="wp-list-table widefat striped">
         <thead><tr><th><?php esc_html_e('Provider', 'avpvh-members'); ?></th><th><?php esc_html_e('E-mail', 'avpvh-members'); ?></th><th><?php esc_html_e('Geverifieerd', 'avpvh-members'); ?></th><th><?php esc_html_e('Eerste login', 'avpvh-members'); ?></th><th><?php esc_html_e('Laatste login', 'avpvh-members'); ?></th><th><?php esc_html_e('Primair', 'avpvh-members'); ?></th><th><?php esc_html_e('Actie', 'avpvh-members'); ?></th></tr></thead>
         <tbody>
@@ -237,6 +241,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+    </div>
 
     <h3 style="margin-top:1rem"><?php esc_html_e('Nieuw e-mailadres koppelen', 'avpvh-members'); ?></h3>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="form-table">
@@ -254,8 +259,10 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         </table>
         <?php submit_button(__('Koppelen', 'avpvh-members'), 'secondary'); ?>
     </form>
+    </details>
 
-    <h2><?php esc_html_e('Kenmerken', 'avpvh-members'); ?></h2>
+    <details class="avpvh-detail-section" name="avpvh-detail-section">
+    <summary><h2><?php esc_html_e('Kenmerken', 'avpvh-members'); ?></h2></summary>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <?php wp_nonce_field('avpvh_save_member_flags'); ?>
         <input type="hidden" name="action" value="avpvh_save_member_flags">
@@ -286,9 +293,12 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <p class="description">
         <?php printf(esc_html__('Nieuw kenmerk nodig? %s bij Instellingen.', 'avpvh-members'), '<a href="' . esc_url(add_query_arg(['page' => 'avpvh-settings'], admin_url('admin.php'))) . '">' . esc_html__('Beheer de lijst met kenmerken', 'avpvh-members') . '</a>'); ?>
     </p>
+    </details>
 
-    <h2><?php esc_html_e('Adreshistorie', 'avpvh-members'); ?></h2>
+    <details class="avpvh-detail-section" name="avpvh-detail-section">
+    <summary><h2><?php esc_html_e('Adreshistorie', 'avpvh-members'); ?></h2></summary>
     <p class="description"><?php esc_html_e('Elke keer dat een adres wordt opgeslagen via het profiel komt er een nieuwe rij bij (nooit een wijziging van een bestaande) — hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen.', 'avpvh-members'); ?></p>
+    <div style="overflow-x:auto">
     <table class="wp-list-table widefat striped">
         <thead><tr><th><?php esc_html_e('Straat', 'avpvh-members'); ?></th><th><?php esc_html_e('Nr', 'avpvh-members'); ?></th><th><?php esc_html_e('Postcode', 'avpvh-members'); ?></th><th><?php esc_html_e('Stad', 'avpvh-members'); ?></th><th><?php esc_html_e('Land', 'avpvh-members'); ?></th><th><?php esc_html_e('Van', 'avpvh-members'); ?></th><th><?php esc_html_e('Tot', 'avpvh-members'); ?></th><th></th></tr></thead>
         <tbody>
@@ -323,8 +333,11 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+    </div>
+    </details>
 
-    <h2><?php esc_html_e('Groepen (toegangsrechten)', 'avpvh-members'); ?></h2>
+    <details class="avpvh-detail-section" name="avpvh-detail-section">
+    <summary><h2><?php esc_html_e('Groepen (toegangsrechten)', 'avpvh-members'); ?></h2></summary>
     <p class="description"><?php esc_html_e('Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor "Zoeken in documenten") — los van de kenmerken hierboven, die alleen labels/filters zijn.', 'avpvh-members'); ?></p>
     <?php
     $all_groups     = AVPVH_Directory::list_groups();
@@ -355,9 +368,11 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             <?php submit_button(__('Groepen opslaan', 'avpvh-members'), 'secondary'); ?>
         </form>
     <?php endif; ?>
+    </details>
 
     <?php elseif ($active_tab === 'activities') : ?>
     <h2><?php esc_html_e('Deelname', 'avpvh-members'); ?></h2>
+    <div style="overflow-x:auto">
     <table class="wp-list-table widefat striped">
         <thead><tr><th><?php esc_html_e('Activiteit', 'avpvh-members'); ?></th><th><?php esc_html_e('Jaar', 'avpvh-members'); ?></th><th><?php esc_html_e('Locatie/kenmerk', 'avpvh-members'); ?></th><th><?php esc_html_e('Nachten', 'avpvh-members'); ?></th><th><?php esc_html_e('Nawacht', 'avpvh-members'); ?></th><th><?php esc_html_e('Dieet', 'avpvh-members'); ?></th><th><?php esc_html_e('Notities', 'avpvh-members'); ?></th></tr></thead>
         <tbody>
@@ -376,9 +391,11 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+    </div>
 
     <?php elseif ($active_tab === 'fees') : ?>
     <h2><?php esc_html_e('Contributieoverzicht', 'avpvh-members'); ?></h2>
+    <div style="overflow-x:auto">
     <table class="wp-list-table widefat striped">
         <thead><tr><th><?php esc_html_e('Jaar', 'avpvh-members'); ?></th><th><?php esc_html_e('Verschuldigd', 'avpvh-members'); ?></th><th><?php esc_html_e('Betaald', 'avpvh-members'); ?></th><th><?php esc_html_e('Betaaldatum', 'avpvh-members'); ?></th><th><?php esc_html_e('Status', 'avpvh-members'); ?></th><th><?php esc_html_e('Actie', 'avpvh-members'); ?></th></tr></thead>
         <tbody>
@@ -406,6 +423,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <?php endforeach; endif; ?>
         </tbody>
     </table>
+    </div>
 
     <?php elseif ($active_tab === 'relationships') : ?>
     <?php AVPVH_Member_Profile_Form::render_relationships($member); ?>

@@ -1,5 +1,45 @@
 /* Shared styling for AV-PvH Members admin screens */
 
+/* Activity filters and selection use native, keyboard-accessible controls. */
+.avpvh-activity-picker {
+    margin: 1rem 0 1.5rem;
+    padding: 1rem;
+    border: 1px solid #c3c4c7;
+    background: #fff;
+}
+.avpvh-activity-picker__fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: .75rem;
+}
+.avpvh-activity-picker__fields label {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    font-weight: 600;
+}
+.avpvh-activity-picker__fields select,
+.avpvh-activity-picker__fields input {
+    margin: 0;
+    font-weight: 400;
+    min-height: 34px;
+}
+.avpvh-activity-picker__selection {
+    flex: 1 1 20rem;
+    min-width: 0;
+}
+.avpvh-activity-picker__selection select {
+    width: 100%;
+    max-width: 100%;
+}
+.avpvh-activity-picker .description {
+    margin-bottom: 0;
+}
+.avpvh-activity-picker [hidden] {
+    display: none !important;
+}
+
 .avpvh-member-row-inactive,
 .avpvh-member-row-visitor {
     background: #f0f0f1 !important;
@@ -54,11 +94,100 @@
     padding: .2em 0;
 }
 
+/* Filterable member combobox (e.g. Leden samenvoegen) — same idea as
+   avpvh-bookkeeping's review-queue member picker. */
+.avpvh-member-combo {
+    position: relative;
+    display: inline-block;
+    width: 28em;
+    max-width: 100%;
+    vertical-align: top;
+}
+.avpvh-member-combo-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+.avpvh-member-combo-list {
+    position: absolute;
+    z-index: 100;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 16em;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #8c8f94;
+    border-radius: 3px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    margin-top: 2px;
+}
+.avpvh-member-combo-item {
+    padding: .3rem .6rem;
+    cursor: pointer;
+    font-size: .9em;
+}
+.avpvh-member-combo-item:hover,
+.avpvh-member-combo-item.is-active {
+    background: #2271b1;
+    color: #fff;
+}
+
 #avpvh-search {
     width: 280px;
     height: 40px !important;
     box-sizing: border-box;
     vertical-align: middle;
+}
+
+/* Member detail page — WP core's default .form-table row height/heading
+   margins add up to a lot of scrolling for a long field list like this. */
+.avpvh-member-detail .form-table th,
+.avpvh-member-detail .form-table td {
+    padding: 6px 10px;
+}
+.avpvh-member-detail h2 {
+    margin: 1.2em 0 .4em;
+}
+.avpvh-member-detail h3 {
+    margin: .8em 0 .3em;
+}
+
+/* Collapsed-by-default sections (Inlogadressen/Kenmerken/Adreshistorie/
+   Groepen) — only Contactgegevens stays always expanded, so the page
+   opens short instead of a long scroll through everything at once. */
+.avpvh-detail-section {
+    margin-bottom: .5em;
+}
+.avpvh-detail-section > summary {
+    cursor: pointer;
+    list-style: revert;
+}
+.avpvh-detail-section > summary h2 {
+    display: inline;
+    margin: 1.2em 0 .4em;
+}
+.avpvh-detail-section[open] {
+    margin-bottom: 1.5em;
+}
+
+/* Small screens: the action-button row and tabs wrap instead of forcing
+   horizontal scroll, and tables scroll within their own width (see the
+   overflow-x:auto wrappers in member-detail.php) instead of the whole
+   page. */
+@media (max-width: 782px) {
+    .avpvh-member-detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4em .6em;
+        align-items: center;
+    }
+    .avpvh-member-detail-actions > span {
+        display: none;
+    }
+    .avpvh-member-detail .nav-tab-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+    }
 }
 
 /* Roles & delegation page */
@@ -71,6 +200,129 @@
 .avpvh-roles-section > summary h2 {
     display: inline;
     margin: 0;
+}
+
+/* Activity participation list controls */
+.avpvh-activity-list {
+    margin-top: 1rem;
+}
+.avpvh-activity-list__tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+    margin-bottom: .75rem;
+}
+.avpvh-activity-list__search {
+    display: flex;
+    gap: .4rem;
+    align-items: center;
+}
+.avpvh-activity-list__search input {
+    width: min(22rem, 55vw);
+}
+.avpvh-activity-list__count {
+    color: #646970;
+}
+.avpvh-activity-columns {
+    position: relative;
+}
+.avpvh-activity-columns__panel {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 3px);
+    left: 0;
+    min-width: 13rem;
+    padding: .55rem .75rem;
+    background: #fff;
+    border: 1px solid #8c8f94;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+}
+.avpvh-activity-columns__panel label {
+    display: block;
+    padding: .2rem 0;
+    white-space: nowrap;
+}
+.avpvh-activity-list__table {
+    overflow-x: auto;
+}
+.avpvh-activity-list .wp-list-table {
+    min-width: 48rem;
+}
+.avpvh-activity-list .avpvh-sort-button {
+    display: inline-flex;
+    gap: .35rem;
+    align-items: center;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    background: transparent;
+    cursor: pointer;
+}
+.avpvh-activity-list .avpvh-sort-button::after {
+    content: "\2195";
+    color: #787c82;
+    font-weight: 400;
+}
+.avpvh-activity-list th[aria-sort="ascending"] .avpvh-sort-button::after {
+    content: "\2191";
+    color: #2271b1;
+}
+.avpvh-activity-list th[aria-sort="descending"] .avpvh-sort-button::after {
+    content: "\2193";
+    color: #2271b1;
+}
+.avpvh-activity-filter-row th {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    vertical-align: middle;
+}
+.avpvh-activity-filter-row input,
+.avpvh-activity-filter-row select {
+    width: 100%;
+    min-width: 5rem;
+    margin: 0;
+    font-weight: 400;
+}
+.avpvh-column-hidden {
+    display: none !important;
+}
+.avpvh-activity-list [hidden] {
+    display: none !important;
+}
+.avpvh-activity-no-results td {
+    padding: 1rem;
+    text-align: center;
+}
+
+@media (max-width: 782px) {
+    .avpvh-activity-list .wp-list-table tr {
+        display: table-row;
+    }
+    .avpvh-activity-list .wp-list-table thead th,
+    .avpvh-activity-list .wp-list-table tfoot th,
+    .avpvh-activity-list .wp-list-table tr:not(.inline-edit-row):not(.no-items) td,
+    .avpvh-activity-list .wp-list-table tr:not(.inline-edit-row):not(.no-items) td.column-primary ~ td:not(.check-column) {
+        display: table-cell;
+    }
+    .avpvh-activity-list .wp-list-table tr:not(.inline-edit-row):not(.no-items) td {
+        padding: 8px 10px;
+    }
+    .avpvh-activity-list .wp-list-table td::before,
+    .avpvh-activity-list .wp-list-table .toggle-row {
+        display: none;
+    }
+    .avpvh-activity-list__search {
+        width: 100%;
+    }
+    .avpvh-activity-list__search input {
+        flex: 1;
+        width: auto;
+    }
 }
 
 /* Address comparison on the member-merge screen */

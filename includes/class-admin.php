@@ -57,12 +57,35 @@ class AVPVH_Admin {
                 avpvh_asset_version('assets/members-list.js'),
                 true
             );
+        } elseif ($page === 'avpvh-activity-participation') {
+            wp_enqueue_script(
+                'avpvh-activity-participation-list',
+                $base . 'assets/activity-participation-list.js',
+                [],
+                avpvh_asset_version('assets/activity-participation-list.js'),
+                true
+            );
+            wp_enqueue_script(
+                'avpvh-activity-participation-table',
+                $base . 'assets/activity-participation-table.js',
+                [],
+                avpvh_asset_version('assets/activity-participation-table.js'),
+                true
+            );
         } elseif ($page === 'avpvh-activity-participation-detail') {
             wp_enqueue_script(
                 'avpvh-activity-participation-detail',
                 $base . 'assets/activity-participation-detail.js',
                 [],
                 avpvh_asset_version('assets/activity-participation-detail.js'),
+                true
+            );
+        } elseif ($page === 'avpvh-merge-members') {
+            wp_enqueue_script(
+                'avpvh-merge-members',
+                $base . 'assets/merge-members.js',
+                [],
+                avpvh_asset_version('assets/merge-members.js'),
                 true
             );
         }
