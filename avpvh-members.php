@@ -34,6 +34,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-i18n.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-name-matcher.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-merge.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-visitor-delete.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory-cache.php';

@@ -32,6 +32,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_delete_flag',        [$this, 'handle_delete_flag']);
         add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
         add_action('admin_post_avpvh_merge_members',      [$this, 'handle_merge_members']);
+        add_action('admin_post_avpvh_delete_visitor',     [$this, 'handle_delete_visitor']);
         add_action('admin_enqueue_scripts',               [$this, 'enqueue_admin_assets']);
     }
 
@@ -109,6 +110,10 @@ class AVPVH_Admin {
     }
 
     public function register_menus(): void {
+        add_submenu_page(
+            null, __('Bezoeker definitief verwijderen', 'avpvh-members'), __('Bezoeker definitief verwijderen', 'avpvh-members'), 'manage_options',
+            'avpvh-delete-visitor', [$this, 'render_delete_visitor']
+        );
         // add_menu_page()/add_submenu_page()'s capability must be a real WP
         // capability string, not a club role — 'read' (every logged-in user
         // has it) stands in for "yes" here, since register_menus() itself
@@ -208,6 +213,34 @@ class AVPVH_Admin {
 
     public function render_merge_members(): void {
         require AVPVH_PLUGIN_DIR . 'admin/merge-members.php';
+    }
+
+    public function render_delete_visitor(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/delete-visitor.php';
+    }
+
+    public function handle_delete_visitor(): void {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), '', ['response' => 403]);
+        }
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            wp_die(esc_html__('Gebruik het bevestigingsformulier.', 'avpvh-members'), '', ['response' => 405]);
+        }
+        $id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        check_admin_referer('avpvh_delete_visitor_' . $id);
+        $result = AVPVH_Visitor_Delete::execute(
+            $id,
+            sanitize_text_field(wp_unslash($_POST['fingerprint'] ?? '')),
+            sanitize_text_field(wp_unslash($_POST['confirmation'] ?? '')),
+            !empty($_POST['is_test'])
+        );
+        if (is_wp_error($result)) {
+            set_transient('avpvh_visitor_delete_result_' . get_current_user_id(), $result->get_error_message(), 10 * MINUTE_IN_SECONDS);
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-delete-visitor', 'id' => $id], admin_url('admin.php')));
+        } else {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-members', 'visitor_deleted' => 1, 'status' => ['visitor']], admin_url('admin.php')));
+        }
+        exit;
     }
 
     public function render_login_attempts(): void {

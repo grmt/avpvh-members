@@ -88,6 +88,10 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => $active_tab, 'sync_lldap' => '1'], admin_url('admin.php')), 'avpvh_sync_lldap_' . $member_id)); ?>"
        class="button button-small" title="<?php echo esc_attr__('Meestal niet nodig — een naamwijziging op het profiel werkt het account al automatisch bij. Vooral bedoeld voor een lid van vóór die automatische koppeling.', 'avpvh-members'); ?>"><?php esc_html_e('Naam bijwerken in account', 'avpvh-members'); ?></a>
     <?php if (current_user_can('manage_options')) : ?>
+        <?php if ($member->status === 'visitor') : ?>
+            <span>&nbsp;|&nbsp;</span>
+            <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-delete-visitor', 'id' => $member_id], admin_url('admin.php'))); ?>" class="button button-small"><?php esc_html_e('Definitief verwijderen', 'avpvh-members'); ?></a>
+        <?php endif; ?>
         <span>&nbsp;|&nbsp;</span>
         <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-merge-members', 'keep' => $member_id], admin_url('admin.php'))); ?>"
            class="button button-small" title="<?php echo esc_attr__('Een dubbel ledenrecord samenvoegen met dit lid', 'avpvh-members'); ?>"><?php esc_html_e('Dubbel lid samenvoegen', 'avpvh-members'); ?></a>
