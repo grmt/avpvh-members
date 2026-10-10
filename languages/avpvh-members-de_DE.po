@@ -2575,3 +2575,35 @@ msgstr "Schriftführer"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Kassenwart"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Mijn betalingen"
+msgstr "Meine Zahlungen"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor actieve leden."
+msgstr "Du bist angemeldet, aber dein Konto hat keinen Zugriff auf diese Seite. Diese Seite ist nur für aktive Mitglieder verfügbar."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Lidmaatschap aanvragen"
+msgstr "Mitgliedschaft beantragen"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn."
+msgstr "Du kannst die Mitgliedschaft beim Sekretär beantragen. Achte darauf, dass deine Initialen, dein Name und deine Adresse in deinem Profil vollständig sind."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn."
+msgstr "Volljährige benötigen Vorschläge von zwei Mitgliedern. Bitte beide, ihren Vorschlag per E-Mail an den Sekretär zu senden. Bei Minderjährigen muss mindestens ein gesetzlicher Vertreter Mitglied sein."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten."
+msgstr "Der Vorstand entscheidet über deine Aufnahme. Der Sekretär teilt dir die Entscheidung schriftlich mit."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Neem contact op met de secretaris"
+msgstr "Sekretär kontaktieren"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Statuten en huishoudelijk reglement"
+msgstr "Satzung und Geschäftsordnung"

@@ -2575,3 +2575,35 @@ msgstr "Secretaris"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Penningmeister"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Mijn betalingen"
+msgstr "Mien betalinge"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor actieve leden."
+msgstr "Doe bis ingelogd, mer dien account haet gein toegang tot deze pagina. Deze pagina is allein veur actieve lede."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Lidmaatschap aanvragen"
+msgstr "Lidmaatsjap aanvrage"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn."
+msgstr "Doe kins lidmaatsjap aanvrage bie de secretaris. Zorg det dien veurletters, naam en adres in dien profiel compleet zeen."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn."
+msgstr "Veur meerderjarige zeen twee veurdrachte van lede neudig. Laot beide lede hun veurdracht per e-mail nao de secretaris sjture. Veur minderjarige moot minstens ein wettelijke vertegenwoordiger zelf lid zeen."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten."
+msgstr "Het bestuur beslist euver dien toelaoting. De secretaris laot dich de beslissing sjriftelijk weite."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Neem contact op met de secretaris"
+msgstr "Neem contact op mit de secretaris"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Statuten en huishoudelijk reglement"
+msgstr "Statute en huishoudelijk reglement"

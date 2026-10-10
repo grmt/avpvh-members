@@ -2575,3 +2575,35 @@ msgstr "Secretary"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Treasurer"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Mijn betalingen"
+msgstr "My payments"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor actieve leden."
+msgstr "You are logged in, but your account cannot access this page. This page is only available to active members."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Lidmaatschap aanvragen"
+msgstr "Apply for membership"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn."
+msgstr "You can apply for membership through the secretary. Make sure your initials, name and address are complete in your profile."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn."
+msgstr "Adults need nominations from two members. Ask both members to email their nomination to the secretary. For minors, at least one legal representative must be a member."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten."
+msgstr "The board decides on your admission. The secretary will inform you of the decision in writing."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Neem contact op met de secretaris"
+msgstr "Contact the secretary"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Statuten en huishoudelijk reglement"
+msgstr "Statutes and internal rules"

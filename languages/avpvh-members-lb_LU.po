@@ -2575,3 +2575,35 @@ msgstr "Sekretär"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Tresorier"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Mijn betalingen"
+msgstr "Meng Bezuelungen"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor actieve leden."
+msgstr "Du bass ageloggt, mee däi Kont huet keen Zougang zu dëser Säit. Dës Säit ass nëmme fir aktiv Memberen disponibel."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Lidmaatschap aanvragen"
+msgstr "Memberschaft ufroen"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn."
+msgstr "Du kanns d’Memberschaft beim Sekretär ufroen. Vergewësser dech, datt deng Initialen, däin Numm an deng Adress an dengem Profil komplett sinn."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn."
+msgstr "Erwuessener brauchen d’Propositioun vun zwee Memberen. Béid Memberen sollen hir Propositioun per E-Mail un de Sekretär schécken. Bei Mannerjärege muss op d’mannst ee gesetzleche Vertrieder Member sinn."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten."
+msgstr "De Comité decidéiert iwwer deng Opnam. De Sekretär deelt dir d’Decisioun schrëftlech mat."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Neem contact op met de secretaris"
+msgstr "De Sekretär kontaktéieren"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Statuten en huishoudelijk reglement"
+msgstr "Statuten an internt Reglement"
