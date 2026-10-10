@@ -4,20 +4,20 @@ document.addEventListener('DOMContentLoaded', function () {
     var cfg = JSON.parse(el.textContent);
     if (!cfg) return;
 
-    // --- hide members-only nav items for guests ---
+    // --- hide members-only nav items without active membership ---
     // (climbs to the top-level nav item because every item under "Alleen voor
-    // Leden" requires login — these 2 IDs are just anchors to find and hide
+    // Leden" requires active membership — these 2 IDs are anchors to hide
     // that whole dropdown, not a request to hide only these 2 items)
-    if (!cfg.isLoggedIn) {
+    if (!cfg.isActiveMember) {
         cfg.membersPageIds.forEach(function (id) {
-            hideLinksTo(id, { climbToTopLevel: true });
+            hideLinksTo(id, { climbToTopLevel: true, navOnly: true, slug: 'leden' });
         });
     }
 
     // --- hide "Zoeken in documenten" for members without boek-group access ---
     // (this page is gated by Authelia itself, not WordPress — a member without
     // access would just be bounced to a second login they can't complete)
-    // Unlike the guest case above, only this one item should disappear —
+    // Unlike the members-only case above, only this item should disappear —
     // siblings like "Ledenlijst" stay visible, so this does NOT climb to the
     // top-level nav item.
     if (!cfg.hasDocSearchAccess) {
@@ -32,6 +32,11 @@ document.addEventListener('DOMContentLoaded', function () {
         var selector = 'a[href*="page_id=' + pageId + '"], a[href*="/?p=' + pageId + '"]';
         if (opts.slug) selector += ', a[href*="/' + opts.slug + '"]';
         document.querySelectorAll(selector).forEach(function (a) {
+            if (opts.navOnly && !a.closest('nav.wp-block-navigation')) return;
+            var url = new URL(a.href, location.href);
+            if (url.searchParams.get('page_id') !== String(pageId)
+                && url.searchParams.get('p') !== String(pageId)
+                && (!opts.slug || url.pathname.split('/').indexOf(opts.slug) === -1)) return;
             var li = a.closest('li');
             if (opts.climbToTopLevel) {
                 // Walk up to the <li> that is a direct child of the nav container
@@ -120,17 +125,19 @@ document.addEventListener('DOMContentLoaded', function () {
             chevron.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
         }
 
-        // The icon acts as the item's "label" — same role as the <a> text
-        // ("Welkom!", "De vereniging", ...) other top-level items use — so
         var labels = cfg.labels || {};
+        var loginStatus = cfg.isLoggedIn ? (labels.loggedIn || 'Ingelogd') : (labels.login || 'Inloggen');
 
         var content = document.createElement('button');
         content.type = 'button';
         content.className = 'wp-block-navigation-item__content avpvh-auth-status__content';
-        content.setAttribute('aria-label', labels.account || 'Account');
+        content.setAttribute('aria-label', loginStatus + (cfg.isLoggedIn && cfg.userLabel ? ' · ' + cfg.userLabel : ''));
         content.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
             + '<path fill="currentColor" d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z"/>'
             + '</svg>';
+        var statusLabel = document.createElement('span');
+        statusLabel.textContent = loginStatus;
+        content.appendChild(statusLabel);
         content.addEventListener('click', toggleOpen);
 
         var chevron = document.createElement('button');
@@ -145,10 +152,16 @@ document.addEventListener('DOMContentLoaded', function () {
         menu.className = 'wp-block-navigation__submenu-container wp-block-navigation-submenu';
 
         if (cfg.isLoggedIn) {
-            var memberStatus = cfg.isActiveMember ? (labels.member || 'Lid') : (labels.nonMember || 'Geen lid');
+            var memberStatus = cfg.memberStatusLabel || (cfg.isActiveMember ? (labels.member || 'Lid') : (labels.nonMember || 'Geen lid'));
             var nameLabel = cfg.userLabel + ' · ' + memberStatus;
             menu.appendChild(makeMenuLabel(nameLabel, [cfg.userLabel, cfg.roleLabel, cfg.memberRoleLabel].filter(Boolean).join(' · ')));
             menu.appendChild(makeMenuLink(labels.myProfile || 'Mijn profiel', cfg.profileUrl));
+            if (cfg.paymentsUrl) {
+                menu.appendChild(makeMenuLink(labels.myPayments || 'Mijn betalingen', cfg.paymentsUrl));
+            }
+            if (cfg.membershipApplicationUrl) {
+                menu.appendChild(makeMenuLink(labels.applyMembership || 'Lidmaatschap aanvragen', cfg.membershipApplicationUrl));
+            }
             menu.appendChild(makeMenuLink(labels.logout || 'Uitloggen', cfg.logoutUrl));
         } else {
             menu.appendChild(makeMenuLink(labels.login || 'Inloggen', cfg.loginUrl));

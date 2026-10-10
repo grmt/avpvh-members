@@ -56,12 +56,16 @@ class AVPVH_Access {
         exit;
     }
 
-    // Called on the /avpvh-login/ page. If already logged in (via proxy header or
-    // OAuth), redirect to target or home. Otherwise let inject_login_form render the form.
-    // Also redirects non-members away from member-only pages and posts.
+    // Logged-in accounts without member access see an explanation on the
+    // login page; other authenticated visits redirect to their target or home.
     public function handle_login_bridge(): void {
         if (is_page('avpvh-login')) {
             if (is_user_logged_in()) {
+                // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presentation only; membership is checked separately
+                $notice = sanitize_key(wp_unslash($_GET['login_notice'] ?? ''));
+                if ($notice === 'members_only' && !$this->current_user_is_active_member()) {
+                    return;
+                }
                 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
                 $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
                 $target = !empty($redirect_to) ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
@@ -73,7 +77,11 @@ class AVPVH_Access {
 
         // Redirect non-members away from members-only content
         if ($this->is_members_only_request() && !$this->current_user_is_active_member()) {
-            wp_safe_redirect(home_url('/avpvh-login/'));
+            $target = home_url('/avpvh-login/');
+            if (is_user_logged_in()) {
+                $target = add_query_arg('login_notice', 'members_only', $target);
+            }
+            wp_safe_redirect($target);
             exit;
         }
     }
@@ -87,6 +95,13 @@ class AVPVH_Access {
         // Author archives are members-only
         if (is_author()) {
             return true;
+        }
+
+        // Profile and balance shortcodes enforce access to the viewer's
+        // own data. Their page may live under /leden/ and have a password,
+        // but it must also be reachable by authenticated visitors.
+        if (is_page() && is_user_logged_in() && $this->is_personal_account_page()) {
+            return false;
         }
 
         // Password-protected pages are members-only
@@ -116,6 +131,13 @@ class AVPVH_Access {
         return false;
     }
 
+    private function is_personal_account_page(?\WP_Post $post = null): bool {
+        $post = $post ?? get_post();
+        return $post instanceof \WP_Post && $post->post_type === 'page'
+            && (has_shortcode($post->post_content, 'avpvh_member_profile')
+                || has_shortcode($post->post_content, 'avpvh_bk_balance'));
+    }
+
     private function current_user_is_active_member(): bool {
         if (!is_user_logged_in()) {
             return false;
@@ -125,8 +147,11 @@ class AVPVH_Access {
     }
 
     public function inject_login_form(string $content): string {
-        if (!is_page('avpvh-login') || is_user_logged_in()) {
+        if (!is_page('avpvh-login')) {
             return $content;
+        }
+        if (is_user_logged_in()) {
+            return $this->current_user_is_active_member() ? $content : $this->render_members_only_notice();
         }
 
         $providers  = AVPVH_OAuth::configured_providers();
@@ -309,6 +334,9 @@ class AVPVH_Access {
         if (!is_user_logged_in()) {
             return $required;
         }
+        if ($this->is_personal_account_page($post)) {
+            return false;
+        }
         $member = avpvh_get_member_by_wp_user(get_current_user_id());
         return ($member && $member->status === 'active') ? false : $required;
     }
@@ -317,12 +345,13 @@ class AVPVH_Access {
         $member = is_user_logged_in()
             ? avpvh_get_member_by_wp_user(get_current_user_id())
             : null;
-        return ($member && $member->status === 'active') ? '%s' : $format;
+        return ($member && $member->status === 'active')
+            || (is_user_logged_in() && $this->is_personal_account_page()) ? '%s' : $format;
     }
 
     public function members_only_form(string $form): string {
         if (is_user_logged_in()) {
-            return $form;
+            return $this->render_members_only_notice();
         }
         return '<div class="avpvh-members-only">
             <p>' . esc_html__('Deze pagina is alleen beschikbaar voor leden.', 'avpvh-members') . '</p>
@@ -330,8 +359,21 @@ class AVPVH_Access {
         </div>';
     }
 
+    private function render_members_only_notice(): string {
+        $member = avpvh_get_member_by_wp_user(get_current_user_id());
+        $user = wp_get_current_user();
+        $name = $member ? avpvh_format_name($member) : $user->display_name;
+
+        return '<div class="avpvh-members-only">'
+            . '<p><strong>' . esc_html__('Ingelogd als:', 'avpvh-members') . '</strong> ' . esc_html($name) . '</p>'
+            . '<p>' . esc_html__('Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor actieve leden.', 'avpvh-members') . '</p>'
+            . '<a class="avpvh-login-btn" href="' . esc_url(AVPVH_Nav_Auth::profile_url()) . '">' . esc_html__('Mijn profiel', 'avpvh-members') . '</a>'
+            . '<a href="' . esc_url(wp_logout_url()) . '">' . esc_html__('Uitloggen', 'avpvh-members') . '</a>'
+            . '</div>';
+    }
+
     public function ex_member_notice(string $content): string {
-        if (!is_user_logged_in()) {
+        if (!is_user_logged_in() || is_page('avpvh-login') || $this->is_personal_account_page()) {
             return $content;
         }
         $member = avpvh_get_member_by_wp_user(get_current_user_id());

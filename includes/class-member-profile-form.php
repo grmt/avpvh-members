@@ -381,6 +381,17 @@ class AVPVH_Member_Profile_Form {
 
             <!-- Audit Trail -->
             <?php $this->render_audit_trail($member); ?>
+            <?php if (!$is_admin_edit && !$is_household_edit && $member->status === 'visitor') : ?>
+                <section id="lidmaatschap">
+                    <h2><?php esc_html_e('Lidmaatschap aanvragen', 'avpvh-members'); ?></h2>
+                    <p><?php esc_html_e('Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn.', 'avpvh-members'); ?></p>
+                    <p><?php esc_html_e('Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn.', 'avpvh-members'); ?></p>
+                    <p><?php esc_html_e('Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten.', 'avpvh-members'); ?></p>
+                    <?php $contact_page = get_page_by_path('contact'); ?>
+                    <p><a class="button" href="<?php echo esc_url($contact_page ? get_permalink($contact_page) : home_url('/?page_id=25')); ?>"><?php esc_html_e('Neem contact op met de secretaris', 'avpvh-members'); ?></a></p>
+                    <p><a href="<?php echo esc_url(home_url('/over-de-vereniging/statuten-en-hr/')); ?>"><?php esc_html_e('Statuten en huishoudelijk reglement', 'avpvh-members'); ?></a></p>
+                </section>
+            <?php endif; ?>
         </div>
         <?php
 
