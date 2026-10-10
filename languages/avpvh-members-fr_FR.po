@@ -2575,3 +2575,277 @@ msgstr "Secrétaire"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Trésorier"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Mijn betalingen"
+msgstr "Mes paiements"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor actieve leden."
+msgstr "Tu es connecté, mais ton compte ne peut pas accéder à cette page. Cette page est réservée aux membres actifs."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Lidmaatschap aanvragen"
+msgstr "Demander à devenir membre"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn."
+msgstr "Tu peux demander à devenir membre auprès du secrétaire. Vérifie que tes initiales, ton nom et ton adresse sont complets dans ton profil."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn."
+msgstr "Les adultes doivent être proposés par deux membres. Demande à chacun d’envoyer sa proposition au secrétaire par e-mail. Pour les mineurs, au moins un représentant légal doit être membre."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten."
+msgstr "Le conseil décide de ton admission. Le secrétaire t’informera de la décision par écrit."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Neem contact op met de secretaris"
+msgstr "Contacter le secrétaire"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Statuten en huishoudelijk reglement"
+msgstr "Statuts et règlement intérieur"
+
+#: includes/class-visitor-delete.php
+msgid "De gekoppelde gegevens konden niet volledig worden gecontroleerd. Er is niets verwijderd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Bevestig dat dit een testaccount is en typ het bezoekersnummer."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "De gegevens zijn gewijzigd. Bekijk het overzicht opnieuw voordat je verwijdert."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Het OpenLDAP-account kon niet worden verwijderd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Het WordPress-account kon niet worden verwijderd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Het bezoekersrecord kon niet worden verwijderd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Verwijderen is niet afgerond. De lokale bezoekersgegevens zijn behouden, maar een Drive-map of het OpenLDAP-account kan al verwijderd zijn. Open het overzicht opnieuw om de resterende gegevens te verwijderen."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Deze bezoeker bestaat niet meer."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Alleen bezoekers kunnen definitief worden verwijderd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Gedeelde accounts in een WordPress-netwerk moeten apart worden beheerd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "De gekoppelde gegevens ondersteunen geen veilige database-transactie."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Dit account heeft groepsrechten. Verwijder die eerst voordat je het als testbezoeker verwijdert."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Een inlogadres is ook aan een andere persoon gekoppeld."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Je kunt jezelf of een account met extra WordPress-rechten niet verwijderen."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Het WordPress-account is ook aan een andere persoon gekoppeld."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Dit account heeft berichten of reacties. Beheer die eerst apart."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+#, php-format
+msgid "Er zijn aanvullende gekoppelde gegevens in %s. Die moeten eerst apart worden beheerd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Gekoppelde gegevens horen ook bij een andere persoon. Verwijderen is geblokkeerd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Er zijn geboekte betalingen gekoppeld. Deze bezoeker kan niet definitief worden verwijderd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Er zijn al afgehandelde bestellingen gekoppeld. Verwijderen is geblokkeerd."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Een banktransactie verwijst naar deze bezoeker. Laat de penningmeester die koppeling eerst controleren."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Een gekoppelde Drive-map kan niet veilig als persoonlijke share worden vastgesteld."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Een Drive-map is aan meerdere shares gekoppeld. Controleer die eerst apart."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Er is een handmatig gekoppelde Drive-map. Beheer die eerst apart."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Een Drive-map is ook aan een ander account gekoppeld. Controleer die eerst apart."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "De Drive-integratie is niet beschikbaar om de fotoshares te verwijderen."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "De databasecontrole is mislukt."
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "De databasewijziging is mislukt."
+msgstr ""
+
+#: includes/class-admin.php
+msgid "Bezoeker definitief verwijderen"
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "Terug naar bezoekers"
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "Controleer hieronder wat verdwijnt. Gebruik dit alleen voor testbezoekers. Verwijderen kan niet ongedaan worden gemaakt."
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "Aantal"
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "Bezoekersprofiel"
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "OpenLDAP-account en directorycache"
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "WordPress-accounts en profielgegevens"
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "Persoonlijke Drive-mappen inclusief inhoud"
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "Openstaande verificatielinks"
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "Verwijderen is geblokkeerd."
+msgstr ""
+
+#: admin/delete-visitor.php
+msgid "Dit is een testaccount. Ik wil het account en alle hierboven getoonde gegevens definitief verwijderen."
+msgstr ""
+
+#: admin/delete-visitor.php
+#, php-format
+msgid "Typ bezoekersnummer %d om te bevestigen:"
+msgstr ""
+
+#: admin/member-detail.php
+msgid "Definitief verwijderen"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Activiteitdeelnames"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Deelnamedagen"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Contributies"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Profielwijzigingen"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Studentjaren"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Openstaande betaalposten"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Gekoppelde rekeningnummers"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Inschrijfgegevens"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Betaalverzoeken"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Vragen over betalingen"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Berichten over betalingen"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Congresinschrijvingen"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Boekbestellingen"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Bestellingen"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Bestelregels"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Persoonlijke uploadshares"
+msgstr ""
+
+#: includes/class-visitor-delete.php
+msgid "Gedeelde fotoselecties"
+msgstr ""
+
+#: admin/members-list.php
+msgid "De bezoeker en alle gekoppelde testgegevens zijn definitief verwijderd."
+msgstr ""
+
+#: includes/class-admin.php
+msgid "Gebruik het bevestigingsformulier."
+msgstr ""
