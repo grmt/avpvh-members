@@ -32,6 +32,10 @@ LLDAP_SECRET_FILE  = '/opt/docker/secrets/compose/lldap_admin_password.txt'
 GROUP_ACTIVE   = 'leden'
 GROUP_INACTIVE = 'ex-leden'
 
+# Undated addresses from the membership administration are historical data,
+# not a new address change on the day the spreadsheet happens to be imported.
+IMPORTED_ADDRESS_VALID_FROM = date(2025, 1, 1)
+
 # Normalize xlsx header names to internal field names.
 # "voorna(a)m(en)" was the older sheet format's first-name header; the
 # current sheet uses "Roepnaam" instead — both map to the same field.
@@ -42,6 +46,10 @@ HEADER_ALIASES = {
     'telefoonnummer': 'telefoon',
     'plaats':         'woonplaats',
     'contact bij calamiteit:': 'noodcontact',
+    'begindatum adres': 'adres_begindatum',
+    'adres geldig vanaf': 'adres_begindatum',
+    'address_valid_from': 'adres_begindatum',
+    'valid_from': 'adres_begindatum',
 }
 
 
@@ -188,6 +196,25 @@ def parse_date(raw: str):
 def parse_year(raw: str):
     m = re.search(r'\b(19|20)\d{2}\b', str(raw))
     return int(m.group()) if m else None
+
+
+def imported_address_start(raw=None) -> date:
+    """Preserve an explicit address start; only missing dates use the baseline."""
+    if raw is None or str(raw).strip() in ('', '0000-00-00'):
+        return IMPORTED_ADDRESS_VALID_FROM
+    if isinstance(raw, datetime):
+        return raw.date()
+    if isinstance(raw, date):
+        return raw
+    text = str(raw).strip()
+    parsed = parse_date(text)
+    if parsed is not None:
+        return parsed
+    # col() turns Excel datetime cells into ISO timestamps.
+    try:
+        return datetime.fromisoformat(text).date()
+    except ValueError as exc:
+        raise ValueError('Invalid address start date in membership spreadsheet') from exc
 
 
 def age_on(birth_date, today: date) -> int:
