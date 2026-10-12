@@ -265,6 +265,9 @@ class AVPVH_DB {
         // members (the same alias existing on two different members is a
         // real ambiguity for a human to resolve, not a constraint violation
         // to silently prevent — see plan.md §1/§3).
+        // normalized_key_hash = sha256(normalized_key): production also has a
+        // UNIQUE (member_id, normalized_key_hash) from an earlier schema, so
+        // every insert must fill it (see save_name_alias()).
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_member_name_aliases (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             member_id INT UNSIGNED NOT NULL,
@@ -273,6 +276,7 @@ class AVPVH_DB {
             last_name VARCHAR(100) NOT NULL DEFAULT '',
             alias_type ENUM('maiden','married','nickname','spelling','abbreviation','historical') NOT NULL DEFAULT 'historical',
             normalized_key VARCHAR(160) NOT NULL DEFAULT '',
+            normalized_key_hash CHAR(64) NOT NULL DEFAULT '',
             valid_from DATE NULL,
             valid_until DATE NULL,
             source VARCHAR(150) NOT NULL DEFAULT '',
@@ -1230,7 +1234,13 @@ class AVPVH_DB {
 
         if (!empty($args['search'])) {
             $s      = '%' . $wpdb->esc_like($args['search']) . '%';
-            $where .= ' AND (m.last_name LIKE %s OR m.first_name LIKE %s OR u.email LIKE %s)';
+            // Also finds a member by a recorded name variant (maiden name,
+            // old spelling, ...) — see the Naamvarianten section on Ledendetail.
+            $where .= " AND (m.last_name LIKE %s OR m.first_name LIKE %s OR u.email LIKE %s
+                OR EXISTS (SELECT 1 FROM {$wpdb->prefix}avm_member_name_aliases na
+                           WHERE na.member_id = m.id
+                             AND CONCAT_WS(' ', na.first_name, NULLIF(na.suffix, ''), na.last_name) LIKE %s))";
+            $params[] = $s;
             $params[] = $s;
             $params[] = $s;
             $params[] = $s;
@@ -1428,6 +1438,61 @@ class AVPVH_DB {
             "SELECT * FROM {$wpdb->prefix}avm_addresses WHERE member_id = %d ORDER BY valid_from DESC",
             $member_id
         )) ?: [];
+    }
+
+    /**
+     * Records $address as the member's address from today on. If it is the
+     * same address (AVPVH_Address_Normalizer::match_key()) as one already
+     * current, that row is kept (spelling differences written into it) — the
+     * profile form re-sends the address on every save, which used to add a
+     * duplicate row each time. Otherwise the
+     * current rows end yesterday and a new row starts today; a row that
+     * itself only started today is a same-day correction and is overwritten
+     * instead, so no row ever ends before it starts. Returns the row id.
+     */
+    public static function add_member_address(int $member_id, array $address): int {
+        global $wpdb;
+        $table   = "{$wpdb->prefix}avm_addresses";
+        $today   = current_time('Y-m-d');
+        $address = AVPVH_Address_Normalizer::clean($address);
+        $key     = AVPVH_Address_Normalizer::match_key($address);
+        $fields  = array_intersect_key($address, array_flip(['street', 'house_number', 'postal_code', 'city', 'country']));
+
+        $open = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$table}
+             WHERE member_id = %d AND (valid_from IS NULL OR valid_from <= %s)
+               AND (valid_until IS NULL OR valid_until >= %s)
+             ORDER BY valid_from DESC, id DESC",
+            $member_id, $today, $today
+        )) ?: [];
+        foreach ($open as $row) {
+            if ($key !== '' && AVPVH_Address_Normalizer::match_key($row) === $key) {
+                // Same address; a spelling fix (city, capitals) is applied in place.
+                if (array_diff_assoc($fields, array_intersect_key((array) $row, $fields))) {
+                    $wpdb->update($table, $fields, ['id' => (int) $row->id]);
+                }
+                return (int) $row->id;
+            }
+        }
+
+        $yesterday = wp_date('Y-m-d', strtotime($today . ' -1 day'));
+        $corrected = 0;
+        foreach ($open as $row) {
+            if ($row->valid_from === $today && !$corrected) {
+                $wpdb->update($table, $fields + ['valid_until' => null], ['id' => (int) $row->id]);
+                $corrected = (int) $row->id;
+            } elseif ($row->valid_from === $today) {
+                $wpdb->delete($table, ['id' => (int) $row->id], ['%d']);
+            } else {
+                $wpdb->update($table, ['valid_until' => $yesterday], ['id' => (int) $row->id], ['%s'], ['%d']);
+            }
+        }
+        if ($corrected) {
+            return $corrected;
+        }
+
+        $wpdb->insert($table, ['member_id' => $member_id] + $fields + ['valid_from' => $today]);
+        return (int) $wpdb->insert_id;
     }
 
     /**
@@ -1928,9 +1993,7 @@ class AVPVH_DB {
             return false;
         }
 
-        return strcasecmp(trim($addr_1->street), trim($addr_2->street)) === 0
-            && strcasecmp(trim((string) $addr_1->house_number), trim((string) $addr_2->house_number)) === 0
-            && strcasecmp(trim($addr_1->postal_code), trim($addr_2->postal_code)) === 0;
+        return AVPVH_Address_Normalizer::match_key($addr_1) === AVPVH_Address_Normalizer::match_key($addr_2);
     }
 
     public static function age(string $birth_date): int {
@@ -2138,6 +2201,85 @@ class AVPVH_DB {
             );
         }
         return $index;
+    }
+
+    public const NAME_ALIAS_TYPES = ['maiden', 'married', 'nickname', 'spelling', 'abbreviation', 'historical'];
+
+    /** A member's recorded name variants, each with conflicts = ids of OTHER members sharing its key. */
+    public static function get_name_aliases(int $member_id): array {
+        global $wpdb;
+        $aliases = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_member_name_aliases
+             WHERE member_id = %d ORDER BY last_name, first_name, id",
+            $member_id
+        )) ?: [];
+        if (!$aliases) {
+            return [];
+        }
+        $index = self::get_name_key_index();
+        foreach ($aliases as $alias) {
+            $alias->conflicts = array_values(array_diff(
+                array_keys($index[$alias->normalized_key] ?? []),
+                [$member_id]
+            ));
+        }
+        return $aliases;
+    }
+
+    /**
+     * Adds a name variant to a member. Returns '' on success, otherwise an
+     * error code: 'onvolledig' (first or last name missing), 'eigen-naam'
+     * (matches the member's own official name already), 'dubbel' (the
+     * member already has this variant) or 'fout' (database error). The key
+     * is computed by AVPVH_Name_Matcher, the same as for merges and imports.
+     */
+    public static function save_name_alias(int $member_id, array $data): string {
+        global $wpdb;
+        $member = self::get_member($member_id);
+        $first  = trim((string) ($data['first_name'] ?? ''));
+        $suffix = trim((string) ($data['suffix'] ?? ''));
+        $last   = trim((string) ($data['last_name'] ?? ''));
+        if (!$member || $first === '' || $last === '') {
+            return 'onvolledig';
+        }
+        $key = self::normalize_person_name($first, $suffix, $last);
+        if ($key === self::normalize_person_name($member->first_name, $member->suffix, $member->last_name)) {
+            return 'eigen-naam';
+        }
+        $exists = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}avm_member_name_aliases WHERE member_id = %d AND normalized_key = %s",
+            $member_id, $key
+        ));
+        if ($exists) {
+            return 'dubbel';
+        }
+        $date = static fn(string $field): ?string =>
+            preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($data[$field] ?? '')) ? $data[$field] : null;
+        $type = in_array($data['alias_type'] ?? '', self::NAME_ALIAS_TYPES, true) ? $data['alias_type'] : 'historical';
+
+        $inserted = $wpdb->insert("{$wpdb->prefix}avm_member_name_aliases", [
+            'member_id'           => $member_id,
+            'first_name'          => mb_substr($first, 0, 100),
+            'suffix'              => mb_substr($suffix, 0, 50),
+            'last_name'           => mb_substr($last, 0, 100),
+            'alias_type'          => $type,
+            'normalized_key'      => $key,
+            'normalized_key_hash' => hash('sha256', $key),
+            'valid_from'          => $date('valid_from'),
+            'valid_until'         => $date('valid_until'),
+            'source'              => mb_substr(trim((string) ($data['source'] ?? '')), 0, 100),
+            'note'                => mb_substr(trim((string) ($data['note'] ?? '')), 0, 255),
+        ]);
+        return $inserted ? '' : 'fout';
+    }
+
+    public static function delete_name_alias(int $alias_id, int $member_id): bool {
+        global $wpdb;
+        return (bool) $wpdb->delete(
+            "{$wpdb->prefix}avm_member_name_aliases",
+            ['id' => $alias_id, 'member_id' => $member_id],
+            ['%d', '%d']
+        );
     }
 
     /** New member with an already-created LLDAP account (see AVPVH_Admin::handle_add_member()) — mirrors the shape of the avpvh-ops-scripts one-off "create minor member" scripts, now available from the admin UI instead of a hand-run script. */
