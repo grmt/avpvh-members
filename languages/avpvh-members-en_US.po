@@ -2917,3 +2917,15 @@ msgstr "The secured (2FA) session of %s has also been ended."
 #: includes/class-nav-auth.php
 msgid "Sluiten"
 msgstr "Close"
+
+#: includes/class-member-profile-form.php
+msgid "Bloggen"
+msgstr "Blogging"
+
+#: includes/class-member-profile-form.php
+msgid "Als blogger kun je eigen conceptberichten schrijven en ter beoordeling indienen. Publiceren, media uploaden en pagina's bewerken kan niet. Blogbeheer vraagt om tweestapsverificatie (2FA)."
+msgstr "As a blogger you can write your own draft posts and submit them for review. Publishing, uploading media and editing pages is not possible. Blog management asks for two-step verification (2FA)."
+
+#: includes/class-member-profile-form.php
+msgid "Naar blogbeheer"
+msgstr "Go to blog management"

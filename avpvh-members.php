@@ -3,7 +3,7 @@
  * Plugin Name: AV-PvH Members
  * Plugin URI:  https://github.com/grmt/avpvh-members
  * Description: Member login, access control, fee tracking and admin for AV Philips van Horne.
- * Version:     1.0.59+a9f4dd2
+ * Version:     1.0.60+d9a6119
  * Author:      grmt
  * Author URI:  https://github.com/grmt/avpvh-members
  * Text Domain: avpvh-members

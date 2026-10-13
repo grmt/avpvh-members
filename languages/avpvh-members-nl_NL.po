@@ -3370,3 +3370,15 @@ msgstr ""
 #: includes/class-nav-auth.php
 msgid "Sluiten"
 msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Bloggen"
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Als blogger kun je eigen conceptberichten schrijven en ter beoordeling indienen. Publiceren, media uploaden en pagina's bewerken kan niet. Blogbeheer vraagt om tweestapsverificatie (2FA)."
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Naar blogbeheer"
+msgstr ""

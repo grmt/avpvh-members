@@ -377,6 +377,9 @@ class AVPVH_Member_Profile_Form {
             <?php if (!$is_admin_edit) : ?>
                 <?php $this->render_directory_consent($member); ?>
                 <?php $this->render_newsletter_consent($member); ?>
+                <?php if (!$is_household_edit && AVPVH_Roles::member_is_blogger((int) $member->id)) : ?>
+                    <?php $this->render_blogging($member); ?>
+                <?php endif; ?>
             <?php endif; ?>
 
             <!-- Audit Trail -->
@@ -818,6 +821,16 @@ class AVPVH_Member_Profile_Form {
 
                 <button type="submit" class="button button-primary"><?php esc_html_e('Voorkeur opslaan', 'avpvh-members'); ?></button>
             </form>
+        </fieldset>
+        <?php
+    }
+
+    private function render_blogging($member): void {
+        ?>
+        <fieldset class="avpvh-blogging">
+            <legend><?php esc_html_e('Bloggen', 'avpvh-members'); ?></legend>
+            <p><?php esc_html_e('Als blogger kun je eigen conceptberichten schrijven en ter beoordeling indienen. Publiceren, media uploaden en pagina\'s bewerken kan niet. Blogbeheer vraagt om tweestapsverificatie (2FA).', 'avpvh-members'); ?></p>
+            <p><a class="button" href="<?php echo esc_url(admin_url('edit.php')); ?>"><?php esc_html_e('Naar blogbeheer', 'avpvh-members'); ?></a></p>
         </fieldset>
         <?php
     }

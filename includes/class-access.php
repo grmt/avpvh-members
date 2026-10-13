@@ -8,7 +8,10 @@ class AVPVH_Access {
         add_action('init',               [$this, 'enforce_session_idle_timeout'], 1);
         add_action('init',               [$this, 'handle_sso_callback'], 2);
         add_action('wp_login',           [$this, 'reset_session_idle_timer'], 10, 2);
+        add_action('admin_init',         [$this, 'restrict_wordpress_admin']);
         add_action('template_redirect',  [$this, 'handle_login_bridge']);
+        add_filter('show_admin_bar',     [$this, 'filter_admin_bar_visibility'], 20);
+        add_filter('user_has_cap',       [$this, 'filter_member_capabilities'], 10, 4);
         add_filter('the_content',        [$this, 'inject_login_form'], 5);
         add_filter('post_password_required', [$this, 'bypass_for_active_member'], 10, 2);
         add_filter('the_content',          [$this, 'ex_member_notice']);
@@ -21,6 +24,79 @@ class AVPVH_Access {
         add_filter('wp_sitemaps_add_provider',     [$this, 'sitemap_remove_users'], 10, 2);
         add_filter('wp_sitemaps_post_types',       [$this, 'sitemap_remove_post_type']);
         add_filter('wp_sitemaps_taxonomies',       '__return_empty_array');
+    }
+
+    /**
+     * A member's WP user exists for the session, not as a CMS account. Only
+     * those with a reason to be there (AVPVH_Roles::current_user_needs_wp_admin())
+     * may enter wp-admin; admin-post/AJAX stay open for front-end forms.
+     */
+    public function restrict_wordpress_admin(): void {
+        global $pagenow;
+        if (wp_doing_ajax() || in_array($pagenow, ['admin-post.php', 'async-upload.php'], true)) {
+            return;
+        }
+        if (AVPVH_Roles::current_user_needs_wp_admin()) {
+            return;
+        }
+        wp_safe_redirect(home_url('/'));
+        exit;
+    }
+
+    /**
+     * avpvh-theme-fixes hides the toolbar from users without edit_posts.
+     * Board members and other plugin-page users no longer have edit_posts
+     * (see filter_member_capabilities()) but still reach Ledenbeheer etc.
+     * through the toolbar, so show it to them.
+     */
+    public function filter_admin_bar_visibility(bool $show): bool {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+        return $show || AVPVH_Roles::current_user_needs_wp_admin();
+    }
+
+    /**
+     * The directory group "bloggers" is the single source for writing
+     * rights, whatever WP role is stored on a member's WP user. Bloggers get
+     * contributor-level rights: their own draft posts only, without
+     * publishing, media or pages. WP admins are left alone.
+     */
+    public function filter_member_capabilities(array $allcaps, array $caps, array $args, \WP_User $user): array {
+        if (!empty($allcaps['manage_options'])) {
+            return $allcaps;
+        }
+        // user_has_cap runs for every capability check; look the member and
+        // their groups up once per user per request.
+        static $is_blogger = [];
+        if (!array_key_exists($user->ID, $is_blogger)) {
+            $member = avpvh_get_member_by_wp_user((int) $user->ID);
+            $is_blogger[$user->ID] = $member ? AVPVH_Roles::member_is_blogger((int) $member->id) : null;
+        }
+        if ($is_blogger[$user->ID] === null) {
+            return $allcaps;
+        }
+
+        $content_caps = [
+            'edit_posts', 'delete_posts', 'publish_posts',
+            'edit_published_posts', 'delete_published_posts',
+            'edit_private_posts', 'delete_private_posts', 'read_private_posts',
+            'edit_others_posts', 'delete_others_posts',
+            'edit_pages', 'delete_pages', 'publish_pages',
+            'edit_published_pages', 'delete_published_pages',
+            'edit_private_pages', 'delete_private_pages', 'read_private_pages',
+            'edit_others_pages', 'delete_others_pages',
+            'upload_files', 'manage_categories', 'moderate_comments',
+        ];
+        foreach ($content_caps as $capability) {
+            $allcaps[$capability] = false;
+        }
+
+        if ($is_blogger[$user->ID]) {
+            $allcaps['edit_posts'] = true;
+            $allcaps['delete_posts'] = true;
+        }
+        return $allcaps;
     }
 
     public function register_hibp_route(): void {
@@ -278,7 +354,9 @@ class AVPVH_Access {
                 wp_update_user([
                     'ID'           => $uid,
                     'display_name' => avpvh_format_name($member),
-                    'role'         => 'contributor',
+                    // Writing rights come from the bloggers group, not
+                    // the stored role (see filter_member_capabilities()).
+                    'role'         => 'subscriber',
                 ]);
                 AVPVH_DB::set_wp_user_id((int) $member->id, $uid);
                 $user = get_user_by('id', $uid);

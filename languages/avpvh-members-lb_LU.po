@@ -2917,3 +2917,15 @@ msgstr "Och déi geséchert Sessioun (2FA) vun %s gouf ofgeschloss."
 #: includes/class-nav-auth.php
 msgid "Sluiten"
 msgstr "Zoumaachen"
+
+#: includes/class-member-profile-form.php
+msgid "Bloggen"
+msgstr "Bloggen"
+
+#: includes/class-member-profile-form.php
+msgid "Als blogger kun je eigen conceptberichten schrijven en ter beoordeling indienen. Publiceren, media uploaden en pagina's bewerken kan niet. Blogbeheer vraagt om tweestapsverificatie (2FA)."
+msgstr "Als Blogger kanns du deng eege Bäitragsentwërf schreiwen an zur Iwwerpréiwung areechen. Publizéieren, Medien eroplueden a Säite beaarbechten ass net méiglech. D'Blogverwaltung freet no enger Zwee-Faktor-Authentifikatioun (2FA)."
+
+#: includes/class-member-profile-form.php
+msgid "Naar blogbeheer"
+msgstr "Op d'Blogverwaltung"
