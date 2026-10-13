@@ -27,6 +27,7 @@ If you are already on `main`, stop and switch to a branch before touching any fi
 ## Privacy
 
 - **Zet nooit echte namen of andere persoonsgegevens van leden in gecommitte code, tests, comments of documentatie.** Gebruik duidelijk fictieve voorbeelden. Bewaar noodzakelijke eenmalige import- of reconciliation-overrides uitsluitend in genegeerde lokale databestanden, bij voorkeur gekoppeld aan interne member-ID's.
+- Controleer dit op de server met `wp eval-file scripts/check-no-member-names.php` (zie README).
 
 ## Key Rules
 
