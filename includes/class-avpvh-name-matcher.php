@@ -50,6 +50,42 @@ class AVPVH_Name_Matcher {
         return strtolower(trim($core_first)) . '|' . strtolower(trim($core_last));
     }
 
+    /**
+     * Words dropped from the loose key wherever they appear: every
+     * tussenvoegsel word, and the pieces abbreviations fall apart into once
+     * punctuation is a space ("v/d" -> "v d", "v.d." -> "v d", "'t" -> "t").
+     */
+    private const LOOSE_DROP_WORDS = [
+        'van', 'von', 'vom', 'de', 'den', 'der', 'des', 'het', 't', 'te', 'ten', 'ter',
+        'in', 'op', 'uit', 'aan', 'bij', 'la', 'le', 'du', 'di', 'da', 'del', 'dos',
+        'v', 'vd', 'vdr', 'd', 'dr',
+    ];
+
+    /**
+     * Much looser "first|last" key, ONLY for the merge page's duplicate
+     * suggestions (a human always checks them). On top of
+     * normalize_person_name() it ignores accents ("Fülöp" = "Fulöp"),
+     * punctuation, hyphens and spacing, and every tussenvoegsel or
+     * abbreviation of one anywhere in either name ("v/d Berg" = "vd Berg" =
+     * "van den Berg" = "Berg, van der"). Too loose for automatic linking —
+     * imports and the "Nieuw lid" check keep using normalize_person_name().
+     * Returns '' when either part ends up empty.
+     */
+    public static function loose_key(string $first_name, string $last_name): string {
+        $first = self::loose_words($first_name);
+        $last  = self::loose_words($last_name);
+        return ($first === '' || $last === '') ? '' : $first . '|' . $last;
+    }
+
+    private static function loose_words(string $name): string {
+        if (function_exists('remove_accents')) {
+            $name = remove_accents($name);
+        }
+        $name  = mb_strtolower($name, 'UTF-8');
+        $words = preg_split('/[^\p{L}\p{N}]+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        return implode('', array_diff($words, self::LOOSE_DROP_WORDS));
+    }
+
     /** Back-compat shape for callers that only ever had first/last (no suffix column) to work with. */
     public static function normalize_name_key(string $first_name, string $last_name): string {
         return self::normalize_person_name($first_name, '', $last_name);
