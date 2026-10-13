@@ -639,9 +639,9 @@ class AVPVH_Member_Merge {
         return $value === null ? '' : (string) $value;
     }
 
+    /** Same-address key shared with the household check; '' (no street) never counts as a duplicate. */
     private static function address_key(object $address): string {
-        $normalize = fn($s) => strtolower(preg_replace('/\s+/', '', (string) $s));
-        return $normalize($address->postal_code) . '|' . $normalize($address->house_number) . '|' . $normalize($address->street);
+        return AVPVH_Address_Normalizer::match_key($address) ?: 'id:' . (int) $address->id;
     }
 
     /** Address dates are inclusive; an empty boundary means open-ended. */

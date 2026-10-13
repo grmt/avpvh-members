@@ -33,6 +33,7 @@ function avpvh_asset_version(string $relative_path): string {
 require_once AVPVH_PLUGIN_DIR . 'includes/class-i18n.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-name-matcher.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-address-normalizer.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-merge.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory.php';
