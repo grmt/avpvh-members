@@ -313,7 +313,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
         $candidates = AVPVH_Member_Merge::find_duplicate_candidates(); ?>
         <hr>
         <h2><?php esc_html_e('Mogelijke dubbelen', 'avpvh-members'); ?></h2>
-        <p class="description"><?php esc_html_e('Leden met dezelfde voornaam en achternaam (hoofdletters en de plek van het tussenvoegsel genegeerd), ook via een vastgelegde naamvariant. Dit is alleen een suggestie — controleer altijd of het echt dezelfde persoon is.', 'avpvh-members'); ?></p>
+        <p class="description"><?php esc_html_e('Leden met dezelfde voornaam en achternaam (hoofdletters, accenten, leestekens en tussenvoegsels zoals v, vd, v/d, van de(n/r) genegeerd), ook via een vastgelegde naamvariant. Dit is alleen een suggestie — controleer altijd of het echt dezelfde persoon is.', 'avpvh-members'); ?></p>
         <?php if (!$candidates) : ?>
             <p><?php esc_html_e('Geen mogelijke dubbelen gevonden.', 'avpvh-members'); ?></p>
         <?php else : ?>

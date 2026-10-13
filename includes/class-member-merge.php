@@ -109,14 +109,15 @@ class AVPVH_Member_Merge {
     }
 
     /**
-     * Groups of 2+ members sharing a normalized name key, through their
+     * Groups of 2+ members sharing a loose name key (accents and every
+     * tussenvoegsel ignored, see AVPVH_Name_Matcher::loose_key()), through their
      * official name or a name alias (each row's matched_via says which) —
      * suggestions only, a human decides. A pair found through both routes
      * is listed once.
      */
     public static function find_duplicate_candidates(): array {
         $groups = [];
-        foreach (AVPVH_DB::get_name_key_index() as $members) {
+        foreach (AVPVH_DB::get_name_key_index(true) as $members) {
             if (count($members) < 2) {
                 continue;
             }

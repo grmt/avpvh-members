@@ -2109,8 +2109,10 @@ class AVPVH_DB {
      * normalized key => [member_id => member row + matched_via] over every
      * member's official name and every alias. The key can't be computed in
      * SQL, so this reads all members (a few hundred rows) once per call.
+     * With $loose, keyed by AVPVH_Name_Matcher::loose_key() instead (merge
+     * suggestions only); names whose loose key is empty are left out.
      */
-    public static function get_name_key_index(): array {
+    public static function get_name_key_index(bool $loose = false): array {
         global $wpdb;
         $index = [];
         $members = $wpdb->get_results(
@@ -2120,7 +2122,12 @@ class AVPVH_DB {
         $by_id = [];
         foreach ($members as $member) {
             $by_id[(int) $member->id] = $member;
-            $key = self::normalize_person_name($member->first_name, $member->suffix, $member->last_name);
+            $key = $loose
+                ? AVPVH_Name_Matcher::loose_key($member->first_name, $member->last_name)
+                : self::normalize_person_name($member->first_name, $member->suffix, $member->last_name);
+            if ($key === '') {
+                continue;
+            }
             $index[$key][(int) $member->id] = (object) array_merge((array) $member, ['matched_via' => '']);
         }
         $aliases = $wpdb->get_results(
@@ -2129,10 +2136,11 @@ class AVPVH_DB {
         ) ?: [];
         foreach ($aliases as $alias) {
             $member = $by_id[(int) $alias->member_id] ?? null;
-            if (!$member || isset($index[$alias->normalized_key][(int) $member->id])) {
+            $key = $loose ? AVPVH_Name_Matcher::loose_key($alias->first_name, $alias->last_name) : $alias->normalized_key;
+            if (!$member || $key === '' || isset($index[$key][(int) $member->id])) {
                 continue;
             }
-            $index[$alias->normalized_key][(int) $member->id] = (object) array_merge(
+            $index[$key][(int) $member->id] = (object) array_merge(
                 (array) $member,
                 ['matched_via' => avpvh_format_name($alias)]
             );
