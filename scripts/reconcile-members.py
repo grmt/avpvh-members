@@ -18,6 +18,8 @@ for a human to check, not guessed at.
 
 Only the "Leden" (active) sheet is reconciled — ex-leden is out of scope.
 Members in the DB but not in the sheet are listed only, never deactivated.
+Undated spreadsheet addresses start on 2025-01-01. An address with a later
+start date already in the DB takes precedence over an older spreadsheet.
 
 Usage:
     python3 reconcile-members.py /path/to/ledenlijst.xlsx [--dry-run]
@@ -39,7 +41,7 @@ from _avpvh_import_common import (
     read_secret, get_db, lldap_login, get_group_id,
     uid_from_email, lldap_create_user, lldap_add_to_group,
     sheet_headers, col, parse_date, age_on, placeholder_child_uid,
-    normalize_name_key, first_name_contains, SECRET_FILE,
+    normalize_name_key, first_name_contains, SECRET_FILE, imported_address_start,
 )
 
 FIELDS_TO_SYNC = ['birth_date', 'phone', 'mobile', 'emergency_contact']
@@ -113,6 +115,7 @@ def load_sheet_rows(sheet) -> dict:
             'postal_code': c('postcode'),
             'city': c('woonplaats') or c('stad'),
             'country': c('land') or 'Nederland',
+            'address_valid_from': imported_address_start(c('adres_begindatum')),
         }
     return rows
 
@@ -121,16 +124,21 @@ def load_db_members(cursor) -> dict:
     cursor.execute(f"""
         SELECT m.id, m.first_name, m.last_name, m.suffix, m.birth_date,
                m.phone, m.mobile, m.emergency_contact,
-               a.street, a.house_number, a.postal_code, a.city, a.country
+               a.street, a.house_number, a.postal_code, a.city, a.country, a.valid_from
         FROM {WP_PREFIX}avm_members m
-        LEFT JOIN {WP_PREFIX}avm_addresses a ON a.member_id = m.id
-            AND (a.valid_from IS NULL OR a.valid_from <= CURDATE())
-            AND (a.valid_until IS NULL OR a.valid_until >= CURDATE())
+        LEFT JOIN {WP_PREFIX}avm_addresses a ON a.id = (
+            SELECT a2.id FROM {WP_PREFIX}avm_addresses a2
+            WHERE a2.member_id = m.id
+              AND (a2.valid_from IS NULL OR a2.valid_from <= CURDATE())
+              AND (a2.valid_until IS NULL OR a2.valid_until >= CURDATE())
+            ORDER BY COALESCE(NULLIF(a2.valid_from, '0000-00-00'), '2025-01-01') DESC,
+                     a2.id DESC LIMIT 1
+        )
         WHERE m.status = 'active'
     """)
     members = {}
     for (mid, first, last, suffix, birth_date, phone, mobile, emergency,
-         street, house_nr, postal, city, country) in cursor.fetchall():
+         street, house_nr, postal, city, country, address_start) in cursor.fetchall():
         key_first, key_last = DB_NAME_KEY_CORRECTIONS.get(mid, (first, last))
         key = normalize_name_key(key_first, key_last)
         if key in members:
@@ -143,6 +151,7 @@ def load_db_members(cursor) -> dict:
             'emergency_contact': emergency,
             'street': street, 'house_number': house_nr, 'postal_code': postal,
             'city': city, 'country': country,
+            'address_valid_from': address_start,
         }
     return members
 
@@ -188,7 +197,10 @@ def diff_member(db_row: dict, sheet_row: dict) -> dict:
         not blank(sheet_row[f]) and str(db_row[f] or '') != str(sheet_row[f])
         for f in ADDRESS_FIELDS
     )
-    if address_changed:
+    incoming_start = imported_address_start(sheet_row.get('address_valid_from'))
+    current_start = imported_address_start(db_row.get('address_valid_from'))
+    current_has_address = any(not blank(db_row[f]) for f in ADDRESS_FIELDS[:-1])
+    if address_changed and (not current_has_address or incoming_start >= current_start):
         changes['address'] = (
             ', '.join(f'{f}={db_row[f]!r}' for f in ADDRESS_FIELDS),
             ', '.join(f'{f}={sheet_row[f]!r}' for f in ADDRESS_FIELDS),
@@ -210,22 +222,28 @@ def apply_update(cursor, member_id: int, changes: dict, sheet_row: dict, dry_run
         )
 
     if 'address' in changes and not dry_run:
-        today = date.today()
-        yesterday = today - timedelta(days=1)
-        # Close out the current address row, then insert the new one — address
-        # is a history log (valid_from/valid_until), never overwritten in place,
-        # matching class-member-profile-form.php's own self-service save path.
+        start = imported_address_start(sheet_row.get('address_valid_from'))
+        # Fit the imported address into history, including any future change.
+        # A later row must never be closed by an older spreadsheet import.
+        cursor.execute(
+            f"SELECT MIN(valid_from) FROM {WP_PREFIX}avm_addresses "
+            f"WHERE member_id = %s AND valid_from > %s", (member_id, start)
+        )
+        next_start = cursor.fetchone()[0]
+        until = next_start - timedelta(days=1) if next_start else None
         cursor.execute(
             f"UPDATE {WP_PREFIX}avm_addresses SET valid_until = %s "
-            f"WHERE member_id = %s AND (valid_until IS NULL OR valid_until >= %s)",
-            (yesterday, member_id, today)
+            f"WHERE member_id = %s "
+            f"AND COALESCE(NULLIF(valid_from, '0000-00-00'), '2025-01-01') < %s "
+            f"AND (valid_until IS NULL OR valid_until >= %s)",
+            (start - timedelta(days=1), member_id, start, start)
         )
         cursor.execute(
             f"""INSERT INTO {WP_PREFIX}avm_addresses
-                (member_id, street, house_number, postal_code, city, country, valid_from)
-                VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+                (member_id, street, house_number, postal_code, city, country, valid_from, valid_until)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
             (member_id, sheet_row['street'], sheet_row['house_number'],
-             sheet_row['postal_code'], sheet_row['city'], sheet_row['country'], today)
+             sheet_row['postal_code'], sheet_row['city'], sheet_row['country'], start, until)
         )
 
 
@@ -275,10 +293,11 @@ def create_member(cursor, session: requests.Session, sheet_row: dict,
         if sheet_row['street'] or sheet_row['city']:
             cursor.execute(
                 f"""INSERT INTO {WP_PREFIX}avm_addresses
-                    (member_id, street, house_number, postal_code, city, country)
-                    VALUES (%s,%s,%s,%s,%s,%s)""",
+                    (member_id, street, house_number, postal_code, city, country, valid_from)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s)""",
                 (member_id, sheet_row['street'], sheet_row['house_number'],
-                 sheet_row['postal_code'], sheet_row['city'], sheet_row['country'])
+                 sheet_row['postal_code'], sheet_row['city'], sheet_row['country'],
+                 imported_address_start(sheet_row.get('address_valid_from')))
             )
 
     print(f'  CREATE: {first_name} {last_name} <{email}> → uid={uid}')

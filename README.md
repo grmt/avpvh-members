@@ -54,6 +54,23 @@ The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login scr
 3. Enter client IDs and secrets in **WP Admin → AVP-PvH Leden → Instellingen**.
 4. Import members using `scripts/import-avpvh-members.py`.
 
+### Address dates in member imports
+
+Membership-administration addresses without a start date use **2025-01-01**,
+including newly created members in `reconcile-members.py`. An optional
+`adres_begindatum` / `Begindatum adres` column preserves an explicit date.
+An invalid date stops the import instead of silently using the default.
+Reconciliation selects the latest currently valid address and preserves it
+when its start date is later than the spreadsheet address. Future address
+changes and historical end dates are preserved.
+
+For legacy member addresses with NULL or zero start dates, use
+`scripts/backfill-imported-address-dates.php`. Its header documents the
+dry-run snapshot and apply commands. Keep the snapshot outside Git; it is
+also the backup of the original dates. Visitors are excluded. Apply checks
+that the snapshot still matches, changes only `valid_from`, verifies all
+other address data and rolls back on failure.
+
 ### Camp participation imports
 
 The camp workbook has its own fixed `totaal inschrijvingen` grid and is not
