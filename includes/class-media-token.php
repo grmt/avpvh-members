@@ -38,9 +38,8 @@ class AVPVH_Media_Token {
     }
 
     /**
-     * Makes the JWT a hard session boundary. It is deliberately not renewed:
-     * after eight hours the WordPress session is logged out as well and the
-     * member must authenticate again.
+     * Makes the JWT a hard session boundary for accounts with private-media
+     * access. Visitors keep their ordinary WordPress session without a JWT.
      */
     public function enforce_cookie(): void {
         if (!is_user_logged_in()) {
@@ -49,7 +48,9 @@ class AVPVH_Media_Token {
 
         $user_id = get_current_user_id();
         if (!$this->user_may_access_private_media($user_id)) {
-            wp_logout();
+            if (isset($_COOKIE[self::COOKIE_NAME])) {
+                $this->clear_cookie();
+            }
             return;
         }
 
@@ -68,7 +69,7 @@ class AVPVH_Media_Token {
      * a sleeping tab closes as soon as it becomes active again.
      */
     public function enqueue_session_watchdog(): void {
-        if (!is_user_logged_in()) {
+        if (!is_user_logged_in() || !$this->user_may_access_private_media(get_current_user_id())) {
             return;
         }
 
@@ -86,6 +87,11 @@ class AVPVH_Media_Token {
 
         if (!is_user_logged_in()) {
             wp_send_json_error(['code' => 'session_expired'], 401);
+        }
+
+        if (!$this->user_may_access_private_media(get_current_user_id())) {
+            $this->clear_cookie();
+            wp_send_json_error(['code' => 'no_private_media'], 403);
         }
 
         $jwt = isset($_COOKIE[self::COOKIE_NAME])
