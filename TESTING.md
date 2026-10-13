@@ -32,6 +32,7 @@ php scripts/test-identity-limit.php
 php scripts/test-role-labels.php
 php scripts/test-address-normalizer.php
 php scripts/test-name-matcher-loose.php
+php scripts/test-proxy-session-identity.php
 php scripts/test-blogger-capabilities.php
 ```
 

@@ -2900,6 +2900,24 @@ msgstr "Vun muss virun haut leien."
 msgid "tot"
 msgstr "bis"
 
+#: includes/class-access.php
+msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
+msgstr "Du waars gläichzäiteg mat zwee verschiddene Konten ageloggt. Béid Sessiounen goufen ofgeschloss; log dech w.e.g. nees an."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Uitgelogd als %s."
+msgstr "Ausgeloggt als %s."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Ook de beveiligde sessie (2FA) van %s is beëindigd."
+msgstr "Och déi geséchert Sessioun (2FA) vun %s gouf ofgeschloss."
+
+#: includes/class-nav-auth.php
+msgid "Sluiten"
+msgstr "Zoumaachen"
+
 #: includes/class-member-profile-form.php
 msgid "Bloggen"
 msgstr "Bloggen"

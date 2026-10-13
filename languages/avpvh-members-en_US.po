@@ -2900,6 +2900,24 @@ msgstr "From must be before today."
 msgid "tot"
 msgstr "to"
 
+#: includes/class-access.php
+msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
+msgstr "You were signed in with two different accounts at the same time. Both sessions have been ended; please sign in again."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Uitgelogd als %s."
+msgstr "Signed out as %s."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Ook de beveiligde sessie (2FA) van %s is beëindigd."
+msgstr "The secured (2FA) session of %s has also been ended."
+
+#: includes/class-nav-auth.php
+msgid "Sluiten"
+msgstr "Close"
+
 #: includes/class-member-profile-form.php
 msgid "Bloggen"
 msgstr "Blogging"
