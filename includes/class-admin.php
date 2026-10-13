@@ -256,7 +256,7 @@ class AVPVH_Admin {
     }
 
     public function render_page_permissions(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/page-permissions.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/page-permissions.php';
     }
 
     public function handle_save_page_permissions(): void {
