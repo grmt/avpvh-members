@@ -151,7 +151,17 @@ document.addEventListener('DOMContentLoaded', function () {
             menu.appendChild(makeMenuLink(labels.myProfile || 'Mijn profiel', cfg.profileUrl));
             menu.appendChild(makeMenuLink(labels.logout || 'Uitloggen', cfg.logoutUrl));
         } else {
-            menu.appendChild(makeMenuLink(labels.login || 'Inloggen', cfg.loginUrl));
+            var loginUrl = cfg.loginUrl;
+            if (window.location.pathname !== '/avpvh-login/') {
+                try {
+                    var u = new URL(cfg.loginUrl, window.location.origin);
+                    u.searchParams.set('redirect_to', window.location.href);
+                    loginUrl = u.toString();
+                } catch (e) {
+                    // keep default cfg.loginUrl
+                }
+            }
+            menu.appendChild(makeMenuLink(labels.login || 'Inloggen', loginUrl));
         }
 
         li.appendChild(content);

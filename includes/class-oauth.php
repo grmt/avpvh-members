@@ -78,7 +78,11 @@ class AVPVH_OAuth {
                 'requesting_user_id' => get_current_user_id(),
             ]), 600);
         } else {
-            set_transient('avpvh_oauth_state_' . $state, $provider, 600);
+            $redirect_to = sanitize_text_field(wp_unslash($request->get_param('redirect_to') ?? ''));
+            set_transient('avpvh_oauth_state_' . $state, wp_json_encode([
+                'provider'    => $provider,
+                'redirect_to' => $redirect_to,
+            ]), 600);
         }
 
         $config = self::PROVIDERS[$provider];
@@ -132,14 +136,25 @@ class AVPVH_OAuth {
         delete_transient('avpvh_oauth_state_' . $state);
 
         $add_request = null;
+        $redirect_to = '';
+        $valid_state = false;
+
         if (is_string($stored) && str_starts_with($stored, '{')) {
             $decoded = json_decode($stored, true);
-            if (is_array($decoded) && ($decoded['mode'] ?? '') === 'add' && ($decoded['provider'] ?? '') === $provider) {
-                $add_request = $decoded;
+            if (is_array($decoded) && ($decoded['provider'] ?? '') === $provider) {
+                if (($decoded['mode'] ?? '') === 'add') {
+                    $add_request = $decoded;
+                    $valid_state = true;
+                } else {
+                    $redirect_to = (string) ($decoded['redirect_to'] ?? '');
+                    $valid_state = true;
+                }
             }
+        } elseif ($stored === $provider) {
+            $valid_state = true;
         }
 
-        if (!$add_request && $stored !== $provider) {
+        if (!$valid_state) {
             // Most commonly: the state transient (10 min TTL) expired before
             // the user finished the provider's consent/2FA step, not an
             // actual CSRF attempt. Send them back to try again rather than
@@ -195,7 +210,8 @@ class AVPVH_OAuth {
         wp_set_auth_cookie($user->ID, true);
         do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately firing WP core's own wp_login hook (not a custom hook) so other code listening for a normal login still runs on this OAuth bridge
 
-        wp_safe_redirect(home_url('/'));
+        $target = !empty($redirect_to) ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
+        wp_safe_redirect($target);
         exit;
     }
 
@@ -311,8 +327,12 @@ class AVPVH_OAuth {
         );
     }
 
-    public static function login_url(string $provider): string {
-        return rest_url('avpvh/v1/oauth/' . $provider . '/start');
+    public static function login_url(string $provider, string $redirect_to = ''): string {
+        $url = rest_url('avpvh/v1/oauth/' . $provider . '/start');
+        if (!empty($redirect_to)) {
+            $url = add_query_arg('redirect_to', $redirect_to, $url);
+        }
+        return $url;
     }
 
     public static function configured_providers(): array {
