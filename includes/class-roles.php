@@ -33,6 +33,38 @@ class AVPVH_Roles {
         return $roles;
     }
 
+    // Directory group that grants blog-writing rights. Deliberately not a
+    // club role in ALL_ROLES: it can't be delegated or appointed through
+    // Rollen & delegatie, only granted by group membership.
+    const BLOGGER_GROUP = 'bloggers';
+
+    public static function member_is_blogger(int $member_id): bool {
+        $member = AVPVH_DB::get_member($member_id);
+        return $member && !empty($member->user_id)
+            && in_array(self::BLOGGER_GROUP, AVPVH_Directory::cached_user_groups($member->user_id), true);
+    }
+
+    public static function current_user_is_blogger(): bool {
+        $member = is_user_logged_in() ? avpvh_get_member_by_wp_user(get_current_user_id()) : null;
+        return $member && self::member_is_blogger((int) $member->id);
+    }
+
+    /**
+     * Whether the current user has any reason to be in wp-admin: WP admins,
+     * bloggers, and everyone who sees at least one plugin admin page.
+     */
+    public static function current_user_needs_wp_admin(): bool {
+        return current_user_can('manage_options')
+            || self::current_user_is_blogger()
+            || self::current_user_has_role('bestuur')
+            || self::can_manage_members()
+            || self::can_manage_activities()
+            || self::can_send_newsletter()
+            || self::can_view_login_attempts()
+            || self::can_view_roles_page()
+            || self::can_manage_page_permissions();
+    }
+
     public static function member_has_role(int $member_id, string $role): bool {
         $role = strtolower($role);
         if (in_array($role, self::get_member_roles($member_id), true)) {

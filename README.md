@@ -38,6 +38,18 @@ Browser ──► nginx ──auth_request──► Authelia ──LDAP──►
 - `/avpvh-sso/` → `one_factor` (SSO callback for password login)
 - Everything else → `bypass` (WordPress plugin handles access)
 
+### WordPress and blogger access
+
+- A member's WordPress user exists for the session only (role `subscriber`).
+  Whatever role is stored, members get no content capabilities
+  (`AVPVH_Access::filter_member_capabilities()`); WP admins are untouched.
+- The directory group `bloggers` gives contributor-level rights: own draft
+  posts only, no publishing, media or pages. The profile page links
+  bloggers to blog management.
+- wp-admin is only for WP admins, bloggers, bestuur and whoever sees a
+  plugin admin page (`AVPVH_Roles::current_user_needs_wp_admin()`); others
+  are sent to the home page. admin-post/AJAX stay open for front-end forms.
+
 ## Login page (`/avpvh-login/`)
 
 The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login screen with:

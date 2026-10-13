@@ -2900,6 +2900,36 @@ msgstr "From must be before today."
 msgid "tot"
 msgstr "to"
 
+#: includes/class-access.php
+msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
+msgstr "You were signed in with two different accounts at the same time. Both sessions have been ended; please sign in again."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Uitgelogd als %s."
+msgstr "Signed out as %s."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Ook de beveiligde sessie (2FA) van %s is beëindigd."
+msgstr "The secured (2FA) session of %s has also been ended."
+
+#: includes/class-nav-auth.php
+msgid "Sluiten"
+msgstr "Close"
+
+#: includes/class-member-profile-form.php
+msgid "Bloggen"
+msgstr "Blogging"
+
+#: includes/class-member-profile-form.php
+msgid "Als blogger kun je eigen conceptberichten schrijven en ter beoordeling indienen. Publiceren, media uploaden en pagina's bewerken kan niet. Blogbeheer vraagt om tweestapsverificatie (2FA)."
+msgstr "As a blogger you can write your own draft posts and submit them for review. Publishing, uploading media and editing pages is not possible. Blog management asks for two-step verification (2FA)."
+
+#: includes/class-member-profile-form.php
+msgid "Naar blogbeheer"
+msgstr "Go to blog management"
+
 #: includes/class-admin.php admin/page-permissions.php
 msgid "Paginarechten"
 msgstr "Page permissions"

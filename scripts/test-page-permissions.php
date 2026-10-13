@@ -71,6 +71,7 @@ check('IT-beheerder: alle pagina\'s', AVPVH_Roles::can_manage_members() && AVPVH
     && AVPVH_Roles::can_send_newsletter() && AVPVH_Roles::can_view_login_attempts());
 check('IT-beheerder: Paginarechten', AVPVH_Roles::can_manage_page_permissions());
 check('IT-beheerder: geen Rollen & delegatie', !AVPVH_Roles::can_manage_roles());
+check('IT-beheerder: mag wp-admin in', AVPVH_Roles::current_user_needs_wp_admin());
 
 as_user(['voorzitter']);
 check('voorzitter: Paginarechten', AVPVH_Roles::can_manage_page_permissions());
@@ -83,6 +84,7 @@ as_user(['leden'], false, ['it_beheerder']);
 check('IT-beheer is niet te delegeren', !AVPVH_Roles::can_manage_members() && !AVPVH_Roles::can_manage_page_permissions());
 
 as_user(['leden']);
+check('gewoon lid: geen wp-admin', !AVPVH_Roles::current_user_needs_wp_admin());
 check('gewoon lid: niets', !AVPVH_Roles::can_manage_members() && !AVPVH_Roles::can_view_login_attempts()
     && !AVPVH_Roles::can_manage_page_permissions());
 
