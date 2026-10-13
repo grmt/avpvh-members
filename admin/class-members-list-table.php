@@ -159,7 +159,12 @@ class AVPVH_Members_List_Table extends WP_List_Table {
 
     public function column_actions($item): string {
         $detail_url = add_query_arg(['page' => 'avpvh-member-detail', 'id' => $item->id], admin_url('admin.php'));
-        return '<a href="' . esc_url($detail_url) . '" class="button button-small">' . esc_html__('Details', 'avpvh-members') . '</a>';
+        $html = '<a href="' . esc_url($detail_url) . '" class="button button-small">' . esc_html__('Details', 'avpvh-members') . '</a>';
+        if ($item->status === 'visitor' && current_user_can('manage_options')) {
+            $url = add_query_arg(['page' => 'avpvh-delete-visitor', 'id' => $item->id], admin_url('admin.php'));
+            $html .= ' <a href="' . esc_url($url) . '" class="button button-small">' . esc_html__('Definitief verwijderen', 'avpvh-members') . '</a>';
+        }
+        return $html;
     }
 
     public function single_row($item): void {

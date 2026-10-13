@@ -22,6 +22,9 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $join
 ?>
 <div class="wrap">
     <h1><?php esc_html_e('AVP-PvH Leden', 'avpvh-members'); ?></h1>
+    <?php if (!empty($_GET['visitor_deleted']) && current_user_can('manage_options')) : ?>
+        <div class="notice notice-success is-dismissible"><p><?php esc_html_e('De bezoeker en alle gekoppelde testgegevens zijn definitief verwijderd.', 'avpvh-members'); ?></p></div>
+    <?php endif; ?>
     <p>
         <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-add-member'], admin_url('admin.php'))); ?>" class="button"><?php esc_html_e('Nieuwe persoon', 'avpvh-members'); ?></a>
     </p>
