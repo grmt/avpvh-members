@@ -1646,7 +1646,13 @@ msgid "Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in."
 msgstr ""
 
 #: includes/class-access.php:193
-msgid "Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat (bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) gevraagd."
+msgid ""
+"Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. "
+"Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je "
+"direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je "
+"gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat "
+"(bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) "
+"gevraagd."
 msgstr ""
 
 #: includes/class-access.php:295
@@ -2749,7 +2755,9 @@ msgid "Mijn betalingen"
 msgstr ""
 
 #: includes/class-access.php includes/class-nav-auth.php
-msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor actieve leden."
+msgid ""
+"Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze "
+"pagina is alleen beschikbaar voor actieve leden."
 msgstr ""
 
 #: includes/class-member-profile-form.php includes/class-nav-auth.php
@@ -2757,15 +2765,22 @@ msgid "Lidmaatschap aanvragen"
 msgstr ""
 
 #: includes/class-member-profile-form.php includes/class-nav-auth.php
-msgid "Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn."
+msgid ""
+"Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, "
+"naam en adres in je profiel compleet zijn."
 msgstr ""
 
 #: includes/class-member-profile-form.php includes/class-nav-auth.php
-msgid "Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn."
+msgid ""
+"Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden "
+"hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet "
+"minstens één wettelijke vertegenwoordiger zelf lid zijn."
 msgstr ""
 
 #: includes/class-member-profile-form.php includes/class-nav-auth.php
-msgid "Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten."
+msgid ""
+"Het bestuur beslist over je toelating. De secretaris laat je de beslissing "
+"schriftelijk weten."
 msgstr ""
 
 #: includes/class-member-profile-form.php includes/class-nav-auth.php
@@ -2777,7 +2792,9 @@ msgid "Statuten en huishoudelijk reglement"
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "De gekoppelde gegevens konden niet volledig worden gecontroleerd. Er is niets verwijderd."
+msgid ""
+"De gekoppelde gegevens konden niet volledig worden gecontroleerd. Er is "
+"niets verwijderd."
 msgstr ""
 
 #: includes/class-visitor-delete.php
@@ -2785,7 +2802,9 @@ msgid "Bevestig dat dit een testaccount is en typ het bezoekersnummer."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "De gegevens zijn gewijzigd. Bekijk het overzicht opnieuw voordat je verwijdert."
+msgid ""
+"De gegevens zijn gewijzigd. Bekijk het overzicht opnieuw voordat je "
+"verwijdert."
 msgstr ""
 
 #: includes/class-visitor-delete.php
@@ -2801,7 +2820,10 @@ msgid "Het bezoekersrecord kon niet worden verwijderd."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Verwijderen is niet afgerond. De lokale bezoekersgegevens zijn behouden, maar een Drive-map of het OpenLDAP-account kan al verwijderd zijn. Open het overzicht opnieuw om de resterende gegevens te verwijderen."
+msgid ""
+"Verwijderen is niet afgerond. De lokale bezoekersgegevens zijn behouden, "
+"maar een Drive-map of het OpenLDAP-account kan al verwijderd zijn. Open het "
+"overzicht opnieuw om de resterende gegevens te verwijderen."
 msgstr ""
 
 #: includes/class-visitor-delete.php
@@ -2821,7 +2843,9 @@ msgid "De gekoppelde gegevens ondersteunen geen veilige database-transactie."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Dit account heeft groepsrechten. Verwijder die eerst voordat je het als testbezoeker verwijdert."
+msgid ""
+"Dit account heeft groepsrechten. Verwijder die eerst voordat je het als "
+"testbezoeker verwijdert."
 msgstr ""
 
 #: includes/class-visitor-delete.php
@@ -2829,7 +2853,8 @@ msgid "Een inlogadres is ook aan een andere persoon gekoppeld."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Je kunt jezelf of een account met extra WordPress-rechten niet verwijderen."
+msgid ""
+"Je kunt jezelf of een account met extra WordPress-rechten niet verwijderen."
 msgstr ""
 
 #: includes/class-visitor-delete.php
@@ -2842,31 +2867,43 @@ msgstr ""
 
 #: includes/class-visitor-delete.php
 #, php-format
-msgid "Er zijn aanvullende gekoppelde gegevens in %s. Die moeten eerst apart worden beheerd."
+msgid ""
+"Er zijn aanvullende gekoppelde gegevens in %s. Die moeten eerst apart worden "
+"beheerd."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Gekoppelde gegevens horen ook bij een andere persoon. Verwijderen is geblokkeerd."
+msgid ""
+"Gekoppelde gegevens horen ook bij een andere persoon. Verwijderen is "
+"geblokkeerd."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Er zijn geboekte betalingen gekoppeld. Deze bezoeker kan niet definitief worden verwijderd."
+msgid ""
+"Er zijn geboekte betalingen gekoppeld. Deze bezoeker kan niet definitief "
+"worden verwijderd."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Er zijn al afgehandelde bestellingen gekoppeld. Verwijderen is geblokkeerd."
+msgid ""
+"Er zijn al afgehandelde bestellingen gekoppeld. Verwijderen is geblokkeerd."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Een banktransactie verwijst naar deze bezoeker. Laat de penningmeester die koppeling eerst controleren."
+msgid ""
+"Een banktransactie verwijst naar deze bezoeker. Laat de penningmeester die "
+"koppeling eerst controleren."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Een gekoppelde Drive-map kan niet veilig als persoonlijke share worden vastgesteld."
+msgid ""
+"Een gekoppelde Drive-map kan niet veilig als persoonlijke share worden "
+"vastgesteld."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Een Drive-map is aan meerdere shares gekoppeld. Controleer die eerst apart."
+msgid ""
+"Een Drive-map is aan meerdere shares gekoppeld. Controleer die eerst apart."
 msgstr ""
 
 #: includes/class-visitor-delete.php
@@ -2874,11 +2911,14 @@ msgid "Er is een handmatig gekoppelde Drive-map. Beheer die eerst apart."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "Een Drive-map is ook aan een ander account gekoppeld. Controleer die eerst apart."
+msgid ""
+"Een Drive-map is ook aan een ander account gekoppeld. Controleer die eerst "
+"apart."
 msgstr ""
 
 #: includes/class-visitor-delete.php
-msgid "De Drive-integratie is niet beschikbaar om de fotoshares te verwijderen."
+msgid ""
+"De Drive-integratie is niet beschikbaar om de fotoshares te verwijderen."
 msgstr ""
 
 #: includes/class-visitor-delete.php
@@ -2898,7 +2938,9 @@ msgid "Terug naar bezoekers"
 msgstr ""
 
 #: admin/delete-visitor.php
-msgid "Controleer hieronder wat verdwijnt. Gebruik dit alleen voor testbezoekers. Verwijderen kan niet ongedaan worden gemaakt."
+msgid ""
+"Controleer hieronder wat verdwijnt. Gebruik dit alleen voor testbezoekers. "
+"Verwijderen kan niet ongedaan worden gemaakt."
 msgstr ""
 
 #: admin/delete-visitor.php
@@ -2930,7 +2972,9 @@ msgid "Verwijderen is geblokkeerd."
 msgstr ""
 
 #: admin/delete-visitor.php
-msgid "Dit is een testaccount. Ik wil het account en alle hierboven getoonde gegevens definitief verwijderen."
+msgid ""
+"Dit is een testaccount. Ik wil het account en alle hierboven getoonde "
+"gegevens definitief verwijderen."
 msgstr ""
 
 #: admin/delete-visitor.php
@@ -3016,4 +3060,54 @@ msgstr ""
 
 #: includes/class-admin.php
 msgid "Gebruik het bevestigingsformulier."
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+#, php-format
+msgid "%1$s: %2$d gekozen"
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+#, php-format
+msgid "%s: alle"
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "E-maillink"
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "E-maillink verzonden"
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "Gebruik een geldige datum als dd-mmm-yyyy."
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "Geen loginpogingen gevonden."
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "Loginpogingen per pagina"
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "Loginpogingen zoeken"
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "Tot kan niet later zijn dan vandaag."
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "Tot moet later zijn dan van."
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "Van moet vóór vandaag liggen."
+msgstr ""
+
+#: admin/class-login-attempts-list-table.php
+msgid "tot"
 msgstr ""

@@ -1,0 +1,219 @@
+.avpvh-login-attempts-form .wp-list-table {
+    max-width: 100%;
+    min-width: 0;
+    table-layout: auto;
+    width: max-content;
+}
+
+.avpvh-login-attempts-form .wp-list-table .column-id {
+    width: 64px;
+}
+
+.avpvh-login-attempts-form .wp-list-table .column-attempted_at {
+    width: 165px;
+    white-space: nowrap;
+}
+
+.avpvh-login-attempts-form .wp-list-table .column-email {
+    overflow-wrap: anywhere;
+    width: 320px;
+}
+
+.avpvh-login-attempts-form .wp-list-table .column-method {
+    width: 200px;
+}
+
+.avpvh-login-attempts-form .wp-list-table .column-result {
+    width: 210px;
+}
+
+.avpvh-login-attempts-form .wp-list-table .column-ip {
+    width: 310px;
+    white-space: nowrap;
+}
+
+.avpvh-login-filters {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    overflow: visible;
+}
+
+.avpvh-checkbox-filter {
+    position: relative;
+}
+
+.avpvh-checkbox-filter > summary {
+    box-sizing: border-box;
+    cursor: pointer;
+    list-style: none;
+    min-width: 150px;
+    padding-right: 28px;
+    position: relative;
+    text-align: left;
+}
+
+.avpvh-checkbox-filter > summary::-webkit-details-marker {
+    display: none;
+}
+
+.avpvh-checkbox-filter > summary::after {
+    content: "\f140";
+    font: normal 20px/1 dashicons;
+    position: absolute;
+    right: 5px;
+    top: 4px;
+}
+
+.avpvh-checkbox-filter[open] > summary::after {
+    content: "\f142";
+}
+
+.avpvh-checkbox-filter.is-active > summary {
+    background: #2271b1;
+    border-color: #135e96;
+    color: #fff;
+}
+
+.avpvh-checkbox-filter.is-active > summary:hover,
+.avpvh-checkbox-filter.is-active > summary:focus {
+    background: #135e96;
+    border-color: #0a4b78;
+    color: #fff;
+}
+
+.avpvh-checkbox-filter__panel {
+    background: #fff;
+    border: 1px solid #8c8f94;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+    box-sizing: border-box;
+    left: 0;
+    min-width: 240px;
+    padding: 8px 12px;
+    position: absolute;
+    top: calc(100% + 3px);
+    z-index: 100;
+}
+
+.avpvh-checkbox-filter__panel label {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    margin: 5px 0;
+    white-space: nowrap;
+}
+
+.avpvh-checkbox-filter__panel input[type="checkbox"] {
+    margin: 0;
+}
+
+.ui-datepicker {
+    background: #fff;
+    border: 1px solid #8c8f94;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    display: none;
+    padding: 10px;
+    width: 280px;
+    z-index: 100001 !important;
+}
+
+.ui-datepicker-header {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.ui-datepicker-title {
+    font-weight: 600;
+    order: 2;
+}
+
+.ui-datepicker-prev,
+.ui-datepicker-next {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.ui-datepicker-prev {
+    order: 1;
+}
+
+.ui-datepicker-next {
+    order: 3;
+}
+
+.ui-datepicker table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.ui-datepicker th,
+.ui-datepicker td {
+    padding: 2px;
+    text-align: center;
+}
+
+.ui-datepicker td a,
+.ui-datepicker td span {
+    border-radius: 2px;
+    display: block;
+    padding: 5px;
+    text-decoration: none;
+}
+
+.ui-datepicker td a:hover,
+.ui-datepicker-current-day a {
+    background: #2271b1;
+    color: #fff;
+}
+
+.ui-datepicker-unselectable span {
+    color: #a7aaad;
+}
+
+@media screen and (max-width: 782px) {
+    .avpvh-login-attempts-form .wp-list-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tr {
+        display: table-row;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table th:not(.hidden),
+    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td:not(.hidden) {
+        display: table-cell !important;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tr td:nth-child(n+3) {
+        flex: none;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table td.column-primary,
+    .avpvh-login-attempts-form .wp-list-table tbody th.column-primary,
+    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td.column-primary ~ td:not(.check-column) {
+        padding: 8px 10px;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td:not(.check-column)::before,
+    .avpvh-login-attempts-form .wp-list-table .toggle-row {
+        display: none !important;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table .column-attempted_at,
+    .avpvh-login-attempts-form .wp-list-table .column-ip {
+        white-space: normal;
+    }
+
+    .avpvh-login-filters {
+        float: none;
+    }
+
+    .avpvh-checkbox-filter,
+    .avpvh-checkbox-filter > summary {
+        width: 100%;
+    }
+}
