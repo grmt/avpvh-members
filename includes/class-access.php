@@ -248,6 +248,7 @@ class AVPVH_Access {
             // set by nginx) name different accounts in one request. Never
             // silently switch the WP session to the other account: end both
             // sessions and make the user log in again.
+            AVPVH_Nav_Auth::remember_signed_out_identities();
             wp_logout();
             AVPVH_Nav_Auth::invalidate_authelia_session();
             wp_safe_redirect(AVPVH_Nav_Auth::authelia_logout_url(

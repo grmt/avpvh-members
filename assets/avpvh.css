@@ -230,3 +230,37 @@ header.wp-block-template-part .wp-block-site-title {
 .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__container > .avpvh-auth-status {
     order: -1;
 }
+
+/* "Uitgelogd als ..." notice after logout (assets/nav-auth.js) */
+.avpvh-signed-out-notice {
+    position: fixed;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    z-index: 99999;
+    max-width: min(32rem, calc(100vw - 2rem));
+    padding: .75rem 2.5rem .75rem 1rem;
+    background: #fff;
+    color: #1e1e1e;
+    border-left: 4px solid #2271b1;
+    border-radius: 4px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .2);
+}
+.avpvh-signed-out-notice p {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.avpvh-signed-out-notice p + p {
+    margin-top: .25rem;
+}
+.avpvh-signed-out-notice__close {
+    position: absolute;
+    top: .25rem;
+    right: .5rem;
+    border: 0;
+    background: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
+}

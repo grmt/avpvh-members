@@ -15,6 +15,7 @@ $test_logged_in = true;
 $test_current_user_id = 101;
 $test_logout_called = false;
 $test_invalidation_called = false;
+$test_identities_remembered = false;
 
 class AVPVH_Test_Identity_Redirect extends RuntimeException {
     public function __construct(public readonly string $url) {
@@ -35,6 +36,11 @@ class AVPVH_DB {
 }
 
 class AVPVH_Nav_Auth {
+    public static function remember_signed_out_identities(): void {
+        // Must run while the WP session still exists, i.e. before wp_logout().
+        $GLOBALS['test_identities_remembered'] = !$GLOBALS['test_logout_called'];
+    }
+
     public static function invalidate_authelia_session(): bool {
         $GLOBALS['test_invalidation_called'] = true;
         return true;
@@ -68,6 +74,10 @@ try {
 } catch (AVPVH_Test_Identity_Redirect $redirect) {
     if (!$test_logout_called || !$test_invalidation_called) {
         fwrite(STDERR, "Mismatch did not destroy both sessions\n");
+        exit(1);
+    }
+    if (!$test_identities_remembered) {
+        fwrite(STDERR, "Signed-out identities were not recorded before logout\n");
         exit(1);
     }
     if (!str_contains($redirect->url, '/logout?rd=') || !str_contains($redirect->url, 'identity_mismatch')) {

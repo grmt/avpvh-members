@@ -2903,3 +2903,17 @@ msgstr "au"
 #: includes/class-access.php
 msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
 msgstr "Vous étiez connecté avec deux comptes différents en même temps. Les deux sessions ont été fermées ; veuillez vous reconnecter."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Uitgelogd als %s."
+msgstr "Déconnecté en tant que %s."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Ook de beveiligde sessie (2FA) van %s is beëindigd."
+msgstr "La session sécurisée (2FA) de %s a également été fermée."
+
+#: includes/class-nav-auth.php
+msgid "Sluiten"
+msgstr "Fermer"

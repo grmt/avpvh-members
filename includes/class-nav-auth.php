@@ -5,6 +5,8 @@ class AVPVH_Nav_Auth {
 
     const AUTHELIA_URL = 'https://auth.avphilipsvanhorne.nl';
     const AUTHELIA_SESSION_COOKIE = 'avpvh_session';
+    // Short-lived, read once by nav-auth.js to show "Uitgelogd als ...".
+    const SIGNED_OUT_COOKIE = 'avpvh_signed_out';
 
     // Page IDs whose nav items require active membership.
     const MEMBERS_PAGE_IDS = [647, 36];
@@ -70,6 +72,7 @@ class AVPVH_Nav_Auth {
                     'hasDocSearchAccess' => $has_doc_search_access,
                     'docSearchPageId'    => self::DOC_SEARCH_PAGE_ID,
                     'logoutUrl'          => rest_url('avpvh/v1/logout'),
+                    'signedOutCookie'    => self::SIGNED_OUT_COOKIE,
                     'loginUrl'           => home_url('/avpvh-login/'),
                     'profileUrl'         => self::profile_url(),
                     'paymentsUrl'        => shortcode_exists('avpvh_bk_balance') ? self::profile_url() . '#bijdrage' : '',
@@ -85,6 +88,11 @@ class AVPVH_Nav_Auth {
                         'loggedIn'    => __('Ingelogd', 'avpvh-members'),
                         'account'     => __('Account', 'avpvh-members'),
                         'accountMenu' => __('Account submenu', 'avpvh-members'),
+                        /* translators: %s: e-mail address of the account that was signed out */
+                        'signedOutAs' => __('Uitgelogd als %s.', 'avpvh-members'),
+                        /* translators: %s: e-mail address of the account whose Authelia (2FA) session was ended */
+                        'signedOutSso' => __('Ook de beveiligde sessie (2FA) van %s is beëindigd.', 'avpvh-members'),
+                        'close'       => __('Sluiten', 'avpvh-members'),
                     ],
                 ])
                 . '</script>';
@@ -153,10 +161,74 @@ class AVPVH_Nav_Auth {
     }
 
     public function rest_logout(): void {
+        self::remember_signed_out_identities();
         wp_logout();
         self::invalidate_authelia_session();
         wp_safe_redirect(self::authelia_logout_url(home_url('/')));
         exit;
+    }
+
+    /**
+     * Call before ending the sessions: notes which account the WP session
+     * and which the Authelia session belonged to (they can differ), so the
+     * next page can show who was signed out. The addresses travel in a
+     * 5-minute cookie rather than in a redirect URL, which would put them
+     * in server logs.
+     */
+    public static function remember_signed_out_identities(): void {
+        $member = is_user_logged_in() ? avpvh_get_member_by_wp_user(get_current_user_id()) : null;
+        $identities = array_filter([
+            'wp'  => $member && !empty($member->email) ? sanitize_email((string) $member->email) : '',
+            'sso' => self::authelia_session_identity_email(),
+        ]);
+        if (!$identities || headers_sent()) {
+            return;
+        }
+        setcookie(self::SIGNED_OUT_COOKIE, (string) wp_json_encode($identities), [
+            'expires'  => time() + 5 * MINUTE_IN_SECONDS,
+            'path'     => COOKIEPATH ?: '/',
+            'domain'   => COOKIE_DOMAIN ?: '',
+            'secure'   => is_ssl(),
+            'httponly' => false, // nav-auth.js reads and then deletes it
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    /** E-mail of the member the current Authelia browser session belongs to, or ''. */
+    public static function authelia_session_identity_email(): string {
+        $session = self::authelia_session_cookie();
+        if ($session === '') {
+            return '';
+        }
+        $response = wp_remote_get(self::AUTHELIA_URL . '/api/state', [
+            'timeout'     => 5,
+            'redirection' => 0,
+            'headers'     => [
+                'Accept' => 'application/json',
+                'Cookie' => self::AUTHELIA_SESSION_COOKIE . '=' . $session,
+            ],
+        ]);
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            return '';
+        }
+        $state = json_decode(wp_remote_retrieve_body($response), true);
+        // Authelia wraps the payload as {"status":"OK","data":{"username":...}}.
+        $username = sanitize_text_field((string) ($state['data']['username'] ?? $state['username'] ?? ''));
+        if ($username === '') {
+            return '';
+        }
+        $member = AVPVH_DB::get_member_by_lldap_uid($username);
+        return $member && !empty($member->email) ? sanitize_email((string) $member->email) : '';
+    }
+
+    private static function authelia_session_cookie(): string {
+        $session = wp_unslash($_COOKIE[self::AUTHELIA_SESSION_COOKIE] ?? '');
+        // RFC cookie-octets may contain characters such as '%' and '|'. Only
+        // reject bytes that could terminate or inject a Cookie header.
+        if ($session === '' || preg_match('/[\x00-\x20\x22\x2c\x3b\x5c\x7f]/', $session)) {
+            return '';
+        }
+        return $session;
     }
 
     public static function authelia_logout_url(string $redirect_url): string {
@@ -169,10 +241,8 @@ class AVPVH_Nav_Auth {
      * now-invalid cookie itself.
      */
     public static function invalidate_authelia_session(): bool {
-        $session = wp_unslash($_COOKIE[self::AUTHELIA_SESSION_COOKIE] ?? '');
-        // RFC cookie-octets may contain characters such as '%' and '|'. Only
-        // reject bytes that could terminate or inject a Cookie header.
-        if ($session === '' || preg_match('/[\x00-\x20\x22\x2c\x3b\x5c\x7f]/', $session)) {
+        $session = self::authelia_session_cookie();
+        if ($session === '') {
             return false;
         }
 

@@ -65,6 +65,45 @@ document.addEventListener('DOMContentLoaded', function () {
         ul.appendChild(makeAccountItem(cfg));
     });
 
+    // --- "Uitgelogd als ..." after logout (and after an identity mismatch) ---
+    // The server leaves which account(s) were signed out in a short-lived
+    // cookie; show it once and delete it straight away.
+    showSignedOutNotice(cfg);
+
+    function showSignedOutNotice(cfg) {
+        var name = cfg.signedOutCookie + '=';
+        var raw = document.cookie.split('; ').filter(function (c) { return c.indexOf(name) === 0; })[0];
+        if (!raw) return;
+        document.cookie = name + '; Max-Age=0; Path=/; SameSite=Lax';
+        var ids;
+        try {
+            ids = JSON.parse(decodeURIComponent(raw.slice(name.length)));
+        } catch (e) {
+            return;
+        }
+        var lines = [];
+        if (ids.wp) lines.push(cfg.labels.signedOutAs.replace('%s', ids.wp));
+        if (ids.sso && ids.sso !== ids.wp) lines.push(cfg.labels.signedOutSso.replace('%s', ids.sso));
+        if (!lines.length) return;
+
+        var notice = document.createElement('div');
+        notice.className = 'avpvh-signed-out-notice';
+        notice.setAttribute('role', 'status');
+        lines.forEach(function (line) {
+            var p = document.createElement('p');
+            p.textContent = line;
+            notice.appendChild(p);
+        });
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'avpvh-signed-out-notice__close';
+        close.setAttribute('aria-label', cfg.labels.close);
+        close.textContent = '×';
+        close.addEventListener('click', function () { notice.remove(); });
+        notice.appendChild(close);
+        document.body.appendChild(notice);
+    }
+
     // --- temporary viewport debug badge, only with ?avpvh_debug=1 ---
     if (/[?&]avpvh_debug=1/.test(location.search)) {
         var badge = document.createElement('div');
