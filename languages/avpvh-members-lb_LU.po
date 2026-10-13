@@ -2899,3 +2899,7 @@ msgstr "Vun muss virun haut leien."
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr "bis"
+
+#: includes/class-access.php
+msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
+msgstr "Du waars gläichzäiteg mat zwee verschiddene Konten ageloggt. Béid Sessiounen goufen ofgeschloss; log dech w.e.g. nees an."

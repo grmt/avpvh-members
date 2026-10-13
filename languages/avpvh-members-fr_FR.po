@@ -2899,3 +2899,7 @@ msgstr "La date de début doit être antérieure à aujourd'hui."
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr "au"
+
+#: includes/class-access.php
+msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
+msgstr "Vous étiez connecté avec deux comptes différents en même temps. Les deux sessions ont été fermées ; veuillez vous reconnecter."

@@ -2899,3 +2899,7 @@ msgstr "From must be before today."
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr "to"
+
+#: includes/class-access.php
+msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
+msgstr "You were signed in with two different accounts at the same time. Both sessions have been ended; please sign in again."
