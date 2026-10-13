@@ -11,6 +11,7 @@ WordPress plugin for AVP Philips van Horne to manage members, camp participation
 - **Identity Management:** OpenLDAP (`ou=avpvh,dc=nl`) is the single source of truth for identity (emails, user IDs, groups). Fast local SQL JOINs via the `pvh_avm_directory_users` cache table.
 - **Access Control:** Bypasses post passwords for active members; shows notices to ex-members.
 - **Admin UI:** Member list, detail views, fee management, and roles/delegation in the WordPress backend.
+- **Page permissions:** Which roles see Ledenbeheer, Activiteiten, Nieuwsbrief and Loginpogingen is a matrix on *Paginarechten*, editable by the voorzitter and the IT-beheerder (directory group `it-beheer`). Defaults keep the original rules (secretaris/penningmeester for members, secretaris for activities and newsletter) plus the IT-beheerder everywhere. Instellingen, Leden samenvoegen and Rollen & delegatie keep fixed rules.
 
 ## Architecture
 

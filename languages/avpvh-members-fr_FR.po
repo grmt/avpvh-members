@@ -2899,3 +2899,31 @@ msgstr "La date de début doit être antérieure à aujourd'hui."
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr "au"
+
+#: includes/class-admin.php admin/page-permissions.php
+msgid "Paginarechten"
+msgstr "Droits d'accès aux pages"
+
+#: admin/page-permissions.php
+msgid "Paginarechten opgeslagen."
+msgstr "Droits d'accès aux pages enregistrés."
+
+#: admin/page-permissions.php
+msgid "Kies welke functies welke beheerpagina zien. Een tijdelijke delegatie van een functie geeft dezelfde toegang. WordPress-beheerders zien altijd alle pagina's. De IT-beheerder is wie in de groep it-beheer zit."
+msgstr "Choisissez quelles fonctions voient quelle page d'administration. Une délégation temporaire d'une fonction donne le même accès. Les administrateurs WordPress voient toujours toutes les pages. L'administrateur informatique est la personne membre du groupe it-beheer."
+
+#: admin/page-permissions.php
+msgid "Niet toewijsbaar, met vaste rechten: Instellingen, Leden samenvoegen, groepen en kenmerken (alleen WordPress-beheerders) en Rollen & delegatie (voorzitter)."
+msgstr "Non attribuables, avec des droits fixes : Paramètres, Fusionner des membres, groupes et attributs (administrateurs WordPress uniquement) et Rôles & délégation (président)."
+
+#: admin/page-permissions.php
+msgid "Pagina"
+msgstr "Page"
+
+#: admin/page-permissions.php
+msgid "Paginarechten opslaan"
+msgstr "Enregistrer les droits d'accès"
+
+#: admin/page-permissions.php
+msgid "IT-beheerder"
+msgstr "Administrateur informatique"

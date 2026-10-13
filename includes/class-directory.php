@@ -21,7 +21,7 @@ final class AVPVH_Directory {
     // these are PvH's to show and hand out from this plugin.
     public const PVH_GROUPS = [
         'leden', 'ex-leden', 'ere-leden', 'bestuur', 'voorzitter',
-        'secretaris', 'penningmeester', 'boek', 'bloggers',
+        'secretaris', 'penningmeester', 'boek', 'bloggers', 'it-beheer',
     ];
 
     private static ?AVPVH_Directory_Backend $backend = null;

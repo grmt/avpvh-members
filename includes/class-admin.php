@@ -38,6 +38,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
         add_action('admin_post_avpvh_merge_members',      [$this, 'handle_merge_members']);
         add_action('admin_post_avpvh_delete_visitor',     [$this, 'handle_delete_visitor']);
+        add_action('admin_post_avpvh_save_page_permissions', [$this, 'handle_save_page_permissions']);
         add_action('admin_enqueue_scripts',               [$this, 'enqueue_admin_assets']);
     }
 
@@ -104,12 +105,10 @@ class AVPVH_Admin {
         return AVPVH_Roles::can_manage_roles();
     }
 
-    // See AVPVH_Roles::can_manage_members(): WP admins plus the officer
-    // roles in AVPVH_Roles::MEMBER_ADMIN_ROLES get Ledenbeheer/Ledendetail/
-    // Nieuw lid only. Activiteiten has its own, narrower rule
-    // (AVPVH_Roles::can_manage_activities(): secretaris only), as does
-    // Nieuwsbrief (can_send_newsletter(): secretaris); Instellingen and
-    // Loginpogingen stay manage_options-only.
+    // Ledenbeheer (incl. Ledendetail, Nieuwe persoon), Activiteiten,
+    // Nieuwsbrief and Loginpogingen follow the Paginarechten matrix (see
+    // AVPVH_Roles::get_page_permissions()); Instellingen and Leden
+    // samenvoegen stay manage_options-only.
     private function can_manage_members(): bool {
         return AVPVH_Roles::can_manage_members();
     }
@@ -127,6 +126,7 @@ class AVPVH_Admin {
         $members_cap = $this->can_manage_members() ? 'read' : 'manage_options';
         $activities_cap = AVPVH_Roles::can_manage_activities() ? 'read' : 'manage_options';
         $newsletter_cap = AVPVH_Roles::can_send_newsletter() ? 'read' : 'manage_options';
+        $login_attempts_cap = AVPVH_Roles::can_view_login_attempts() ? 'read' : 'manage_options';
 
         $hook = add_menu_page(
             __('AV-PvH Leden', 'avpvh-members'), __('AV-PvH Leden', 'avpvh-members'), $members_cap,
@@ -180,7 +180,7 @@ class AVPVH_Admin {
             'avpvh-activity-participation-detail', [$this, 'render_activity_participation_detail']
         );
         $login_attempts_hook = add_submenu_page(
-            'avpvh-members', __('Loginpogingen', 'avpvh-members'), __('Loginpogingen', 'avpvh-members'), 'manage_options',
+            'avpvh-members', __('Loginpogingen', 'avpvh-members'), __('Loginpogingen', 'avpvh-members'), $login_attempts_cap,
             'avpvh-login-attempts', [$this, 'render_login_attempts']
         );
         // Sortable/filterable WP_List_Table: Screen Options give per-page
@@ -231,6 +231,12 @@ class AVPVH_Admin {
                 'avpvh-roles', [$this, 'render_roles']
             );
         }
+        if (AVPVH_Roles::can_manage_page_permissions()) {
+            add_submenu_page(
+                'avpvh-members', __('Paginarechten', 'avpvh-members'), __('Paginarechten', 'avpvh-members'), 'read',
+                'avpvh-page-permissions', [$this, 'render_page_permissions']
+            );
+        }
     }
 
     public function render_members_list(): void {
@@ -247,6 +253,22 @@ class AVPVH_Admin {
 
     public function render_merge_members(): void {
         require AVPVH_PLUGIN_DIR . 'admin/merge-members.php';
+    }
+
+    public function render_page_permissions(): void {
+        require AVPVH_PLUGIN_DIR . 'admin/page-permissions.php';
+    }
+
+    public function handle_save_page_permissions(): void {
+        if (!AVPVH_Roles::can_manage_page_permissions()) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), '', ['response' => 403]);
+        }
+        check_admin_referer('avpvh_save_page_permissions');
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- each role is sanitize_key()'d and whitelisted in save_page_permissions()
+        $submitted = isset($_POST['permissions']) && is_array($_POST['permissions']) ? wp_unslash($_POST['permissions']) : [];
+        AVPVH_Roles::save_page_permissions($submitted);
+        wp_safe_redirect(admin_url('admin.php?page=avpvh-page-permissions&updated=1'));
+        exit;
     }
 
     public function render_delete_visitor(): void {

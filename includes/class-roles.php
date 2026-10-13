@@ -41,30 +41,114 @@ class AVPVH_Roles {
         return self::has_active_delegation($member_id, $role);
     }
 
-    // Officer roles that get the same member-management access as a real WP
-    // admin (Ledenbeheer, Ledendetail, Nieuwe persoon and their save handlers):
-    // secretaris as membership registrar, penningmeester for contributie
-    // and member records. Either via real LLDAP group membership or a
-    // temporary delegation (see admin/roles.php).
-    const MEMBER_ADMIN_ROLES = ['secretaris', 'penningmeester'];
+    // -------------------------------------------------------------------
+    // Page permissions
+    // -------------------------------------------------------------------
+    //
+    // Which club roles see which plugin admin page is a matrix the
+    // voorzitter or the IT-beheerder edits on Paginarechten (stored in the
+    // option below; get_default_page_permissions() until then). WP admins
+    // always see every page. Deliberately not in the matrix, with fixed,
+    // narrower rules: Instellingen (OAuth/directory credentials), Leden
+    // samenvoegen, groups and flags (manage_options), and Rollen &
+    // delegatie (can_manage_roles()).
+
+    // Directory group for the IT-beheerder. A real group, not a delegation:
+    // whoever is in it can edit the matrix, which a time-boxed handoff
+    // shouldn't silently carry.
+    const IT_GROUP = 'it-beheer';
+    const IT_ROLE = 'it_beheerder';
+    const PAGE_PERMISSION_ROLES = ['bestuur', 'voorzitter', 'secretaris', 'penningmeester', self::IT_ROLE];
+    const PAGE_PERMISSIONS_OPTION = 'avpvh_role_page_permissions';
+
+    public static function get_assignable_pages(): array {
+        return [
+            'members'        => __('Ledenbeheer', 'avpvh-members'),
+            'activities'     => __('Activiteiten', 'avpvh-members'),
+            'newsletter'     => __('Nieuwsbrief', 'avpvh-members'),
+            'login_attempts' => __('Loginpogingen', 'avpvh-members'),
+        ];
+    }
+
+    // The rules from before the matrix existed (Ledenbeheer: secretaris as
+    // membership registrar, penningmeester for contributie; Activiteiten
+    // and Nieuwsbrief: secretaris), plus the IT-beheerder everywhere.
+    public static function get_default_page_permissions(): array {
+        return [
+            'members'        => ['secretaris', 'penningmeester', self::IT_ROLE],
+            'activities'     => ['secretaris', self::IT_ROLE],
+            'newsletter'     => ['secretaris', self::IT_ROLE],
+            'login_attempts' => [self::IT_ROLE],
+        ];
+    }
+
+    public static function get_page_permissions(): array {
+        $saved = get_option(self::PAGE_PERMISSIONS_OPTION, []);
+        $permissions = self::get_default_page_permissions();
+        foreach (array_keys(self::get_assignable_pages()) as $page) {
+            if (is_array($saved) && isset($saved[$page]) && is_array($saved[$page])) {
+                $permissions[$page] = array_values(array_intersect(self::PAGE_PERMISSION_ROLES, $saved[$page]));
+            }
+        }
+        return $permissions;
+    }
+
+    /** $submitted: page => list of roles, as posted by admin/page-permissions.php. */
+    public static function save_page_permissions(array $submitted): void {
+        $permissions = [];
+        foreach (array_keys(self::get_assignable_pages()) as $page) {
+            $roles = isset($submitted[$page]) && is_array($submitted[$page])
+                ? array_map('sanitize_key', $submitted[$page])
+                : [];
+            $permissions[$page] = array_values(array_intersect(self::PAGE_PERMISSION_ROLES, $roles));
+        }
+        update_option(self::PAGE_PERMISSIONS_OPTION, $permissions, false);
+    }
+
+    public static function current_user_can_access_page(string $page): bool {
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        foreach (self::get_page_permissions()[$page] ?? [] as $role) {
+            $has = $role === self::IT_ROLE ? self::current_user_is_it_admin() : self::current_user_has_role($role);
+            if ($has) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static function member_is_it_admin(int $member_id): bool {
+        $member = AVPVH_DB::get_member($member_id);
+        return $member && !empty($member->user_id)
+            && in_array(self::IT_GROUP, AVPVH_Directory::cached_user_groups($member->user_id), true);
+    }
+
+    public static function current_user_is_it_admin(): bool {
+        $member = is_user_logged_in() ? avpvh_get_member_by_wp_user(get_current_user_id()) : null;
+        return $member && self::member_is_it_admin((int) $member->id);
+    }
+
+    // Paginarechten: the voorzitter (who already decides who holds which
+    // role) and the IT-beheerder; WP admins via can_manage_roles().
+    public static function can_manage_page_permissions(): bool {
+        return self::can_manage_roles() || self::current_user_is_it_admin();
+    }
 
     public static function can_manage_members(): bool {
-        return self::is_admin_or_has_any_role(self::MEMBER_ADMIN_ROLES);
+        return self::current_user_can_access_page('members');
     }
-
-    // Activiteiten (activities, activity types, participation, export) is
-    // narrower than member admin: secretaris only, not penningmeester.
-    const ACTIVITY_ADMIN_ROLES = ['secretaris'];
 
     public static function can_manage_activities(): bool {
-        return self::is_admin_or_has_any_role(self::ACTIVITY_ADMIN_ROLES);
+        return self::current_user_can_access_page('activities');
     }
 
-    // Nieuwsbrief (compose and send to members who opted in): secretaris.
-    const NEWSLETTER_ROLES = ['secretaris'];
-
     public static function can_send_newsletter(): bool {
-        return self::is_admin_or_has_any_role(self::NEWSLETTER_ROLES);
+        return self::current_user_can_access_page('newsletter');
+    }
+
+    public static function can_view_login_attempts(): bool {
+        return self::current_user_can_access_page('login_attempts');
     }
 
     // Rollen & delegatie: voorzitter only. A delegation hands out real
