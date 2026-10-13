@@ -2575,3 +2575,35 @@ msgstr "Secrétaire"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Trésorier"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Mijn betalingen"
+msgstr "Mes paiements"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor actieve leden."
+msgstr "Tu es connecté, mais ton compte ne peut pas accéder à cette page. Cette page est réservée aux membres actifs."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Lidmaatschap aanvragen"
+msgstr "Demander à devenir membre"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn."
+msgstr "Tu peux demander à devenir membre auprès du secrétaire. Vérifie que tes initiales, ton nom et ton adresse sont complets dans ton profil."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn."
+msgstr "Les adultes doivent être proposés par deux membres. Demande à chacun d’envoyer sa proposition au secrétaire par e-mail. Pour les mineurs, au moins un représentant légal doit être membre."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten."
+msgstr "Le conseil décide de ton admission. Le secrétaire t’informera de la décision par écrit."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Neem contact op met de secretaris"
+msgstr "Contacter le secrétaire"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Statuten en huishoudelijk reglement"
+msgstr "Statuts et règlement intérieur"

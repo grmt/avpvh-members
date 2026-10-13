@@ -26,6 +26,8 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
         add_action('admin_post_avpvh_delete_address',     [$this, 'handle_delete_address']);
+        add_action('admin_post_avpvh_save_name_alias',    [$this, 'handle_save_name_alias']);
+        add_action('admin_post_avpvh_delete_name_alias',  [$this, 'handle_delete_name_alias']);
         add_action('admin_post_avpvh_add_member',         [$this, 'handle_add_member']);
         add_action('admin_post_avpvh_save_member_flags',  [$this, 'handle_save_member_flags']);
         add_action('admin_post_avpvh_create_flag',        [$this, 'handle_create_flag']);
@@ -881,6 +883,38 @@ class AVPVH_Admin {
             AVPVH_DB::delete_address($id, $member_id);
         }
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'address_deleted' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_save_name_alias(): void {
+        check_admin_referer('avpvh_save_name_alias');
+        if (!$this->can_manage_members()) {
+            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $fields = [];
+        foreach (['first_name', 'suffix', 'last_name', 'alias_type', 'valid_from', 'valid_until', 'source'] as $field) {
+            $fields[$field] = sanitize_text_field(wp_unslash($_POST[$field] ?? ''));
+        }
+        $fields['note'] = sanitize_textarea_field(wp_unslash($_POST['note'] ?? ''));
+        $error = AVPVH_DB::save_name_alias($member_id, $fields);
+        wp_safe_redirect(add_query_arg([
+            'page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact',
+            $error === '' ? 'alias_saved' : 'alias_error' => $error === '' ? '1' : $error,
+        ], admin_url('admin.php')) . '#avpvh-name-aliases');
+        exit;
+    }
+
+    public function handle_delete_name_alias(): void {
+        check_admin_referer('avpvh_delete_name_alias');
+        if (!$this->can_manage_members()) {
+            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        AVPVH_DB::delete_name_alias(absint(wp_unslash($_POST['id'] ?? 0)), $member_id);
+        wp_safe_redirect(add_query_arg([
+            'page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'alias_deleted' => '1',
+        ], admin_url('admin.php')) . '#avpvh-name-aliases');
         exit;
     }
 

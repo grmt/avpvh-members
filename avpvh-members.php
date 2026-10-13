@@ -33,6 +33,7 @@ function avpvh_asset_version(string $relative_path): string {
 require_once AVPVH_PLUGIN_DIR . 'includes/class-i18n.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-name-matcher.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-address-normalizer.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-merge.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory.php';
@@ -62,7 +63,13 @@ add_action('wp_enqueue_scripts', function () {
 });
 
 add_action('login_init', function () {
-    wp_safe_redirect(home_url('/avpvh-login/'));
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+    $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
+    $login_url   = home_url('/avpvh-login/');
+    if (!empty($redirect_to)) {
+        $login_url = add_query_arg('redirect_to', $redirect_to, $login_url);
+    }
+    wp_safe_redirect($login_url);
     exit;
 });
 
