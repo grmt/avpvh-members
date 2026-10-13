@@ -21,6 +21,7 @@ bash -n scripts/backfill-member-identities.sh
 bash -n scripts/test-user.sh
 bash -n scripts/deploy.sh
 bash -n scripts/release.sh
+bash -n scripts/promote-scrubbed-main.sh
 ```
 
 ## Saved Ad-hoc Tests

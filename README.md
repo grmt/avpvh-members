@@ -71,6 +71,25 @@ also the backup of the original dates. Visitors are excluded. Apply checks
 that the snapshot still matches, changes only `valid_from`, verifies all
 other address data and rolls back on failure.
 
+### Name aliases, address overlaps and privacy check
+
+These run with `wp eval-file`; each header documents its options.
+
+- `scripts/import-member-name-aliases.php` adds name variants in bulk from
+  the ignored `scripts/member-name-aliases.local.json`. Dry-run by default;
+  `AVPVH_ALIAS_APPLY=1` saves through the same code as Ledendetail →
+  Naamvarianten.
+- `scripts/report-address-overlaps.php` lists members with more than one
+  current address (IDs and counts only), split into spelling-only
+  duplicates and real conflicts.
+- `scripts/check-no-member-names.php` scans the source tree (and with
+  `AVPVH_PRIVACY_SCAN_GIT_HISTORY=1` the commit messages) for official
+  member names and aliases. Matches are reported as hashes, never names.
+
+`scripts/promote-scrubbed-main.sh` force-pushes a privacy-rewritten branch
+to `main`, temporarily lifting branch protection. Only the repository owner
+runs it; it asks for typed confirmation.
+
 ### Camp participation imports
 
 The camp workbook has its own fixed `totaal inschrijvingen` grid and is not
