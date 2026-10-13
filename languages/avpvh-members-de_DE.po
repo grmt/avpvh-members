@@ -2899,3 +2899,15 @@ msgstr "Von muss vor heute liegen."
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr "bis"
+
+#: includes/class-member-profile-form.php
+msgid "Bloggen"
+msgstr "Bloggen"
+
+#: includes/class-member-profile-form.php
+msgid "Als blogger kun je eigen conceptberichten schrijven en ter beoordeling indienen. Publiceren, media uploaden en pagina's bewerken kan niet. Blogbeheer vraagt om tweestapsverificatie (2FA)."
+msgstr "Als Blogger kannst du eigene Beitragsentwürfe schreiben und zur Prüfung einreichen. Veröffentlichen, Medien hochladen und Seiten bearbeiten ist nicht möglich. Die Blogverwaltung verlangt eine Zwei-Faktor-Authentifizierung (2FA)."
+
+#: includes/class-member-profile-form.php
+msgid "Naar blogbeheer"
+msgstr "Zur Blogverwaltung"

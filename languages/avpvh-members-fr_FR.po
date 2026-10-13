@@ -2899,3 +2899,15 @@ msgstr "La date de début doit être antérieure à aujourd'hui."
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr "au"
+
+#: includes/class-member-profile-form.php
+msgid "Bloggen"
+msgstr "Blog"
+
+#: includes/class-member-profile-form.php
+msgid "Als blogger kun je eigen conceptberichten schrijven en ter beoordeling indienen. Publiceren, media uploaden en pagina's bewerken kan niet. Blogbeheer vraagt om tweestapsverificatie (2FA)."
+msgstr "En tant que blogueur, vous pouvez rédiger vos propres brouillons d'articles et les soumettre pour relecture. Publier, téléverser des médias et modifier des pages n'est pas possible. La gestion du blog demande une vérification en deux étapes (2FA)."
+
+#: includes/class-member-profile-form.php
+msgid "Naar blogbeheer"
+msgstr "Accéder à la gestion du blog"

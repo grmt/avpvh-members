@@ -2899,3 +2899,15 @@ msgstr "Van mót vuur vandaag ligke."
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr "tot"
+
+#: includes/class-member-profile-form.php
+msgid "Bloggen"
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Als blogger kun je eigen conceptberichten schrijven en ter beoordeling indienen. Publiceren, media uploaden en pagina's bewerken kan niet. Blogbeheer vraagt om tweestapsverificatie (2FA)."
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Naar blogbeheer"
+msgstr ""
