@@ -30,7 +30,7 @@ from _avpvh_import_common import (
     read_secret, get_db, lldap_login, get_group_id,
     uid_from_email, lldap_create_user, lldap_add_to_group,
     sheet_headers, col, parse_date, parse_year, age_on, placeholder_child_uid,
-    SECRET_FILE,
+    SECRET_FILE, imported_address_start,
 )
 
 CURRENT_YEAR = date.today().year
@@ -73,6 +73,7 @@ def import_sheet(cursor, session: requests.Session, sheet,
         postal     = c(row, 'postcode')
         city       = c(row, 'woonplaats') or c(row, 'stad')
         country    = c(row, 'land') or 'Nederland'
+        address_start = imported_address_start(c(row, 'adres_begindatum'))
 
         if birth_date and age_on(birth_date, date.today()) < 16:
             uid = placeholder_child_uid(session, first_name, last_name, dry_run)
@@ -109,9 +110,9 @@ def import_sheet(cursor, session: requests.Session, sheet,
             if street or city:
                 cursor.execute(
                     f"""INSERT INTO {WP_PREFIX}avm_addresses
-                        (member_id, street, house_number, postal_code, city, country, valid_until)
-                        VALUES (%s,%s,%s,%s,%s,%s,NULL)""",
-                    (member_id, street, house_nr, postal, city, country)
+                        (member_id, street, house_number, postal_code, city, country, valid_from, valid_until)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,NULL)""",
+                    (member_id, street, house_nr, postal, city, country, address_start)
                 )
 
             # 4. Insert pending fee for current year (active members only)
