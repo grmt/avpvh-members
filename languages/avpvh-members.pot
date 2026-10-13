@@ -3111,3 +3111,21 @@ msgstr ""
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr ""
+
+#: includes/class-access.php
+msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
+msgstr ""
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Uitgelogd als %s."
+msgstr ""
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Ook de beveiligde sessie (2FA) van %s is beëindigd."
+msgstr ""
+
+#: includes/class-nav-auth.php
+msgid "Sluiten"
+msgstr ""

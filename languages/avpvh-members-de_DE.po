@@ -2899,3 +2899,21 @@ msgstr "Von muss vor heute liegen."
 #: admin/class-login-attempts-list-table.php
 msgid "tot"
 msgstr "bis"
+
+#: includes/class-access.php
+msgid "Je was tegelijk met twee verschillende accounts ingelogd. Beide sessies zijn beëindigd; log opnieuw in."
+msgstr "Du warst gleichzeitig mit zwei verschiedenen Konten angemeldet. Beide Sitzungen wurden beendet; bitte melde dich erneut an."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Uitgelogd als %s."
+msgstr "Abgemeldet als %s."
+
+#: includes/class-nav-auth.php
+#, php-format
+msgid "Ook de beveiligde sessie (2FA) van %s is beëindigd."
+msgstr "Auch die gesicherte Sitzung (2FA) von %s wurde beendet."
+
+#: includes/class-nav-auth.php
+msgid "Sluiten"
+msgstr "Schließen"
