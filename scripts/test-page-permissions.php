@@ -18,7 +18,7 @@ $test_delegations = [];   // delegated roles of the current user
 function __(string $text): string { return $text; }
 function sanitize_key(string $key): string { return preg_replace('/[^a-z0-9_\-]/', '', strtolower($key)); }
 function get_option(string $name, mixed $default = false): mixed { return $GLOBALS['test_option'] ?: $default; }
-function update_option(string $name, mixed $value): bool { $GLOBALS['test_option'] = $value; return true; }
+function update_option(string $name, mixed $value, mixed $autoload = null): bool { $GLOBALS['test_option'] = $value; return true; }
 function current_user_can(string $cap): bool { return $cap === 'manage_options' && $GLOBALS['test_is_admin']; }
 function is_user_logged_in(): bool { return true; }
 function get_current_user_id(): int { return 1; }

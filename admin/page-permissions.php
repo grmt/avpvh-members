@@ -3,7 +3,7 @@ defined('ABSPATH') || exit;
 // phpcs:disable WordPress.Security.NonceVerification.Recommended -- the only request data read here is the "updated" notice flag set by this plugin's own admin-post redirect; saving is the nonce-checked AVPVH_Admin::handle_save_page_permissions()
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- single-execution admin-page template (included once per request via AVPVH_Admin::render_page_permissions())
 if (!AVPVH_Roles::can_manage_page_permissions()) {
-    wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
+    wp_die(esc_html__('Geen toegang.', 'avpvh-members'), '', ['response' => 403]);
 }
 
 $pages       = AVPVH_Roles::get_assignable_pages();
