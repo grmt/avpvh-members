@@ -42,6 +42,14 @@ if (!$member) {
 }
 
 $addresses  = AVPVH_DB::get_addresses($member_id);
+$name_aliases = AVPVH_DB::get_name_aliases($member_id);
+$alias_error  = sanitize_key(wp_unslash($_GET['alias_error'] ?? ''));
+$alias_notice = !empty($_GET['alias_saved']) || !empty($_GET['alias_deleted']) || $alias_error !== '';
+$today        = current_time('Y-m-d');
+$current_address_count = count(array_filter(
+    $addresses,
+    static fn(object $a): bool => (!$a->valid_from || $a->valid_from <= $today) && (!$a->valid_until || $a->valid_until >= $today)
+));
 $activities = AVPVH_DB::get_activities_for_member($member_id);
 $fees       = AVPVH_DB::get_fees_for_member($member_id);
 $identities = AVPVH_DB::get_member_identities($member_id);
@@ -120,6 +128,18 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Adres bijgewerkt.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_deleted'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Adres verwijderd.', 'avpvh-members'); ?></p></div>
+    <?php elseif (!empty($_GET['alias_saved'])) : ?>
+        <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Naamvariant toegevoegd.', 'avpvh-members'); ?></p></div>
+    <?php elseif (!empty($_GET['alias_deleted'])) : ?>
+        <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Naamvariant verwijderd.', 'avpvh-members'); ?></p></div>
+    <?php elseif ($alias_error === 'onvolledig') : ?>
+        <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Vul voor een naamvariant minstens voornaam en achternaam in.', 'avpvh-members'); ?></p></div>
+    <?php elseif ($alias_error === 'eigen-naam') : ?>
+        <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Deze naamvariant valt samen met de officiële naam van dit lid en is daarom niet nodig.', 'avpvh-members'); ?></p></div>
+    <?php elseif ($alias_error === 'dubbel') : ?>
+        <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Dit lid heeft deze naamvariant al.', 'avpvh-members'); ?></p></div>
+    <?php elseif ($alias_error !== '') : ?>
+        <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Naamvariant kon niet worden opgeslagen.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['flags_saved']) && !empty($_GET['bestuur_stripped'])) : ?>
         <div class="notice notice-warning is-dismissible"><p><?php esc_html_e('Kenmerken opgeslagen. Dit lid is daardoor uit het bestuur en alle bestuursrollen gehaald en lopende delegaties zijn beëindigd. Vergeet de KVK niet als diegene daar als bestuurder staat.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['flags_saved'])) : ?>
@@ -299,9 +319,103 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     </p>
     </details>
 
+    <?php
+    $alias_type_labels = [
+        'maiden'       => __('Geboortenaam', 'avpvh-members'),
+        'married'      => __('Getrouwde naam', 'avpvh-members'),
+        'nickname'     => __('Roepnaam', 'avpvh-members'),
+        'spelling'     => __('Spellingvariant', 'avpvh-members'),
+        'abbreviation' => __('Afkorting', 'avpvh-members'),
+        'historical'   => __('Historische naam', 'avpvh-members'),
+    ];
+    ?>
+    <details id="avpvh-name-aliases" class="avpvh-detail-section" name="avpvh-detail-section"<?php echo $alias_notice ? ' open' : ''; ?>>
+    <summary><h2><?php esc_html_e('Naamvarianten', 'avpvh-members'); ?></h2></summary>
+    <p class="description"><?php esc_html_e('Andere namen waaronder dit lid bekend is of was (meisjesnaam, oude spelling, afkorting). Imports, de dubbelcheck bij Nieuw lid en het zoeken in Ledenbeheer vinden het lid ook onder deze namen. Leg alleen varianten vast die zeker bij dit lid horen.', 'avpvh-members'); ?></p>
+    <div style="overflow-x:auto">
+    <table class="wp-list-table widefat striped">
+        <thead><tr><th><?php esc_html_e('Naam', 'avpvh-members'); ?></th><th><?php esc_html_e('Soort', 'avpvh-members'); ?></th><th><?php esc_html_e('Van', 'avpvh-members'); ?></th><th><?php esc_html_e('Tot', 'avpvh-members'); ?></th><th><?php esc_html_e('Herkomst', 'avpvh-members'); ?></th><th><?php esc_html_e('Notitie', 'avpvh-members'); ?></th><th></th></tr></thead>
+        <tbody>
+        <?php if (!$name_aliases) : ?>
+            <tr><td colspan="7"><?php esc_html_e('Nog geen naamvarianten vastgelegd.', 'avpvh-members'); ?></td></tr>
+        <?php else : foreach ($name_aliases as $alias) : ?>
+            <tr>
+                <td>
+                    <?php echo esc_html(avpvh_format_name($alias)); ?>
+                    <?php if ($alias->conflicts) : ?>
+                        <br><span style="color:#b32d2e"><?php esc_html_e('Ook de naam van:', 'avpvh-members'); ?>
+                        <?php foreach ($alias->conflicts as $i => $other_id) :
+                            $other = AVPVH_DB::get_member((int) $other_id); ?>
+                            <?php echo $i ? ', ' : ''; ?><a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => (int) $other_id], admin_url('admin.php'))); ?>"><?php echo esc_html($other ? avpvh_format_name($other) : '#' . $other_id); ?></a>
+                        <?php endforeach; ?>
+                        — <?php esc_html_e('imports koppelen deze naam daarom niet automatisch.', 'avpvh-members'); ?></span>
+                    <?php endif; ?>
+                </td>
+                <td><?php echo esc_html($alias_type_labels[$alias->alias_type] ?? $alias->alias_type); ?></td>
+                <td><?php echo esc_html($alias->valid_from ?: '—'); ?></td>
+                <td><?php echo esc_html($alias->valid_until ?: '—'); ?></td>
+                <td><?php echo esc_html($alias->source); ?></td>
+                <td><?php echo esc_html($alias->note); ?></td>
+                <td>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
+                        <?php wp_nonce_field('avpvh_delete_name_alias'); ?>
+                        <input type="hidden" name="action" value="avpvh_delete_name_alias">
+                        <input type="hidden" name="id" value="<?php echo esc_attr($alias->id); ?>">
+                        <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                        <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js(__('Deze naamvariant verwijderen?', 'avpvh-members')); ?>');"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
+                    </form>
+                </td>
+            </tr>
+        <?php endforeach; endif; ?>
+        </tbody>
+    </table>
+    </div>
+
+    <h3><?php esc_html_e('Naamvariant toevoegen', 'avpvh-members'); ?></h3>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <?php wp_nonce_field('avpvh_save_name_alias'); ?>
+        <input type="hidden" name="action" value="avpvh_save_name_alias">
+        <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+        <table class="form-table">
+            <tr>
+                <th scope="row"><?php esc_html_e('Naam', 'avpvh-members'); ?></th>
+                <td>
+                    <input type="text" name="first_name" placeholder="<?php esc_attr_e('Voornaam', 'avpvh-members'); ?>" required>
+                    <input type="text" name="suffix" placeholder="<?php esc_attr_e('Tussenvoegsel', 'avpvh-members'); ?>" style="width:8em">
+                    <input type="text" name="last_name" placeholder="<?php esc_attr_e('Achternaam', 'avpvh-members'); ?>" required>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="alias_type"><?php esc_html_e('Soort', 'avpvh-members'); ?></label></th>
+                <td>
+                    <select id="alias_type" name="alias_type">
+                        <?php foreach ($alias_type_labels as $type => $label) : ?>
+                            <option value="<?php echo esc_attr($type); ?>"<?php selected($type, 'maiden'); ?>><?php echo esc_html($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label><?php esc_html_e('van', 'avpvh-members'); ?> <input type="date" name="valid_from"></label>
+                    <label><?php esc_html_e('tot', 'avpvh-members'); ?> <input type="date" name="valid_until"></label>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="alias_source"><?php esc_html_e('Herkomst', 'avpvh-members'); ?></label></th>
+                <td><input type="text" id="alias_source" name="source" class="regular-text" maxlength="100" placeholder="<?php esc_attr_e('bijv. ledenlijst 1985, mail van het lid', 'avpvh-members'); ?>"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="alias_note"><?php esc_html_e('Notitie', 'avpvh-members'); ?></label></th>
+                <td><input type="text" id="alias_note" name="note" class="large-text" maxlength="255"></td>
+            </tr>
+        </table>
+        <?php submit_button(__('Naamvariant toevoegen', 'avpvh-members'), 'secondary'); ?>
+    </form>
+    </details>
+
     <details class="avpvh-detail-section" name="avpvh-detail-section">
     <summary><h2><?php esc_html_e('Adreshistorie', 'avpvh-members'); ?></h2></summary>
-    <p class="description"><?php esc_html_e('Elke keer dat een adres wordt opgeslagen via het profiel komt er een nieuwe rij bij (nooit een wijziging van een bestaande) — hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen.', 'avpvh-members'); ?></p>
+    <?php if ($current_address_count > 1) : ?>
+        <div class="notice notice-warning inline"><p><?php echo esc_html(sprintf(__('Dit lid heeft %d adressen die vandaag allemaal geldig zijn. Zet bij de oude een einddatum of verwijder dubbele rijen.', 'avpvh-members'), $current_address_count)); ?></p></div>
+    <?php endif; ?>
+    <p class="description"><?php esc_html_e('Een nieuw adres via het profiel sluit de vorige rij af en voegt een nieuwe toe; opnieuw opslaan van hetzelfde adres voegt niets toe. Hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen.', 'avpvh-members'); ?></p>
     <div style="overflow-x:auto">
     <table class="wp-list-table widefat striped">
         <thead><tr><th><?php esc_html_e('Straat', 'avpvh-members'); ?></th><th><?php esc_html_e('Nr', 'avpvh-members'); ?></th><th><?php esc_html_e('Postcode', 'avpvh-members'); ?></th><th><?php esc_html_e('Stad', 'avpvh-members'); ?></th><th><?php esc_html_e('Land', 'avpvh-members'); ?></th><th><?php esc_html_e('Van', 'avpvh-members'); ?></th><th><?php esc_html_e('Tot', 'avpvh-members'); ?></th><th></th></tr></thead>
