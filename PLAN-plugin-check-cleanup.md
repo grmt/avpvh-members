@@ -275,7 +275,7 @@ exception, and one less `phpcs:ignore` to carry.
 - Every commit that touches `avpvh-members.php` should bump the
   `Version:` header (patch bump + current short HEAD hash), matching
   every commit in this session's history.
-- Deploy via targeted `rsync -e ssh <file> grmt@avpvh.nl:/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/<path>/`,
+- Deploy via targeted `rsync -e ssh <file> <user>@<server>:/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/<path>/`,
   verify with a `diff` against the server copy, and smoke-test any
   touched query/handler via `wp eval` on the `wpcli-pvh` compose service
   before considering a fix done.
