@@ -92,6 +92,10 @@ class AVPVH_OAuth {
             'response_type' => 'code',
             'scope'         => $config['scope'],
             'state'         => $state,
+            // Always show the provider's account picker, so a browser that
+            // is signed in to someone else's Google/Microsoft account does
+            // not log in as that person without asking.
+            'prompt'        => 'select_account',
         ];
 
         wp_safe_redirect($config['auth_url'] . '?' . http_build_query($params));
@@ -206,12 +210,21 @@ class AVPVH_OAuth {
         }
 
         AVPVH_DB::log_attempt($email, $provider, 'success');
+        // OAuth and Authelia keep separate browser sessions. End the old WP
+        // session first; the Authelia session is ended below, so an Authelia
+        // (2FA) session of another account can't outlive this login.
+        if (is_user_logged_in()) {
+            wp_logout();
+        }
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID, true);
         do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately firing WP core's own wp_login hook (not a custom hook) so other code listening for a normal login still runs on this OAuth bridge
 
         $target = !empty($redirect_to) ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
-        wp_safe_redirect($target);
+        // Only the browser itself can drop the shared Authelia cookie, so
+        // route it through Authelia's /logout on the way to the target.
+        AVPVH_Nav_Auth::invalidate_authelia_session();
+        wp_safe_redirect(AVPVH_Nav_Auth::authelia_logout_url($target));
         exit;
     }
 
