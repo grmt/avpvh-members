@@ -5,7 +5,7 @@ class AVPVH_Nav_Auth {
 
     const AUTHELIA_URL = 'https://auth.avphilipsvanhorne.nl';
 
-    // Page IDs whose nav items must be hidden for guests.
+    // Page IDs whose nav items require active membership.
     const MEMBERS_PAGE_IDS = [647, 36];
 
     // "Zoeken in documenten" — gated by Authelia (one_factor, group:boek) at
@@ -36,6 +36,13 @@ class AVPVH_Nav_Auth {
         $user   = wp_get_current_user();
 
         $is_active = $member && $member->status === 'active';
+        $is_visitor = $member && $member->status === 'visitor';
+        $member_status_label = match ($member->status ?? '') {
+            'active'   => __('Lid', 'avpvh-members'),
+            'inactive' => __('Oud lid', 'avpvh-members'),
+            'visitor'  => __('Bezoeker', 'avpvh-members'),
+            default    => __('Geen lid', 'avpvh-members'),
+        };
         $role_label = $this->role_label($user);
         $member_role_label = $this->member_role_label($user);
         $identity_label = $member
@@ -49,11 +56,12 @@ class AVPVH_Nav_Auth {
             [], avpvh_asset_version('assets/nav-auth.js'), ['strategy' => 'defer', 'in_footer' => true]
         );
 
-        add_action('wp_footer', function () use ($is_active, $identity_label, $role_label, $member_role_label, $has_doc_search_access) {
+        add_action('wp_footer', function () use ($is_active, $is_visitor, $member_status_label, $identity_label, $role_label, $member_role_label, $has_doc_search_access) {
             echo '<script type="application/json" id="avpvh-auth-config">'
                 . wp_json_encode([
                     'isLoggedIn'         => is_user_logged_in(),
                     'isActiveMember'     => $is_active,
+                    'memberStatusLabel'  => $member_status_label,
                     'userLabel'          => $identity_label,
                     'roleLabel'          => $role_label,
                     'memberRoleLabel'    => $member_role_label,
@@ -62,19 +70,29 @@ class AVPVH_Nav_Auth {
                     'docSearchPageId'    => self::DOC_SEARCH_PAGE_ID,
                     'logoutUrl'          => rest_url('avpvh/v1/logout'),
                     'loginUrl'           => home_url('/avpvh-login/'),
-                    'profileUrl'         => home_url('/member-profile/'),
+                    'profileUrl'         => self::profile_url(),
+                    'paymentsUrl'        => shortcode_exists('avpvh_bk_balance') ? self::profile_url() . '#bijdrage' : '',
+                    'membershipApplicationUrl' => $is_visitor ? self::profile_url() . '#lidmaatschap' : '',
                     'labels'             => [
                         'member'      => __('Lid', 'avpvh-members'),
                         'nonMember'   => __('Geen lid', 'avpvh-members'),
                         'myProfile'   => __('Mijn profiel', 'avpvh-members'),
+                        'myPayments'  => __('Mijn betalingen', 'avpvh-members'),
+                        'applyMembership' => __('Lidmaatschap aanvragen', 'avpvh-members'),
                         'logout'      => __('Uitloggen', 'avpvh-members'),
                         'login'       => __('Inloggen', 'avpvh-members'),
+                        'loggedIn'    => __('Ingelogd', 'avpvh-members'),
                         'account'     => __('Account', 'avpvh-members'),
                         'accountMenu' => __('Account submenu', 'avpvh-members'),
                     ],
                 ])
                 . '</script>';
         });
+    }
+
+    public static function profile_url(): string {
+        $page = get_page_by_path('leden/beheer/member-profile') ?? get_page_by_path('member-profile');
+        return $page ? get_permalink($page) : home_url('/member-profile/');
     }
 
     // Mirrors the Authelia rule `resources: ['^/leden/zoeken-in-documenten/?$'],
