@@ -109,14 +109,15 @@ class AVPVH_Member_Merge {
     }
 
     /**
-     * Groups of 2+ members sharing a normalized name key, through their
+     * Groups of 2+ members sharing a loose name key (accents and every
+     * tussenvoegsel ignored, see AVPVH_Name_Matcher::loose_key()), through their
      * official name or a name alias (each row's matched_via says which) —
      * suggestions only, a human decides. A pair found through both routes
      * is listed once.
      */
     public static function find_duplicate_candidates(): array {
         $groups = [];
-        foreach (AVPVH_DB::get_name_key_index() as $members) {
+        foreach (AVPVH_DB::get_name_key_index(true) as $members) {
             if (count($members) < 2) {
                 continue;
             }
@@ -206,9 +207,14 @@ class AVPVH_Member_Merge {
         ];
         $keep_has_current = (bool) array_filter($addresses['keep'], fn($a) => empty($a->valid_until));
         $address_defaults = [];
+        $address_overlaps = [];
         foreach ($addresses['remove'] as $address) {
             $duplicate = (bool) array_filter($addresses['keep'], fn($a) => self::address_key($a) === self::address_key($address));
             $address_defaults[(int) $address->id] = $duplicate ? 'delete' : ($keep_has_current && empty($address->valid_until) ? 'history' : 'move');
+            $address_overlaps[(int) $address->id] = array_values(array_filter(
+                $addresses['keep'],
+                fn($keep_address) => self::address_periods_overlap($keep_address, $address)
+            ));
         }
 
         $participation = [];
@@ -259,6 +265,7 @@ class AVPVH_Member_Merge {
             'fields'           => $fields,
             'addresses'        => $addresses,
             'address_defaults' => $address_defaults,
+            'address_overlaps' => $address_overlaps,
             'participation'    => $participation,
             'fees'             => $fees,
             'counts'           => array_filter($counts),
@@ -632,9 +639,19 @@ class AVPVH_Member_Merge {
         return $value === null ? '' : (string) $value;
     }
 
+    /** Same-address key shared with the household check; '' (no street) never counts as a duplicate. */
     private static function address_key(object $address): string {
-        $normalize = fn($s) => strtolower(preg_replace('/\s+/', '', (string) $s));
-        return $normalize($address->postal_code) . '|' . $normalize($address->house_number) . '|' . $normalize($address->street);
+        return AVPVH_Address_Normalizer::match_key($address) ?: 'id:' . (int) $address->id;
+    }
+
+    /** Address dates are inclusive; an empty boundary means open-ended. */
+    public static function address_periods_overlap(object $left, object $right): bool {
+        $left_from   = $left->valid_from ?: '0000-01-01';
+        $left_until  = $left->valid_until ?: '9999-12-31';
+        $right_from  = $right->valid_from ?: '0000-01-01';
+        $right_until = $right->valid_until ?: '9999-12-31';
+
+        return $left_from <= $right_until && $right_from <= $left_until;
     }
 
     private static function fingerprint(array $preview): string {

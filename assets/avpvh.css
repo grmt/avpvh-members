@@ -212,6 +212,8 @@ header.wp-block-template-part .wp-block-site-title {
 .avpvh-auth-status__content {
     display: inline-flex;
     align-items: center;
+    gap: .4rem;
+    white-space: nowrap;
     background: none;
     border: none;
     color: inherit;
@@ -223,4 +225,8 @@ header.wp-block-template-part .wp-block-site-title {
     font-size: .8rem;
     color: #777;
     white-space: nowrap;
+}
+
+.wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__container > .avpvh-auth-status {
+    order: -1;
 }

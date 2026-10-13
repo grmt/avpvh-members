@@ -1767,8 +1767,20 @@ msgid "Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in."
 msgstr "Je sessie is verlopen na 24 uur inactiviteit. Log opnieuw in."
 
 #: includes/class-access.php:193
-msgid "Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat (bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) gevraagd."
-msgstr "Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat (bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) gevraagd."
+msgid ""
+"Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. "
+"Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je "
+"direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je "
+"gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat "
+"(bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) "
+"gevraagd."
+msgstr ""
+"Je kunt inloggen met een e-mailadres dat bekend is bij de vereniging. "
+"Gebruik je datzelfde e-mailadres ook bij Google of Microsoft, dan kun je "
+"direct zonder apart wachtwoord inloggen. Je kunt ook inloggen met je "
+"gebruikersnaam en wachtwoord. Pas wanneer je naar een beheerderspagina gaat "
+"(bijv. om te bloggen), wordt om een extra tweestapsverificatie (2FA) "
+"gevraagd."
 
 #: includes/class-access.php:295
 msgid "Deze pagina is alleen beschikbaar voor leden."
@@ -2938,6 +2950,56 @@ msgstr "Secretaris"
 #: includes/class-roles.php:512
 msgid "Penningmeester"
 msgstr "Penningmeester"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid "Mijn betalingen"
+msgstr "Mijn betalingen"
+
+#: includes/class-access.php includes/class-nav-auth.php
+msgid ""
+"Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze "
+"pagina is alleen beschikbaar voor actieve leden."
+msgstr ""
+"Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze "
+"pagina is alleen beschikbaar voor actieve leden."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Lidmaatschap aanvragen"
+msgstr "Lidmaatschap aanvragen"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid ""
+"Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, "
+"naam en adres in je profiel compleet zijn."
+msgstr ""
+"Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, "
+"naam en adres in je profiel compleet zijn."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid ""
+"Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden "
+"hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet "
+"minstens één wettelijke vertegenwoordiger zelf lid zijn."
+msgstr ""
+"Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden "
+"hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet "
+"minstens één wettelijke vertegenwoordiger zelf lid zijn."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid ""
+"Het bestuur beslist over je toelating. De secretaris laat je de beslissing "
+"schriftelijk weten."
+msgstr ""
+"Het bestuur beslist over je toelating. De secretaris laat je de beslissing "
+"schriftelijk weten."
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Neem contact op met de secretaris"
+msgstr "Neem contact op met de secretaris"
+
+#: includes/class-member-profile-form.php includes/class-nav-auth.php
+msgid "Statuten en huishoudelijk reglement"
+msgstr "Statuten en huishoudelijk reglement"
 
 #: admin/class-login-attempts-list-table.php
 #, php-format
