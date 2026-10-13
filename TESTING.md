@@ -34,6 +34,7 @@ php scripts/test-address-normalizer.php
 php scripts/test-name-matcher-loose.php
 php scripts/test-proxy-session-identity.php
 php scripts/test-blogger-capabilities.php
+php scripts/test-page-permissions.php
 ```
 
 ## What These Cover

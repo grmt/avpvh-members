@@ -2929,3 +2929,31 @@ msgstr ""
 #: includes/class-member-profile-form.php
 msgid "Naar blogbeheer"
 msgstr ""
+
+#: includes/class-admin.php admin/page-permissions.php
+msgid "Paginarechten"
+msgstr ""
+
+#: admin/page-permissions.php
+msgid "Paginarechten opgeslagen."
+msgstr ""
+
+#: admin/page-permissions.php
+msgid "Kies welke functies welke beheerpagina zien. Een tijdelijke delegatie van een functie geeft dezelfde toegang. WordPress-beheerders zien altijd alle pagina's. De IT-beheerder is wie in de groep it-beheer zit."
+msgstr ""
+
+#: admin/page-permissions.php
+msgid "Niet toewijsbaar, met vaste rechten: Instellingen, Leden samenvoegen, groepen en kenmerken (alleen WordPress-beheerders) en Rollen & delegatie (voorzitter)."
+msgstr ""
+
+#: admin/page-permissions.php
+msgid "Pagina"
+msgstr ""
+
+#: admin/page-permissions.php
+msgid "Paginarechten opslaan"
+msgstr ""
+
+#: admin/page-permissions.php
+msgid "IT-beheerder"
+msgstr ""
