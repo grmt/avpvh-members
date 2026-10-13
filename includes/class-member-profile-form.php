@@ -932,25 +932,10 @@ class AVPVH_Member_Profile_Form {
                     'postal_code' => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
                     'city' => sanitize_text_field(wp_unslash($_POST['city'] ?? '')),
                     'country' => sanitize_text_field(wp_unslash($_POST['country'] ?? 'Nederland')),
-                    'valid_from' => current_time('Y-m-d'),
                 ];
-
-                global $wpdb;
-                // Close any currently active address before adding the new one
-                $wpdb->query($wpdb->prepare(
-                    "UPDATE {$wpdb->prefix}avm_addresses
-                     SET valid_until = %s
-                     WHERE member_id = %d AND (valid_until IS NULL OR valid_until > %s)",
-                    current_time('Y-m-d'),
-                    (int) $member->id,
-                    current_time('Y-m-d')
-                ));
-
-                $wpdb->insert(
-                    "{$wpdb->prefix}avm_addresses",
-                    array_merge(['member_id' => (int) $member->id], $address_data),
-                    array_merge(['%d'], array_fill(0, count($address_data), '%s'))
-                );
+                // The form always re-sends the address; an unchanged one
+                // must not add a new history row (see add_member_address()).
+                AVPVH_DB::add_member_address((int) $member->id, $address_data);
             }
 
             wp_send_json_success(__('Profiel succesvol bijgewerkt!', 'avpvh-members'));
