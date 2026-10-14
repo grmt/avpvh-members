@@ -3442,3 +3442,39 @@ msgstr ""
 #: includes/tenant/bootstrap.php
 msgid "AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit."
 msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Niet gevonden."
+msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Het formulier is verlopen. Probeer het opnieuw."
+msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Te veel pogingen. Probeer het over tien minuten opnieuw."
+msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Dit e-mailadres heeft geen toegang tot dit bestand."
+msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Deze downloadlink is verlopen. Vul hieronder opnieuw je e-mailadres in."
+msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Bestand niet gevonden."
+msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Download %1$s (%2$d MB)"
+msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Vul je e-mailadres in om het bestand te downloaden."
+msgstr ""
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Naar download"
+msgstr ""

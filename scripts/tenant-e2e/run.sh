@@ -11,7 +11,8 @@ set -uo pipefail
 cd "$(dirname "$0")"
 B=http://localhost:8088
 W="docker compose exec -T cli wp"
-trap 'docker compose down -v >/dev/null 2>&1' EXIT
+# KEEP=1 leaves the environment running for debugging.
+[[ -n "${KEEP:-}" ]] || trap 'docker compose down -v >/dev/null 2>&1' EXIT
 
 docker compose up -d >/dev/null 2>&1
 for _ in $(seq 1 60); do
@@ -19,7 +20,10 @@ for _ in $(seq 1 60); do
     sleep 3
 done
 docker compose cp avpvh-tenant.php wp:/var/www/html/wp-content/avpvh-tenant.php >/dev/null 2>&1
-docker compose exec -T wp chown www-data: /var/www/html/wp-content/avpvh-tenant.php
+docker compose exec -T wp sh -c 'chown www-data: /var/www/html/wp-content/avpvh-tenant.php
+    mkdir -p /var/www/html/wp-content/uploads/private/delen
+    printf DEELBESTAND-INHOUD > "/var/www/html/wp-content/uploads/private/delen/test bestand.zip"
+    chown -R www-data: /var/www/html/wp-content/uploads'
 $W core install --url=$B --title=VP-test --admin_user=noodbeheer --admin_password="$(head -c 18 /dev/urandom | base64)" \
     --admin_email=nood@example.invalid --skip-email >/dev/null
 L=$($W post create --post_type=page --post_title=Leden --post_name=leden --post_status=publish --porcelain)
@@ -34,6 +38,7 @@ $W rewrite structure '/%postname%/' >/dev/null
 hc=$($W eval-file wp-content/plugins/avpvh-members/includes/tenant/healthcheck.php 2>&1); hc_exit=$?
 $W plugin activate avpvh-members >/dev/null
 
+SJ=$(mktemp)
 fail=0
 ok() { if eval "$2"; then echo "ok   $1"; else echo "FAIL $1"; fail=1; fi; }
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
@@ -43,7 +48,8 @@ ok "healthcheck passes while the plugin is inactive" '[[ $hc_exit == 0 && "$hc" 
 home=$(curl -s $B/)
 ok "home shows public page in nav" '[[ "$home" == *"Over ons"* ]]'
 ok "home hides Leden from nav" '[[ "$home" != *">Leden<"* ]]'
-ok "home offers Inloggen via Authelia" '[[ "$home" == *"avpvh-account-item"* && "$home" == *"auth.example.invalid/?rd="* ]]'
+ok "home offers Inloggen via Authelia" '[[ "$home" == *">Inloggen</a>"* && "$home" == *"auth.example.invalid/?rd="* ]]'
+ok "account link only in the header navigation" '[[ "$(grep -o avpvh-account-item <<<"$home" | wc -l)" == 1 ]]'
 ok "protected child redirects visitors to Authelia" '[[ "$(loc $B/leden/notulen/)" == https://auth.example.invalid/?rd=* ]]'
 ok "protected content never in body" '[[ "$(curl -s $B/leden/notulen/)" != *GEHEIM* ]]'
 ok "spoofed Remote-User/Groups headers do not help" '[[ "$(code -H "Remote-User: test.vve" -H "Remote-Groups: vp4042-leden" $B/leden/notulen/)" == 302 ]]'
@@ -86,5 +92,21 @@ ok "ended Authelia session ends the WP session" '[[ "$(code -b $A $B/wp-admin/)"
 ok "only one user per subject" '[[ "$($W user list --format=count)" == 3 ]]'
 ok "no avm tables were created" '[[ "$($W db query "SHOW TABLES" --skip-column-names | grep -c vp4042_)" -gt 0 && "$($W db query "SHOW TABLES LIKE \"%avm%\"" --skip-column-names | wc -l)" == 0 ]]'
 ok "local emergency login page still works" '[[ "$(code $B/wp-login.php)" == 200 ]]'
+# --- shares (/?delen=)
+ok "unknown share is 404" '[[ "$(code "$B/?delen=bestaatniet")" == 404 ]]'
+form=$(curl -s -c $SJ "$B/?delen=testbestand")
+ok "share shows the form to visitors" '[[ "$form" == *"name=\"email\""* && "$form" != *">Download "* ]]'
+nonce=$(grep -o 'name="_wpnonce" value="[a-z0-9]*"' <<<"$form" | sed 's/.*value="//; s/"//')
+ok "wrong address gets no button" '[[ "$(curl -s -b $SJ --data-urlencode "email=ander@example.invalid" -d "_wpnonce=$nonce" "$B/?delen=testbestand")" == *"geen toegang"* ]]'
+ok "missing nonce is refused" '[[ "$(curl -s --data-urlencode "email=gast@example.invalid" "$B/?delen=testbestand")" == *"verlopen"* ]]'
+page=$(curl -s -b $SJ --data-urlencode "email=GAST@example.invalid" -d "_wpnonce=$nonce" "$B/?delen=testbestand")
+link=$(grep -o 'href="[^"]*delen=testbestand[^"]*t=[A-Za-z0-9]*"' <<<"$page" | sed 's/href="//; s/"$//; s/&#038;/\&/g; s/&amp;/\&/g')
+ok "allowed address (any case) gets a download link" '[[ -n "$link" ]]'
+ok "download link streams the file" '[[ "$(curl -s "$link")" == DEELBESTAND-INHOUD ]]'
+ok "made-up token is refused" '[[ "$(curl -s "$B/?delen=testbestand&t=verzonnen")" == *"verlopen"* ]]'
+ok "member logged in only at Authelia gets the button" '[[ "$(curl -s -b test_session=member "$B/?delen=testbestand")" == *"t="* ]]'
+ok "Authelia user outside the member group gets the form" '[[ "$(curl -s -b test_session=vveadmin "$B/?delen=testbestand")" == *"name=\"email\""* ]]'
+for _ in $(seq 1 10); do curl -s -o /dev/null -b $SJ --data-urlencode "email=raden@example.invalid" -d "_wpnonce=$nonce" "$B/?delen=testbestand"; done
+ok "guessing is braked after 10 tries" '[[ "$(curl -s -b $SJ --data-urlencode "email=gast@example.invalid" -d "_wpnonce=$nonce" "$B/?delen=testbestand")" == *"Te veel pogingen"* ]]'
 ok "no PHP errors" '[[ "$(docker compose logs wp 2>&1 | grep -ciE "PHP (Fatal|Warning|Notice|Deprecated)")" == 0 ]]'
 exit $fail

@@ -2989,3 +2989,39 @@ msgstr "Tu es connecté, mais ton compte n'a pas accès à cette page. Cette pag
 #: includes/tenant/bootstrap.php
 msgid "AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit."
 msgstr "AV-PvH Members : la configuration du locataire n'est pas valide (%s). La connexion via Authelia est désactivée."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Niet gevonden."
+msgstr "Introuvable."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Het formulier is verlopen. Probeer het opnieuw."
+msgstr "Le formulaire a expiré. Réessaie."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Te veel pogingen. Probeer het over tien minuten opnieuw."
+msgstr "Trop de tentatives. Réessaie dans dix minutes."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Dit e-mailadres heeft geen toegang tot dit bestand."
+msgstr "Cette adresse e-mail n'a pas accès à ce fichier."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Deze downloadlink is verlopen. Vul hieronder opnieuw je e-mailadres in."
+msgstr "Ce lien de téléchargement a expiré. Saisis à nouveau ton adresse e-mail ci-dessous."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Bestand niet gevonden."
+msgstr "Fichier introuvable."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Download %1$s (%2$d MB)"
+msgstr "Télécharger %1$s (%2$d Mo)"
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Vul je e-mailadres in om het bestand te downloaden."
+msgstr "Saisis ton adresse e-mail pour télécharger le fichier."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Naar download"
+msgstr "Vers le téléchargement"

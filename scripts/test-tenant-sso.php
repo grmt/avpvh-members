@@ -204,6 +204,11 @@ $insecure_portal = 'http://auth.example.invalid'; // NOSONAR
 check('Authelia portal must be https', in_array('authelia_url', tenant_config(['authelia_url' => $insecure_portal])->errors(), true));
 check('member group may not be an admin group', in_array('groups', tenant_config(['member_group' => 'rsp-admins'])->errors(), true));
 check('one admin group per ancestor', in_array('ancestor_admin_groups', tenant_config(['ancestor_admin_groups' => ['rsp-admins']])->errors(), true));
+$share = ['title' => 'Test', 'file' => 'test.zip', 'emails' => ['Gast@Example.invalid']];
+check('share addresses are lowercased', tenant_config(['shares' => ['test' => $share]])->get('shares')['test']['emails'] === ['gast@example.invalid']);
+check('share file may not leave delen/', in_array('shares', tenant_config(['shares' => ['test' => ['file' => '../wp-config.php'] + $share]])->errors(), true));
+check('share needs valid addresses', in_array('shares', tenant_config(['shares' => ['test' => ['emails' => ['geen-adres']] + $share]])->errors(), true));
+check('invalid plugin_locale is rejected', in_array('plugin_locale', tenant_config(['plugin_locale' => 'nl'])->errors(), true));
 check('unknown keys are ignored', tenant_config(['local_login' => false, 'evil' => 1])->get('evil') === null);
 
 // --- Authorisation matrix --------------------------------------------------
@@ -422,6 +427,13 @@ check('menu offers Inloggen to visitors', str_contains($items, 'Inloggen') && st
 $test_current = $member_id;
 $items = $content->add_account_item('', (object) ['theme_location' => 'primary']);
 check('menu offers Uitloggen when logged in', str_contains($items, 'Uitloggen'));
+$header_html = '<header><nav><ul class="wp-block-navigation__container"><li>x</li></ul></nav></header>';
+$header_content = (new ReflectionClass(AVPVH_Tenant_Content::class))->newInstanceWithoutConstructor();
+(new ReflectionProperty(AVPVH_Tenant_Content::class, 'config'))->setValue($header_content, tenant_config(['navigation_refs' => 'header']));
+(new ReflectionProperty(AVPVH_Tenant_Content::class, 'sso'))->setValue($header_content, $sso);
+check('header template part gets the account item', substr_count($header_content->add_account_header_item($header_html, ['attrs' => ['slug' => 'header']]), 'avpvh-account-item') === 1);
+check('footer template part is left alone', $header_content->add_account_header_item($header_html, ['attrs' => ['slug' => 'footer']]) === $header_html);
+check('header mode adds nothing to other Navigation blocks', $header_content->add_account_block_item($header_html, ['attrs' => []]) === $header_html);
 check('other menus are left alone', $content->add_account_item('<li>x</li>', (object) ['theme_location' => 'footer']) === '<li>x</li>');
 
 $test_logs = file($test_log_file, FILE_IGNORE_NEW_LINES) ?: [];

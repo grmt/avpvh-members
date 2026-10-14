@@ -27,6 +27,7 @@ class AVPVH_Tenant_Content {
         add_filter('render_block_core/navigation-link',    [$this, 'filter_navigation_link'], 10, 2);
         add_filter('render_block_core/navigation-submenu', [$this, 'filter_navigation_link'], 10, 2);
         add_filter('render_block_core/navigation',         [$this, 'add_account_block_item'], 10, 2);
+        add_filter('render_block_core/template-part',      [$this, 'add_account_header_item'], 10, 2);
         add_filter('rest_page_query',            [$this, 'exclude_from_rest_query']);
         add_filter('rest_request_before_callbacks', [$this, 'hide_from_rest_item'], 10, 3);
         add_filter('wp_sitemaps_posts_query_args', [$this, 'exclude_from_rest_query']);
@@ -167,10 +168,29 @@ class AVPVH_Tenant_Content {
      * every Navigation block when that setting is 'all'.
      */
     public function add_account_block_item(string $html, array $block): string {
-        $refs  = $this->config->get('navigation_refs');
-        $ref   = (int) ($block['attrs']['ref'] ?? 0);
+        $refs = $this->config->get('navigation_refs');
+        $ref  = (int) ($block['attrs']['ref'] ?? 0);
+        if ($refs === 'all' || (is_array($refs) && $ref && in_array($ref, $refs, true))) {
+            return $this->append_block_item($html);
+        }
+        return $html;
+    }
+
+    /**
+     * navigation_refs 'header': the Navigation block of the header template
+     * part, which in block themes often has no ref of its own.
+     */
+    public function add_account_header_item(string $html, array $block): string {
+        $is_header = ($block['attrs']['slug'] ?? '') === 'header' || ($block['attrs']['area'] ?? '') === 'header';
+        if ($this->config->get('navigation_refs') !== 'header' || !$is_header || !str_contains($html, 'wp-block-navigation__container')) {
+            return $html;
+        }
+        return $this->append_block_item($html);
+    }
+
+    private function append_block_item(string $html): string {
         $close = strrpos($html, '</ul>');
-        if ($close === false || ($refs !== 'all' && (!$ref || !in_array($ref, $refs, true)))) {
+        if ($close === false) {
             return $html;
         }
         $item = '<li class="wp-block-navigation-item wp-block-navigation-link avpvh-account-item">'
@@ -187,19 +207,20 @@ class AVPVH_Tenant_Content {
         return $items . '<li class="menu-item avpvh-account-item">' . $this->account_link() . '</li>';
     }
 
+    /** The account icon is the same person silhouette on every tenant. */
+    const ACCOUNT_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" style="vertical-align:-3px;margin-right:4px"><path fill="currentColor" d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z"/></svg>';
+
     private function account_link(): string {
         if (is_user_logged_in()) {
             $user = wp_get_current_user();
-            $link = '<a href="' . esc_url(wp_logout_url()) . '" title="' . esc_attr(sprintf(
+            return '<a href="' . esc_url(wp_logout_url()) . '" title="' . esc_attr(sprintf(
                 /* translators: %s: display name of the logged-in user */
                 __('Ingelogd als %s', 'avpvh-members'),
                 $user->display_name
-            )) . '">' . esc_html__('Uitloggen', 'avpvh-members') . '</a>';
-        } else {
-            $link = '<a href="' . esc_url($this->sso->login_url($this->current_url())) . '">'
-                . esc_html__('Inloggen', 'avpvh-members') . '</a>';
+            )) . '">' . self::ACCOUNT_ICON . esc_html__('Uitloggen', 'avpvh-members') . '</a>';
         }
-        return $link;
+        return '<a href="' . esc_url($this->sso->login_url($this->current_url())) . '">'
+            . self::ACCOUNT_ICON . esc_html__('Inloggen', 'avpvh-members') . '</a>';
     }
 
     private function current_url(): string {
