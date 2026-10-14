@@ -3,8 +3,8 @@ defined('ABSPATH') || exit;
 
 class AVPVH_Access {
 
-    /** @var int[]|null see members_section_ids() */
-    private ?array $members_section_ids = null;
+    /** @var int[]|null IDs of the members section, see members_section_ids() */
+    private ?array $section = null;
 
     public function __construct() {
         add_action('init',               [$this, 'auto_login_from_proxy_header'], 1);
@@ -220,12 +220,12 @@ class AVPVH_Access {
 
     /** IDs of every page called 'leden' and all their descendants. */
     private function members_section_ids(): array {
-        if ($this->members_section_ids !== null) {
-            return $this->members_section_ids;
+        if ($this->section !== null) {
+            return $this->section;
         }
         // The lookups below run pre_get_posts again; they see an empty list
         // instead of recursing.
-        $this->members_section_ids = [];
+        $this->section = [];
         $found = [];
         $roots = get_posts([
             'name'             => 'leden',
@@ -239,8 +239,8 @@ class AVPVH_Access {
             $children = get_pages(['child_of' => $root_id, 'post_status' => 'publish,private,draft,pending,future']);
             $found = array_merge($found, [(int) $root_id], array_map('intval', wp_list_pluck($children, 'ID')));
         }
-        $this->members_section_ids = array_values(array_unique($found));
-        return $this->members_section_ids;
+        $this->section = array_values(array_unique($found));
+        return $this->section;
     }
 
     /**
