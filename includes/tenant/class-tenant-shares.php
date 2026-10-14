@@ -159,7 +159,7 @@ class AVPVH_Tenant_Shares {
         if ($form) {
             echo '<p>' . esc_html__('Vul je e-mailadres in om het bestand te downloaden.', 'avpvh-members') . '</p>'
                 . '<form method="post" action="' . esc_url($action) . '">'
-                . wp_nonce_field(self::NONCE_ACTION . '_' . $id, '_wpnonce', false, false)
+                . '<input type="hidden" name="_wpnonce" value="' . esc_attr(wp_create_nonce(self::NONCE_ACTION . '_' . $id)) . '">'
                 . '<input type="email" name="email" required placeholder="naam@voorbeeld.nl" aria-label="' . esc_attr__('E-mailadres', 'avpvh-members') . '">'
                 . '<button type="submit">' . esc_html__('Naar download', 'avpvh-members') . '</button></form>';
         }
