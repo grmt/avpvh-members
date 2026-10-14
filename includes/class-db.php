@@ -3,6 +3,9 @@ defined('ABSPATH') || exit;
 
 class AVPVH_DB {
 
+    /** The schema install() creates; maybe_upgrade() ends at this version. */
+    const SCHEMA_VERSION = '2.24';
+
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
     }
@@ -308,8 +311,149 @@ class AVPVH_DB {
         // which drops them for existing installs.
     }
 
+    /**
+     * Activation: a site without the plugin's tables gets the current
+     * schema and its seed rows at once, instead of every migration since
+     * 1.2 running against a schema that already has their changes.
+     */
+    public static function activate(): void {
+        if (self::is_fresh()) {
+            self::install_fresh();
+            return;
+        }
+        self::install();
+    }
+
+    private static function is_fresh(): bool {
+        global $wpdb;
+        return get_option('avpvh_db_version', '0') === '0'
+            && !$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->prefix . 'avm_members'));
+    }
+
+    private static function install_fresh(): void {
+        self::install();
+        self::seed_activity_types();
+        self::append_activity_types();
+        self::seed_relationship_labels();
+        self::seed_member_flags();
+        update_option('avpvh_db_version', self::SCHEMA_VERSION);
+    }
+
+    /** The relationship labels and their inverses (idempotent). */
+    private static function seed_relationship_labels(): void {
+        global $wpdb;
+        $labels = [
+            // code         label             category
+            ['ouder',      'ouder van',      'ouder_kind'],
+            ['kind',       'kind van',       'ouder_kind'],
+            ['partner',    'partner van',    'partner'],
+            ['vriend',     'vriend van',     'partner'],
+            ['vriendin',   'vriendin van',   'partner'],
+            ['man',        'man van',        'partner'],
+            ['vrouw',      'vrouw van',      'partner'],
+            ['huisgenoot', 'huisgenoot van', 'huisgenoot'],
+            ['voogd',      'voogd van',      'voogd'],
+            ['pupil',      'pupil van',      'voogd'],
+        ];
+        $ids = [];
+        foreach ($labels as [$code, $label, $category]) {
+            $existing_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}avm_relationship_labels WHERE code = %s", $code
+            ));
+            if ($existing_id) {
+                $ids[$code] = (int) $existing_id;
+                continue;
+            }
+            $wpdb->insert(
+                "{$wpdb->prefix}avm_relationship_labels",
+                ['code' => $code, 'label' => $label, 'category' => $category],
+                ['%s', '%s', '%s']
+            );
+            $ids[$code] = (int) $wpdb->insert_id;
+        }
+        $inverse_pairs = [
+            'ouder' => 'kind', 'kind' => 'ouder',
+            'partner' => 'partner',
+            'vriend' => 'vriendin', 'vriendin' => 'vriend',
+            'man' => 'vrouw', 'vrouw' => 'man',
+            'huisgenoot' => 'huisgenoot',
+            'voogd' => 'pupil', 'pupil' => 'voogd',
+        ];
+        foreach ($inverse_pairs as $code => $inverse_code) {
+            $wpdb->update(
+                "{$wpdb->prefix}avm_relationship_labels",
+                ['inverse_id' => $ids[$inverse_code]],
+                ['id' => $ids[$code]],
+                ['%d'], ['%d']
+            );
+        }
+    }
+
+    /**
+     * The original activity types (idempotent).
+     *
+     * @return array<string, int> name => id
+     */
+    private static function seed_activity_types(): array {
+        global $wpdb;
+        $default_types = ['Kamp', 'Weekend', 'Uitje', 'Wandeling', 'Feest', 'Anders'];
+        $ids = [];
+        foreach ($default_types as $i => $name) {
+            $existing_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}avm_activity_types WHERE name = %s", $name
+            ));
+            if ($existing_id) {
+                $ids[$name] = (int) $existing_id;
+                continue;
+            }
+            $wpdb->insert(
+                "{$wpdb->prefix}avm_activity_types",
+                ['name' => $name, 'sort_order' => $i],
+                ['%s', '%d']
+            );
+            $ids[$name] = (int) $wpdb->insert_id;
+        }
+        return $ids;
+    }
+
+    /** The activity types added in 2.13, after the existing ones (idempotent). */
+    private static function append_activity_types(): void {
+        global $wpdb;
+        foreach (['Contributie', 'Drank', 'Eten', 'Boek', 'T-shirt', 'Congres'] as $name) {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}avm_activity_types WHERE name = %s", $name
+            ));
+            if (!$existing) {
+                $max_sort = (int) $wpdb->get_var("SELECT COALESCE(MAX(sort_order), 0) FROM {$wpdb->prefix}avm_activity_types");
+                $wpdb->insert("{$wpdb->prefix}avm_activity_types", ['name' => $name, 'sort_order' => $max_sort + 1]);
+            }
+        }
+    }
+
+    /** The initial member flag catalog (idempotent). */
+    private static function seed_member_flags(): void {
+        global $wpdb;
+        $flags = [
+            ['ere-lid',        'Ere-lid',        1],
+            ['archeoloog',     'Archeoloog',     0],
+            ['belangstellende','Belangstellende',0],
+            ['nieuwsbrief',    'Nieuwsbrief',    0],
+            ['donateur',       'Donateur',       0],
+        ];
+        foreach ($flags as $i => [$slug, $label, $affects_fees]) {
+            $wpdb->query($wpdb->prepare(
+                "INSERT IGNORE INTO {$wpdb->prefix}avm_member_flags (slug, label, affects_fees, sort_order) VALUES (%s, %s, %d, %d)",
+                $slug, $label, $affects_fees, $i
+            ));
+        }
+    }
+
     public static function maybe_upgrade(): void {
         global $wpdb;
+        if (self::is_fresh()) {
+            self::install_fresh();
+            return;
+        }
         $version = get_option('avpvh_db_version', '0');
         if (version_compare($version, '1.2', '<')) {
             self::install();
@@ -536,15 +680,7 @@ class AVPVH_DB {
             // named activity types, not just Kamp/Weekend/Uitje/Wandeling/
             // Feest/Anders. Skip-if-exists, same pattern as the original
             // seed in migrate_to_activity_types_table() below.
-            foreach (['Contributie', 'Drank', 'Eten', 'Boek', 'T-shirt', 'Congres'] as $name) {
-                $existing = $wpdb->get_var($wpdb->prepare(
-                    "SELECT id FROM {$wpdb->prefix}avm_activity_types WHERE name = %s", $name
-                ));
-                if (!$existing) {
-                    $max_sort = (int) $wpdb->get_var("SELECT COALESCE(MAX(sort_order), 0) FROM {$wpdb->prefix}avm_activity_types");
-                    $wpdb->insert("{$wpdb->prefix}avm_activity_types", ['name' => $name, 'sort_order' => $max_sort + 1]);
-                }
-            }
+            self::append_activity_types();
 
             // location -> kenmerk: not every activity has a physical
             // location (contribution, a drank-tab) — kenmerk is a generic
@@ -621,19 +757,7 @@ class AVPVH_DB {
             // affects_fees=1 for now; see AVBK_Fee_Generation in
             // avpvh-bookkeeping for where that's read.
             self::install();
-            $flags = [
-                ['ere-lid',        'Ere-lid',        1],
-                ['archeoloog',     'Archeoloog',     0],
-                ['belangstellende','Belangstellende',0],
-                ['nieuwsbrief',    'Nieuwsbrief',    0],
-                ['donateur',       'Donateur',       0],
-            ];
-            foreach ($flags as $i => [$slug, $label, $affects_fees]) {
-                $wpdb->query($wpdb->prepare(
-                    "INSERT IGNORE INTO {$wpdb->prefix}avm_member_flags (slug, label, affects_fees, sort_order) VALUES (%s, %s, %d, %d)",
-                    $slug, $label, $affects_fees, $i
-                ));
-            }
+            self::seed_member_flags();
             update_option('avpvh_db_version', '2.17');
         }
 
@@ -739,52 +863,7 @@ class AVPVH_DB {
             KEY label_id (label_id)
         ) $charset;");
 
-        // Seed labels (idempotent — safe to re-run).
-        $labels = [
-            // code         label             category
-            ['ouder',      'ouder van',      'ouder_kind'],
-            ['kind',       'kind van',       'ouder_kind'],
-            ['partner',    'partner van',    'partner'],
-            ['vriend',     'vriend van',     'partner'],
-            ['vriendin',   'vriendin van',   'partner'],
-            ['man',        'man van',        'partner'],
-            ['vrouw',      'vrouw van',      'partner'],
-            ['huisgenoot', 'huisgenoot van', 'huisgenoot'],
-            ['voogd',      'voogd van',      'voogd'],
-            ['pupil',      'pupil van',      'voogd'],
-        ];
-        $ids = [];
-        foreach ($labels as [$code, $label, $category]) {
-            $existing_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT id FROM {$wpdb->prefix}avm_relationship_labels WHERE code = %s", $code
-            ));
-            if ($existing_id) {
-                $ids[$code] = (int) $existing_id;
-                continue;
-            }
-            $wpdb->insert(
-                "{$wpdb->prefix}avm_relationship_labels",
-                ['code' => $code, 'label' => $label, 'category' => $category],
-                ['%s', '%s', '%s']
-            );
-            $ids[$code] = (int) $wpdb->insert_id;
-        }
-        $inverse_pairs = [
-            'ouder' => 'kind', 'kind' => 'ouder',
-            'partner' => 'partner',
-            'vriend' => 'vriendin', 'vriendin' => 'vriend',
-            'man' => 'vrouw', 'vrouw' => 'man',
-            'huisgenoot' => 'huisgenoot',
-            'voogd' => 'pupil', 'pupil' => 'voogd',
-        ];
-        foreach ($inverse_pairs as $code => $inverse_code) {
-            $wpdb->update(
-                "{$wpdb->prefix}avm_relationship_labels",
-                ['inverse_id' => $ids[$inverse_code]],
-                ['id' => $ids[$code]],
-                ['%d'], ['%d']
-            );
-        }
+        self::seed_relationship_labels();
 
         // Only migrate real data if the old tables still exist (a fresh
         // install created after this version never had them).
@@ -858,23 +937,7 @@ class AVPVH_DB {
             UNIQUE KEY name (name)
         ) $charset;");
 
-        $default_types = ['Kamp', 'Weekend', 'Uitje', 'Wandeling', 'Feest', 'Anders'];
-        $ids = [];
-        foreach ($default_types as $i => $name) {
-            $existing_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT id FROM {$wpdb->prefix}avm_activity_types WHERE name = %s", $name
-            ));
-            if ($existing_id) {
-                $ids[$name] = (int) $existing_id;
-                continue;
-            }
-            $wpdb->insert(
-                "{$wpdb->prefix}avm_activity_types",
-                ['name' => $name, 'sort_order' => $i],
-                ['%s', '%d']
-            );
-            $ids[$name] = (int) $wpdb->insert_id;
-        }
+        $ids = self::seed_activity_types();
 
         $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_camps LIKE 'type_id'");
         if (!$column_exists) {

@@ -67,7 +67,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-admin.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-protection.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-token.php';
 
-register_activation_hook(__FILE__, ['AVPVH_DB', 'install']);
+register_activation_hook(__FILE__, ['AVPVH_DB', 'activate']);
 add_action('plugins_loaded', ['AVPVH_DB', 'maybe_upgrade']);
 
 add_action('wp_enqueue_scripts', function () {
