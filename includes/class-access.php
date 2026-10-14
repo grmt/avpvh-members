@@ -3,6 +3,9 @@ defined('ABSPATH') || exit;
 
 class AVPVH_Access {
 
+    /** @var int[]|null see members_section_ids() */
+    private ?array $members_section_ids = null;
+
     public function __construct() {
         add_action('init',               [$this, 'auto_login_from_proxy_header'], 1);
         add_action('init',               [$this, 'enforce_session_idle_timeout'], 1);
@@ -217,13 +220,12 @@ class AVPVH_Access {
 
     /** IDs of every page called 'leden' and all their descendants. */
     private function members_section_ids(): array {
-        static $ids = null;
-        if ($ids !== null) {
-            return $ids;
+        if ($this->members_section_ids !== null) {
+            return $this->members_section_ids;
         }
         // The lookups below run pre_get_posts again; they see an empty list
         // instead of recursing.
-        $ids = [];
+        $this->members_section_ids = [];
         $found = [];
         $roots = get_posts([
             'name'             => 'leden',
@@ -237,8 +239,8 @@ class AVPVH_Access {
             $children = get_pages(['child_of' => $root_id, 'post_status' => 'publish,private,draft,pending,future']);
             $found = array_merge($found, [(int) $root_id], array_map('intval', wp_list_pluck($children, 'ID')));
         }
-        $ids = array_values(array_unique($found));
-        return $ids;
+        $this->members_section_ids = array_values(array_unique($found));
+        return $this->members_section_ids;
     }
 
     /**
@@ -287,7 +289,7 @@ class AVPVH_Access {
      *
      * @return mixed the unchanged response, or a WP_Error
      */
-    public function hide_members_page_from_rest($response, array $handler, \WP_REST_Request $request) {
+    public function hide_members_page_from_rest($response, array $handler, \WP_REST_Request $request) { // NOSONAR -- $handler: the filter passes it before $request
         if (!preg_match('#^/wp/v2/pages/(\d+)#', $request->get_route(), $match)) {
             return $response;
         }

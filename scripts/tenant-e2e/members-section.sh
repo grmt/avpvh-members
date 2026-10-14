@@ -16,15 +16,19 @@ for _ in $(seq 1 60); do curl -s -o /dev/null "$B/" && $W db query 'SELECT 1' >/
 $W core install --url=$B --title=AVP-test --admin_user=beheer --admin_password=x --admin_email=b@example.invalid --skip-email >/dev/null
 $W config set WP_ENVIRONMENT_TYPE local >/dev/null
 $W rewrite structure '/%postname%/' >/dev/null
-# A fresh activation logs migration noise; only the requests below count.
 $W plugin activate avpvh-members >/dev/null 2>&1
 L=$($W post create --post_type=page --post_title=Leden --post_name=leden --post_status=publish --porcelain)
 N=$($W post create --post_type=page --post_title=Notulen --post_name=notulen --post_parent="$L" --post_status=publish --post_content='GEHEIM-NOTULEN' --porcelain)
 $W post create --post_type=page --post_title='Over ons' --post_name=over-ons --post_status=publish --post_content='PUBLIEKE-TEKST' --porcelain >/dev/null
 # The application password lets the test act as an editor over REST.
 APP=$($W user application-password create beheer e2e --porcelain)
-fail=0; ok() { if eval "$2"; then echo "ok   $1"; else echo "FAIL $1"; fail=1; fi; }
-code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+fail=0
+ok() {
+    local label=$1 check=$2
+    if eval "$check"; then echo "ok   $label"; else echo "FAIL $label"; fail=1; fi
+    return 0
+}
+code() { curl -s -o /dev/null -w '%{http_code}' "$@"; return 0; }
 ok "front end /leden/notulen/ redirects" '[[ "$(code $B/leden/notulen/)" =~ 30[12] ]]'
 ok "REST item 404" '[[ "$(code $B/wp-json/wp/v2/pages/$N)" == 404 ]]'
 ok "REST item of root 404" '[[ "$(code $B/wp-json/wp/v2/pages/$L)" == 404 ]]'
@@ -33,7 +37,11 @@ ok "REST list by parent empty" '[[ "$(curl -s "$B/wp-json/wp/v2/pages?parent=$L"
 ok "REST list shows public" '[[ "$(curl -s "$B/wp-json/wp/v2/pages?per_page=50")" == *over-ons* ]]'
 ok "REST search hides" '[[ "$(curl -s "$B/wp-json/wp/v2/search?search=notulen")" == "[]" ]]'
 # Only the result titles count: the test theme's page list shows every page.
-hits() { curl -s "$B/?s=$1" | grep -o 'wp-block-post-title[^>]*><a href="[^"]*"'; }
+hits() {
+    local term=$1
+    curl -s "$B/?s=$term" | grep -o 'wp-block-post-title[^>]*><a href="[^"]*"'
+    return 0
+}
 ok "site search hides" '[[ "$(hits notulen)" != *"/leden/"* && "$(curl -s "$B/?s=GEHEIM")" != *GEHEIM-NOTULEN* ]]'
 ok "site search shows public" '[[ "$(hits PUBLIEKE)" == *"/over-ons/"* ]]'
 ok "oEmbed hides" '[[ "$(code "$B/wp-json/oembed/1.0/embed?url=$B/leden/notulen/")" == 404 ]]'

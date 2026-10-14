@@ -35,19 +35,19 @@ $member_status = 'active';
 $can_edit_pages = false;
 $admin = false;
 
-function add_action(...$args): void {
+function add_action(): void {
     // Hooks are not run here; the test calls the callbacks directly.
 }
-function add_filter(...$args): void {
+function add_filter(): void {
     // See add_action().
 }
-function __(string $text, string $domain = ''): string { return $text; }
+function __(string $text): string { return $text; }
 function is_admin(): bool { return $GLOBALS['admin']; }
 function wp_doing_ajax(): bool { return false; }
 function is_user_logged_in(): bool { return $GLOBALS['logged_in']; }
 function get_current_user_id(): int { return is_user_logged_in() ? 7 : 0; }
 function current_user_can(string $cap): bool { return $cap === 'edit_pages' && $GLOBALS['can_edit_pages']; }
-function avpvh_get_member_by_wp_user(int $id): ?object {
+function avpvh_get_member_by_wp_user(): ?object {
     return is_user_logged_in() ? (object) ['status' => $GLOBALS['member_status']] : null;
 }
 function get_posts(array $args): array {
