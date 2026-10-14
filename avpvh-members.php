@@ -3,7 +3,7 @@
  * Plugin Name: AV-PvH Members
  * Plugin URI:  https://github.com/grmt/avpvh-members
  * Description: Member login, access control, fee tracking and admin for AV Philips van Horne.
- * Version:     1.0.64+7a2d5c3
+ * Version:     1.0.65+9dae9d5
  * Author:      grmt
  * Author URI:  https://github.com/grmt/avpvh-members
  * Text Domain: avpvh-members
@@ -67,7 +67,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-admin.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-protection.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-token.php';
 
-register_activation_hook(__FILE__, ['AVPVH_DB', 'install']);
+register_activation_hook(__FILE__, ['AVPVH_DB', 'activate']);
 add_action('plugins_loaded', ['AVPVH_DB', 'maybe_upgrade']);
 
 add_action('wp_enqueue_scripts', function () {
