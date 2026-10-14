@@ -66,8 +66,12 @@ function esc_html__(string $text, string $domain = ''): string { return $text; }
 function esc_html(string $text): string { return htmlspecialchars($text); }
 function esc_attr(string $text): string { return htmlspecialchars($text); }
 function esc_url(string $url): string { return $url; }
-function add_action(): void {}
-function add_filter(): void {}
+function add_action(string $hook, mixed ...$args): void {
+    // Hooks are called directly in this test.
+}
+function add_filter(string $hook, mixed ...$args): void {
+    // Filters are called directly in this test.
+}
 function wp_parse_url(string $url, int $component = -1): mixed { return parse_url($url, $component); }
 function home_url(string $path = '/'): string { return 'https://site.example.invalid/' . ltrim($path, '/'); }
 function sanitize_text_field(string $value): string { return trim($value); }
@@ -97,7 +101,9 @@ function wp_get_current_user(): WP_User { return $GLOBALS['test_users'][$GLOBALS
 function wp_set_current_user(int $id): void { $GLOBALS['test_current'] = $id; }
 function wp_set_auth_cookie(int $id): void { $GLOBALS['test_auth_cookie'] = $id; }
 function wp_logout(): void { $GLOBALS['test_current'] = 0; $GLOBALS['test_auth_cookie'] = 0; }
-function do_action(): void {}
+function do_action(string $hook, mixed ...$args): void {
+    // Other login listeners are not part of this test.
+}
 function get_user_by(string $field, int $id): WP_User|false { return $GLOBALS['test_users'][$id] ?? false; }
 function get_user_meta(int $id, string $key, bool $single = false): mixed { return $GLOBALS['test_meta'][$id][$key] ?? ''; }
 function update_user_meta(int $id, string $key, mixed $value): bool { $GLOBALS['test_meta'][$id][$key] = $value; return true; }
@@ -177,7 +183,7 @@ function tenant_config(array $override = []): AVPVH_Tenant_Config {
         'ancestors'               => ['rsp', 'rsp_vve'],
         'canonical_host'          => 'site.example.invalid',
         'authelia_url'            => 'https://auth.example.invalid',
-        'authelia_authz_url'      => 'http://authelia:9091/api/authz/auth-request',
+        'authelia_authz_url'      => 'https://authelia.example.invalid/api/authz/auth-request',
         'authelia_session_cookie' => 'test_session',
         'member_group'            => 'vp4042-leden',
         'admin_group'             => 'rsp-vve-vp4042-admins',
@@ -348,7 +354,7 @@ check('local emergency account is not rechecked', $test_remote_calls === 0 && $t
 
 // Concurrent first login: a held lock refuses instead of creating twice.
 $test_current = 0;
-$test_options['avpvh_tenant_lock_' . md5('rsp_vve_vp4042/test.nieuw')] = time();
+$test_options['avpvh_tenant_lock_' . substr(hash('sha256', 'rsp_vve_vp4042/test.nieuw'), 0, 32)] = time();
 $test_remote = member_response(['vp4042-leden'], 'test.nieuw', 'nieuw@example.invalid');
 $users_before = count($test_users);
 $exit = callback($sso);

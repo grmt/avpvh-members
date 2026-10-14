@@ -173,7 +173,7 @@ class AVPVH_Tenant_SSO {
         }
         if ($user_id === 0) {
             // Concurrent first logins must not create two users.
-            $lock = 'avpvh_tenant_lock_' . md5($subject);
+            $lock = 'avpvh_tenant_lock_' . substr(hash('sha256', $subject), 0, 32);
             if (!add_option($lock, time(), '', false)) {
                 if (time() - (int) get_option($lock) < 30) {
                     return new \WP_Error('provision_busy');

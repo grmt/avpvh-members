@@ -27,11 +27,11 @@ $hooks = [];
 function plugin_dir_path(string $file): string { return dirname($file) . '/'; }
 function home_url(string $path = '/'): string { return 'https://site.example.invalid/' . ltrim($path, '/'); }
 function wp_parse_url(string $url, int $component = -1): mixed { return parse_url($url, $component); }
-function register_activation_hook(): void { $GLOBALS['activation_hooks']++; }
-function add_action(string $hook): void { $GLOBALS['hooks'][] = $hook; }
-function add_filter(string $hook): void { $GLOBALS['hooks'][] = $hook; }
+function register_activation_hook(string $file, mixed $callback): void { $GLOBALS['activation_hooks']++; }
+function add_action(string $hook, mixed ...$args): void { $GLOBALS['hooks'][] = $hook; }
+function add_filter(string $hook, mixed ...$args): void { $GLOBALS['hooks'][] = $hook; }
 
-require dirname(__DIR__) . '/avpvh-members.php';
+require_once dirname(__DIR__) . '/avpvh-members.php';
 
 $failures = 0;
 foreach ([

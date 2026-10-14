@@ -9,7 +9,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-identity.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-sso.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-content.php';
 
-new AVPVH_I18n();
+$avpvh_i18n = new AVPVH_I18n();
 
 $avpvh_tenant_config = AVPVH_Tenant_Config::current();
 if (!$avpvh_tenant_config->is_valid()) {
@@ -30,4 +30,4 @@ if (!$avpvh_tenant_config->is_valid()) {
 }
 
 $avpvh_tenant_sso = new AVPVH_Tenant_SSO($avpvh_tenant_config);
-new AVPVH_Tenant_Content($avpvh_tenant_config, $avpvh_tenant_sso);
+$avpvh_tenant_content = new AVPVH_Tenant_Content($avpvh_tenant_config, $avpvh_tenant_sso);

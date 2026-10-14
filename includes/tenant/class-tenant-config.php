@@ -68,7 +68,8 @@ class AVPVH_Tenant_Config {
             return null;
         }
         // Executed over HTTP the file only returns its array: no output.
-        return include $file;
+        // current() reads it once per request.
+        return include_once $file;
     }
 
     /**
