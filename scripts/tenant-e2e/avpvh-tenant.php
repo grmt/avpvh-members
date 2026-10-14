@@ -10,5 +10,13 @@ return [
     'admin_group' => 'rsp-vve-vp4042-admins',
     'ancestor_admin_groups' => ['rsp-admins', 'rsp-vve-admins'],
     'members_only_pages' => ['leden'],
-    'navigation_refs' => 'all',
+    'navigation_refs' => 'header',
+    'plugin_locale' => 'nl_NL',
+    'shares' => [
+        'testbestand' => [
+            'title' => 'Testbestand',
+            'file' => 'test bestand.zip',
+            'emails' => ['Gast@Example.invalid'],
+        ],
+    ],
 ];

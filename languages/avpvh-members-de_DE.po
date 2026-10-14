@@ -2989,3 +2989,39 @@ msgstr "Du bist angemeldet, aber dein Konto hat keinen Zugang zu dieser Seite. D
 #: includes/tenant/bootstrap.php
 msgid "AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit."
 msgstr "AV-PvH Members: Die Mandantenkonfiguration ist ungültig (%s). Die Anmeldung über Authelia ist deaktiviert."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Niet gevonden."
+msgstr "Nicht gefunden."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Het formulier is verlopen. Probeer het opnieuw."
+msgstr "Das Formular ist abgelaufen. Bitte versuche es erneut."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Te veel pogingen. Probeer het over tien minuten opnieuw."
+msgstr "Zu viele Versuche. Bitte versuche es in zehn Minuten erneut."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Dit e-mailadres heeft geen toegang tot dit bestand."
+msgstr "Diese E-Mail-Adresse hat keinen Zugriff auf diese Datei."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Deze downloadlink is verlopen. Vul hieronder opnieuw je e-mailadres in."
+msgstr "Dieser Download-Link ist abgelaufen. Gib unten erneut deine E-Mail-Adresse ein."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Bestand niet gevonden."
+msgstr "Datei nicht gefunden."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Download %1$s (%2$d MB)"
+msgstr "%1$s herunterladen (%2$d MB)"
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Vul je e-mailadres in om het bestand te downloaden."
+msgstr "Gib deine E-Mail-Adresse ein, um die Datei herunterzuladen."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Naar download"
+msgstr "Zum Download"

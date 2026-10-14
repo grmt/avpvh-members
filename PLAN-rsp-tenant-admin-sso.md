@@ -44,10 +44,20 @@ fictieve accounts). Fase 5 (activering op VP40-42) staat hieronder onder
   ledengroep; beheerders dus niet automatisch). Verborgen in menu's
   (klassiek en Navigation-block), paginalijsten, zoekresultaten, feeds,
   REST (lijst, item, search) en sitemaps; direct bezoek → login of 403.
-- **Login-/logoutlink.** "Inloggen"/"Uitloggen" aan het eind van de
-  geconfigureerde menulocaties (`menu_locations`) en/of Navigation-blocks
-  (`navigation_refs`, of `'all'`). Uitloggen beëindigt ook de
+- **Login-/logoutlink.** "Inloggen"/"Uitloggen" met persoonsicoon aan het
+  eind van de geconfigureerde menulocaties (`menu_locations`) en/of
+  Navigation-blocks (`navigation_refs`: ID's, `'all'`, of `'header'` voor
+  de Navigation in het header-template-part, die vaak geen ref heeft). Uitloggen beëindigt ook de
   Authelia-sessie (en daarmee SSO op alle Rechtspreker-sites).
+- **Taal.** De AVP-taalwisselaar wordt niet geladen (die zet de locale
+  van de hele site). `plugin_locale` bepaalt alleen de taal van de
+  plugin-teksten, bv. `nl_NL` op een site met Engelse beheertaal.
+- **Bestanden delen.** `shares` in het tenantbestand (titel, bestandsnaam
+  in `uploads/private/delen/`, toegestane adressen; nooit in de repo):
+  `/?delen=<id>` geeft een formulier, een toegestaan adres of een lid (ook
+  als het alleen bij Authelia is ingelogd) krijgt een downloadlink die 24
+  uur geldig is. Max. 10 foute adressen per 10 minuten per IP; downloads
+  worden alleen gehasht gelogd.
 - **Noodtoegang.** Zolang `local_login` true is (standaard) blijft
   `wp-login.php` werken voor lokale accounts; die worden niet herchecked.
   Laatste redmiddel: `wp plugin deactivate avpvh-members` in de
@@ -80,9 +90,9 @@ Daarna, volgens fase 5:
    en `wp eval-file .../includes/tenant/healthcheck.php` in `wpcli-vp4042`.
 2. Activeren; de tijdelijke mu-plugins blijven eerst staan.
 3. Testmatrix met de fictieve accounts doorlopen, inclusief intrekking.
-4. Daarna, als afzonderlijke stap: `vp4042-login-menu.php` verwijderen en
-   uit `vp4042-bestand-delen.php` alleen de downloads via `/?delen=`
-   overhouden (of die naar de plugin overzetten); de bestanden in
+4. Daarna, als afzonderlijke stap: beide mu-plugins verwijderen
+   (`vp4042-login-menu.php`, `vp4042-bestand-delen.php`); de plugin doet
+   login-menu, afscherming en `/?delen=`. De bestanden in
    `uploads/private/` blijven staan.
 
 ## Doel

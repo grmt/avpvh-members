@@ -27,6 +27,12 @@
  *       // ('all' for every Navigation block, also one without a ref).
  *       'menu_locations'          => ['primary'],
  *       'navigation_refs'         => [123],
+ *       // ('header' for the Navigation block in the header template part)
+ *       // Language of the plugin's own texts when it differs from the
+ *       // site's (e.g. a Dutch site whose admin language is English).
+ *       'plugin_locale'           => 'nl_NL',
+ *       // Files shared by e-mail address; see AVPVH_Tenant_Shares.
+ *       'shares'                  => [],
  *   ];
  */
 
@@ -92,6 +98,8 @@ class AVPVH_Tenant_Config {
             'members_only_pages'      => [],
             'menu_locations'          => [],
             'navigation_refs'         => [],
+            'plugin_locale'           => '',
+            'shares'                  => [],
             'local_login'             => true,
             'recheck_seconds'         => 300,
         ];
@@ -100,9 +108,10 @@ class AVPVH_Tenant_Config {
         $values['ancestor_admin_groups'] = array_values(array_map('strval', (array) $values['ancestor_admin_groups']));
         $values['members_only_pages']    = array_values(array_map('strval', (array) $values['members_only_pages']));
         $values['menu_locations']        = array_values(array_map('strval', (array) $values['menu_locations']));
-        $values['navigation_refs']       = $values['navigation_refs'] === 'all'
-            ? 'all'
+        $values['navigation_refs']       = in_array($values['navigation_refs'], ['all', 'header'], true)
+            ? $values['navigation_refs']
             : array_values(array_map('intval', (array) $values['navigation_refs']));
+        $values['plugin_locale']         = (string) $values['plugin_locale'];
         $values['content_groups']        = $values['content_groups'] === null
             ? [$values['member_group']]
             : array_values(array_map('strval', (array) $values['content_groups']));
@@ -164,8 +173,34 @@ class AVPVH_Tenant_Config {
         if (count($values['ancestor_admin_groups']) !== count($values['ancestors'])) {
             $errors[] = 'ancestor_admin_groups';
         }
+        if ($values['plugin_locale'] !== '' && !preg_match('/^[a-z]{2,3}_[A-Z]{2}$/', $values['plugin_locale'])) {
+            $errors[] = 'plugin_locale';
+        }
+        $values['shares'] = self::normalise_shares($values['shares'], $errors);
 
         return new self($values, array_values(array_unique($errors)));
+    }
+
+    /**
+     * Shares: ID => title, a plain file name in uploads/private/delen/ and
+     * the allowed addresses (lowercased).
+     */
+    private static function normalise_shares(mixed $shares, array &$errors): array {
+        $result = [];
+        foreach ((array) $shares as $id => $share) {
+            $file   = (string) ($share['file'] ?? '');
+            $emails = array_map(static fn($email): string => strtolower(trim((string) $email)), (array) ($share['emails'] ?? []));
+            $valid  = preg_match('/^[a-z0-9_-]+$/', (string) $id)
+                && $file !== '' && $file === basename($file) && !str_starts_with($file, '.')
+                && trim((string) ($share['title'] ?? '')) !== ''
+                && $emails === array_filter($emails, static fn(string $email): bool => (bool) filter_var($email, FILTER_VALIDATE_EMAIL));
+            if (!$valid) {
+                $errors[] = 'shares';
+                continue;
+            }
+            $result[(string) $id] = ['title' => (string) $share['title'], 'file' => $file, 'emails' => array_values($emails)];
+        }
+        return $result;
     }
 
     private static function admin_groups_of(array $values): array {

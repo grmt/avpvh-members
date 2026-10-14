@@ -2989,3 +2989,39 @@ msgstr "Du bass ageloggt, mee däi Kont huet keen Zougang zu dëser Säit. Dës 
 #: includes/tenant/bootstrap.php
 msgid "AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit."
 msgstr "AV-PvH Members: d'Tenant-Konfiguratioun ass ongëlteg (%s). D'Umeldung iwwer Authelia ass ausgeschalt."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Niet gevonden."
+msgstr "Net fonnt."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Het formulier is verlopen. Probeer het opnieuw."
+msgstr "De Formulaire ass ofgelaf. Prouf et nach eng Kéier."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Te veel pogingen. Probeer het over tien minuten opnieuw."
+msgstr "Ze vill Versich. Prouf et an zéng Minutten nach eng Kéier."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Dit e-mailadres heeft geen toegang tot dit bestand."
+msgstr "Dës E-Mail-Adress huet keen Zougrëff op dëse Fichier."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Deze downloadlink is verlopen. Vul hieronder opnieuw je e-mailadres in."
+msgstr "Dëse Download-Link ass ofgelaf. Gëff ënnen nach eng Kéier deng E-Mail-Adress an."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Bestand niet gevonden."
+msgstr "Fichier net fonnt."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Download %1$s (%2$d MB)"
+msgstr "%1$s eroflueden (%2$d MB)"
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Vul je e-mailadres in om het bestand te downloaden."
+msgstr "Gëff deng E-Mail-Adress an, fir de Fichier erofzelueden."
+
+#: includes/tenant/class-tenant-shares.php
+msgid "Naar download"
+msgstr "Op den Download"
