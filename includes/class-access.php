@@ -3,6 +3,9 @@ defined('ABSPATH') || exit;
 
 class AVPVH_Access {
 
+    /** @var int[]|null IDs of the members section, see members_section_ids() */
+    private ?array $section = null;
+
     public function __construct() {
         add_action('init',               [$this, 'auto_login_from_proxy_header'], 1);
         add_action('init',               [$this, 'enforce_session_idle_timeout'], 1);
@@ -18,6 +21,14 @@ class AVPVH_Access {
         add_filter('protected_title_format', [$this, 'clean_protected_title']);
         add_filter('the_password_form',    [$this, 'members_only_form']);
         add_action('rest_api_init',        [$this, 'register_hibp_route']);
+
+        // template_redirect never runs for REST, search listings or oEmbed:
+        // the members section is hidden there separately.
+        add_action('pre_get_posts',                  [$this, 'exclude_members_pages_from_queries']);
+        add_filter('rest_page_query',                [$this, 'exclude_members_pages_from_rest_query']);
+        add_filter('rest_post_search_query',         [$this, 'exclude_members_pages_from_rest_query']);
+        add_filter('rest_request_before_callbacks',  [$this, 'hide_members_page_from_rest'], 10, 3);
+        add_filter('oembed_request_post_id',         [$this, 'hide_members_page_from_oembed']);
 
         add_action('wp_head',                      [$this, 'noindex_members_content']);
         add_filter('wp_sitemaps_posts_query_args', [$this, 'sitemap_exclude_protected']);
@@ -205,6 +216,95 @@ class AVPVH_Access {
         }
 
         return false;
+    }
+
+    /** IDs of every page called 'leden' and all their descendants. */
+    private function members_section_ids(): array {
+        if ($this->section !== null) {
+            return $this->section;
+        }
+        // The lookups below run pre_get_posts again; they see an empty list
+        // instead of recursing.
+        $this->section = [];
+        $found = [];
+        $roots = get_posts([
+            'name'             => 'leden',
+            'post_type'        => 'page',
+            'post_status'      => ['publish', 'private', 'draft', 'pending', 'future'],
+            'numberposts'      => -1,
+            'fields'           => 'ids',
+            'suppress_filters' => true,
+        ]);
+        foreach ($roots as $root_id) {
+            $children = get_pages(['child_of' => $root_id, 'post_status' => 'publish,private,draft,pending,future']);
+            $found = array_merge($found, [(int) $root_id], array_map('intval', wp_list_pluck($children, 'ID')));
+        }
+        $this->section = array_values(array_unique($found));
+        return $this->section;
+    }
+
+    /**
+     * Who may see the members section outside the front-end page itself:
+     * active members, and editors (the block editor reads pages over REST).
+     */
+    private function current_user_may_read_members_section(): bool {
+        return $this->current_user_is_active_member() || current_user_can('edit_pages');
+    }
+
+    /**
+     * Search and feeds leave the members section out for everyone else,
+     * and search also password-protected posts and pages, whose titles are
+     * members-only too. Other queries are left alone: the plugin itself
+     * looks up the members section with get_posts().
+     */
+    public function exclude_members_pages_from_queries(\WP_Query $query): void {
+        if (is_admin() && !wp_doing_ajax() || !$query->is_search() && !$query->is_feed()) {
+            return;
+        }
+        if ($this->current_user_may_read_members_section()) {
+            return;
+        }
+        $query->set('post__not_in', $this->exclude_members_section($query->get('post__not_in')));
+        if ($query->is_search()) {
+            $query->set('has_password', false);
+        }
+    }
+
+    /** The same for REST collections: /wp/v2/pages and /wp/v2/search. */
+    public function exclude_members_pages_from_rest_query(array $args): array {
+        if (!$this->current_user_may_read_members_section()) {
+            $args['post__not_in'] = $this->exclude_members_section($args['post__not_in'] ?? []);
+        }
+        return $args;
+    }
+
+    private function exclude_members_section($post__not_in): array {
+        return array_values(array_unique(array_merge(array_filter((array) $post__not_in), $this->members_section_ids())));
+    }
+
+    /**
+     * A members-section page over REST (/wp/v2/pages/<id> and its
+     * sub-routes) answers 404, as if it did not exist. Checked before the
+     * callback runs: a WP_Error from rest_prepare_page breaks the controller.
+     *
+     * @return mixed the unchanged response, or a WP_Error
+     */
+    public function hide_members_page_from_rest($response, array $handler, \WP_REST_Request $request) { // NOSONAR -- $handler: the filter passes it before $request
+        if (!preg_match('#^/wp/v2/pages/(\d+)#', $request->get_route(), $match)) {
+            return $response;
+        }
+        if (in_array((int) $match[1], $this->members_section_ids(), true) && !$this->current_user_may_read_members_section()) {
+            return new \WP_Error('rest_post_invalid_id', __('Ongeldige bericht-ID.', 'avpvh-members'), ['status' => 404]);
+        }
+        return $response;
+    }
+
+    /** oEmbed would otherwise give away a members page's title. */
+    public function hide_members_page_from_oembed($post_id) {
+        if (in_array((int) $post_id, $this->members_section_ids(), true) && !$this->current_user_may_read_members_section()) {
+            return 0;
+        }
+        return $post_id;
     }
 
     private function is_personal_account_page(?\WP_Post $post = null): bool {
