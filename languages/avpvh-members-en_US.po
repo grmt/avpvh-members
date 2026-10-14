@@ -2957,3 +2957,35 @@ msgstr "Save page permissions"
 #: admin/page-permissions.php
 msgid "IT-beheerder"
 msgstr "IT administrator"
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Inloggen is niet gelukt. Probeer het later opnieuw."
+msgstr "Logging in failed. Please try again later."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze site."
+msgstr "You are logged in, but your account has no access to this site."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Je account kon niet aan deze site worden gekoppeld. Neem contact op met de beheerder."
+msgstr "Your account could not be linked to this site. Please contact the administrator."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Naar de homepage"
+msgstr "Go to the home page"
+
+#: includes/tenant/class-tenant-content.php
+msgid "Ingelogd als %s"
+msgstr "Logged in as %s"
+
+#: includes/tenant/class-tenant-content.php
+msgid "Ongeldige bericht-ID."
+msgstr "Invalid post ID."
+
+#: includes/tenant/class-tenant-content.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor leden."
+msgstr "You are logged in, but your account has no access to this page. This page is for members only."
+
+#: includes/tenant/bootstrap.php
+msgid "AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit."
+msgstr "AV-PvH Members: the tenant configuration is invalid (%s). Login through Authelia is disabled."

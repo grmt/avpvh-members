@@ -2,7 +2,88 @@
 
 ## Status
 
-Ontwerp; nog niet implementeren of deployen.
+Fase 1–4 geïmplementeerd in de plugin (`includes/tenant/`), getest met
+`scripts/test-tenant-sso.php`, `scripts/test-tenant-bootstrap.php` en de
+end-to-end-test `scripts/tenant-e2e/run.sh` (echte WordPress, nep-Authelia,
+fictieve accounts). Fase 5 (activering op VP40-42) staat hieronder onder
+"Uitrol op VP40-42" en vraagt eerst de genoemde infrawijzigingen.
+
+## Uitvoering (zoals gebouwd)
+
+- **Grens AVP/generiek.** `avpvh-members.php` laadt bij een tenantconfig
+  alleen `includes/tenant/` (plus vertalingen) en stopt dan: geen
+  `AVPVH_DB`, geen activation hook, geen `pvh_avm_*`-tabellen. Alle andere
+  classes in `includes/` gebruiken AVP-businessdata of AVP-specifieke
+  constants (page-ID's, `auth.avphilipsvanhorne.nl`) en blijven AVP-only.
+- **Configuratie.** `wp-content/avpvh-tenant.php` geeft een array terug (of
+  de constant `AVPVH_TENANT_CONFIG` in wp-config.php). Het bestand heeft de
+  voorkeur: de WordPress- en WP-CLI-container delen `wp-content`, maar niet
+  `WORDPRESS_CONFIG_EXTRA`; een WP-CLI zonder tenantconfig zou de site in
+  AVP-modus starten en tabellen aanmaken. Validatie bij elke start (tenant-ID,
+  ancestorketen, canonieke host = `home_url()`, https-portal, groepsnamen,
+  één beheergroep per ancestor, leden- ≠ beheergroep); ongeldig → geen login
+  of provisioning, wel een melding in wp-admin.
+- **Identiteit zonder LDAP.** De WordPress-container heeft geen
+  `ldap`-extensie nodig: de plugin stuurt de Authelia-sessiecookie van de
+  bezoeker server-side naar Authelia's `/api/authz/auth-request` voor het
+  probepad (`/avpvh-sso/`) en leest `Remote-User`/`Remote-Groups`/
+  `Remote-Email`/`Remote-Name` uit het antwoord. Clientheaders worden nooit
+  gelezen. Fout of time-out → geen sessie.
+- **Provisioning.** Lokale user gekoppeld via usermeta
+  `avpvh_directory_subject` = `<tenant_id>/<uid>`; een bestaande lokale login
+  of e-mailadres wordt nooit overgenomen (409, beheerder koppelt expliciet
+  met `wp user meta add <id> avpvh_directory_subject <tenant_id>/<uid>`).
+  Een optie-lock voorkomt dubbele users bij gelijktijdige eerste logins.
+- **Rollen.** Eigen of ancestor-beheergroep → `administrator`, ledengroep →
+  `subscriber`, anders geen sessie. Een door de plugin gezette rol volgt de
+  groepen, ook bij intrekking; een met de hand gewijzigde rol blijft staan.
+  Elke `recheck_seconds` (standaard 300) vraagt de plugin Authelia opnieuw;
+  ander account, verlopen Authelia-sessie of fout → WordPress-uitlog.
+- **Afgeschermde inhoud.** `members_only_pages` (slugs) plus alle
+  onderliggende pagina's: alleen voor `content_groups` (standaard de
+  ledengroep; beheerders dus niet automatisch). Verborgen in menu's
+  (klassiek en Navigation-block), paginalijsten, zoekresultaten, feeds,
+  REST (lijst, item, search) en sitemaps; direct bezoek → login of 403.
+- **Login-/logoutlink.** "Inloggen"/"Uitloggen" aan het eind van de
+  geconfigureerde menulocaties (`menu_locations`) en/of Navigation-blocks
+  (`navigation_refs`, of `'all'`). Uitloggen beëindigt ook de
+  Authelia-sessie (en daarmee SSO op alle Rechtspreker-sites).
+- **Noodtoegang.** Zolang `local_login` true is (standaard) blijft
+  `wp-login.php` werken voor lokale accounts; die worden niet herchecked.
+  Laatste redmiddel: `wp plugin deactivate avpvh-members` in de
+  WP-CLI-container.
+- **Logging.** Alleen tenant-ID, stap, sha256-prefix van de uid en de
+  beslissing (`[avpvh-tenant] ...` in de PHP-errorlog).
+
+## Uitrol op VP40-42
+
+Vooraf (infra, buiten deze repo):
+
+1. **Authelia** (`vp40-42.vve.rechtspreker.nl`): een regel
+   `^/avpvh-sso/` met `policy: one_factor` zonder `subject`, vóór de
+   afsluitende bypass; de `^/wp-admin/.*`-regel ook voor de drie
+   beheergroepen (`group:rsp-admins`, `group:rsp-vve-admins`,
+   `group:rsp-vve-vp4042-admins`) naast `group:vp4042-leden`.
+2. **OpenLDAP**: de groepen `rsp-admins`, `rsp-vve-admins` en
+   `rsp-vve-vp4042-admins` (met de `cn=vacant`-placeholder zolang leeg) en
+   fictieve testaccounts voor iedere rij van de testmatrix.
+3. **Tenantbestand** `wp-content-vp4042/avpvh-tenant.php` met
+   `canonical_host` `vp40-42.vve.rechtspreker.nl`, `authelia_url`
+   `https://auth.rechtspreker.nl`, `authelia_authz_url`
+   `http://authelia:9091/api/authz/auth-request`, de sessiecookienaam van
+   het Rechtspreker-sessiedomein, de slugs van de leden- en zoekpagina en de
+   menulocatie of Navigation-block van het thema.
+
+Daarna, volgens fase 5:
+
+1. Plugin rsyncen naar `wp-content-vp4042/plugins/avpvh-members/` (inactief)
+   en `wp eval-file .../includes/tenant/healthcheck.php` in `wpcli-vp4042`.
+2. Activeren; de tijdelijke mu-plugins blijven eerst staan.
+3. Testmatrix met de fictieve accounts doorlopen, inclusief intrekking.
+4. Daarna, als afzonderlijke stap: `vp4042-login-menu.php` verwijderen en
+   uit `vp4042-bestand-delen.php` alleen de downloads via `/?delen=`
+   overhouden (of die naar de plugin overzetten); de bestanden in
+   `uploads/private/` blijven staan.
 
 ## Doel
 
