@@ -199,7 +199,9 @@ check('admin groups include both ancestors', $vp->admin_groups() === ['rsp-admin
 check('content groups default to the member group', $vp->content_groups() === ['vp4042-leden']);
 check('ancestor chain must prefix the tenant ID', in_array('ancestors', tenant_config(['ancestors' => ['rsp', 'other']])->errors(), true));
 check('canonical host must match the site', in_array('canonical_host', tenant_config(['canonical_host' => 'other.example.invalid'])->errors(), true));
-check('Authelia portal must be https', in_array('authelia_url', tenant_config(['authelia_url' => 'http://auth.example.invalid'])->errors(), true));
+// The insecure URL is the point of this check: it must be rejected.
+$insecure_portal = 'http://auth.example.invalid'; // NOSONAR
+check('Authelia portal must be https', in_array('authelia_url', tenant_config(['authelia_url' => $insecure_portal])->errors(), true));
 check('member group may not be an admin group', in_array('groups', tenant_config(['member_group' => 'rsp-admins'])->errors(), true));
 check('one admin group per ancestor', in_array('ancestor_admin_groups', tenant_config(['ancestor_admin_groups' => ['rsp-admins']])->errors(), true));
 check('unknown keys are ignored', tenant_config(['local_login' => false, 'evil' => 1])->get('evil') === null);
