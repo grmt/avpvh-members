@@ -2957,3 +2957,35 @@ msgstr "Seitenrechte speichern"
 #: admin/page-permissions.php
 msgid "IT-beheerder"
 msgstr "IT-Verwalter"
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Inloggen is niet gelukt. Probeer het later opnieuw."
+msgstr "Die Anmeldung ist fehlgeschlagen. Bitte versuche es später erneut."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze site."
+msgstr "Du bist angemeldet, aber dein Konto hat keinen Zugang zu dieser Website."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Je account kon niet aan deze site worden gekoppeld. Neem contact op met de beheerder."
+msgstr "Dein Konto konnte nicht mit dieser Website verknüpft werden. Bitte wende dich an die Verwaltung."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Naar de homepage"
+msgstr "Zur Startseite"
+
+#: includes/tenant/class-tenant-content.php
+msgid "Ingelogd als %s"
+msgstr "Angemeldet als %s"
+
+#: includes/tenant/class-tenant-content.php
+msgid "Ongeldige bericht-ID."
+msgstr "Ungültige Beitrags-ID."
+
+#: includes/tenant/class-tenant-content.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor leden."
+msgstr "Du bist angemeldet, aber dein Konto hat keinen Zugang zu dieser Seite. Diese Seite ist nur für Mitglieder."
+
+#: includes/tenant/bootstrap.php
+msgid "AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit."
+msgstr "AV-PvH Members: Die Mandantenkonfiguration ist ungültig (%s). Die Anmeldung über Authelia ist deaktiviert."

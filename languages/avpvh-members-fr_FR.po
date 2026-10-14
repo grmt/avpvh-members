@@ -2957,3 +2957,35 @@ msgstr "Enregistrer les droits d'accès"
 #: admin/page-permissions.php
 msgid "IT-beheerder"
 msgstr "Administrateur informatique"
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Inloggen is niet gelukt. Probeer het later opnieuw."
+msgstr "La connexion a échoué. Réessaie plus tard."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze site."
+msgstr "Tu es connecté, mais ton compte n'a pas accès à ce site."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Je account kon niet aan deze site worden gekoppeld. Neem contact op met de beheerder."
+msgstr "Ton compte n'a pas pu être associé à ce site. Contacte l'administrateur."
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Naar de homepage"
+msgstr "Aller à la page d'accueil"
+
+#: includes/tenant/class-tenant-content.php
+msgid "Ingelogd als %s"
+msgstr "Connecté en tant que %s"
+
+#: includes/tenant/class-tenant-content.php
+msgid "Ongeldige bericht-ID."
+msgstr "Identifiant de publication non valide."
+
+#: includes/tenant/class-tenant-content.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor leden."
+msgstr "Tu es connecté, mais ton compte n'a pas accès à cette page. Cette page est réservée aux membres."
+
+#: includes/tenant/bootstrap.php
+msgid "AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit."
+msgstr "AV-PvH Members : la configuration du locataire n'est pas valide (%s). La connexion via Authelia est désactivée."

@@ -3410,3 +3410,35 @@ msgstr ""
 #: admin/page-permissions.php
 msgid "IT-beheerder"
 msgstr ""
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Inloggen is niet gelukt. Probeer het later opnieuw."
+msgstr ""
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze site."
+msgstr ""
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Je account kon niet aan deze site worden gekoppeld. Neem contact op met de beheerder."
+msgstr ""
+
+#: includes/tenant/class-tenant-sso.php
+msgid "Naar de homepage"
+msgstr ""
+
+#: includes/tenant/class-tenant-content.php
+msgid "Ingelogd als %s"
+msgstr ""
+
+#: includes/tenant/class-tenant-content.php
+msgid "Ongeldige bericht-ID."
+msgstr ""
+
+#: includes/tenant/class-tenant-content.php
+msgid "Je bent ingelogd, maar je account heeft geen toegang tot deze pagina. Deze pagina is alleen beschikbaar voor leden."
+msgstr ""
+
+#: includes/tenant/bootstrap.php
+msgid "AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit."
+msgstr ""

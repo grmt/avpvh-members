@@ -50,6 +50,18 @@ Browser ──► nginx ──auth_request──► Authelia ──LDAP──►
   plugin admin page (`AVPVH_Roles::current_user_needs_wp_admin()`); others
   are sent to the home page. admin-post/AJAX stay open for front-end forms.
 
+### Rechtspreker tenant sites
+
+With `wp-content/avpvh-tenant.php` (or the constant `AVPVH_TENANT_CONFIG`)
+the plugin runs as a generic login layer for a Rechtspreker tenant such as
+VP40-42 instead of the AVP-PvH member system: Authelia login, local users
+per directory account, `administrator` for the tenant's own or an ancestor
+admin group, `subscriber` for the member group, and members-only pages.
+No AVP module or table is loaded. Design, configuration and rollout:
+`PLAN-rsp-tenant-admin-sso.md`; tests: `scripts/test-tenant-*.php` and
+`scripts/tenant-e2e/run.sh` (Docker); server check:
+`includes/tenant/healthcheck.php`.
+
 ## Login page (`/avpvh-login/`)
 
 The `/avpvh-login/` page is bypassed by Authelia. The plugin renders a login screen with:

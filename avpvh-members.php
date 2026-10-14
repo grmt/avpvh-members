@@ -31,6 +31,17 @@ function avpvh_asset_version(string $relative_path): string {
 }
 
 require_once AVPVH_PLUGIN_DIR . 'includes/class-i18n.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-config.php';
+
+// A Rechtspreker tenant site (AVPVH_TENANT_CONFIG in wp-config.php) loads
+// only the generic login/provisioning layer: none of the AVP-PvH member,
+// fee or camp modules and none of their pvh_avm_* tables.
+// See PLAN-rsp-tenant-admin-sso.md.
+if (AVPVH_Tenant_Config::current()) {
+    require_once AVPVH_PLUGIN_DIR . 'includes/tenant/bootstrap.php';
+    return;
+}
+
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-name-matcher.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-address-normalizer.php';
