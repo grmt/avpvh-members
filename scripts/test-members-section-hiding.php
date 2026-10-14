@@ -35,8 +35,12 @@ $member_status = 'active';
 $can_edit_pages = false;
 $admin = false;
 
-function add_action(...$args): void {}
-function add_filter(...$args): void {}
+function add_action(...$args): void {
+    // Hooks are not run here; the test calls the callbacks directly.
+}
+function add_filter(...$args): void {
+    // See add_action().
+}
 function __(string $text, string $domain = ''): string { return $text; }
 function is_admin(): bool { return $GLOBALS['admin']; }
 function wp_doing_ajax(): bool { return false; }
@@ -56,7 +60,7 @@ function wp_list_pluck(array $list, string $field): array {
     return array_map(static fn($item) => $item->$field, $list);
 }
 
-require __DIR__ . '/../includes/class-access.php';
+require_once __DIR__ . '/../includes/class-access.php';
 
 $failures = 0;
 function check(string $label, bool $ok): void {
