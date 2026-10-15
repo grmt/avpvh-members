@@ -37,13 +37,15 @@ $W rewrite structure '/%postname%/' >/dev/null
 # Rollout step 1: check the configuration with the plugin still inactive.
 hc=$($W eval-file wp-content/plugins/avpvh-members/includes/tenant/healthcheck.php 2>&1); hc_exit=$?
 $W plugin activate avpvh-members >/dev/null
+hc_active=$($W eval-file wp-content/plugins/avpvh-members/includes/tenant/healthcheck.php 2>&1); hc_active_exit=$?
 
 SJ=$(mktemp)
 fail=0
 ok() { if eval "$2"; then echo "ok   $1"; else echo "FAIL $1"; fail=1; fi; }
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 loc() { curl -s -o /dev/null -w '%{redirect_url}' "$@"; }
-ok "healthcheck passes while the plugin is inactive" '[[ $hc_exit == 0 && "$hc" == *"Configuratie geldig"* && "$hc" == *": 401"* ]]'
+ok "healthcheck passes while the plugin is inactive" '[[ $hc_exit == 0 && "$hc" == *"Configuratie geldig"* && "$hc" == *": 401"* && "$hc" == *"'"'"'leden'"'"': $L"* ]]'
+ok "healthcheck still finds the protected page once active" '[[ $hc_active_exit == 0 && "$hc_active" == *"'"'"'leden'"'"': $L"* ]]'
 # --- anonymous
 home=$(curl -s $B/)
 ok "home shows public page in nav" '[[ "$home" == *"Over ons"* ]]'
