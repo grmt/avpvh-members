@@ -94,6 +94,10 @@ class AVPVH_I18n {
 
     /** Remembers a chosen locale for a year; only PHP reads it (httpOnly). */
     public static function remember_locale(string $locale): void {
+        // WordPress asks for the locale many times per request; the cookie
+        // only arrives with the next one. Recording it here as well sends
+        // the Set-Cookie header once instead of on every call.
+        $_COOKIE[self::COOKIE_NAME] = $locale;
         if (headers_sent()) {
             return;
         }
