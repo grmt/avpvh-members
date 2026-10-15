@@ -438,7 +438,7 @@ button.button-primary:active {
     margin: -1px;
     overflow: hidden;
     padding: 0;
-    position: absolute !important;
+    position: absolute;
     width: 1px;
-    word-wrap: normal !important;
+    word-wrap: normal;
 }
