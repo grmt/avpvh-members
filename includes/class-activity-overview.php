@@ -55,15 +55,16 @@ class AVPVH_Activity_Overview {
             <p class="avpvh-activiteit-overzicht-meta"><?php printf(esc_html__('Laatst bijgewerkt: %s', 'avpvh-members'), esc_html(date_i18n('j-m-Y'))); ?></p>
             <div class="avpvh-activiteit-overzicht-scroll">
                 <table class="avpvh-activiteit-overzicht-tabel">
-                    <tr>
-                        <td><strong><?php esc_html_e('Naam', 'avpvh-members'); ?></strong></td>
-                        <td><strong><?php esc_html_e('Nachten', 'avpvh-members'); ?></strong></td>
-                        <td><strong><?php esc_html_e('Nawacht', 'avpvh-members'); ?></strong></td>
-                        <td><strong><?php esc_html_e('Dieet', 'avpvh-members'); ?></strong></td>
+                    <thead><tr>
+                        <th scope="col"><?php esc_html_e('Naam', 'avpvh-members'); ?></th>
+                        <th scope="col"><?php esc_html_e('Nachten', 'avpvh-members'); ?></th>
+                        <th scope="col"><?php esc_html_e('Nawacht', 'avpvh-members'); ?></th>
+                        <th scope="col"><?php esc_html_e('Dieet', 'avpvh-members'); ?></th>
                         <?php foreach ($date_range as $date) : ?>
-                            <td><strong><?php echo esc_html(date_i18n('D j-n', strtotime($date))); ?></strong></td>
+                            <th scope="col"><?php echo esc_html(date_i18n('D j-n', strtotime($date))); ?></th>
                         <?php endforeach; ?>
-                    </tr>
+                    </tr></thead>
+                    <tbody>
                     <?php foreach ($participations as $p) :
                         $name = trim($p->first_name . ' ' . ($p->suffix ? $p->suffix . ' ' : '') . $p->last_name);
                         $days = AVPVH_DB::get_participation_days((int) $p->id);
@@ -86,6 +87,7 @@ class AVPVH_Activity_Overview {
                             <?php endforeach; ?>
                         </tr>
                     <?php endforeach; ?>
+                    </tbody>
                 </table>
             </div>
         </div>

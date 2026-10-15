@@ -3025,3 +3025,39 @@ msgstr "Gëff deng E-Mail-Adress an, fir de Fichier erofzelueden."
 #: includes/tenant/class-tenant-shares.php
 msgid "Naar download"
 msgstr "Op den Download"
+
+#: admin/member-detail.php
+msgid "Geldig vanaf"
+msgstr "Gëlteg vum"
+
+#: admin/member-detail.php
+msgid "Geldig tot"
+msgstr "Gëlteg bis"
+
+#: includes/class-ledenlijst.php
+msgid "Zoeken in de ledenlijst"
+msgstr "An der Memberlëscht sichen"
+
+#: includes/class-member-profile-form.php
+msgid "Inlogmethode"
+msgstr "Umeldmethod"
+
+#: includes/class-member-profile-form.php
+msgid "Verificatie"
+msgstr "Verifikatioun"
+
+#: includes/class-member-profile-form.php
+msgid "Acties"
+msgstr "Aktiounen"
+
+#: includes/class-member-profile-form.php
+msgid "Relatie"
+msgstr "Relatioun"
+
+#: admin/merge-members.php
+msgid "Periode"
+msgstr "Period"
+
+#: includes/class-member-profile-form.php
+msgid "Filter op naam"
+msgstr "No Numm filteren"

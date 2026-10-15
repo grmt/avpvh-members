@@ -3025,3 +3025,39 @@ msgstr "Enter your e-mail address to download the file."
 #: includes/tenant/class-tenant-shares.php
 msgid "Naar download"
 msgstr "Go to download"
+
+#: admin/member-detail.php
+msgid "Geldig vanaf"
+msgstr "Valid from"
+
+#: admin/member-detail.php
+msgid "Geldig tot"
+msgstr "Valid until"
+
+#: includes/class-ledenlijst.php
+msgid "Zoeken in de ledenlijst"
+msgstr "Search the member list"
+
+#: includes/class-member-profile-form.php
+msgid "Inlogmethode"
+msgstr "Sign-in method"
+
+#: includes/class-member-profile-form.php
+msgid "Verificatie"
+msgstr "Verification"
+
+#: includes/class-member-profile-form.php
+msgid "Acties"
+msgstr "Actions"
+
+#: includes/class-member-profile-form.php
+msgid "Relatie"
+msgstr "Relationship"
+
+#: admin/merge-members.php
+msgid "Periode"
+msgstr "Period"
+
+#: includes/class-member-profile-form.php
+msgid "Filter op naam"
+msgstr "Filter by name"

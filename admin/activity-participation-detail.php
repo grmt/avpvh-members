@@ -116,8 +116,8 @@ if ($activity->start_date && $activity->end_date) {
                 <tbody>
                 <?php foreach ($date_range as $date) : ?>
                     <tr>
-                        <td><?php echo esc_html(date_i18n('D j M', strtotime($date))); ?></td>
-                        <td><input type="text" name="day[<?php echo esc_attr($date); ?>]" maxlength="10" size="5"
+                        <td><label for="avpvh-day-<?php echo esc_attr($date); ?>"><?php echo esc_html(date_i18n('D j M', strtotime($date))); ?></label></td>
+                        <td><input type="text" id="avpvh-day-<?php echo esc_attr($date); ?>" name="day[<?php echo esc_attr($date); ?>]" maxlength="10" size="5"
                                    value="<?php echo esc_attr($days[$date] ?? ''); ?>"></td>
                     </tr>
                 <?php endforeach; ?>

@@ -82,6 +82,7 @@ class AVPVH_Ledenlijst {
             </p>
 
             <div class="avpvh-ledenlijst-controls">
+                <label class="screen-reader-text" for="avpvh-ledenlijst-zoek"><?php esc_html_e('Zoeken in de ledenlijst', 'avpvh-members'); ?></label>
                 <input type="search" id="avpvh-ledenlijst-zoek" placeholder="<?php esc_attr_e('Zoeken…', 'avpvh-members'); ?>" class="avpvh-ledenlijst-zoek">
 
                 <div class="avpvh-ledenlijst-dropdown" data-dropdown="plaats">

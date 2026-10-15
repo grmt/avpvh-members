@@ -14,7 +14,8 @@ if (!$member) {
         <form method="get">
             <input type="hidden" name="page" value="avpvh-member-detail">
             <p class="search-box">
-                <input type="search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="<?php echo esc_attr__('Naam of e-mail', 'avpvh-members'); ?>" autofocus>
+                <label class="screen-reader-text" for="avpvh-member-search"><?php esc_html_e('Naam of e-mail', 'avpvh-members'); ?></label>
+                <input type="search" id="avpvh-member-search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="<?php echo esc_attr__('Naam of e-mail', 'avpvh-members'); ?>" autofocus>
                 <button type="submit" class="button"><?php esc_html_e('Zoeken', 'avpvh-members'); ?></button>
             </p>
         </form>
@@ -190,7 +191,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <?php wp_nonce_field('avpvh_update_email'); ?>
                     <input type="hidden" name="action" value="avpvh_update_email">
                     <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                    <input type="email" name="email" value="<?php echo esc_attr($member->email); ?>" class="regular-text">
+                    <label class="screen-reader-text" for="avpvh-member-email"><?php esc_html_e('E-mailadres', 'avpvh-members'); ?></label>
+                    <input type="email" id="avpvh-member-email" name="email" value="<?php echo esc_attr($member->email); ?>" class="regular-text">
                     <button type="submit" class="button button-small"><?php esc_html_e('Wijzigen', 'avpvh-members'); ?></button>
                 </form>
                 <p class="description"><?php echo esc_html(sprintf(__('Dit is het contactadres van het account zelf, los van de Inlogadressen hieronder — al wordt het automatisch bijgewerkt naar het adres dat daar als primair wordt ingesteld. Leeg laten en opslaan zet het om naar een placeholder-adres (%s@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.', 'avpvh-members'), $member->lldap_user_id)); ?></p>
@@ -380,9 +382,12 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             <tr>
                 <th scope="row"><?php esc_html_e('Naam', 'avpvh-members'); ?></th>
                 <td>
-                    <input type="text" name="first_name" placeholder="<?php esc_attr_e('Voornaam', 'avpvh-members'); ?>" required>
-                    <input type="text" name="suffix" placeholder="<?php esc_attr_e('Tussenvoegsel', 'avpvh-members'); ?>" style="width:8em">
-                    <input type="text" name="last_name" placeholder="<?php esc_attr_e('Achternaam', 'avpvh-members'); ?>" required>
+                    <label class="screen-reader-text" for="avpvh-new-first-name"><?php esc_html_e('Voornaam', 'avpvh-members'); ?></label>
+                    <input type="text" id="avpvh-new-first-name" name="first_name" placeholder="<?php esc_attr_e('Voornaam', 'avpvh-members'); ?>" required>
+                    <label class="screen-reader-text" for="avpvh-new-suffix"><?php esc_html_e('Tussenvoegsel', 'avpvh-members'); ?></label>
+                    <input type="text" id="avpvh-new-suffix" name="suffix" placeholder="<?php esc_attr_e('Tussenvoegsel', 'avpvh-members'); ?>" style="width:8em">
+                    <label class="screen-reader-text" for="avpvh-new-last-name"><?php esc_html_e('Achternaam', 'avpvh-members'); ?></label>
+                    <input type="text" id="avpvh-new-last-name" name="last_name" placeholder="<?php esc_attr_e('Achternaam', 'avpvh-members'); ?>" required>
                 </td>
             </tr>
             <tr>
@@ -434,8 +439,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <input type="hidden" name="action" value="avpvh_update_address">
                     <input type="hidden" name="id" value="<?php echo esc_attr($a->id); ?>">
                     <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                    <td><input type="date" name="valid_from" value="<?php echo esc_attr($a->valid_from); ?>" style="width:9.5em"></td>
-                    <td><input type="date" name="valid_until" value="<?php echo esc_attr($a->valid_until); ?>" style="width:9.5em"></td>
+                    <td><label class="screen-reader-text" for="avpvh-address-from-<?php echo esc_attr($a->id); ?>"><?php esc_html_e('Geldig vanaf', 'avpvh-members'); ?></label><input type="date" id="avpvh-address-from-<?php echo esc_attr($a->id); ?>" name="valid_from" value="<?php echo esc_attr($a->valid_from); ?>" style="width:9.5em"></td>
+                    <td><label class="screen-reader-text" for="avpvh-address-until-<?php echo esc_attr($a->id); ?>"><?php esc_html_e('Geldig tot', 'avpvh-members'); ?></label><input type="date" id="avpvh-address-until-<?php echo esc_attr($a->id); ?>" name="valid_until" value="<?php echo esc_attr($a->valid_until); ?>" style="width:9.5em"></td>
                     <td>
                         <button type="submit" class="button button-small"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button>
                 </form>

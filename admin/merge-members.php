@@ -42,7 +42,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
     ?>
     <div class="avpvh-member-combo">
         <input type="hidden" name="<?php echo esc_attr($name); ?>" class="avpvh-member-combo-value" value="<?php echo esc_attr($selected_id ?: ''); ?>">
-        <input type="text" class="avpvh-member-combo-input" autocomplete="off" placeholder="&mdash; kies lid &mdash;" value="<?php echo esc_attr($selected_label); ?>">
+        <input type="text" id="avpvh-merge-<?php echo esc_attr($name); ?>" class="avpvh-member-combo-input" autocomplete="off" placeholder="&mdash; kies lid &mdash;" value="<?php echo esc_attr($selected_label); ?>">
         <div class="avpvh-member-combo-list" hidden></div>
     </div>
     <?php
@@ -77,13 +77,13 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
         <input type="hidden" name="page" value="avpvh-merge-members">
         <table class="form-table">
             <tr>
-                <th><label><?php esc_html_e('Behouden', 'avpvh-members'); ?></label></th>
+                <th><label for="avpvh-merge-keep"><?php esc_html_e('Behouden', 'avpvh-members'); ?></label></th>
                 <td>
                     <?php avpvh_merge_member_combo('keep', $members, $keep_id, $option_label); ?>
                 </td>
             </tr>
             <tr>
-                <th><label><?php esc_html_e('Opheffen (dubbel)', 'avpvh-members'); ?></label></th>
+                <th><label for="avpvh-merge-remove"><?php esc_html_e('Opheffen (dubbel)', 'avpvh-members'); ?></label></th>
                 <td>
                     <?php avpvh_merge_member_combo('remove', $members, $remove_id, $option_label); ?>
                 </td>
@@ -246,7 +246,8 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <select name="addresses[<?php echo esc_attr($address->id); ?>]">
+                                <label class="screen-reader-text" for="avpvh-merge-address-<?php echo esc_attr($address->id); ?>"><?php esc_html_e('Actie', 'avpvh-members'); ?></label>
+                                <select id="avpvh-merge-address-<?php echo esc_attr($address->id); ?>" name="addresses[<?php echo esc_attr($address->id); ?>]">
                                     <option value="move" <?php selected($default, 'move'); ?>><?php esc_html_e('Overnemen — periode behouden', 'avpvh-members'); ?></option>
                                     <?php if (empty($address->valid_until)) : ?>
                                         <option value="history" <?php selected($default, 'history'); ?>><?php esc_html_e('Overnemen — afsluiten op vandaag', 'avpvh-members'); ?></option>
@@ -318,6 +319,10 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
             <p><?php esc_html_e('Geen mogelijke dubbelen gevonden.', 'avpvh-members'); ?></p>
         <?php else : ?>
             <table class="widefat striped" style="max-width: 900px;">
+                <thead><tr>
+                    <th><?php esc_html_e('Mogelijke dubbelen', 'avpvh-members'); ?></th>
+                    <th><span class="screen-reader-text"><?php esc_html_e('Actie', 'avpvh-members'); ?></span></th>
+                </tr></thead>
                 <tbody>
                 <?php foreach ($candidates as $group) : ?>
                     <tr>
