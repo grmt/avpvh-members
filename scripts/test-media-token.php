@@ -21,7 +21,7 @@ $GLOBALS['test_member_status'] = 'active';
 $GLOBALS['test_admin'] = false;
 $GLOBALS['test_scripts'] = [];
 
-function add_action(...$args): void {}
+function add_action(...$args): void { /* Not needed in this test. */ }
 function is_user_logged_in(): bool { return $GLOBALS['test_logged_in']; }
 function get_current_user_id(): int { return 42; }
 function get_userdata(int $user_id): WP_User { return new WP_User(); }
@@ -34,7 +34,7 @@ function wp_json_encode($value): string { return (string) json_encode($value, JS
 function plugin_dir_url($path): string { return 'https://example.test/plugin/'; }
 function avpvh_asset_version($path): string { return 'test'; }
 function wp_enqueue_script($handle, ...$args): void { $GLOBALS['test_scripts'][] = $handle; }
-function nocache_headers(): void {}
+function nocache_headers(): void { /* Not needed in this test. */ }
 class Test_JSON_Response extends RuntimeException {
     public function __construct(public array $data, public int $status, public bool $success) { parent::__construct('JSON response'); }
 }

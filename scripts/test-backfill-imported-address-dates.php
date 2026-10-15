@@ -11,11 +11,11 @@ define('WP_CONTENT_DIR', '/fixture/');
 define('DB_CHARSET', 'utf8mb4');
 define('DB_COLLATE', '');
 function __($value, $domain = '') { return $value; }
-function wp_load_translations_early() {}
+function wp_load_translations_early() { /* Not needed in this test. */ }
 function wp_debug_backtrace_summary() { return ''; }
 function wp_get_wp_version() { return '6.8'; }
-function mbstring_binary_safe_encoding() {}
-function reset_mbstring_encoding() {}
+function mbstring_binary_safe_encoding() { /* Not needed in this test. */ }
+function reset_mbstring_encoding() { /* Not needed in this test. */ }
 $GLOBALS['address_fixture_filters'] = [];
 function add_filter($name, $callback, $priority = 10) { $GLOBALS['address_fixture_filters'][$name][] = $callback; }
 function has_filter($name) { return !empty($GLOBALS['address_fixture_filters'][$name]); }

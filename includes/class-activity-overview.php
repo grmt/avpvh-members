@@ -52,7 +52,7 @@ class AVPVH_Activity_Overview {
         ?>
         <div class="avpvh-activiteit-overzicht">
             <h2><?php echo esc_html($activity->name . ' ' . $activity->year); ?></h2>
-            <p class="avpvh-activiteit-overzicht-meta"><?php printf(esc_html__('Laatst bijgewerkt: %s', 'avpvh-members'), esc_html(date_i18n('j-m-Y'))); ?></p>
+            <p class="avpvh-activiteit-overzicht-meta"><?php printf(/* translators: %s: date */ esc_html__('Laatst bijgewerkt: %s', 'avpvh-members'), esc_html(date_i18n('j-m-Y'))); ?></p>
             <div class="avpvh-activiteit-overzicht-scroll">
                 <table class="avpvh-activiteit-overzicht-tabel">
                     <thead><tr>

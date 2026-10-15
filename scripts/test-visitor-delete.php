@@ -45,23 +45,23 @@ function wp_safe_redirect($url) { throw new Fixture_Controller_Result($url, 302)
 function check_admin_referer($action) {
     if (($_POST['_wpnonce'] ?? '') !== hash('sha256', $action . '-fixture')) { throw new Fixture_Controller_Result('nonce failed', 403); }
 }
-function add_action(...$args) {}
+function add_action(...$args) { /* Not needed in this test. */ }
 function user_can($user, $cap) { return $GLOBALS['privileged_users'][$user->ID] ?? false; }
 function get_current_user_id() { return 999; }
 function is_multisite() { return false; }
 function is_wp_error($v) { return $v instanceof WP_Error; }
-function wp_load_translations_early() {}
+function wp_load_translations_early() { /* Not needed in this test. */ }
 function wp_get_wp_version() { return '6.8'; }
 function wp_debug_backtrace_summary() { return ''; }
-function mbstring_binary_safe_encoding() {}
-function reset_mbstring_encoding() {}
+function mbstring_binary_safe_encoding() { /* Not needed in this test. */ }
+function reset_mbstring_encoding() { /* Not needed in this test. */ }
 function add_filter($name, $fn, $priority = 10) { $GLOBALS['filters'][$name][] = $fn; }
 function has_filter($name) { return !empty($GLOBALS['filters'][$name]); }
 function apply_filters($name, $value) {
     foreach ($GLOBALS['filters'][$name] ?? [] as $fn) { $value = $fn($value); }
     return $value;
 }
-function clean_user_cache($id) {}
+function clean_user_cache($id) { /* Not needed in this test. */ }
 function delete_transient($key) {
     global $wpdb;
     $wpdb->delete($wpdb->options, ['option_name' => '_transient_' . $key]);
@@ -107,7 +107,7 @@ class AVPVH_Directory {
         $wpdb->delete($wpdb->prefix . 'avm_directory_users', ['user_id' => $uid]);
         return true;
     }
-    public static function forget_groups($uid) {}
+    public static function forget_groups($uid) { /* Not needed in this test. */ }
 }
 class AVBK_Photo_Share { const ROOT_FOLDER_ID = 'fixture-upload-root'; }
 class Fixture_Files {

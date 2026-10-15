@@ -16,7 +16,7 @@ $recipient_count = $flag_id ? count(AVPVH_DB::get_members(['status' => 'active',
 $sent = isset($_GET['newsletter_sent']) ? (int) $_GET['newsletter_sent'] : null;
 $error = !empty($_GET['newsletter_error']);
 $member_count_str = sprintf(
-    _n('%s lid', '%s leden', $recipient_count, 'avpvh-members'),
+    /* translators: %s: number of members */ _n('%s lid', '%s leden', $recipient_count, 'avpvh-members'),
     number_format_i18n($recipient_count)
 );
 $confirm_msg = sprintf(

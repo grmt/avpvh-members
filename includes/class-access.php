@@ -233,7 +233,6 @@ class AVPVH_Access {
             'post_status'      => ['publish', 'private', 'draft', 'pending', 'future'],
             'numberposts'      => -1,
             'fields'           => 'ids',
-            'suppress_filters' => true,
         ]);
         foreach ($roots as $root_id) {
             $children = get_pages(['child_of' => $root_id, 'post_status' => 'publish,private,draft,pending,future']);

@@ -33,7 +33,7 @@ class AVPVH_Members_List_Table extends WP_List_Table {
             'email'       => __('E-mailadressen', 'avpvh-members'),
             'status'      => __('Status', 'avpvh-members'),
             'joined_year' => __('Lid sinds', 'avpvh-members'),
-            'fee_status'  => sprintf(__('Contributie %d', 'avpvh-members'), $this->current_year),
+            'fee_status'  => sprintf(/* translators: %d: year */ __('Contributie %d', 'avpvh-members'), $this->current_year),
             'activity_count' => __('Activiteiten', 'avpvh-members'),
             'flags'       => __('Kenmerken', 'avpvh-members'),
             'actions'     => '',

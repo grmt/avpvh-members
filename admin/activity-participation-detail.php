@@ -18,11 +18,11 @@ if (!$activity_id) {
 $activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
 if (!$activity) {
     wp_die(
-        sprintf(
+        wp_kses(sprintf(
             /* translators: %s: URL to activities page */
             __('Geen activiteit gevonden. Maak eerst een activiteit aan via <a href="%s">Activiteiten</a>.', 'avpvh-members'),
             esc_url(add_query_arg(['page' => 'avpvh-activity-participation'], admin_url('admin.php')))
-        )
+        ), ['a' => ['href' => []]])
     );
 }
 

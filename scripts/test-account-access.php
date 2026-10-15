@@ -28,7 +28,7 @@ $footer_callbacks = [];
 function add_action($hook, $callback, ...$args): void {
     if ($hook === 'wp_footer') $GLOBALS['footer_callbacks'][] = $callback;
 }
-function add_filter(...$args): void {}
+function add_filter(...$args): void { /* Not needed in this test. */ }
 function is_user_logged_in(): bool { return $GLOBALS['logged_in']; }
 function get_current_user_id(): int { return is_user_logged_in() ? 1 : 0; }
 function wp_get_current_user(): WP_User { return new WP_User(); }
@@ -68,7 +68,7 @@ function get_permalink($page): string { return home_url('/leden/beheer/member-pr
 function add_query_arg(string $name, string $value, string $url): string { return $url . '?' . urlencode($name) . '=' . urlencode($value); }
 function plugin_dir_url(string $path): string { return home_url('/plugin/'); }
 function avpvh_asset_version(string $path): string { return 'test'; }
-function wp_enqueue_script(...$args): void {}
+function wp_enqueue_script(...$args): void { /* Not needed in this test. */ }
 function wp_json_encode($value): string { return json_encode($value); }
 
 require dirname(__DIR__) . '/includes/class-access.php';

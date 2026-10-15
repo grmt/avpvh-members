@@ -1123,8 +1123,8 @@ msgstr "tous deux ont participé : la participation existante est conservée, co
 
 #: admin/merge-members.php:214
 #, php-format
-msgid "Contributie %s (%s)"
-msgstr "Cotisation %s (%s)"
+msgid "Contributie %1$s (%2$s)"
+msgstr "Cotisation %1$s (%2$s)"
 
 #: admin/merge-members.php:216
 msgid "deze vervangt de openstaande regel van het behouden lid"
@@ -1295,8 +1295,8 @@ msgstr "N'oubliez pas la Chambre de commerce (KVK) :"
 
 #: admin/roles.php:57
 #, php-format
-msgid "een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%s, via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het %s. Dit gaat niet automatisch."
-msgstr "un changement au sein du conseil d'administration doit être signalé dans un délai d'une semaine à la KVK (%s, via Mijn KVK ; les nouveaux membres du bureau signent avec DigiD), puis dans le %s. Cela ne se fait pas automatiquement."
+msgid "een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%1$s, via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het %2$s. Dit gaat niet automatisch."
+msgstr "un changement au sein du conseil d'administration doit être signalé dans un délai d'une semaine à la KVK (%1$s, via Mijn KVK ; les nouveaux membres du bureau signent avec DigiD), puis dans le %2$s. Cela ne se fait pas automatiquement."
 
 #: admin/roles.php:58
 msgid "bestuurswissel doorgeven"
@@ -1674,8 +1674,8 @@ msgstr "Erreur d'annuaire : %s"
 
 #: includes/class-admin.php:248
 #, php-format
-msgid "Gesynchroniseerd: %d accounts, %d verwijderd."
-msgstr "Synchronisé : %d comptes, %d supprimés."
+msgid "Gesynchroniseerd: %1$d accounts, %2$d verwijderd."
+msgstr "Synchronisé : %1$d comptes, %2$d supprimés."
 
 #: includes/class-admin.php:249
 #, php-format
@@ -1791,8 +1791,8 @@ msgstr "Cache"
 
 #: includes/class-admin.php:378
 #, php-format
-msgid "%d accounts, laatst volledig gesynchroniseerd: %s"
-msgstr "%d comptes, dernière synchronisation complète : %s"
+msgid "%1$d accounts, laatst volledig gesynchroniseerd: %2$s"
+msgstr "%1$d comptes, dernière synchronisation complète : %2$s"
 
 #: includes/class-admin.php:380
 msgid "nog nooit"
@@ -1881,15 +1881,15 @@ msgstr "AV Philips van Horne — confirmez votre adresse e-mail"
 #: includes/class-email-identity.php:80
 #, php-format
 msgid ""
-"Klik op deze link om %s te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n"
+"Klik op deze link om %1$s te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n"
 "\n"
-"%s\n"
+"%2$s\n"
 "\n"
 "Deze link is een uur geldig. Was jij dit niet? Dan hoef je niets te doen."
 msgstr ""
-"Cliquez sur ce lien pour associer %s comme adresse e-mail de connexion auprès d'AV Philips van Horne :\n"
+"Cliquez sur ce lien pour associer %1$s comme adresse e-mail de connexion auprès d'AV Philips van Horne :\n"
 "\n"
-"%s\n"
+"%2$s\n"
 "\n"
 "Ce lien est valable une heure. S'il ne s'agissait pas de vous, vous n'avez rien à faire."
 
@@ -2040,8 +2040,8 @@ msgstr "L'adresse e-mail du compte supprimé n'a pas pu être ajoutée comme adr
 
 #: includes/class-member-merge.php:393
 #, php-format
-msgid "De leden zijn samengevoegd, maar het account \"%s\" kon niet worden verwijderd: %s"
-msgstr "Les membres ont été fusionnés, mais le compte « %s » n'a pas pu être supprimé : %s"
+msgid "De leden zijn samengevoegd, maar het account \"%1$s\" kon niet worden verwijderd: %2$s"
+msgstr "Les membres ont été fusionnés, mais le compte « %1$s » n'a pas pu être supprimé : %2$s"
 
 #: includes/class-member-profile-form.php:23
 msgid "Log in om je profiel te bewerken."
@@ -2439,17 +2439,17 @@ msgstr "AV Philips van Horne — demande de vérification de l'adresse e-mail"
 #: includes/class-member-profile-form.php:1130
 #, php-format
 msgid ""
-"%s heeft dit e-mailadres (%s) toegevoegd aan jouw profiel bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n"
+"%1$s heeft dit e-mailadres (%2$s) toegevoegd aan jouw profiel bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n"
 "\n"
-"Alleen jij kunt dit zelf afronden — %s kan dit niet namens jou doen. Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n"
-"%s\n"
+"Alleen jij kunt dit zelf afronden — %3$s kan dit niet namens jou doen. Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n"
+"%4$s\n"
 "\n"
 "Was dit geen terecht verzoek? Dan hoef je niets te doen."
 msgstr ""
-"%s a ajouté cette adresse e-mail (%s) à votre profil auprès d'AV Philips van Horne et vous invite à la vérifier comme méthode de connexion.\n"
+"%1$s a ajouté cette adresse e-mail (%2$s) à votre profil auprès d'AV Philips van Horne et vous invite à la vérifier comme méthode de connexion.\n"
 "\n"
-"Vous seul pouvez finaliser cette démarche — %s ne peut pas le faire à votre place. Cliquez ci-dessous pour vérifier l'adresse et définir un mot de passe :\n"
-"%s\n"
+"Vous seul pouvez finaliser cette démarche — %3$s ne peut pas le faire à votre place. Cliquez ci-dessous pour vérifier l'adresse et définir un mot de passe :\n"
+"%4$s\n"
 "\n"
 "S'il ne s'agissait pas d'une demande légitime, vous n'avez rien à faire."
 
@@ -2476,29 +2476,29 @@ msgstr "AV Philips van Horne — identifiants de connexion modifiés"
 #: includes/class-member-profile-form.php:1238
 #, php-format
 msgid ""
-"Er is zojuist een %s (%s) %s bij het profiel van %s.\n"
+"Er is zojuist een %1$s (%2$s) %3$s bij het profiel van %4$s.\n"
 "\n"
 "Was jij dit niet? Neem dan contact op met het bestuur."
 msgstr ""
-"Un(e) %s (%s) vient d'être %s sur le profil de %s.\n"
+"Un(e) %1$s (%2$s) vient d'être %3$s sur le profil de %4$s.\n"
 "\n"
 "S'il ne s'agissait pas de vous, veuillez contacter le bureau."
 
 #: includes/class-member-profile-form.php:1248
 #, php-format
 msgid ""
-"Er is zojuist een %s (%s) %s bij jouw profiel door %s.\n"
+"Er is zojuist een %1$s (%2$s) %3$s bij jouw profiel door %4$s.\n"
 "\n"
 "Was jij dit niet? Neem dan contact op met het bestuur."
 msgstr ""
-"Un(e) %s (%s) vient d'être %s sur votre profil par %s.\n"
+"Un(e) %1$s (%2$s) vient d'être %3$s sur votre profil par %4$s.\n"
 "\n"
 "S'il ne s'agissait pas de vous, veuillez contacter le bureau."
 
 #: includes/class-member-profile-form.php:1266
 #, php-format
-msgid "Je verzoek is opgevolgd: er is zojuist een %s (%s) toegevoegd aan het profiel van %s."
-msgstr "Votre demande a été traitée : un(e) %s (%s) vient d'être ajouté(e) au profil de %s."
+msgid "Je verzoek is opgevolgd: er is zojuist een %1$s (%2$s) toegevoegd aan het profiel van %3$s."
+msgstr "Votre demande a été traitée : un(e) %1$s (%2$s) vient d'être ajouté(e) au profil de %3$s."
 
 #: includes/class-member-profile-form.php:1348 includes/class-nav-auth.php:107
 msgid "Gebruiker"

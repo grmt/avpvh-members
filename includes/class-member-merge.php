@@ -165,7 +165,7 @@ class AVPVH_Member_Merge {
             $full = AVPVH_DB::get_member((int) $member->id);
             $groups = AVPVH_Directory::get_user_groups((string) $member->lldap_user_id);
             if (is_wp_error($groups)) {
-                $warnings[] = sprintf(__('De groepen van %s konden niet worden opgehaald.', 'avpvh-members'), avpvh_format_name($member));
+                $warnings[] = sprintf(/* translators: %s: member name */ __('De groepen van %s konden niet worden opgehaald.', 'avpvh-members'), avpvh_format_name($member));
                 $groups = [];
             }
             $accounts[$side] = [
@@ -178,7 +178,7 @@ class AVPVH_Member_Merge {
         $missing_groups = array_values(array_diff($accounts['remove']['groups'], $accounts['keep']['groups']));
         if ($missing_groups) {
             $warnings[] = sprintf(
-                __('Het lid dat verdwijnt zit in groepen die het behouden lid niet heeft: %s. Die worden niet overgenomen — voeg ze zo nodig daarna toe via Ledendetail.', 'avpvh-members'),
+                /* translators: %s: comma-separated group names */ __('Het lid dat verdwijnt zit in groepen die het behouden lid niet heeft: %s. Die worden niet overgenomen — voeg ze zo nodig daarna toe via Ledendetail.', 'avpvh-members'),
                 implode(', ', $missing_groups)
             );
         }
@@ -375,7 +375,7 @@ class AVPVH_Member_Merge {
             $wpdb->query('COMMIT');
         } catch (\Throwable $exception) {
             $wpdb->query('ROLLBACK');
-            return new \WP_Error('failed', sprintf(__('Samenvoegen afgebroken, er is niets gewijzigd: %s', 'avpvh-members'), $exception->getMessage()));
+            return new \WP_Error('failed', sprintf(/* translators: %s: error message */ __('Samenvoegen afgebroken, er is niets gewijzigd: %s', 'avpvh-members'), $exception->getMessage()));
         }
 
         $warnings = [];
@@ -397,7 +397,7 @@ class AVPVH_Member_Merge {
             $result = AVPVH_Directory::delete_user($remove_account['uid']);
             if (is_wp_error($result)) {
                 $warnings[] = sprintf(
-                    __('De leden zijn samengevoegd, maar het account "%s" kon niet worden verwijderd: %s', 'avpvh-members'),
+                    /* translators: 1: account name, 2: error message */ __('De leden zijn samengevoegd, maar het account "%1$s" kon niet worden verwijderd: %2$s', 'avpvh-members'),
                     $remove_account['uid'],
                     $result->get_error_message()
                 );
@@ -569,7 +569,7 @@ class AVPVH_Member_Merge {
         return $columns;
     }
 
-    // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table/$column come from fixed names or information_schema, never from request input
+    // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table/$column come from fixed names or information_schema, never from request input
     private static function count(string $table, string $column, int $id): int {
         global $wpdb;
         return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `$table` WHERE `$column` = %d", $id));
@@ -579,15 +579,15 @@ class AVPVH_Member_Merge {
         global $wpdb;
         $result = $wpdb->query($wpdb->prepare("UPDATE `$table` SET `$column` = %d WHERE `$column` = %d", $to, $from));
         if ($result === false) {
-            throw new \RuntimeException("$table.$column kon niet worden overgezet ({$wpdb->last_error})");
+            throw new \RuntimeException("$table.$column kon niet worden overgezet ({$wpdb->last_error})"); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
     }
-    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
     private static function check(int|bool|null $result, string $step): void {
         global $wpdb;
         if ($result === false) {
-            throw new \RuntimeException("$step mislukt ({$wpdb->last_error})");
+            throw new \RuntimeException("$step mislukt ({$wpdb->last_error})"); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
     }
 

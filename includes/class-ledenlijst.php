@@ -72,12 +72,12 @@ class AVPVH_Ledenlijst {
             <?php endif; ?>
             <p class="avpvh-ledenlijst-uitleg">
                 <?php
-                printf(
+                echo wp_kses(sprintf(
                     /* translators: 1: privacy policy URL, 2: profile page URL */
                     __('Deze lijst wordt gedeeld met alle ingelogde actieve leden, zoals beschreven in de <a href="%1$s" target="_blank" rel="noopener">privacyverklaring</a>. Je kunt via <a href="%2$s">je profiel</a> losse gegevens afschermen of je gegevens volledig verbergen.', 'avpvh-members'),
-                    'https://www.avphilipsvanhorne.nl/wp-content/uploads/public/2024/04/Privacy-Verklaring.pdf',
+                    esc_url('https://www.avphilipsvanhorne.nl/wp-content/uploads/public/2024/04/Privacy-Verklaring.pdf'),
                     esc_url(home_url('/member-profile/'))
-                );
+                ), ['a' => ['href' => [], 'target' => [], 'rel' => []]]);
                 ?>
             </p>
 

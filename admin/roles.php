@@ -3,7 +3,7 @@ defined('ABSPATH') || exit;
 // phpcs:disable WordPress.Security.NonceVerification.Recommended -- the only request data read on this page are the notice flags (delegate_ok, appoint_ok, ...) set by this plugin's own admin-post redirects, to choose which message to show; every action itself is a nonce-checked admin-post handler in AVPVH_Admin
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!AVPVH_Roles::can_view_roles_page()) {
-    wp_die(__('Geen toegang.', 'avpvh-members'));
+    wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
 }
 $can_manage_delegations = AVPVH_Roles::can_manage_roles();
 
@@ -27,7 +27,7 @@ $role_label = AVPVH_Roles::get_role_labels();
         <div class="notice notice-success"><p><?php esc_html_e('Delegatie ingetrokken.', 'avpvh-members'); ?></p></div>
     <?php elseif (isset($_GET['appoint_ok'])) :
         $appointed_role = sanitize_key(wp_unslash($_GET['appoint_ok'])); ?>
-        <div class="notice notice-success"><p><?php echo esc_html(sprintf(__('Nieuwe %s aangewezen.', 'avpvh-members'), strtolower($role_label[$appointed_role] ?? __('functionaris', 'avpvh-members')))); ?></p></div>
+        <div class="notice notice-success"><p><?php echo esc_html(sprintf(/* translators: %s: board role, e.g. secretaris */ __('Nieuwe %s aangewezen.', 'avpvh-members'), strtolower($role_label[$appointed_role] ?? __('functionaris', 'avpvh-members')))); ?></p></div>
     <?php elseif (isset($_GET['bestuur_added'])) : ?>
         <div class="notice notice-success"><p><?php esc_html_e('Bestuurslid toegevoegd.', 'avpvh-members'); ?></p></div>
     <?php elseif (isset($_GET['bestuur_removed'])) : ?>
@@ -37,12 +37,12 @@ $role_label = AVPVH_Roles::get_role_labels();
     <?php elseif (isset($_GET['self_delegate_ok'])) : ?>
         <div class="notice notice-success"><p><?php esc_html_e('Je bent tijdelijk secretaris tot de gekozen einddatum.', 'avpvh-members'); ?></p></div>
     <?php elseif (isset($_GET['self_delegate_error'])) : ?>
-        <div class="notice notice-error"><p><?php echo esc_html(sprintf(__('Tijdelijk secretaris worden is niet gelukt: kies een einddatum in de toekomst, uiterlijk %d dagen vanaf nu.', 'avpvh-members'), (int) AVPVH_Roles::SELF_DELEGATION_MAX_HOURS / 24)); ?></p></div>
+        <div class="notice notice-error"><p><?php echo esc_html(sprintf(/* translators: %d: maximum number of days */ __('Tijdelijk secretaris worden is niet gelukt: kies een einddatum in de toekomst, uiterlijk %d dagen vanaf nu.', 'avpvh-members'), (int) AVPVH_Roles::SELF_DELEGATION_MAX_HOURS / 24)); ?></p></div>
     <?php elseif (isset($_GET['appoint_needs_exception'])) : ?>
         <div class="notice notice-error"><p><?php esc_html_e('Dit lid is geen bestuurslid. Wil je toch iemand buiten het bestuur aanwijzen, vink dan "Lid is geen bestuurslid (uitzondering)" aan.', 'avpvh-members'); ?></p></div>
     <?php elseif (isset($_GET['step_down_ok'])) :
         $stepped_role = sanitize_key(wp_unslash($_GET['step_down_ok'])); ?>
-        <div class="notice notice-warning"><p><?php echo esc_html(sprintf(__('Functie %s neergelegd; diegene blijft bestuurslid. De functie is nu niet ingevuld tot er iemand wordt aangewezen.', 'avpvh-members'), strtolower($role_label[$stepped_role] ?? ''))); ?></p></div>
+        <div class="notice notice-warning"><p><?php echo esc_html(sprintf(/* translators: %s: board role, e.g. secretaris */ __('Functie %s neergelegd; diegene blijft bestuurslid. De functie is nu niet ingevuld tot er iemand wordt aangewezen.', 'avpvh-members'), strtolower($role_label[$stepped_role] ?? ''))); ?></p></div>
     <?php elseif (isset($_GET['step_down_error'])) : ?>
         <div class="notice notice-error"><p><?php esc_html_e('Aftreden is niet gelukt; neem contact op met de beheerder.', 'avpvh-members'); ?></p></div>
     <?php elseif (isset($_GET['appoint_error'])) : ?>
@@ -54,7 +54,7 @@ $role_label = AVPVH_Roles::get_role_labels();
             <p>
                 <strong><?php esc_html_e('Vergeet de KVK niet:', 'avpvh-members'); ?></strong>
                 <?php printf(
-                    esc_html__('een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%s, via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het %s. Dit gaat niet automatisch.', 'avpvh-members'),
+                    /* translators: 1: link to the KVK form, 2: link to the UBO register */ esc_html__('een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%1$s, via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het %2$s. Dit gaat niet automatisch.', 'avpvh-members'),
                     '<a href="https://www.kvk.nl/wijzigen/bestuurswissel-stichting-of-vereniging/" target="_blank" rel="noopener">' . esc_html__('bestuurswissel doorgeven', 'avpvh-members') . '</a>',
                     '<a href="https://www.kvk.nl/veilig-zakendoen/bestuurswissel-pas-de-ubo-registratie-aan/" target="_blank" rel="noopener">' . esc_html__('UBO-register', 'avpvh-members') . '</a>'
                 ); ?>
@@ -107,7 +107,7 @@ $role_label = AVPVH_Roles::get_role_labels();
         $self_max = wp_date('Y-m-d\TH:i', time() + AVPVH_Roles::SELF_DELEGATION_MAX_HOURS * HOUR_IN_SECONDS); ?>
     <details class="avpvh-roles-section">
         <summary><h2><?php esc_html_e('Tijdelijk secretaris (penningmeester)', 'avpvh-members'); ?></h2></summary>
-        <p class="description"><?php echo esc_html(sprintf(__('Als penningmeester kun je jezelf tijdelijk de rechten van de secretaris geven, voor maximaal %d dagen. Langer of voor iemand anders gaat via de voorzitter.', 'avpvh-members'), (int) AVPVH_Roles::SELF_DELEGATION_MAX_HOURS / 24)); ?></p>
+        <p class="description"><?php echo esc_html(sprintf(/* translators: %d: maximum number of days */ __('Als penningmeester kun je jezelf tijdelijk de rechten van de secretaris geven, voor maximaal %d dagen. Langer of voor iemand anders gaat via de voorzitter.', 'avpvh-members'), (int) AVPVH_Roles::SELF_DELEGATION_MAX_HOURS / 24)); ?></p>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <?php wp_nonce_field('avpvh_self_delegate_secretaris'); ?>
             <input type="hidden" name="action" value="avpvh_self_delegate_secretaris">

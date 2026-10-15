@@ -2,7 +2,7 @@
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!AVPVH_Roles::can_manage_members()) {
-    wp_die(__('Geen toegang.', 'avpvh-members'));
+    wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
 }
 
 // A duplicate-name warning survives one redirect via a short-lived
@@ -42,7 +42,7 @@ if ($pending) {
                 <?php elseif ($err === 'geboortedatum') : ?>
                     <?php esc_html_e('Ongeldige geboortedatum. Vul een volledige datum in (JJJJ-MM-DD) of alleen een geboortejaar (JJJJ).', 'avpvh-members'); ?>
                 <?php elseif ($err === 'lldap') : ?>
-                    <?php echo esc_html(sprintf(__('Aanmaken van het account is mislukt: %s', 'avpvh-members'), rawurldecode(wp_unslash($_GET['add_member_error_message'] ?? '')))); ?>
+                    <?php echo esc_html(sprintf(/* translators: %s: error message from the directory */ __('Aanmaken van het account is mislukt: %s', 'avpvh-members'), rawurldecode(wp_unslash($_GET['add_member_error_message'] ?? '')))); ?>
                 <?php endif; ?>
             </p>
         </div>
@@ -59,7 +59,7 @@ if ($pending) {
                         <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $m->id], admin_url('admin.php'))); ?>" target="_blank">
                             <?php echo esc_html(avpvh_format_name($m, 'list_suffix')); ?>
                         </a>
-                        (status: <?php echo esc_html(AVPVH_Roles::get_status_label($m->status)); ?><?php echo $m->matched_via !== '' ? esc_html(sprintf(__(', via naamvariant %s', 'avpvh-members'), $m->matched_via)) : ''; ?>)
+                        (status: <?php echo esc_html(AVPVH_Roles::get_status_label($m->status)); ?><?php echo $m->matched_via !== '' ? esc_html(sprintf(/* translators: %s: the name variant that matched */ __(', via naamvariant %s', 'avpvh-members'), $m->matched_via)) : ''; ?>)
                     </li>
                 <?php endforeach; ?>
             </ul>

@@ -347,22 +347,22 @@ class AVPVH_Admin {
             <?php if ($test_result === true) : ?>
                 <div class="notice notice-success"><p><?php esc_html_e('LLDAP-verbinding OK.', 'avpvh-members'); ?></p></div>
             <?php elseif (is_wp_error($test_result)) : ?>
-                <div class="notice notice-error"><p><?php echo esc_html(sprintf(__('LLDAP-fout: %s', 'avpvh-members'), $test_result->get_error_message())); ?></p></div>
+                <div class="notice notice-error"><p><?php echo esc_html(sprintf(/* translators: %s: error message */ __('LLDAP-fout: %s', 'avpvh-members'), $test_result->get_error_message())); ?></p></div>
             <?php endif; ?>
             <?php if ($directory_test === true) : ?>
                 <div class="notice notice-success"><p><?php esc_html_e('Directory-verbinding OK.', 'avpvh-members'); ?></p></div>
             <?php elseif (is_wp_error($directory_test)) : ?>
-                <div class="notice notice-error"><p><?php echo esc_html(sprintf(__('Directory-fout: %s', 'avpvh-members'), $directory_test->get_error_message())); ?></p></div>
+                <div class="notice notice-error"><p><?php echo esc_html(sprintf(/* translators: %s: error message */ __('Directory-fout: %s', 'avpvh-members'), $directory_test->get_error_message())); ?></p></div>
             <?php endif; ?>
             <?php if (is_array($directory_sync)) : ?>
                 <div class="notice notice-<?php echo $directory_sync['ok'] ? 'success' : 'error'; ?>"><p>
                     <?php echo $directory_sync['ok']
-                        ? esc_html(sprintf(__('Gesynchroniseerd: %d accounts, %d verwijderd.', 'avpvh-members'), $directory_sync['upserted'], $directory_sync['deleted']))
-                        : esc_html(sprintf(__('Synchroniseren mislukt: %s', 'avpvh-members'), $directory_sync['error'])); ?>
+                        ? esc_html(sprintf(/* translators: 1: accounts synchronised, 2: accounts removed */ __('Gesynchroniseerd: %1$d accounts, %2$d verwijderd.', 'avpvh-members'), $directory_sync['upserted'], $directory_sync['deleted']))
+                        : esc_html(sprintf(/* translators: %s: error message */ __('Synchroniseren mislukt: %s', 'avpvh-members'), $directory_sync['error'])); ?>
                 </p></div>
             <?php endif; ?>
             <?php if ($oauth_test === 'ok') : ?>
-                <div class="notice notice-success"><p><?php echo esc_html(sprintf(__('%s credentials OK — client ID en secret zijn geldig.', 'avpvh-members'), ucfirst($oauth_test_provider))); ?></p></div>
+                <div class="notice notice-success"><p><?php echo esc_html(sprintf(/* translators: %s: login provider, e.g. Google */ __('%s credentials OK — client ID en secret zijn geldig.', 'avpvh-members'), ucfirst($oauth_test_provider))); ?></p></div>
             <?php elseif ($oauth_test === 'fail') : ?>
                 <div class="notice notice-error"><p>
                     <?php if ($oauth_test_provider === 'google') : ?>
@@ -371,7 +371,7 @@ class AVPVH_Admin {
                         <?php esc_html_e('Microsoft credentials ongeldig — controleer de client ID en secret in de Azure portal.', 'avpvh-members'); ?>
                     <?php endif; ?>
                     <?php if (!empty($_GET['oauth_error'])) : ?>
-                        <br><small><?php echo esc_html(sprintf(__('Fout: %s', 'avpvh-members'), sanitize_text_field(wp_unslash($_GET['oauth_error'])))); ?></small>
+                        <br><small><?php echo esc_html(sprintf(/* translators: %s: error message */ __('Fout: %s', 'avpvh-members'), sanitize_text_field(wp_unslash($_GET['oauth_error'])))); ?></small>
                     <?php endif; ?>
                 </p></div>
             <?php endif; ?>
@@ -446,7 +446,7 @@ class AVPVH_Admin {
                         <td><?php echo $flag->sets_inactive ? esc_html__('Ja', 'avpvh-members') : esc_html__('Nee', 'avpvh-members'); ?></td>
                         <td>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                onsubmit="return confirm('<?php echo esc_js(sprintf(__('Kenmerk "%s" verwijderen? Dit haalt het ook weg bij alle leden die het hebben.', 'avpvh-members'), $flag->label)); ?>');">
+                                onsubmit="return confirm('<?php echo esc_js(sprintf(/* translators: %s: flag name */ __('Kenmerk "%s" verwijderen? Dit haalt het ook weg bij alle leden die het hebben.', 'avpvh-members'), $flag->label)); ?>');">
                                 <?php wp_nonce_field('avpvh_delete_flag'); ?>
                                 <input type="hidden" name="action" value="avpvh_delete_flag">
                                 <input type="hidden" name="flag_id" value="<?php echo esc_attr($flag->id); ?>">
@@ -487,7 +487,7 @@ class AVPVH_Admin {
                 <?php if (AVPVH_Directory::is_openldap()) : ?>
                     <tr><th><?php esc_html_e('Cache', 'avpvh-members'); ?></th><td>
                         <?php echo esc_html(sprintf(
-                            __('%d accounts, laatst volledig gesynchroniseerd: %s', 'avpvh-members'),
+                            /* translators: 1: number of accounts, 2: date and time of the last full sync */ __('%1$d accounts, laatst volledig gesynchroniseerd: %2$s', 'avpvh-members'),
                             (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . AVPVH_Directory_Cache::table()), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
                             get_option('avpvh_directory_synced_at') ?: __('nog nooit', 'avpvh-members')
                         )); ?>
@@ -530,7 +530,7 @@ class AVPVH_Admin {
     public function handle_save_settings(): void {
         check_admin_referer('avpvh_save_settings');
         if (!current_user_can('manage_options')) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         update_option('avpvh_oauth_google_client_id',         sanitize_text_field(wp_unslash($_POST['oauth_google_client_id'] ?? '')));
         update_option('avpvh_oauth_google_client_secret',     sanitize_text_field(wp_unslash($_POST['oauth_google_client_secret'] ?? '')));
@@ -543,11 +543,11 @@ class AVPVH_Admin {
     public function handle_test_oauth(): void {
         $provider = sanitize_text_field(wp_unslash($_GET['provider'] ?? ''));
         if (!in_array($provider, ['google', 'microsoft'], true)) {
-            wp_die(__('Onbekende provider.', 'avpvh-members'), 400);
+            wp_die(esc_html__('Onbekende provider.', 'avpvh-members'), 400);
         }
         check_admin_referer('avpvh_test_oauth_' . $provider);
         if (!current_user_can('manage_options')) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $client_id     = get_option('avpvh_oauth_' . $provider . '_client_id');
@@ -600,7 +600,7 @@ class AVPVH_Admin {
     public function handle_mark_fee_paid(): void {
         check_admin_referer('avpvh_mark_fee_paid');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         $fee_id    = absint(wp_unslash($_POST['fee_id'] ?? 0));
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -622,7 +622,7 @@ class AVPVH_Admin {
     public function handle_add_identity(): void {
         check_admin_referer('avpvh_add_identity');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -650,7 +650,7 @@ class AVPVH_Admin {
     public function handle_delete_identity(): void {
         check_admin_referer('avpvh_delete_identity');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -677,7 +677,7 @@ class AVPVH_Admin {
     public function handle_primary_identity(): void {
         check_admin_referer('avpvh_primary_identity');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -692,7 +692,7 @@ class AVPVH_Admin {
             if ($member && (int) $identity->id === $identity_id) {
                 $result = AVPVH_Directory::update_user($member->lldap_user_id, ['mail' => $identity->email]);
                 if (is_wp_error($result)) {
-                    error_log("AVPVH_Admin: failed to sync primary identity ({$identity->email}) to the directory for member {$member_id}: " . $result->get_error_message());
+                    error_log("AVPVH_Admin: failed to sync primary identity to the directory for member {$member_id}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
                 }
                 break;
             }
@@ -705,7 +705,7 @@ class AVPVH_Admin {
     public function handle_save_member_flags(): void {
         check_admin_referer('avpvh_save_member_flags');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -730,7 +730,7 @@ class AVPVH_Admin {
     public function handle_create_flag(): void {
         check_admin_referer('avpvh_create_flag');
         if (!current_user_can('manage_options')) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $label         = sanitize_text_field(wp_unslash($_POST['label'] ?? ''));
@@ -745,7 +745,7 @@ class AVPVH_Admin {
     public function handle_delete_flag(): void {
         check_admin_referer('avpvh_delete_flag');
         if (!current_user_can('manage_options')) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $flag_id = absint(wp_unslash($_POST['flag_id'] ?? 0));
@@ -768,7 +768,7 @@ class AVPVH_Admin {
     public function handle_send_newsletter(): void {
         check_admin_referer('avpvh_send_newsletter');
         if (!AVPVH_Roles::can_send_newsletter()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $subject = sanitize_text_field(wp_unslash($_POST['subject'] ?? ''));
@@ -803,7 +803,7 @@ class AVPVH_Admin {
     public function handle_update_address(): void {
         check_admin_referer('avpvh_update_address');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -827,7 +827,7 @@ class AVPVH_Admin {
     public function handle_update_email(): void {
         check_admin_referer('avpvh_update_email');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -835,7 +835,7 @@ class AVPVH_Admin {
         $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
 
         if (!$member) {
-            wp_die(__('Lid niet gevonden.', 'avpvh-members'), __('Fout', 'avpvh-members'), ['response' => 404]);
+            wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
         if ($email !== '' && !is_email($email)) {
@@ -869,13 +869,13 @@ class AVPVH_Admin {
     public function handle_save_groups(): void {
         check_admin_referer('avpvh_save_groups');
         if (!current_user_can('manage_options')) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
         if (!$member) {
-            wp_die(__('Lid niet gevonden.', 'avpvh-members'), __('Fout', 'avpvh-members'), ['response' => 404]);
+            wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
         $all_groups     = AVPVH_Directory::list_groups();
@@ -897,14 +897,14 @@ class AVPVH_Admin {
             $result = AVPVH_Directory::add_to_group($member->lldap_user_id, $group);
             if (is_wp_error($result)) {
                 $had_error = true;
-                error_log("AVPVH_Admin: failed to add member {$member_id} to group {$group}: " . $result->get_error_message());
+                error_log("AVPVH_Admin: failed to add member {$member_id} to group {$group}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             }
         }
         foreach (array_diff($current, $selected) as $group) {
             $result = AVPVH_Directory::remove_from_group($member->lldap_user_id, $group);
             if (is_wp_error($result)) {
                 $had_error = true;
-                error_log("AVPVH_Admin: failed to remove member {$member_id} from group {$group}: " . $result->get_error_message());
+                error_log("AVPVH_Admin: failed to remove member {$member_id} from group {$group}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             }
         }
 
@@ -920,7 +920,7 @@ class AVPVH_Admin {
     public function handle_merge_members(): void {
         check_admin_referer('avpvh_merge_members');
         if (!current_user_can('manage_options')) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $keep_id     = absint(wp_unslash($_POST['keep'] ?? 0));
@@ -962,7 +962,7 @@ class AVPVH_Admin {
     public function handle_delete_address(): void {
         check_admin_referer('avpvh_delete_address');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
@@ -976,7 +976,7 @@ class AVPVH_Admin {
     public function handle_save_name_alias(): void {
         check_admin_referer('avpvh_save_name_alias');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $fields = [];
@@ -995,7 +995,7 @@ class AVPVH_Admin {
     public function handle_delete_name_alias(): void {
         check_admin_referer('avpvh_delete_name_alias');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         AVPVH_DB::delete_name_alias(absint(wp_unslash($_POST['id'] ?? 0)), $member_id);
@@ -1017,7 +1017,7 @@ class AVPVH_Admin {
     public function handle_add_member(): void {
         check_admin_referer('avpvh_add_member');
         if (!$this->can_manage_members()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $first_name = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
@@ -1114,13 +1114,13 @@ class AVPVH_Admin {
     public function handle_save_participation(): void {
         check_admin_referer('avpvh_save_participation');
         if (!AVPVH_Roles::can_manage_activities()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
         $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
         if (!$activity_id || !$member_id) {
-            wp_die(__('Activiteit of lid ontbreekt.', 'avpvh-members'), 400);
+            wp_die(esc_html__('Activiteit of lid ontbreekt.', 'avpvh-members'), 400);
         }
 
         $days = [];
@@ -1172,13 +1172,13 @@ class AVPVH_Admin {
     public function handle_create_activity(): void {
         check_admin_referer('avpvh_create_activity');
         if (!AVPVH_Roles::can_manage_activities()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $name = sanitize_text_field(wp_unslash($_POST['name'] ?? ''));
         $year = absint(wp_unslash($_POST['year'] ?? 0));
         if ($name === '' || !$year) {
-            wp_die(__('Naam en jaar zijn verplicht.', 'avpvh-members'), 400);
+            wp_die(esc_html__('Naam en jaar zijn verplicht.', 'avpvh-members'), 400);
         }
 
         $activity_id = AVPVH_DB::get_or_create_activity(
@@ -1199,7 +1199,7 @@ class AVPVH_Admin {
     public function handle_save_activity(): void {
         check_admin_referer('avpvh_save_activity');
         if (!AVPVH_Roles::can_manage_activities()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
@@ -1226,7 +1226,7 @@ class AVPVH_Admin {
     public function handle_save_activity_types(): void {
         check_admin_referer('avpvh_save_activity_types');
         if (!AVPVH_Roles::can_manage_activities()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         foreach ((array) wp_unslash($_POST['type_name'] ?? []) as $id => $name) {
@@ -1248,13 +1248,13 @@ class AVPVH_Admin {
     public function handle_export_activity_participation(): void {
         check_admin_referer('avpvh_export_activity_participation');
         if (!AVPVH_Roles::can_manage_activities()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $activity_id = absint(wp_unslash($_GET['activity_id'] ?? 0));
         $activity = AVPVH_DB::get_activity($activity_id);
         if (!$activity) {
-            wp_die(__('Activiteit niet gevonden.', 'avpvh-members'), 404);
+            wp_die(esc_html__('Activiteit niet gevonden.', 'avpvh-members'), 404);
         }
 
         require_once AVPVH_PLUGIN_DIR . 'includes/class-activity-participation-export.php';
@@ -1272,7 +1272,7 @@ class AVPVH_Admin {
     public function handle_delegate_role(): void {
         check_admin_referer('avpvh_delegate_role');
         if (!$this->can_manage_roles()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $by_member = avpvh_get_member_by_wp_user(get_current_user_id());
@@ -1327,7 +1327,7 @@ class AVPVH_Admin {
     public function handle_appoint_officer(): void {
         check_admin_referer('avpvh_appoint_officer');
         if (!AVPVH_Roles::can_appoint_officers()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $role          = sanitize_key(wp_unslash($_POST['role'] ?? ''));
@@ -1346,7 +1346,7 @@ class AVPVH_Admin {
 
         $result = AVPVH_Roles::appoint_officer($role, $to_member_id);
         if (is_wp_error($result)) {
-            error_log("AVPVH_Admin: appointing {$role} failed: " . $result->get_error_message());
+            error_log("AVPVH_Admin: appointing {$role} failed: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
         }
         wp_safe_redirect(add_query_arg(
             ['page' => 'avpvh-roles', is_wp_error($result) ? 'appoint_error' : 'appoint_ok' => $role],
@@ -1358,7 +1358,7 @@ class AVPVH_Admin {
     public function handle_self_delegate_secretaris(): void {
         check_admin_referer('avpvh_self_delegate_secretaris');
         if (!AVPVH_Roles::can_self_delegate_secretaris()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         $me  = avpvh_get_member_by_wp_user(get_current_user_id());
         $raw = sanitize_text_field(wp_unslash($_POST['ends_at'] ?? ''));
@@ -1380,11 +1380,11 @@ class AVPVH_Admin {
         $role      = sanitize_key(wp_unslash($_POST['role'] ?? ''));
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         if (!AVPVH_Roles::can_step_down($role, $member_id)) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         $result = AVPVH_Roles::step_down($role, $member_id);
         if (is_wp_error($result)) {
-            error_log("AVPVH_Admin: stepping down as {$role} failed: " . $result->get_error_message());
+            error_log("AVPVH_Admin: stepping down as {$role} failed: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
         }
         wp_safe_redirect(add_query_arg(
             ['page' => 'avpvh-roles', is_wp_error($result) ? 'step_down_error' : 'step_down_ok' => $role],
@@ -1396,14 +1396,14 @@ class AVPVH_Admin {
     public function handle_set_bestuur(): void {
         check_admin_referer('avpvh_set_bestuur');
         if (!AVPVH_Roles::can_appoint_officers()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $add       = sanitize_key(wp_unslash($_POST['op'] ?? '')) === 'add';
         $result    = $member_id ? AVPVH_Roles::set_bestuur_member($member_id, $add) : new \WP_Error('avpvh_no_member', 'Geen lid gekozen.');
         if (is_wp_error($result)) {
-            error_log('AVPVH_Admin: changing bestuur failed: ' . $result->get_error_message());
+            error_log('AVPVH_Admin: changing bestuur failed: ' . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
         }
         wp_safe_redirect(add_query_arg(
             ['page' => 'avpvh-roles', is_wp_error($result) ? 'bestuur_error' : ($add ? 'bestuur_added' : 'bestuur_removed') => '1'],
@@ -1415,7 +1415,7 @@ class AVPVH_Admin {
     public function handle_revoke_delegation(): void {
         check_admin_referer('avpvh_revoke_delegation');
         if (!$this->can_manage_roles()) {
-            wp_die(__('Geen toegang.', 'avpvh-members'), 403);
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
         AVPVH_Roles::revoke_delegation(absint(wp_unslash($_POST['delegation_id'] ?? 0)));

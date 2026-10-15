@@ -2,7 +2,7 @@
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
 if (!current_user_can('manage_options')) {
-    wp_die(__('Geen toegang.', 'avpvh-members'));
+    wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
 }
 
 $keep_id   = absint(wp_unslash($_GET['keep'] ?? 0));
@@ -236,7 +236,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                                     <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('Geen overlap met bekende periodes.', 'avpvh-members'); ?></span>
                                 <?php else : ?>
                                     <span class="avpvh-address-fit avpvh-address-fit--warning">
-                                        <?php echo esc_html(sprintf(_n('Overlapt met %d bekende periode:', 'Overlapt met %d bekende periodes:', count($overlaps), 'avpvh-members'), count($overlaps))); ?>
+                                        <?php echo esc_html(sprintf(/* translators: %d: number of overlapping periods */ _n('Overlapt met %d bekende periode:', 'Overlapt met %d bekende periodes:', count($overlaps), 'avpvh-members'), count($overlaps))); ?>
                                     </span>
                                     <ul class="avpvh-address-overlaps">
                                         <?php foreach ($overlaps as $overlap) : ?>
@@ -275,7 +275,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
             <ul style="list-style: disc; margin-left: 1.5rem;">
                 <?php foreach ($preview['participation'] as $row) : ?>
                     <li>
-                        <?php echo esc_html(sprintf(__('Activiteit %s', 'avpvh-members'), $row['name'])); ?>
+                        <?php echo esc_html(sprintf(/* translators: %s: activity name */ __('Activiteit %s', 'avpvh-members'), $row['name'])); ?>
                         <?php if ($row['conflict']) : ?>
                             — <em><?php esc_html_e('beiden deden mee: de bestaande deelname blijft, aangevuld met ontbrekende gegevens en dagen', 'avpvh-members'); ?></em>
                         <?php endif; ?>
@@ -283,7 +283,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                 <?php endforeach; ?>
                 <?php foreach ($preview['fees'] as $fee) : ?>
                     <li>
-                        <?php echo esc_html(sprintf(__('Contributie %s (%s)', 'avpvh-members'), $fee['year'], $fee['status'] === 'paid' ? __('Betaald', 'avpvh-members') : ($fee['status'] === 'unpaid' ? __('Openstaand', 'avpvh-members') : $fee['status']))); ?>
+                        <?php echo esc_html(sprintf(/* translators: 1: year, 2: fee status */ __('Contributie %1$s (%2$s)', 'avpvh-members'), $fee['year'], $fee['status'] === 'paid' ? __('Betaald', 'avpvh-members') : ($fee['status'] === 'unpaid' ? __('Openstaand', 'avpvh-members') : $fee['status']))); ?>
                         <?php if ($fee['conflict']) : ?>
                             — <em><?php echo $fee['wins'] ? esc_html__('deze vervangt de openstaande regel van het behouden lid', 'avpvh-members') : esc_html__('de regel van het behouden lid blijft, deze vervalt', 'avpvh-members'); ?></em>
                         <?php endif; ?>
@@ -330,7 +330,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                             <?php foreach ($group as $m) : ?>
                                 <a href="<?php echo esc_url($detail_url((int) $m->id)); ?>" target="_blank"><?php echo esc_html($option_label($m)); ?></a>
                                 <?php if ($m->matched_via !== '') : ?>
-                                    <em>(<?php echo esc_html(sprintf(__('via naamvariant %s', 'avpvh-members'), $m->matched_via)); ?>)</em>
+                                    <em>(<?php echo esc_html(sprintf(/* translators: %s: the name variant that matched */ __('via naamvariant %s', 'avpvh-members'), $m->matched_via)); ?>)</em>
                                 <?php endif; ?>
                                 <br>
                             <?php endforeach; ?>

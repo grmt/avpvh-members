@@ -1123,8 +1123,8 @@ msgstr "béid hu matgemaach: déi existent Deelnam bleift, ergänzt mat feelende
 
 #: admin/merge-members.php:214
 #, php-format
-msgid "Contributie %s (%s)"
-msgstr "Bäitrag %s (%s)"
+msgid "Contributie %1$s (%2$s)"
+msgstr "Bäitrag %1$s (%2$s)"
 
 #: admin/merge-members.php:216
 msgid "deze vervangt de openstaande regel van het behouden lid"
@@ -1295,8 +1295,8 @@ msgstr "Vergiess d'KVK net:"
 
 #: admin/roles.php:57
 #, php-format
-msgid "een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%s, via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het %s. Dit gaat niet automatisch."
-msgstr "e Wiessel am Comité muss bannent enger Woch un d'KVK gemellt ginn (%s, iwwer Mijn KVK; nei Comitésmembere ënnerschreiwe mat DigiD), an duerno am %s. Dëst geschitt net automatesch."
+msgid "een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%1$s, via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het %2$s. Dit gaat niet automatisch."
+msgstr "e Wiessel am Comité muss bannent enger Woch un d'KVK gemellt ginn (%1$s, iwwer Mijn KVK; nei Comitésmembere ënnerschreiwe mat DigiD), an duerno am %2$s. Dëst geschitt net automatesch."
 
 #: admin/roles.php:58
 msgid "bestuurswissel doorgeven"
@@ -1674,8 +1674,8 @@ msgstr "Directory-Feeler: %s"
 
 #: includes/class-admin.php:248
 #, php-format
-msgid "Gesynchroniseerd: %d accounts, %d verwijderd."
-msgstr "Synchroniséiert: %d Konten, %d geläscht."
+msgid "Gesynchroniseerd: %1$d accounts, %2$d verwijderd."
+msgstr "Synchroniséiert: %1$d Konten, %2$d geläscht."
 
 #: includes/class-admin.php:249
 #, php-format
@@ -1791,8 +1791,8 @@ msgstr "Cache"
 
 #: includes/class-admin.php:378
 #, php-format
-msgid "%d accounts, laatst volledig gesynchroniseerd: %s"
-msgstr "%d Konten, fir d'lescht komplett synchroniséiert: %s"
+msgid "%1$d accounts, laatst volledig gesynchroniseerd: %2$s"
+msgstr "%1$d Konten, fir d'lescht komplett synchroniséiert: %2$s"
 
 #: includes/class-admin.php:380
 msgid "nog nooit"
@@ -1881,15 +1881,15 @@ msgstr "AV Philips van Horne — Bestäteg deng E-Mail-Adress"
 #: includes/class-email-identity.php:80
 #, php-format
 msgid ""
-"Klik op deze link om %s te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n"
+"Klik op deze link om %1$s te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n"
 "\n"
-"%s\n"
+"%2$s\n"
 "\n"
 "Deze link is een uur geldig. Was jij dit niet? Dan hoef je niets te doen."
 msgstr ""
-"Klick op dëse Link, fir %s als Umeldungs-E-Mail-Adress bei AV Philips van Horne ze verknëppen:\n"
+"Klick op dëse Link, fir %1$s als Umeldungs-E-Mail-Adress bei AV Philips van Horne ze verknëppen:\n"
 "\n"
-"%s\n"
+"%2$s\n"
 "\n"
 "Dëse Link ass eng Stonn gëlteg. Waars du dat net? Da brauchs du näischt ze maachen."
 
@@ -2040,8 +2040,8 @@ msgstr "D'E-Mail-Adress vum geläschte Kont konnt net als Umeldungsadress dobäi
 
 #: includes/class-member-merge.php:393
 #, php-format
-msgid "De leden zijn samengevoegd, maar het account \"%s\" kon niet worden verwijderd: %s"
-msgstr "D'Membere goufe zesummegeféiert, mee de Kont „%s“ konnt net geläscht ginn: %s"
+msgid "De leden zijn samengevoegd, maar het account \"%1$s\" kon niet worden verwijderd: %2$s"
+msgstr "D'Membere goufe zesummegeféiert, mee de Kont „%1$s“ konnt net geläscht ginn: %2$s"
 
 #: includes/class-member-profile-form.php:23
 msgid "Log in om je profiel te bewerken."
@@ -2439,17 +2439,17 @@ msgstr "AV Philips van Horne — Ufro fir d'E-Mail-Adress ze verifizéieren"
 #: includes/class-member-profile-form.php:1130
 #, php-format
 msgid ""
-"%s heeft dit e-mailadres (%s) toegevoegd aan jouw profiel bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n"
+"%1$s heeft dit e-mailadres (%2$s) toegevoegd aan jouw profiel bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n"
 "\n"
-"Alleen jij kunt dit zelf afronden — %s kan dit niet namens jou doen. Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n"
-"%s\n"
+"Alleen jij kunt dit zelf afronden — %3$s kan dit niet namens jou doen. Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n"
+"%4$s\n"
 "\n"
 "Was dit geen terecht verzoek? Dan hoef je niets te doen."
 msgstr ""
-"%s huet dës E-Mail-Adress (%s) zu dengem Profil bei AV Philips van Horne dobäigesat a freet, ob s du se als Umeldungsmethod verifizéiere wëlls.\n"
+"%1$s huet dës E-Mail-Adress (%2$s) zu dengem Profil bei AV Philips van Horne dobäigesat a freet, ob s du se als Umeldungsmethod verifizéiere wëlls.\n"
 "\n"
-"Nëmmen du selwer kanns dat ofschléissen — %s kann dat net an dengem Numm maachen. Klick hei ënnendrënner, fir d'Adress ze verifizéieren an e Passwuert festzeleeën:\n"
-"%s\n"
+"Nëmmen du selwer kanns dat ofschléissen — %3$s kann dat net an dengem Numm maachen. Klick hei ënnendrënner, fir d'Adress ze verifizéieren an e Passwuert festzeleeën:\n"
+"%4$s\n"
 "\n"
 "War dës Ufro net berechtegt? Da brauchs du näischt ze maachen."
 
@@ -2476,29 +2476,29 @@ msgstr "AV Philips van Horne — Umeldungsdonnéeë geännert"
 #: includes/class-member-profile-form.php:1238
 #, php-format
 msgid ""
-"Er is zojuist een %s (%s) %s bij het profiel van %s.\n"
+"Er is zojuist een %1$s (%2$s) %3$s bij het profiel van %4$s.\n"
 "\n"
 "Was jij dit niet? Neem dan contact op met het bestuur."
 msgstr ""
-"Et gouf grad e(n) %s (%s) %s beim Profil vu %s.\n"
+"Et gouf grad e(n) %1$s (%2$s) %3$s beim Profil vu %4$s.\n"
 "\n"
 "Waars du dat net? Da kontaktéier w.e.g. de Comité."
 
 #: includes/class-member-profile-form.php:1248
 #, php-format
 msgid ""
-"Er is zojuist een %s (%s) %s bij jouw profiel door %s.\n"
+"Er is zojuist een %1$s (%2$s) %3$s bij jouw profiel door %4$s.\n"
 "\n"
 "Was jij dit niet? Neem dan contact op met het bestuur."
 msgstr ""
-"Et gouf grad e(n) %s (%s) %s bei dengem Profil duerch %s.\n"
+"Et gouf grad e(n) %1$s (%2$s) %3$s bei dengem Profil duerch %4$s.\n"
 "\n"
 "Waars du dat net? Da kontaktéier w.e.g. de Comité."
 
 #: includes/class-member-profile-form.php:1266
 #, php-format
-msgid "Je verzoek is opgevolgd: er is zojuist een %s (%s) toegevoegd aan het profiel van %s."
-msgstr "Deng Ufro gouf ausgefouert: Et gouf grad e(n) %s (%s) zum Profil vu %s dobäigesat."
+msgid "Je verzoek is opgevolgd: er is zojuist een %1$s (%2$s) toegevoegd aan het profiel van %3$s."
+msgstr "Deng Ufro gouf ausgefouert: Et gouf grad e(n) %1$s (%2$s) zum Profil vu %3$s dobäigesat."
 
 #: includes/class-member-profile-form.php:1348 includes/class-nav-auth.php:107
 msgid "Gebruiker"

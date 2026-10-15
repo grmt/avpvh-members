@@ -9,32 +9,41 @@ defined('ABSPATH') || exit;
  * local records on failure, and allow a new preview to resume the operation.
  */
 class AVPVH_Visitor_Delete {
-    private const TABLES = [
-        'avm_addresses' => 'Adressen',
-        'avm_activity_participation' => 'Activiteitdeelnames',
-        'avm_activity_participation_days' => 'Deelnamedagen',
-        'avm_fees' => 'Contributies',
-        'avm_member_identities' => 'Inlogadressen',
-        'avm_member_flag_assignments' => 'Kenmerken',
-        'avm_relationships' => 'Relaties',
-        'avm_member_audit_log' => 'Profielwijzigingen',
-        'avm_member_name_aliases' => 'Naamvarianten',
-        'avm_login_attempts' => 'Loginpogingen',
-        'avb_member_student_years' => 'Studentjaren',
-        'avb_fee_items' => 'Openstaande betaalposten',
-        'avb_known_ibans' => 'Gekoppelde rekeningnummers',
-        'avb_sheet_participation_meta' => 'Inschrijfgegevens',
-        'avb_payment_requests' => 'Betaalverzoeken',
-        'avb_disputes' => 'Vragen over betalingen',
-        'avb_dispute_events' => 'Berichten over betalingen',
-        'avb_congress_registrations' => 'Congresinschrijvingen',
-        'avb_book_orders' => 'Boekbestellingen',
-        'avb_orders' => 'Bestellingen',
-        'avb_order_items' => 'Bestelregels',
-        'avb_photo_shares' => 'Persoonlijke uploadshares',
-        'agallery_photo_shares' => 'Gedeelde fotoselecties',
-    ];
     private const EMAIL_TABLES = ['avm_login_attempts', 'avb_congress_registrations', 'avb_book_orders', 'avb_orders', 'avb_photo_shares'];
+
+    /** The member-linked tables this page knows, with their translated labels. */
+    private static function table_labels(): array {
+        return [
+            'avm_addresses' => __('Adressen', 'avpvh-members'),
+            'avm_activity_participation' => __('Activiteitdeelnames', 'avpvh-members'),
+            'avm_activity_participation_days' => __('Deelnamedagen', 'avpvh-members'),
+            'avm_fees' => __('Contributies', 'avpvh-members'),
+            'avm_member_identities' => __('Inlogadressen', 'avpvh-members'),
+            'avm_member_flag_assignments' => __('Kenmerken', 'avpvh-members'),
+            'avm_relationships' => __('Relaties', 'avpvh-members'),
+            'avm_member_audit_log' => __('Profielwijzigingen', 'avpvh-members'),
+            'avm_member_name_aliases' => __('Naamvarianten', 'avpvh-members'),
+            'avm_login_attempts' => __('Loginpogingen', 'avpvh-members'),
+            'avb_member_student_years' => __('Studentjaren', 'avpvh-members'),
+            'avb_fee_items' => __('Openstaande betaalposten', 'avpvh-members'),
+            'avb_known_ibans' => __('Gekoppelde rekeningnummers', 'avpvh-members'),
+            'avb_sheet_participation_meta' => __('Inschrijfgegevens', 'avpvh-members'),
+            'avb_payment_requests' => __('Betaalverzoeken', 'avpvh-members'),
+            'avb_disputes' => __('Vragen over betalingen', 'avpvh-members'),
+            'avb_dispute_events' => __('Berichten over betalingen', 'avpvh-members'),
+            'avb_congress_registrations' => __('Congresinschrijvingen', 'avpvh-members'),
+            'avb_book_orders' => __('Boekbestellingen', 'avpvh-members'),
+            'avb_orders' => __('Bestellingen', 'avpvh-members'),
+            'avb_order_items' => __('Bestelregels', 'avpvh-members'),
+            'avb_photo_shares' => __('Persoonlijke uploadshares', 'avpvh-members'),
+            'agallery_photo_shares' => __('Gedeelde fotoselecties', 'avpvh-members'),
+        ];
+    }
+
+    /** Unknown tables show their name. */
+    private static function table_label(string $table): string {
+        return self::table_labels()[$table] ?? $table;
+    }
 
     public static function preview(int $id): array|\WP_Error {
         if (!current_user_can('manage_options')) {
@@ -80,7 +89,7 @@ class AVPVH_Visitor_Delete {
             foreach ($plan['records'] as $table => $record) {
                 // All identifiers and conditions were built from schema/fixed
                 // names and prepared values; never accept them from POST.
-                self::check($wpdb->query("DELETE FROM `$table` WHERE {$record['where']}"));
+                self::check($wpdb->query("DELETE FROM `$table` WHERE {$record['where']}")); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
             }
             foreach ($plan['tokens'] as $key => $payload) {
                 delete_transient($key);
@@ -116,7 +125,7 @@ class AVPVH_Visitor_Delete {
         $suffix = $lock ? ' FOR UPDATE' : '';
         $member = self::rows($wpdb->prepare("SELECT * FROM {$wpdb->prefix}avm_members WHERE id = %d$suffix", $id))[0] ?? null;
         if (!$member) {
-            throw new \RuntimeException(__('Deze bezoeker bestaat niet meer.', 'avpvh-members'));
+            throw new \RuntimeException(__('Deze bezoeker bestaat niet meer.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
         $blockers = [];
         if ($member['status'] !== 'visitor') {
@@ -225,8 +234,8 @@ class AVPVH_Visitor_Delete {
                 continue;
             }
             $record = self::select($table, implode(' OR ', $clauses), $schema, $lock);
-            if (!isset(self::TABLES[$table]) && $record['rows']) {
-                $blockers[] = sprintf(__('Er zijn aanvullende gekoppelde gegevens in %s. Die moeten eerst apart worden beheerd.', 'avpvh-members'), $table);
+            if (!isset(self::table_labels()[$table]) && $record['rows']) {
+                $blockers[] = sprintf(/* translators: %s: database table name */ __('Er zijn aanvullende gekoppelde gegevens in %s. Die moeten eerst apart worden beheerd.', 'avpvh-members'), $table);
             }
             $records[$wpdb->prefix . $table] = $record;
             foreach ($record['rows'] as $row) {
@@ -256,7 +265,7 @@ class AVPVH_Visitor_Delete {
             foreach ($record['rows'] as $row) {
                 if ($table === 'avb_transaction_allocations') {
                     $blockers[] = __('Er zijn geboekte betalingen gekoppeld. Deze bezoeker kan niet definitief worden verwijderd.', 'avpvh-members');
-                } elseif (!isset(self::TABLES[$table]) || (isset($row['member_id']) && (int) $row['member_id'] > 0 && (int) $row['member_id'] !== $id)) {
+                } elseif (!isset(self::table_labels()[$table]) || (isset($row['member_id']) && (int) $row['member_id'] > 0 && (int) $row['member_id'] !== $id)) {
                     $blockers[] = __('Gekoppelde gegevens horen ook bij een andere persoon. Verwijderen is geblokkeerd.', 'avpvh-members');
                 }
                 if (isset($row['distribution_status']) && $row['distribution_status'] !== 'pending') {
@@ -455,17 +464,17 @@ class AVPVH_Visitor_Delete {
     private static function select(string $table, string $where, array $schema, bool $lock): array {
         global $wpdb;
         if (!isset($schema[$table])) {
-            return ['rows' => [], 'where' => $where, 'engine' => 'InnoDB', 'label' => __(self::TABLES[$table] ?? $table, 'avpvh-members')];
+            return ['rows' => [], 'where' => $where, 'engine' => 'InnoDB', 'label' => self::table_label($table)];
         }
         return ['rows' => self::rows("SELECT * FROM `{$wpdb->prefix}$table` WHERE $where" . ($lock ? ' FOR UPDATE' : '')),
-            'where' => $where, 'engine' => $schema[$table]['engine'], 'label' => __(self::TABLES[$table] ?? $table, 'avpvh-members')];
+            'where' => $where, 'engine' => $schema[$table]['engine'], 'label' => self::table_label($table)];
     }
 
     private static function rows(string $sql): array {
         global $wpdb;
-        $rows = $wpdb->get_results($sql, ARRAY_A);
+        $rows = $wpdb->get_results($sql, ARRAY_A); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- built in select() from fixed table names and prepared conditions
         if ($wpdb->last_error !== '' || !is_array($rows)) {
-            throw new \RuntimeException(__('De databasecontrole is mislukt.', 'avpvh-members'));
+            throw new \RuntimeException(__('De databasecontrole is mislukt.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
         usort($rows, static fn($a, $b) => strcmp(wp_json_encode($a), wp_json_encode($b)));
         return $rows;
@@ -482,7 +491,7 @@ class AVPVH_Visitor_Delete {
 
     private static function check($result): void {
         if ($result === false) {
-            throw new \RuntimeException(__('De databasewijziging is mislukt.', 'avpvh-members'));
+            throw new \RuntimeException(__('De databasewijziging is mislukt.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
     }
 }

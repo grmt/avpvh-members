@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- this is a single-execution admin-page template (included once per request via AVPVH_Admin::render_*()), not shared library code; its top-level variables are effectively function-local to this one include, not a real global-namespace collision risk
-if (!AVPVH_Roles::can_manage_members()) wp_die(__('Geen toegang.', 'avpvh-members'));
+if (!AVPVH_Roles::can_manage_members()) wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
 
 $member_id = absint(wp_unslash($_GET['id'] ?? 0));
 $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
@@ -83,7 +83,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         'display_name' => avpvh_format_name($member),
     ]);
     $sync_ok  = !is_wp_error($result);
-    $sync_msg = $sync_ok ? __('Naam bijgewerkt in het account.', 'avpvh-members') : sprintf(__('Bijwerken van het account is mislukt: %s', 'avpvh-members'), $result->get_error_message());
+    $sync_msg = $sync_ok ? __('Naam bijgewerkt in het account.', 'avpvh-members') : sprintf(/* translators: %s: error message from the directory */ __('Bijwerken van het account is mislukt: %s', 'avpvh-members'), $result->get_error_message());
 }
 ?>
 <div class="wrap avpvh-member-detail">
@@ -179,7 +179,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                 <?php echo esc_html($member->initials ?: '—'); ?>
                 <?php $mismatch = avpvh_initials_mismatch($member); ?>
                 <?php if ($mismatch) : ?>
-                    <br><span style="color:#b32d2e;font-weight:600">&#9888; <?php echo esc_html(sprintf(__('Komt niet overeen met de paspoortnaam (die geeft %s).', 'avpvh-members'), $mismatch)); ?></span>
+                    <br><span style="color:#b32d2e;font-weight:600">&#9888; <?php echo esc_html(sprintf(/* translators: %s: name derived from the passport name */ __('Komt niet overeen met de paspoortnaam (die geeft %s).', 'avpvh-members'), $mismatch)); ?></span>
                 <?php endif; ?>
             </td>
         </tr>
@@ -195,7 +195,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <input type="email" id="avpvh-member-email" name="email" value="<?php echo esc_attr($member->email); ?>" class="regular-text">
                     <button type="submit" class="button button-small"><?php esc_html_e('Wijzigen', 'avpvh-members'); ?></button>
                 </form>
-                <p class="description"><?php echo esc_html(sprintf(__('Dit is het contactadres van het account zelf, los van de Inlogadressen hieronder — al wordt het automatisch bijgewerkt naar het adres dat daar als primair wordt ingesteld. Leeg laten en opslaan zet het om naar een placeholder-adres (%s@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.', 'avpvh-members'), $member->lldap_user_id)); ?></p>
+                <p class="description"><?php echo esc_html(sprintf(/* translators: %s: account username */ __('Dit is het contactadres van het account zelf, los van de Inlogadressen hieronder — al wordt het automatisch bijgewerkt naar het adres dat daar als primair wordt ingesteld. Leeg laten en opslaan zet het om naar een placeholder-adres (%s@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.', 'avpvh-members'), $member->lldap_user_id)); ?></p>
             </td>
         </tr>
         <tr><th><?php esc_html_e('Status', 'avpvh-members'); ?></th><td><?php echo esc_html(AVPVH_Roles::get_status_label($member->status)); ?></td></tr>
@@ -317,7 +317,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <?php submit_button(__('Kenmerken opslaan', 'avpvh-members'), 'secondary'); ?>
     </form>
     <p class="description">
-        <?php printf(esc_html__('Nieuw kenmerk nodig? %s bij Instellingen.', 'avpvh-members'), '<a href="' . esc_url(add_query_arg(['page' => 'avpvh-settings'], admin_url('admin.php'))) . '">' . esc_html__('Beheer de lijst met kenmerken', 'avpvh-members') . '</a>'); ?>
+        <?php printf(/* translators: %s: link to the settings page */ esc_html__('Nieuw kenmerk nodig? %s bij Instellingen.', 'avpvh-members'), '<a href="' . esc_url(add_query_arg(['page' => 'avpvh-settings'], admin_url('admin.php'))) . '">' . esc_html__('Beheer de lijst met kenmerken', 'avpvh-members') . '</a>'); ?>
     </p>
     </details>
 
@@ -418,7 +418,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <details class="avpvh-detail-section" name="avpvh-detail-section">
     <summary><h2><?php esc_html_e('Adreshistorie', 'avpvh-members'); ?></h2></summary>
     <?php if ($current_address_count > 1) : ?>
-        <div class="notice notice-warning inline"><p><?php echo esc_html(sprintf(__('Dit lid heeft %d adressen die vandaag allemaal geldig zijn. Zet bij de oude een einddatum of verwijder dubbele rijen.', 'avpvh-members'), $current_address_count)); ?></p></div>
+        <div class="notice notice-warning inline"><p><?php echo esc_html(sprintf(/* translators: %d: number of addresses */ __('Dit lid heeft %d adressen die vandaag allemaal geldig zijn. Zet bij de oude een einddatum of verwijder dubbele rijen.', 'avpvh-members'), $current_address_count)); ?></p></div>
     <?php endif; ?>
     <p class="description"><?php esc_html_e('Een nieuw adres via het profiel sluit de vorige rij af en voegt een nieuwe toe; opnieuw opslaan van hetzelfde adres voegt niets toe. Hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen.', 'avpvh-members'); ?></p>
     <div style="overflow-x:auto">
