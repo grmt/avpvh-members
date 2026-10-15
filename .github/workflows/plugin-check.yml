@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Report-only for now — this plugin predates Plugin Check and has a
       # real backlog (down from 678 warnings/several dozen errors on
@@ -27,7 +27,7 @@ jobs:
       # it silently suppressed all reporting, not just the pass/fail call).
       - name: "Run plugin check"
         continue-on-error: true
-        uses: wordpress/plugin-check-action@v1
+        uses: wordpress/plugin-check-action@10857da14b6c2246d15402b3e69f777edcf8c12e # v1.1.9
         with:
           exclude-directories: |
             scripts

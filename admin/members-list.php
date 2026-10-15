@@ -38,16 +38,19 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $join
         </p>
 
         <p style="font-weight:600;margin-bottom:.25rem"><?php esc_html_e('Filter:', 'avpvh-members'); ?></p>
-        <table class="avpvh-column-filters" style="margin-bottom: .5rem;">
+        <table class="avpvh-column-filters" role="presentation" style="margin-bottom: .5rem;">
             <tr>
                 <td>
-                    <input type="text" name="f_first_name" value="<?php echo esc_attr($f_first); ?>" placeholder="<?php esc_attr_e('Filter voornaam', 'avpvh-members'); ?>" style="width:100%">
+                    <label class="screen-reader-text" for="avpvh-f-first-name"><?php esc_html_e('Filter voornaam', 'avpvh-members'); ?></label>
+                    <input type="text" id="avpvh-f-first-name" name="f_first_name" value="<?php echo esc_attr($f_first); ?>" placeholder="<?php esc_attr_e('Filter voornaam', 'avpvh-members'); ?>" style="width:100%">
                 </td>
                 <td>
-                    <input type="text" name="f_suffix" value="<?php echo esc_attr($f_suffix); ?>" placeholder="<?php esc_attr_e('Filter tussenvoegsel', 'avpvh-members'); ?>" style="width:100%">
+                    <label class="screen-reader-text" for="avpvh-f-suffix"><?php esc_html_e('Filter tussenvoegsel', 'avpvh-members'); ?></label>
+                    <input type="text" id="avpvh-f-suffix" name="f_suffix" value="<?php echo esc_attr($f_suffix); ?>" placeholder="<?php esc_attr_e('Filter tussenvoegsel', 'avpvh-members'); ?>" style="width:100%">
                 </td>
                 <td>
-                    <input type="text" name="f_last_name" value="<?php echo esc_attr($f_last); ?>" placeholder="<?php esc_attr_e('Filter achternaam', 'avpvh-members'); ?>" style="width:100%">
+                    <label class="screen-reader-text" for="avpvh-f-last-name"><?php esc_html_e('Filter achternaam', 'avpvh-members'); ?></label>
+                    <input type="text" id="avpvh-f-last-name" name="f_last_name" value="<?php echo esc_attr($f_last); ?>" placeholder="<?php esc_attr_e('Filter achternaam', 'avpvh-members'); ?>" style="width:100%">
                 </td>
                 <td>
                     <div class="avpvh-multiselect" data-default-label="<?php esc_attr_e('Alle statussen', 'avpvh-members'); ?>">
@@ -64,7 +67,8 @@ $has_filters = $search || $f_first || $f_suffix || $f_last || $statuses || $join
                     </div>
                 </td>
                 <td>
-                    <input type="number" name="joined_year" value="<?php echo esc_attr($joined_year); ?>"
+                    <label class="screen-reader-text" for="avpvh-f-joined-year"><?php esc_html_e('Lid sinds jaar', 'avpvh-members'); ?></label>
+                    <input type="number" id="avpvh-f-joined-year" name="joined_year" value="<?php echo esc_attr($joined_year); ?>"
                            placeholder="<?php esc_attr_e('Lid sinds jaar', 'avpvh-members'); ?>" min="1900" max="<?php echo esc_attr($current_year); ?>" style="width:100%">
                 </td>
                 <td>

@@ -294,3 +294,16 @@
     background: #e6f4ea;
     border: 1px solid #b7dfc0;
 }
+
+/* Text for screen readers only; themes do not always define this class. */
+.screen-reader-text {
+    border: 0;
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+    word-wrap: normal;
+}

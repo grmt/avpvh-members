@@ -21,12 +21,18 @@
     white-space: nowrap;
 }
 
+.avpvh-activiteit-overzicht-tabel th,
 .avpvh-activiteit-overzicht-tabel td {
     border: 1px solid #ddd;
     padding: .2rem .4rem;
     text-align: center;
 }
 
+.avpvh-activiteit-overzicht-tabel th {
+    font-weight: bold;
+}
+
+.avpvh-activiteit-overzicht-tabel th:first-child,
 .avpvh-activiteit-overzicht-tabel td:first-child {
     text-align: left;
     white-space: nowrap;
@@ -42,6 +48,7 @@
         font-size: .6rem;
     }
 
+    .avpvh-activiteit-overzicht-tabel th,
     .avpvh-activiteit-overzicht-tabel td {
         padding: .15rem .3rem;
     }

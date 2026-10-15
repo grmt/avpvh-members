@@ -60,7 +60,7 @@
 
 .avpvh-checkbox-filter > summary::after {
     content: "\f140";
-    font: normal 20px/1 dashicons;
+    font: normal 20px/1 dashicons, sans-serif;
     position: absolute;
     right: 5px;
     top: 4px;

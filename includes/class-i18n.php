@@ -3,6 +3,9 @@ defined('ABSPATH') || exit;
 
 class AVPVH_I18n {
 
+    /** Holds the visitor's chosen locale (e.g. de_DE); see filter_determine_locale(). */
+    public const COOKIE_NAME = 'avpvh_lang';
+
     public const SUPPORTED_LOCALES = [
         'nl_NL' => 'Nederlands',
         'en_US' => 'English (US)',
@@ -62,18 +65,16 @@ class AVPVH_I18n {
             $req_lang = sanitize_key(wp_unslash($_GET['lang']));
             if (isset(self::LANG_TO_LOCALE[$req_lang])) {
                 $chosen = self::LANG_TO_LOCALE[$req_lang];
-                if (!headers_sent() && (!isset($_COOKIE['avpvh_lang']) || $_COOKIE['avpvh_lang'] !== $chosen)) {
-                    $cookie_domain = defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '';
-                    $cookie_path   = defined('COOKIEPATH') ? COOKIEPATH : '/';
-                    setcookie('avpvh_lang', $chosen, time() + (86400 * 365), $cookie_path, $cookie_domain, is_ssl(), true);
+                if (!isset($_COOKIE[self::COOKIE_NAME]) || $_COOKIE[self::COOKIE_NAME] !== $chosen) {
+                    self::remember_locale($chosen);
                 }
                 return $chosen;
             }
         }
 
         // 2. Cookie if previously chosen
-        if (isset($_COOKIE['avpvh_lang'])) {
-            $cookie_lang = sanitize_key(wp_unslash($_COOKIE['avpvh_lang']));
+        if (isset($_COOKIE[self::COOKIE_NAME])) {
+            $cookie_lang = sanitize_key(wp_unslash($_COOKIE[self::COOKIE_NAME]));
             if (isset(self::LANG_TO_LOCALE[$cookie_lang])) {
                 return self::LANG_TO_LOCALE[$cookie_lang];
             }
@@ -89,6 +90,16 @@ class AVPVH_I18n {
         }
 
         return $locale;
+    }
+
+    /** Remembers a chosen locale for a year; only PHP reads it (httpOnly). */
+    public static function remember_locale(string $locale): void {
+        if (headers_sent()) {
+            return;
+        }
+        $cookie_domain = defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '';
+        $cookie_path   = defined('COOKIEPATH') ? COOKIEPATH : '/';
+        setcookie(self::COOKIE_NAME, $locale, time() + YEAR_IN_SECONDS, $cookie_path, $cookie_domain, is_ssl(), true);
     }
 
     public static function get_supported_locales(): array {

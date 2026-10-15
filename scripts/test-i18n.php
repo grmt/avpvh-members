@@ -120,4 +120,26 @@ unset($_COOKIE['avpvh_lang']);
 // 7. Fallback to passed locale
 assert_test('Default fallback preserves incoming locale', $i18n->filter_determine_locale('nl_NL') === 'nl_NL');
 
+// 8. Every AVPVH_I18n::name the plugin uses exists. The profile form once
+// called a method and constant that were never written, which made saving
+// one's own profile a fatal error.
+$i18n_class = new ReflectionClass('AVPVH_I18n');
+$plugin_root = dirname(__DIR__);
+foreach (['avpvh-members.php', 'includes', 'admin'] as $part) {
+    $path = $plugin_root . '/' . $part;
+    $files = is_dir($path)
+        ? iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS)))
+        : [new SplFileInfo($path)];
+    foreach ($files as $file) {
+        if ($file->getExtension() !== 'php') {
+            continue;
+        }
+        preg_match_all('/AVPVH_I18n::([A-Za-z_]+)/', file_get_contents($file->getPathname()), $matches);
+        foreach (array_unique($matches[1]) as $name) {
+            $exists = $name === 'class' || $i18n_class->hasConstant($name) || $i18n_class->hasMethod($name);
+            assert_test("AVPVH_I18n::$name used in " . basename($file->getPathname()) . ' exists', $exists);
+        }
+    }
+}
+
 echo "\nAll i18n tests passed.\n";

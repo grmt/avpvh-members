@@ -112,12 +112,12 @@ class AVPVH_OAuth {
     }
 
     private function check_ip_throttle(): bool {
-        $key = 'avpvh_oauth_fail_' . md5($this->get_client_ip());
+        $key = 'avpvh_oauth_fail_' . hash('sha256', $this->get_client_ip());
         return (int) get_transient($key) >= 3;
     }
 
     private function record_ip_failure(): void {
-        $key   = 'avpvh_oauth_fail_' . md5($this->get_client_ip());
+        $key   = 'avpvh_oauth_fail_' . hash('sha256', $this->get_client_ip());
         $count = (int) get_transient($key);
         set_transient($key, $count + 1, 15 * MINUTE_IN_SECONDS);
     }

@@ -3025,3 +3025,39 @@ msgstr ""
 #: includes/tenant/class-tenant-shares.php
 msgid "Naar download"
 msgstr ""
+
+#: admin/member-detail.php
+msgid "Geldig vanaf"
+msgstr ""
+
+#: admin/member-detail.php
+msgid "Geldig tot"
+msgstr ""
+
+#: includes/class-ledenlijst.php
+msgid "Zoeken in de ledenlijst"
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Inlogmethode"
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Verificatie"
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Acties"
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Relatie"
+msgstr ""
+
+#: admin/merge-members.php
+msgid "Periode"
+msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Filter op naam"
+msgstr ""
