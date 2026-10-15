@@ -23,7 +23,13 @@
 .avpvh-activity-picker__fields input {
     margin: 0;
     font-weight: 400;
-    min-height: 34px;
+    /* 40px, not 34px: a <select> here always renders ~40px tall anyway
+       (wp-admin's own select { line-height: 2.71... } already exceeds a
+       34px floor, regardless of this min-height), so a plain <input>
+       sharing this rule rendered visibly shorter than "Jaar"/"Type"/
+       "Activiteit" right next to it — nothing here was centering a
+       smaller box, the box itself was genuinely two different heights. */
+    min-height: 40px;
 }
 .avpvh-activity-picker__selection {
     flex: 1 1 20rem;
