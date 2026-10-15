@@ -30,9 +30,16 @@ if (!$config->is_valid()) {
 }
 echo "Configuratie geldig.\n";
 
+// Straight from the database: once the plugin is active it hides these
+// pages from every query of a visitor without access, WP-CLI included.
+global $wpdb;
 $pages = 0;
 foreach ($config->get('members_only_pages') as $slug) {
-    $found = get_posts(['name' => $slug, 'post_type' => 'page', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids']);
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off check from WP-CLI
+    $found = $wpdb->get_col($wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE post_name = %s AND post_type = 'page' AND post_status NOT IN ('trash', 'auto-draft', 'inherit')",
+        sanitize_title($slug)
+    ));
     echo "Afgeschermde pagina '{$slug}': " . ($found ? implode(',', $found) : 'NIET GEVONDEN') . "\n";
     $pages += count($found);
 }
