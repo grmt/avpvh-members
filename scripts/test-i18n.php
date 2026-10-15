@@ -107,6 +107,11 @@ assert_test('GET lang=li resolves to li_NL', $i18n->filter_determine_locale('nl_
 $_GET['lang'] = 'weert';
 assert_test('GET lang=weert resolves to li_NL', $i18n->filter_determine_locale('nl_NL') === 'li_NL');
 
+// 4b. A chosen language is recorded for the rest of the request, so the
+// cookie is sent once although WordPress asks for the locale many times.
+assert_test('GET lang records the chosen locale in $_COOKIE', ($_COOKIE[AVPVH_I18n::COOKIE_NAME] ?? '') === 'li_NL');
+unset($_GET['lang'], $_COOKIE[AVPVH_I18n::COOKIE_NAME]);
+
 // 5. Invalid GET lang falls through
 $_GET['lang'] = 'es';
 assert_test('Invalid GET lang falls through', $i18n->filter_determine_locale('nl_NL') === 'nl_NL');
