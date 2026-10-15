@@ -95,6 +95,98 @@ Daarna, volgens fase 5:
    login-menu, afscherming en `/?delen=`. De bestanden in
    `uploads/private/` blijven staan.
 
+## Vervolg: inloggen met Google of Microsoft
+
+Status: plan, nog niet gebouwd.
+
+### Aanleiding
+
+De meeste VvE-leden hebben al een Google- of Microsoft-account. Laat ze daarmee
+inloggen, naast de Authelia-login met gebruikersnaam en wachtwoord. Nu laadt
+de tenant-modus `AVPVH_OAuth` niet. Die class koppelt de geverifieerde
+e-mail aan AVP-ledendata (`avm_member_identities`), en een tenant heeft
+alleen directory-accounts.
+
+Stand in de directory (oktober 2026, alleen tellingen): `vp4042-leden` heeft 6
+leden, elk met één `mail`. Eén daarvan is een gmail-adres, één een
+hotmail-adres en vier zitten bij een andere provider. Wie bij zo'n andere
+provider zit, kan toch een Google- of Microsoft-account op dat adres hebben,
+want beide staan accounts op een bestaand e-mailadres toe. Zo niet, dan zet
+een beheerder een extra `mail`-waarde (gmail/hotmail) bij het account. `mail`
+mag meerdere waarden hebben.
+
+### Ontwerp
+
+1. **Knoppen.** De loginpagina en het accountmenu krijgen "Inloggen met
+   Google" en "Inloggen met Microsoft". De Authelia-login blijft gewoon
+   bestaan. Microsoft gebruikt het `consumers`-endpoint (persoonlijke
+   accounts: hotmail.com, outlook.com, live.com), net als op de AVP-site.
+2. **OAuth-flow in `includes/tenant/`.** Authorization code met PKCE, `state`
+   en `nonce` in een korte transient, callback op
+   `/wp-json/avpvh/v1/tenant-oauth/<provider>/callback`. Alleen een e-mailadres
+   dat de provider als geverifieerd meldt telt: bij Google `email_verified`,
+   bij Microsoft het adres uit het ID-token van een consumer-account. Client-ID
+   en secret staan in het tenantbestand op de server, nooit in git.
+3. **Koppelen aan de directory.** De plugin zoekt
+   `(&(objectClass=inetOrgPerson)(mail=<adres>))` (geëscaped,
+   hoofdletterongevoelig) onder de geconfigureerde basis-DN. Alleen bij
+   precies één treffer gaat het verder, en anders volgt een duidelijke melding
+   zonder te verraden of het adres bestaat. Daarna haalt de plugin de groepen
+   op met `(member=<dn>)`. De rol volgt uit dezelfde
+   `AVPVH_Tenant_SSO::role_for_groups()` als bij Authelia, en provisioning
+   gebruikt hetzelfde `avpvh_directory_subject` (`<tenant>/<uid>`). Daardoor
+   komt iemand via Google, Microsoft of Authelia in hetzelfde WordPress-account.
+4. **Sessie en intrekken.** De WordPress-sessie onthoudt dat hij via OAuth is
+   gestart. De bestaande controle om de 300 seconden vraagt dan niet Authelia,
+   maar de directory: zijn de groepen nog goed? Zo niet, dan volgt uitloggen
+   of een lagere rol, net als nu. Uitloggen beëindigt alleen de
+   WordPress-sessie; er is geen Authelia-sessie.
+5. **Privébestanden.** nginx laat `uploads/private/` nu alleen door met een
+   Authelia-sessie. Wie via OAuth inlogt, heeft die niet. Daarom gaat de
+   `auth_request` van die locatie naar een plugin-endpoint
+   (`/avpvh-file-auth/`, via PHP-FPM). Dat geeft 204 voor wie de ledenpagina's
+   mag lezen: een WordPress-sessie met de ledengroep, of een Authelia-sessie
+   met die groep (via de bestaande probe). Alle anderen krijgen 401 met een
+   redirect naar de login. nginx levert het bestand daarna zelf, zodat grote
+   zips niet door PHP gaan.
+6. **wp-admin.** Beheerders blijven via Authelia met 2FA inloggen. Google en
+   Microsoft geven op deze route alleen leestoegang (subscriber), ook als de
+   directory de persoon als beheerder kent. Zo blijft 2FA voor beheer
+   afgedwongen.
+
+### Infrastructuur (buiten deze repo)
+
+- **PHP `ldap`-extensie** in de WordPress- en WP-CLI-image van de tenant.
+- **Directory-serviceaccount** met alleen leesrechten (bind-DN plus
+  wachtwoord als Docker-secret) op de people-OU's en groepen die de tenant
+  nodig heeft. Dat zijn ook AVP-accounts die lid zijn van `vp4042-leden`.
+- **nginx:** de `auth_request` voor `uploads/private/` gaat naar het
+  plugin-endpoint in plaats van naar Authelia.
+- **Google Cloud Console en Azure-app-registratie:** de redirect-URI's per
+  tenant toevoegen, of per tenant een eigen client.
+
+### Fasering
+
+1. Directory-lookup met tests tegen de OpenLDAP-testcontainer
+   (`scripts/test-directory-openldap.php`-stijl) en de config-validatie.
+2. OAuth-flow met nep-provider in de tenant-e2e (`scripts/tenant-e2e/`):
+   geverifieerd/ongeverifieerd adres, geen of meer treffers, lid,
+   beheerder (blijft subscriber) en buitenstaander, intrekking via
+   groepswijziging.
+3. Endpoint voor privébestanden en een e2e-test van de nginx-route
+   (lid via OAuth, lid via Authelia, buitenstaander, anoniem).
+4. Uitrol op VP40-42, eerst alleen Google of alleen Microsoft, met één
+   proefpersoon.
+
+### Open vragen
+
+- Moeten beheerders via Google/Microsoft ook wp-admin kunnen bereiken? Dan
+  is 2FA bij de provider niet af te dwingen. Het voorstel is: nee.
+- Eén OAuth-client voor alle Rechtspreker-tenants, of één per tenant?
+- Mogen VvE-leden die niet in de directory staan (bijvoorbeeld alleen een
+  ontvanger van een gedeeld bestand) zichzelf aanmelden? Het voorstel is:
+  nee, een beheerder maakt het account aan.
+
 ## Doel
 
 Maak één configureerbare WordPress-authenticatie- en provisioninglaag voor de
