@@ -463,6 +463,7 @@ class AVPVH_Member_Profile_Form {
 
             <?php $verified_count = count(array_filter($identities, fn($i) => !empty($i->verified_at))); ?>
             <table class="avpvh-identities-table">
+                <thead class="screen-reader-text"><tr><th scope="col"><?php esc_html_e('E-mailadres', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Inlogmethode', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Verificatie', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Primair', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Acties', 'avpvh-members'); ?></th></tr></thead>
                 <?php foreach ($identities as $identity) :
                     $is_current_login = strcasecmp($identity->email, $current_user->user_email) === 0;
                     $label = $provider_labels[$identity->provider] ?? $identity->provider;
@@ -545,7 +546,8 @@ class AVPVH_Member_Profile_Form {
                             <?php wp_nonce_field('avpvh_start_email_identity'); ?>
                             <input type="hidden" name="action" value="avpvh_start_email_identity">
                             <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
-                            <input type="email" name="email" placeholder="naam@voorbeeld.nl" required>
+                            <label class="screen-reader-text" for="avpvh-new-identity-email"><?php esc_html_e('E-mailadres', 'avpvh-members'); ?></label>
+                            <input type="email" id="avpvh-new-identity-email" name="email" placeholder="naam@voorbeeld.nl" required>
                             <button type="submit" class="button"><?php esc_html_e('Met een e-maillink', 'avpvh-members'); ?></button>
                         </form>
                         <small class="avpvh-field-hint"><?php esc_html_e('Voor adressen zonder Google- of Microsoft-account — je krijgt een bevestigingslink toegestuurd om te verifiëren.', 'avpvh-members'); ?></small>
@@ -621,6 +623,7 @@ class AVPVH_Member_Profile_Form {
             <?php endif; ?>
 
             <table class="avpvh-identities-table">
+                <thead class="screen-reader-text"><tr><th scope="col"><?php esc_html_e('Relatie', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Periode', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Acties', 'avpvh-members'); ?></th></tr></thead>
                 <?php foreach ($relationships as $rel) : ?>
                     <tr>
                         <td>
@@ -663,6 +666,7 @@ class AVPVH_Member_Profile_Form {
                             <option value="<?php echo esc_attr($m->id); ?>" data-avpvh-plain="1"><?php echo esc_html(avpvh_format_name($m)); ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <label class="screen-reader-text" for="rel_related_member_filter"><?php esc_html_e('Filter op naam', 'avpvh-members'); ?></label>
                     <input type="text" id="rel_related_member_filter" placeholder="<?php echo esc_attr__('Filter op naam&hellip;', 'avpvh-members'); ?>" autocomplete="off" style="width:9em;margin-left:.3rem;font-size:.85em;padding:.1rem .3rem;box-sizing:border-box">
                     <script type="application/json" id="rel_related_member_data"><?php echo wp_json_encode(array_map(fn($m) => [
                         'id'    => (int) $m->id,
@@ -918,8 +922,7 @@ class AVPVH_Member_Profile_Form {
                     $target_wp_uid = !empty($member->wp_user_id) ? (int) $member->wp_user_id : get_current_user_id();
                     update_user_meta($target_wp_uid, 'locale', $chosen_locale);
                     if ($target_wp_uid === get_current_user_id()) {
-                        $lang = AVPVH_I18n::locale_to_lang($chosen_locale);
-                        setcookie(AVPVH_I18n::COOKIE_NAME, $lang, time() + YEAR_IN_SECONDS, COOKIEPATH, COOKIE_DOMAIN, is_ssl());
+                        AVPVH_I18n::remember_locale($chosen_locale);
                     }
                 }
             }
