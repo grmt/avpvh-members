@@ -101,6 +101,8 @@ class AVPVH_Activity_List {
 
         $order = $upcoming ? 'ASC' : 'DESC';
 
+        // $where holds only placeholders; the values go through prepare().
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         return $wpdb->get_results($wpdb->prepare(
             "SELECT a.*, t.name AS type_name
              FROM {$wpdb->prefix}avm_activities a
@@ -109,6 +111,7 @@ class AVPVH_Activity_List {
              ORDER BY COALESCE(a.start_date, MAKEDATE(a.year, 1)) {$order}, a.id {$order}",
             $args
         )) ?: [];
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
     /**
@@ -196,7 +199,7 @@ class AVPVH_Activity_List {
             return date_i18n('j F Y', $start);
         }
 
-        $same_year = date('Y', $start) === date('Y', $end);
+        $same_year = gmdate('Y', $start) === gmdate('Y', $end);
 
         return date_i18n($same_year ? 'j F' : 'j F Y', $start) . ' – ' . date_i18n('j F Y', $end);
     }

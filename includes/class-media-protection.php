@@ -122,7 +122,7 @@ class AVPVH_Media_Protection {
         global $wp_filesystem;
 
         if (!wp_mkdir_p($dest_dir)) {
-            error_log("AVPVH media protection: cannot create {$dest_dir}, keeping private/{$rel}");
+            error_log("AVPVH media protection: cannot create {$dest_dir}, keeping private/{$rel}"); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             return false;
         }
 
@@ -139,7 +139,7 @@ class AVPVH_Media_Protection {
         }
 
         if ($failed) {
-            error_log('AVPVH media protection: could not move ' . implode(', ', $failed) . " to {$dest_dir}, keeping private/{$rel}");
+            error_log('AVPVH media protection: could not move ' . implode(', ', $failed) . " to {$dest_dir}, keeping private/{$rel}"); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             return false;
         }
 

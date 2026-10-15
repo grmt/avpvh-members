@@ -1029,6 +1029,9 @@ class AVPVH_DB {
         $per_page = max(1, min(500, (int) $args['per_page']));
         $offset = (max(1, (int) $args['page']) - 1) * $per_page;
 
+        // $where_sql holds only %s placeholders and $orderby is whitelisted
+        // above; every value goes through prepare().
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $count_sql = "SELECT COUNT(*) FROM {$wpdb->prefix}avm_login_attempts{$where_sql}";
         $total = (int) ($values
             ? $wpdb->get_var($wpdb->prepare($count_sql, $values))
@@ -1038,6 +1041,7 @@ class AVPVH_DB {
         $rows_sql = "SELECT * FROM {$wpdb->prefix}avm_login_attempts{$where_sql}
             ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
         $items = $wpdb->get_results($wpdb->prepare($rows_sql, $query_values)) ?: [];
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         return ['items' => $items, 'total' => $total];
     }

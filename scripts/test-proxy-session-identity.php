@@ -24,7 +24,7 @@ class AVPVH_Test_Identity_Redirect extends RuntimeException {
 }
 
 class AVPVH_Directory_Cache {
-    public static function refresh_user(string $uid): void {}
+    public static function refresh_user(string $uid): void { /* Not needed in this test. */ }
 }
 
 class AVPVH_DB {
@@ -51,8 +51,8 @@ class AVPVH_Nav_Auth {
     }
 }
 
-function add_action(): void {}
-function add_filter(): void {}
+function add_action(): void { /* Not needed in this test. */ }
+function add_filter(): void { /* Not needed in this test. */ }
 function sanitize_text_field(string $value): string { return $value; }
 function wp_unslash(string $value): string { return $value; }
 function is_user_logged_in(): bool { return $GLOBALS['test_logged_in']; }

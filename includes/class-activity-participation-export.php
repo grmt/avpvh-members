@@ -35,7 +35,7 @@ class AVPVH_Activity_Participation_Export {
 
         $rows[] = [
             ['v' => $activity->name . ' ' . $activity->year, 'bold' => true],
-            ['v' => sprintf(__('Laatst bijgewerkt: %s', 'avpvh-members'), date_i18n('j-m-Y'))],
+            ['v' => sprintf(/* translators: %s: date */ __('Laatst bijgewerkt: %s', 'avpvh-members'), date_i18n('j-m-Y'))],
         ];
         $rows[] = [];
 

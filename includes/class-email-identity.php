@@ -77,7 +77,7 @@ class AVPVH_Email_Identity {
 
         $subject = __('AV Philips van Horne — bevestig je e-mailadres', 'avpvh-members');
         $body = sprintf(
-            __("Klik op deze link om %s te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n\n%s\n\nDeze link is een uur geldig. Was jij dit niet? Dan hoef je niets te doen.", 'avpvh-members'),
+            /* translators: 1: e-mail address, 2: confirmation link */ __("Klik op deze link om %1\$s te koppelen als inlog-e-mailadres bij AV Philips van Horne:\n\n%2\$s\n\nDeze link is een uur geldig. Was jij dit niet? Dan hoef je niets te doen.", 'avpvh-members'),
             $email,
             $this->confirm_url($token)
         );

@@ -456,7 +456,7 @@ class AVPVH_Member_Profile_Form {
             <?php elseif (!empty($_GET['identity_primary'])) : ?>
                 <p class="avpvh-identity-notice"><?php esc_html_e('Primair e-mailadres gewijzigd.', 'avpvh-members'); ?></p>
             <?php elseif (!empty($_GET['identity_requested'])) : ?>
-                <p class="avpvh-identity-notice"><?php printf(esc_html__('Verzoek verstuurd — %s heeft een e-mail gekregen met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?></p>
+                <p class="avpvh-identity-notice"><?php printf(/* translators: %s: first name */ esc_html__('Verzoek verstuurd — %s heeft een e-mail gekregen met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?></p>
             <?php elseif (!empty($_GET['identity_email_sent'])) : ?>
                 <p class="avpvh-identity-notice"><?php esc_html_e('Bevestigingslink verstuurd — check je inbox om het adres te koppelen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
@@ -519,10 +519,10 @@ class AVPVH_Member_Profile_Form {
                         <?php wp_nonce_field('avpvh_request_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_request_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
-                        <button type="submit" class="button"><?php printf(esc_html__('Vraag %s om een e-mailadres te verifiëren', 'avpvh-members'), esc_html($member->first_name)); ?></button>
+                        <button type="submit" class="button"><?php printf(/* translators: %s: first name */ esc_html__('Vraag %s om een e-mailadres te verifiëren', 'avpvh-members'), esc_html($member->first_name)); ?></button>
                     </form>
                     <small>
-                        <?php printf(esc_html__('Toevoegen kan alleen door %s zelf (moet zelf inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?>
+                        <?php printf(/* translators: %s: first name */ esc_html__('Toevoegen kan alleen door %s zelf (moet zelf inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?>
                     </small>
                 </p>
                 <?php endif; ?>
@@ -535,9 +535,9 @@ class AVPVH_Member_Profile_Form {
                     <?php foreach ($configured as $key => $provider) : ?>
                         <div class="avpvh-identities-add-option">
                             <a class="button" href="<?php echo esc_url(AVPVH_OAuth::add_identity_url($key, (int) $member->id)); ?>">
-                                <?php printf(esc_html__('Met %s', 'avpvh-members'), esc_html($provider['label'])); ?>
+                                <?php printf(/* translators: %s: login provider, e.g. Google */ esc_html__('Met %s', 'avpvh-members'), esc_html($provider['label'])); ?>
                             </a>
-                            <small class="avpvh-field-hint"><?php printf(esc_html__('Handig als je browser al bij %s is ingelogd — dan hoef je geen wachtwoord in te typen.', 'avpvh-members'), esc_html($provider['label'])); ?></small>
+                            <small class="avpvh-field-hint"><?php printf(/* translators: %s: login provider, e.g. Google */ esc_html__('Handig als je browser al bij %s is ingelogd — dan hoef je geen wachtwoord in te typen.', 'avpvh-members'), esc_html($provider['label'])); ?></small>
                         </div>
                     <?php endforeach; ?>
 
@@ -572,7 +572,7 @@ class AVPVH_Member_Profile_Form {
             <legend><?php esc_html_e('Inlog-e-mailadres verifiëren', 'avpvh-members'); ?></legend>
 
             <?php if (!empty($_GET['identity_requested'])) : ?>
-                <p class="avpvh-identity-notice"><?php printf(esc_html__('Verzoek verstuurd — %s heeft een e-mail gekregen met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?></p>
+                <p class="avpvh-identity-notice"><?php printf(/* translators: %s: first name */ esc_html__('Verzoek verstuurd — %s heeft een e-mail gekregen met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?></p>
             <?php endif; ?>
 
             <?php if (count($identities) < 3) : ?>
@@ -581,14 +581,14 @@ class AVPVH_Member_Profile_Form {
                         <?php wp_nonce_field('avpvh_request_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_request_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
-                        <button type="submit" class="button"><?php printf(esc_html__('Vraag %s om een e-mailadres te verifiëren', 'avpvh-members'), esc_html($member->first_name)); ?></button>
+                        <button type="submit" class="button"><?php printf(/* translators: %s: first name */ esc_html__('Vraag %s om een e-mailadres te verifiëren', 'avpvh-members'), esc_html($member->first_name)); ?></button>
                     </form>
                     <small>
-                        <?php printf(esc_html__('Toevoegen kan alleen door %s zelf (moet zelf inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?>
+                        <?php printf(/* translators: %s: first name */ esc_html__('Toevoegen kan alleen door %s zelf (moet zelf inloggen om te verifiëren dat het adres echt van diegene is) — dit stuurt een e-mail met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?>
                     </small>
                 </p>
             <?php else : ?>
-                <p><em><?php printf(esc_html__('%s heeft al het maximum van drie inlog-e-mailadressen.', 'avpvh-members'), esc_html($member->first_name)); ?></em></p>
+                <p><em><?php printf(/* translators: %s: first name */ esc_html__('%s heeft al het maximum van drie inlog-e-mailadressen.', 'avpvh-members'), esc_html($member->first_name)); ?></em></p>
             <?php endif; ?>
         </fieldset>
         <?php
@@ -710,7 +710,7 @@ class AVPVH_Member_Profile_Form {
                             <option value="<?php echo esc_attr($label->id); ?>"><?php echo esc_html($label->label); ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <p class="avpvh-field-hint"><?php printf(esc_html__('…van %s.', 'avpvh-members'), esc_html(avpvh_format_name($member))); ?></p>
+                    <p class="avpvh-field-hint"><?php printf(/* translators: %s: member name */ esc_html__('…van %s.', 'avpvh-members'), esc_html(avpvh_format_name($member))); ?></p>
                 </div>
 
                 <div class="form-group">
@@ -947,7 +947,7 @@ class AVPVH_Member_Profile_Form {
                 $updated_member = (object) array_merge((array) $member, $member_data);
                 $result = AVPVH_Directory::update_user($member->lldap_user_id, ['display_name' => avpvh_format_name($updated_member)]);
                 if (is_wp_error($result)) {
-                    error_log("AVPVH_Member_Profile_Form: failed to sync displayName to LLDAP for member {$member->id}: " . $result->get_error_message());
+                    error_log("AVPVH_Member_Profile_Form: failed to sync displayName to LLDAP for member {$member->id}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
                 }
             }
 
@@ -1117,7 +1117,7 @@ class AVPVH_Member_Profile_Form {
             AVPVH_DB::set_primary_identity($member_id, $identity_id);
             $result = AVPVH_Directory::update_user($member->lldap_user_id, ['mail' => $target->email]);
             if (is_wp_error($result)) {
-                error_log("AVPVH_Member_Profile_Form: failed to sync primary identity ({$target->email}) to LLDAP for member {$member_id}: " . $result->get_error_message());
+                error_log("AVPVH_Member_Profile_Form: failed to sync primary identity to LLDAP for member {$member_id}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             }
             self::notify_identity_change($member, $own_member, 'als primair adres ingesteld', $target->provider, $target->email);
         }
@@ -1173,7 +1173,7 @@ class AVPVH_Member_Profile_Form {
         // actual username differs from it.
         $reset_url = add_query_arg('username', rawurlencode($member->email), AVPVH_Nav_Auth::AUTHELIA_URL . '/reset-password/step1');
         $body = sprintf(
-            __("%s heeft dit e-mailadres (%s) toegevoegd aan jouw profiel bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n\nAlleen jij kunt dit zelf afronden — %s kan dit niet namens jou doen. Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n%s\n\nWas dit geen terecht verzoek? Dan hoef je niets te doen.", 'avpvh-members'),
+            /* translators: 1: requester name, 2: e-mail address, 3: requester name, 4: link */ __("%1\$s heeft dit e-mailadres (%2\$s) toegevoegd aan jouw profiel bij AV Philips van Horne en vraagt of je het wilt verifiëren als inlogmethode.\n\nAlleen jij kunt dit zelf afronden — %3\$s kan dit niet namens jou doen. Klik hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n%4\$s\n\nWas dit geen terecht verzoek? Dan hoef je niets te doen.", 'avpvh-members'),
             esc_html($requester_name),
             $member->email,
             esc_html($requester_name),
@@ -1281,7 +1281,7 @@ class AVPVH_Member_Profile_Form {
 
         $subject = __('AV Philips van Horne — inloggegevens gewijzigd', 'avpvh-members');
         $body_actor = sprintf(
-            __("Er is zojuist een %s (%s) %s bij het profiel van %s.\n\nWas jij dit niet? Neem dan contact op met het bestuur.", 'avpvh-members'),
+            /* translators: 1: login method, 2: e-mail address, 3: toegevoegd/verwijderd, 4: member name */ __("Er is zojuist een %1\$s (%2\$s) %3\$s bij het profiel van %4\$s.\n\nWas jij dit niet? Neem dan contact op met het bestuur.", 'avpvh-members'),
             $provider_label,
             $email,
             $action,
@@ -1291,7 +1291,7 @@ class AVPVH_Member_Profile_Form {
 
         if (!$is_self) {
             $body_member = sprintf(
-                __("Er is zojuist een %s (%s) %s bij jouw profiel door %s.\n\nWas jij dit niet? Neem dan contact op met het bestuur.", 'avpvh-members'),
+                /* translators: 1: login method, 2: e-mail address, 3: toegevoegd/verwijderd, 4: name of who did it */ __("Er is zojuist een %1\$s (%2\$s) %3\$s bij jouw profiel door %4\$s.\n\nWas jij dit niet? Neem dan contact op met het bestuur.", 'avpvh-members'),
                 $provider_label,
                 $email,
                 $action,
@@ -1309,7 +1309,7 @@ class AVPVH_Member_Profile_Form {
                 $requester_user = get_userdata((int) $requester_id);
                 if ($requester_user) {
                     $body_requester = sprintf(
-                        __("Je verzoek is opgevolgd: er is zojuist een %s (%s) toegevoegd aan het profiel van %s.", 'avpvh-members'),
+                        /* translators: 1: login method, 2: e-mail address, 3: member name */ __("Je verzoek is opgevolgd: er is zojuist een %1\$s (%2\$s) toegevoegd aan het profiel van %3\$s.", 'avpvh-members'),
                         $provider_label,
                         $email,
                         $member_name

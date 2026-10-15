@@ -57,6 +57,7 @@ jobs:
             PLAN-email-login.md
             PLAN-openresty-jwt.md
             PLAN-plugin-check-cleanup.md
+            PLAN-rsp-tenant-admin-sso.md
             PLAN-workspace-addressbook-sync.md
             PLAN-workspace-group-sync.md
             PLAN-workspace-sync-implementation.md

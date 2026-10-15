@@ -333,7 +333,7 @@ class AVPVH_Tenant_SSO {
                 . esc_html__('Uitloggen', 'avpvh-members') . '</a> · <a href="' . esc_url(home_url('/')) . '">'
                 . esc_html__('Naar de homepage', 'avpvh-members') . '</a></p>',
             esc_html__('Geen toegang', 'avpvh-members'),
-            ['response' => $status]
+            ['response' => $status] // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- an options array, not output
         );
     }
 

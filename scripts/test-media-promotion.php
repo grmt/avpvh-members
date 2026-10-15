@@ -69,8 +69,8 @@ class Fake_Filesystem {
 }
 
 $meta = [];
-function add_filter(...$a): void {}
-function add_action(...$a): void {}
+function add_filter(...$a): void { /* Not needed in this test. */ }
+function add_action(...$a): void { /* Not needed in this test. */ }
 function wp_upload_dir(): array {
     global $root;
     return ['basedir' => $root . '/wp-content/uploads'];

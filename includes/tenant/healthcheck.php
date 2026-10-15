@@ -12,6 +12,9 @@
 
 defined('ABSPATH') || exit;
 
+// Plain-text output to the terminal, never to a browser.
+// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+
 $plugin_dir = dirname(__DIR__, 2);
 require_once $plugin_dir . '/includes/tenant/class-tenant-config.php';
 require_once $plugin_dir . '/includes/tenant/class-tenant-identity.php';

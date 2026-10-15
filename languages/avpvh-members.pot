@@ -1193,7 +1193,7 @@ msgstr ""
 
 #: admin/merge-members.php:214
 #, php-format
-msgid "Contributie %s (%s)"
+msgid "Contributie %1$s (%2$s)"
 msgstr ""
 
 #: admin/merge-members.php:216
@@ -1389,9 +1389,9 @@ msgstr ""
 #: admin/roles.php:57
 #, php-format
 msgid ""
-"een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%s, "
+"een bestuurswissel moet binnen een week worden doorgegeven aan de KVK (%1$s, "
 "via Mijn KVK; nieuwe bestuursleden ondertekenen met DigiD), en daarna in het "
-"%s. Dit gaat niet automatisch."
+"%2$s. Dit gaat niet automatisch."
 msgstr ""
 
 #: admin/roles.php:58
@@ -1808,7 +1808,7 @@ msgstr ""
 
 #: includes/class-admin.php:248
 #, php-format
-msgid "Gesynchroniseerd: %d accounts, %d verwijderd."
+msgid "Gesynchroniseerd: %1$d accounts, %2$d verwijderd."
 msgstr ""
 
 #: includes/class-admin.php:249
@@ -1937,7 +1937,7 @@ msgstr ""
 
 #: includes/class-admin.php:378
 #, php-format
-msgid "%d accounts, laatst volledig gesynchroniseerd: %s"
+msgid "%1$d accounts, laatst volledig gesynchroniseerd: %2$s"
 msgstr ""
 
 #: includes/class-admin.php:380
@@ -2027,10 +2027,10 @@ msgstr ""
 #: includes/class-email-identity.php:80
 #, php-format
 msgid ""
-"Klik op deze link om %s te koppelen als inlog-e-mailadres bij AV Philips van "
+"Klik op deze link om %1$s te koppelen als inlog-e-mailadres bij AV Philips van "
 "Horne:\n"
 "\n"
-"%s\n"
+"%2$s\n"
 "\n"
 "Deze link is een uur geldig. Was jij dit niet? Dan hoef je niets te doen."
 msgstr ""
@@ -2199,8 +2199,8 @@ msgstr ""
 #: includes/class-member-merge.php:393
 #, php-format
 msgid ""
-"De leden zijn samengevoegd, maar het account \"%s\" kon niet worden "
-"verwijderd: %s"
+"De leden zijn samengevoegd, maar het account \"%1$s\" kon niet worden "
+"verwijderd: %2$s"
 msgstr ""
 
 #: includes/class-member-profile-form.php:23
@@ -2621,12 +2621,12 @@ msgstr ""
 #: includes/class-member-profile-form.php:1130
 #, php-format
 msgid ""
-"%s heeft dit e-mailadres (%s) toegevoegd aan jouw profiel bij AV Philips van "
+"%1$s heeft dit e-mailadres (%2$s) toegevoegd aan jouw profiel bij AV Philips van "
 "Horne en vraagt of je het wilt verifiëren als inlogmethode.\n"
 "\n"
-"Alleen jij kunt dit zelf afronden — %s kan dit niet namens jou doen. Klik "
+"Alleen jij kunt dit zelf afronden — %3$s kan dit niet namens jou doen. Klik "
 "hieronder om het adres te verifiëren en een wachtwoord in te stellen:\n"
-"%s\n"
+"%4$s\n"
 "\n"
 "Was dit geen terecht verzoek? Dan hoef je niets te doen."
 msgstr ""
@@ -2654,7 +2654,7 @@ msgstr ""
 #: includes/class-member-profile-form.php:1238
 #, php-format
 msgid ""
-"Er is zojuist een %s (%s) %s bij het profiel van %s.\n"
+"Er is zojuist een %1$s (%2$s) %3$s bij het profiel van %4$s.\n"
 "\n"
 "Was jij dit niet? Neem dan contact op met het bestuur."
 msgstr ""
@@ -2662,7 +2662,7 @@ msgstr ""
 #: includes/class-member-profile-form.php:1248
 #, php-format
 msgid ""
-"Er is zojuist een %s (%s) %s bij jouw profiel door %s.\n"
+"Er is zojuist een %1$s (%2$s) %3$s bij jouw profiel door %4$s.\n"
 "\n"
 "Was jij dit niet? Neem dan contact op met het bestuur."
 msgstr ""
@@ -2670,8 +2670,8 @@ msgstr ""
 #: includes/class-member-profile-form.php:1266
 #, php-format
 msgid ""
-"Je verzoek is opgevolgd: er is zojuist een %s (%s) toegevoegd aan het "
-"profiel van %s."
+"Je verzoek is opgevolgd: er is zojuist een %1$s (%2$s) toegevoegd aan het "
+"profiel van %3$s."
 msgstr ""
 
 #: includes/class-member-profile-form.php:1348 includes/class-nav-auth.php:107

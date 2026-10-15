@@ -36,10 +36,10 @@ if (!function_exists('get_user_meta')) {
     }
 }
 if (!function_exists('add_action')) {
-    function add_action($tag, $callback) {}
+    function add_action($tag, $callback) { /* Not needed in this test. */ }
 }
 if (!function_exists('add_filter')) {
-    function add_filter($tag, $callback, $priority = 10) {}
+    function add_filter($tag, $callback, $priority = 10) { /* Not needed in this test. */ }
 }
 
 define('ABSPATH', __DIR__ . '/../');

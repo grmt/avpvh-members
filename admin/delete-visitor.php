@@ -46,7 +46,7 @@ $plan = AVPVH_Visitor_Delete::preview($id);
                 <input type="hidden" name="fingerprint" value="<?php echo esc_attr($plan['fingerprint']); ?>">
                 <?php wp_nonce_field('avpvh_delete_visitor_' . $id); ?>
                 <p><label><input type="checkbox" name="is_test" value="1" required> <?php esc_html_e('Dit is een testaccount. Ik wil het account en alle hierboven getoonde gegevens definitief verwijderen.', 'avpvh-members'); ?></label></p>
-                <p><label for="avpvh-delete-confirmation"><?php printf(esc_html__('Typ bezoekersnummer %d om te bevestigen:', 'avpvh-members'), $id); ?></label>
+                <p><label for="avpvh-delete-confirmation"><?php printf(/* translators: %d: visitor number */ esc_html__('Typ bezoekersnummer %d om te bevestigen:', 'avpvh-members'), (int) $id); ?></label>
                     <input id="avpvh-delete-confirmation" type="text" name="confirmation" inputmode="numeric" autocomplete="off" required pattern="<?php echo esc_attr((string) $id); ?>"></p>
                 <p><button type="submit" class="button button-primary"><?php esc_html_e('Definitief verwijderen', 'avpvh-members'); ?></button></p>
             </form>

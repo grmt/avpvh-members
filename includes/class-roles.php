@@ -509,7 +509,7 @@ class AVPVH_Roles {
         }
         $groups = AVPVH_Directory::get_user_groups($member->lldap_user_id);
         if (is_wp_error($groups)) {
-            error_log("AVPVH_Roles: could not read groups of member {$member_id}: " . $groups->get_error_message());
+            error_log("AVPVH_Roles: could not read groups of member {$member_id}: " . $groups->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             return false;
         }
 
@@ -520,7 +520,7 @@ class AVPVH_Roles {
             }
             $removed = AVPVH_Directory::remove_from_group($member->lldap_user_id, $group);
             if (is_wp_error($removed)) {
-                error_log("AVPVH_Roles: could not remove member {$member_id} from {$group}: " . $removed->get_error_message());
+                error_log("AVPVH_Roles: could not remove member {$member_id} from {$group}: " . $removed->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
                 continue;
             }
             $changed = true;
@@ -572,7 +572,7 @@ class AVPVH_Roles {
             }
             $removed = AVPVH_Directory::remove_from_group($holder->lldap_user_id, $role);
             if (is_wp_error($removed)) {
-                error_log("AVPVH_Roles: {$role} appointment could not remove member {$holder->id}: " . $removed->get_error_message());
+                error_log("AVPVH_Roles: {$role} appointment could not remove member {$holder->id}: " . $removed->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             }
             $affected[] = $holder->lldap_user_id;
             $replaced[] = (int) $holder->id;
