@@ -6,6 +6,7 @@
 defined('ABSPATH') || exit;
 
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-identity.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-directory.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-sso.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-content.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-shares.php';

@@ -1,0 +1,17 @@
+name: avpvh-tenant-directory
+services:
+  openldap:
+    image: bitnamilegacy/openldap:2.6.10-debian-12-r4
+    environment:
+      LDAP_ROOT: dc=nl
+      LDAP_ADMIN_USERNAME: admin
+      LDAP_ADMIN_PASSWORD: beheer-test
+      LDAP_CUSTOM_LDIF_DIR: /ldifs
+      LDAP_PORT_NUMBER: "1389"
+    volumes: [ "./seed.ldif:/ldifs/seed.ldif:ro" ]
+  php:
+    image: php:8.3-cli
+    depends_on: [ openldap ]
+    volumes: [ "../../..:/plugin:ro" ]
+    working_dir: /plugin
+    entrypoint: [ "sleep", "infinity" ]

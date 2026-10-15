@@ -1,0 +1,139 @@
+# Fictitious directory in the live layout (dc=nl, Rechtspreker tenants
+# under ou=rechtspreker, AVP-PvH accounts under ou=avpvh). Test data only.
+dn: dc=nl
+objectClass: dcObject
+objectClass: organization
+dc: nl
+o: Testdirectory
+
+dn: cn=tenant-reader,dc=nl
+objectClass: organizationalRole
+objectClass: simpleSecurityObject
+cn: tenant-reader
+userPassword: lees-alleen-test
+
+dn: ou=rechtspreker,dc=nl
+objectClass: organizationalUnit
+ou: rechtspreker
+
+dn: ou=groups,ou=rechtspreker,dc=nl
+objectClass: organizationalUnit
+ou: groups
+
+dn: ou=vve,ou=rechtspreker,dc=nl
+objectClass: organizationalUnit
+ou: vve
+
+dn: ou=groups,ou=vve,ou=rechtspreker,dc=nl
+objectClass: organizationalUnit
+ou: groups
+
+dn: ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: organizationalUnit
+ou: vp40-42
+
+dn: ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: organizationalUnit
+ou: groups
+
+dn: ou=avpvh,dc=nl
+objectClass: organizationalUnit
+ou: avpvh
+
+dn: ou=people,ou=avpvh,dc=nl
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=lid.google,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: inetOrgPerson
+uid: lid.google
+cn: Lid Google
+sn: Google
+displayName: Lid Google
+mail: lid.google@gmail.example.invalid
+
+dn: uid=lid.microsoft,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: inetOrgPerson
+uid: lid.microsoft
+cn: Lid Microsoft
+sn: Microsoft
+mail: lid.microsoft@hotmail.example.invalid
+
+dn: uid=lid.twee,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: inetOrgPerson
+uid: lid.twee
+cn: Lid Twee
+sn: Twee
+mail: lid.twee@provider.example.invalid
+mail: lid.twee@gmail.example.invalid
+
+dn: uid=lid(haakjes),ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: inetOrgPerson
+uid: lid(haakjes)
+cn: Lid Haakjes
+sn: Haakjes
+mail: haakjes@example.invalid
+
+dn: uid=beheer,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: inetOrgPerson
+uid: beheer
+cn: Beheer Test
+sn: Test
+mail: beheer@example.invalid
+
+dn: uid=buiten,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: inetOrgPerson
+uid: buiten
+cn: Buiten Test
+sn: Test
+mail: buiten@example.invalid
+
+dn: uid=dubbel.een,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: inetOrgPerson
+uid: dubbel.een
+cn: Dubbel Een
+sn: Een
+mail: dubbel@example.invalid
+
+dn: uid=dubbel.twee,ou=people,ou=avpvh,dc=nl
+objectClass: inetOrgPerson
+uid: dubbel.twee
+cn: Dubbel Twee
+sn: Twee
+mail: dubbel@example.invalid
+
+dn: uid=avp.lid,ou=people,ou=avpvh,dc=nl
+objectClass: inetOrgPerson
+uid: avp.lid
+cn: AVP Lid
+sn: Lid
+mail: avp.lid@example.invalid
+
+dn: uid=zonder.mail,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: inetOrgPerson
+uid: zonder.mail
+cn: Zonder Mail
+sn: Mail
+
+dn: cn=vp4042-leden,ou=groups,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: groupOfNames
+cn: vp4042-leden
+member: uid=lid.google,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+member: uid=lid.microsoft,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+member: uid=lid.twee,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+member: uid=lid(haakjes),ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+member: uid=avp.lid,ou=people,ou=avpvh,dc=nl
+
+dn: cn=rsp-vve-vp4042-admins,ou=groups,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+objectClass: groupOfNames
+cn: rsp-vve-vp4042-admins
+member: uid=beheer,ou=people,ou=vp40-42,ou=vve,ou=rechtspreker,dc=nl
+
+dn: cn=rsp-vve-admins,ou=groups,ou=vve,ou=rechtspreker,dc=nl
+objectClass: groupOfNames
+cn: rsp-vve-admins
+member: cn=tenant-reader,dc=nl

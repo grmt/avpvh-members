@@ -45,6 +45,7 @@ ok() { if eval "$2"; then echo "ok   $1"; else echo "FAIL $1"; fail=1; fi; }
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 loc() { curl -s -o /dev/null -w '%{redirect_url}' "$@"; }
 ok "healthcheck passes while the plugin is inactive" '[[ $hc_exit == 0 && "$hc" == *"Configuratie geldig"* && "$hc" == *": 401"* && "$hc" == *"'"'"'leden'"'"': $L"* ]]'
+ok "healthcheck: no directory configured is fine" '[[ "$hc" == *"Directory: niet ingesteld"* ]]'
 ok "healthcheck still finds the protected page once active" '[[ $hc_active_exit == 0 && "$hc_active" == *"'"'"'leden'"'"': $L"* ]]'
 # --- anonymous
 home=$(curl -s $B/)

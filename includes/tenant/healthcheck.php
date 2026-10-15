@@ -18,6 +18,7 @@ defined('ABSPATH') || exit;
 $plugin_dir = dirname(__DIR__, 2);
 require_once $plugin_dir . '/includes/tenant/class-tenant-config.php';
 require_once $plugin_dir . '/includes/tenant/class-tenant-identity.php';
+require_once $plugin_dir . '/includes/tenant/class-tenant-directory.php';
 
 $config = AVPVH_Tenant_Config::current();
 if (!$config) {
@@ -55,8 +56,16 @@ $response = wp_remote_get((string) $config->get('authelia_authz_url'), [
 $code = is_wp_error($response) ? 0 : (int) wp_remote_retrieve_response_code($response);
 echo 'Authelia zonder sessie voor ' . $config->identity_probe_url() . ': '
     . ($code ?: 'onbereikbaar (' . $response->get_error_message() . ')') . "\n";
+$directory = AVPVH_Tenant_Directory::for_config($config);
+$directory_ok = true;
+if ($directory) {
+    $directory_ok = $directory->reachable();
+    echo 'Directory (alleen lezen): ' . ($directory_ok ? 'verbonden' : 'NIET bereikbaar of inloggen mislukt') . "\n";
+} else {
+    echo "Directory: niet ingesteld (inloggen met Google/Microsoft staat uit)\n";
+}
 if (!in_array($code, [401, 302], true)) {
     fwrite(STDERR, "FOUT: verwacht 401/302. Controleer authelia_authz_url en de one_factor-regel voor het probepad.\n");
     exit(1);
 }
-exit($pages || !$config->get('members_only_pages') ? 0 : 1);
+exit(($pages || !$config->get('members_only_pages')) && $directory_ok ? 0 : 1);

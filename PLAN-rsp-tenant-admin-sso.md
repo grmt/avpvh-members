@@ -97,7 +97,11 @@ Daarna, volgens fase 5:
 
 ## Vervolg: inloggen met Google of Microsoft
 
-Status: plan, nog niet gebouwd.
+Status: fase 1 gebouwd. Dat is `AVPVH_Tenant_Directory`
+(`includes/tenant/class-tenant-directory.php`): het optionele
+`directory`-blok in het tenantbestand en een regel in de healthcheck. Getest
+met `scripts/tenant-e2e/directory/run.sh`, met een OpenLDAP en fictieve
+accounts. Fase 2–4 volgen.
 
 ### Aanleiding
 
