@@ -23,7 +23,8 @@ function check(string $label, bool $ok, mixed $detail = null): void {
 }
 
 $settings = [
-    'url'                => 'ldap://openldap:1389',
+    // The Docker service name of the test server, as in a tenant file.
+    'url'                => getenv('AVPVH_TEST_LDAP_URL') ?: 'ldap://openldap:1389',
     'bind_dn'            => 'cn=tenant-reader,dc=nl',
     'bind_password_file' => '/tmp/reader',
     'base_dn'            => 'dc=nl',
@@ -76,8 +77,10 @@ $missing = new AVPVH_Tenant_Directory(['bind_password_file' => '/tmp/bestaat-nie
 check('missing password file: error, no anonymous bind', $missing->find_by_email(GOOGLE_MEMBER)['status'] === 'error');
 
 $start = microtime(true);
-// TEST-NET-1 (RFC 5737): never answers, so the connect has to time out.
-$down = new AVPVH_Tenant_Directory(['url' => 'ldaps://192.0.2.1:1636', 'timeout' => 2] + $settings);
+// A server that never answers, so the connect has to time out. A service
+// name cannot be used for this: an unknown name fails at once, a running
+// one answers. Default: TEST-NET-1 (RFC 5737), never routed.
+$down = new AVPVH_Tenant_Directory(['url' => getenv('AVPVH_TEST_LDAP_SILENT_URL') ?: 'ldaps://192.0.2.1:1636', 'timeout' => 2] + $settings);
 $status = $down->find_by_email(GOOGLE_MEMBER)['status'];
 check('unreachable server: error within the timeout', $status === 'error' && microtime(true) - $start < 6, ['status' => $status, 'seconds' => round(microtime(true) - $start, 1)]);
 
