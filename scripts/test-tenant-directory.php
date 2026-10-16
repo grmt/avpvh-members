@@ -11,6 +11,8 @@ define('ABSPATH', __DIR__ . '/');
 
 require_once __DIR__ . '/../includes/tenant/class-tenant-directory.php';
 
+const GOOGLE_MEMBER = 'lid.google@gmail.example.invalid';
+
 $failures = 0;
 function check(string $label, bool $ok, mixed $detail = null): void {
     global $failures;
@@ -34,7 +36,7 @@ check('the read-only account can bind', $d->reachable());
 $r = $d->find_by_email('Lid.Google@Gmail.Example.invalid');
 check('member found by e-mail, case-insensitive', $r['status'] === 'ok' && $r['uid'] === 'lid.google' && $r['groups'] === ['vp4042-leden'], $r);
 check('display name is returned', ($r['name'] ?? '') === 'Lid Google', $r);
-check('the e-mail is returned lowercased', ($r['email'] ?? '') === 'lid.google@gmail.example.invalid', $r);
+check('the e-mail is returned lowercased', ($r['email'] ?? '') === GOOGLE_MEMBER, $r);
 
 $r = $d->find_by_email('lid.microsoft@hotmail.example.invalid');
 check('member without displayName falls back to cn', $r['status'] === 'ok' && $r['name'] === 'Lid Microsoft', $r);
@@ -58,7 +60,7 @@ check('two accounts with one address are ambiguous', $d->find_by_email('dubbel@e
 check('an unknown address is none', $d->find_by_email('niemand@example.invalid')['status'] === 'none');
 check('no address is none', $d->find_by_email('')['status'] === 'none');
 check('a wildcard is matched literally', $d->find_by_email('*@example.invalid')['status'] === 'none');
-check('filter syntax in the address gets nowhere', $d->find_by_email('lid.google@gmail.example.invalid)(uid=*')['status'] === 'none');
+check('filter syntax in the address gets nowhere', $d->find_by_email(GOOGLE_MEMBER . ')(uid=*')['status'] === 'none');
 
 $r = $d->find_by_uid('Lid.Google');
 check('find by uid, case-insensitive', $r['status'] === 'ok' && $r['uid'] === 'lid.google' && $r['groups'] === ['vp4042-leden'], $r);
@@ -68,14 +70,15 @@ check('find by uid: account without mail still works', $d->find_by_uid('zonder.m
 
 $wrong = new AVPVH_Tenant_Directory(['bind_password_file' => '/tmp/wrong'] + $settings);
 check('wrong password: not reachable', !$wrong->reachable());
-check('wrong password: lookups answer error', $wrong->find_by_email('lid.google@gmail.example.invalid')['status'] === 'error');
+check('wrong password: lookups answer error', $wrong->find_by_email(GOOGLE_MEMBER)['status'] === 'error');
 
 $missing = new AVPVH_Tenant_Directory(['bind_password_file' => '/tmp/bestaat-niet'] + $settings);
-check('missing password file: error, no anonymous bind', $missing->find_by_email('lid.google@gmail.example.invalid')['status'] === 'error');
+check('missing password file: error, no anonymous bind', $missing->find_by_email(GOOGLE_MEMBER)['status'] === 'error');
 
 $start = microtime(true);
-$down = new AVPVH_Tenant_Directory(['url' => 'ldap://10.255.255.1:1389', 'timeout' => 2] + $settings);
-$status = $down->find_by_email('lid.google@gmail.example.invalid')['status'];
+// TEST-NET-1 (RFC 5737): never answers, so the connect has to time out.
+$down = new AVPVH_Tenant_Directory(['url' => 'ldaps://192.0.2.1:1636', 'timeout' => 2] + $settings);
+$status = $down->find_by_email(GOOGLE_MEMBER)['status'];
 check('unreachable server: error within the timeout', $status === 'error' && microtime(true) - $start < 6, ['status' => $status, 'seconds' => round(microtime(true) - $start, 1)]);
 
 echo $failures ? "\n$failures failure(s)\n" : "\nAll passed\n";
