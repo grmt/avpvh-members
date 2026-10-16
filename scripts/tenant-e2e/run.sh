@@ -6,7 +6,8 @@
 #   outsider → boek (no access to this tenant)
 # plus a fake Google/Microsoft (idp.php) and an OpenLDAP with the
 # fictitious accounts of directory/seed.ldif for "Inloggen met Google".
-# Needs Docker; uses ports 8088 and 8089 on 127.0.0.1 and removes everything after.
+# nginx (nginx.conf) guards uploads/private/ with the plugin's file check.
+# Needs Docker; uses ports 8088-8090 on 127.0.0.1 and removes everything after.
 #
 #   scripts/tenant-e2e/run.sh
 set -uo pipefail
@@ -34,6 +35,8 @@ docker compose cp fake-idp-endpoints.php wp:/var/www/html/wp-content/mu-plugins/
 docker compose exec -T wp sh -c 'chown www-data: /var/www/html/wp-content/avpvh-tenant.php
     mkdir -p /var/www/html/wp-content/uploads/private/delen
     printf DEELBESTAND-INHOUD > "/var/www/html/wp-content/uploads/private/delen/test bestand.zip"
+    mkdir -p /var/www/html/wp-content/uploads/private/2026
+    printf PRIVE-BESTAND > /var/www/html/wp-content/uploads/private/2026/notulen.pdf
     chown -R www-data: /var/www/html/wp-content/uploads'
 $W core install --url=$B --title=VP-test --admin_user=noodbeheer --admin_password="$(head -c 18 /dev/urandom | base64)" \
     --admin_email=nood@example.invalid --skip-email >/dev/null
@@ -143,6 +146,16 @@ ok "Google member returns to the page" '[[ "$(oauth google lid.google@gmail.exam
 ok "Google member reads the protected page without Authelia" '[[ "$(curl -s -b $OG $B/leden/notulen/)" == *GEHEIM-NOTULEN* ]]'
 ok "Google member is a subscriber, linked to the directory account" '[[ "$($W user list --field=roles --login=lid.google)" == subscriber && "$($W user meta get lid.google avpvh_directory_subject)" == rsp_vve_vp4042/lid.google ]]'
 ok "Google member has no wp-admin" '[[ "$(loc -b $OG $B/wp-admin/)" == "$B/" ]]'
+# --- private files through nginx (auth_request to /avpvh-file-auth/)
+F=http://localhost:8090/wp-content/uploads/private/2026/notulen.pdf
+ok "files: anonymous is sent to the login, back to the file" '[[ "$(code $F)" == 302 && "$(loc $F)" == "$B/avpvh-login/?redirect_to="*"uploads%2Fprivate%2F2026%2Fnotulen.pdf" ]]'
+ok "files: member logged in with Google gets the file" '[[ "$(curl -s -b $OG $F)" == PRIVE-BESTAND ]]'
+ok "files: member logged in only at Authelia gets the file" '[[ "$(curl -s -b test_session=member $F)" == PRIVE-BESTAND ]]'
+ok "files: Authelia account without the member group gets 403" '[[ "$(code -b test_session=outsider $F)" == 403 ]]'
+ok "files: admin group alone gets 403" '[[ "$(code -b test_session=vveadmin $F)" == 403 ]]'
+ok "files: a missing file is 404 for a member" '[[ "$(code -b $OG http://localhost:8090/wp-content/uploads/private/2026/bestaat-niet.pdf)" == 404 ]]'
+ok "files: the check itself answers 401 to a visitor" '[[ "$(code $B/avpvh-file-auth/)" == 401 && "$(curl -s -D - -o /dev/null $B/avpvh-file-auth/ | grep -ci "^x-avpvh-login: $B/avpvh-login/")" == 1 ]]'
+ok "files: a foreign return address is not used" '[[ "$(curl -s -D - -o /dev/null -H "X-Original-URI: //evil.example.invalid/" $B/avpvh-file-auth/ | grep -i "^x-avpvh-login")" != *evil* ]]'
 OM=$(mktemp); rm -f $OM
 ok "Microsoft member (personal account) logs in" '[[ "$(oauth microsoft LID.MICROSOFT@hotmail.example.invalid $OM)" == "$B/leden/notulen/" && "$($W user list --field=roles --login=lid.microsoft)" == subscriber ]]'
 O2=$(mktemp); rm -f $O2
@@ -178,6 +191,7 @@ LDIF
 ok "before the recheck the session still reads" '[[ "$(code -b $OG $B/leden/notulen/)" == 200 ]]'
 $W user meta update lid.google avpvh_directory_checked 1 >/dev/null
 ok "recheck against the directory ends the session" '[[ "$(code -b $OG $B/leden/notulen/)" == 302 ]]'
+ok "files: the revoked Google session gets no file" '[[ "$(code -b $OG $F)" == 302 ]]'
 ok "and a new Google login is refused" '[[ "$(oauth google lid.google@gmail.example.invalid $OX)" == "$B/avpvh-login/?fout=no_access"* ]]'
 $W user meta update lid.microsoft avpvh_directory_checked 1 >/dev/null
 ok "recheck keeps a member that is still in the group" '[[ "$(code -b $OM $B/leden/notulen/)" == 200 ]]'

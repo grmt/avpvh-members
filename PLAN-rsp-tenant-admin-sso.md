@@ -97,7 +97,7 @@ Daarna, volgens fase 5:
 
 ## Vervolg: inloggen met Google of Microsoft
 
-Status: fase 1 en 2 gebouwd, fase 3–4 volgen.
+Status: fase 1 t/m 3 gebouwd, fase 4 (uitrol) volgt.
 
 - Fase 1: `AVPVH_Tenant_Directory`
   (`includes/tenant/class-tenant-directory.php`), het optionele
@@ -113,10 +113,52 @@ Status: fase 1 en 2 gebouwd, fase 3–4 volgen.
   loggen (de eerste open vraag, zoals voorgesteld). Getest in
   `scripts/tenant-e2e/run.sh` met een nep-provider (`idp.php`) en dezelfde
   OpenLDAP-testdata.
-- Tot fase 3 klaar is, krijgt wie via Google/Microsoft inlogt de
-  ledenpagina's wel, maar de bestanden onder `uploads/private/` niet
-  (nginx vraagt daar nog een Authelia-sessie). Zet `oauth` op de server
-  dus pas aan na fase 3.
+- Fase 3: `AVPVH_Tenant_Files` (`includes/tenant/class-tenant-files.php`),
+  de controle `/avpvh-file-auth/` voor nginx' `auth_request`: 204 voor een
+  WordPress-sessie met een van de `content_groups` (ook via Google/Microsoft)
+  of een Authelia-sessie met zo'n groep, 401 met de login-URL in
+  `X-Avpvh-Login` voor wie niet is ingelogd, 403 voor ingelogd zonder
+  toegang. Getest in `scripts/tenant-e2e/run.sh` met een nginx ervoor
+  (`scripts/tenant-e2e/nginx.conf`), ook dat een ingetrokken sessie geen
+  bestand meer krijgt.
+- Zet `oauth` op de server pas aan nadat nginx deze controle gebruikt;
+  daarvóór krijgt wie via Google/Microsoft inlogt de ledenpagina's wel, maar
+  de bestanden onder `uploads/private/` niet.
+
+#### nginx op de server (fase 4)
+
+In `vp40-42.conf` vervangt dit de Authelia-`auth_request` van
+`uploads/private/` (de rest van het serverblok blijft gelijk):
+
+```nginx
+location = /internal/avpvh/file-auth {
+    internal;
+    fastcgi_pass $wordpress_vp4042_upstream:9000;
+    include /etc/nginx/snippets/fastcgi.conf;
+    fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+    fastcgi_param SCRIPT_NAME /index.php;
+    fastcgi_param REQUEST_URI /avpvh-file-auth/;
+    fastcgi_param REQUEST_METHOD GET;
+    fastcgi_param CONTENT_LENGTH "";
+    fastcgi_param HTTP_X_ORIGINAL_URI $request_uri;
+    fastcgi_param HTTPS on;
+    fastcgi_param SERVER_PORT 443;
+    fastcgi_pass_request_body off;
+}
+
+location ~* ^/wp-content/uploads/private/ {
+    auth_request /internal/avpvh/file-auth;
+    auth_request_set $avpvh_login $upstream_http_x_avpvh_login;
+    error_page 401 =302 $avpvh_login;
+    rewrite ^/wp-content/(?<rest>.*) /wp-content-vp4042/$rest break;
+    try_files $uri =404;
+}
+```
+
+Bij de uitrol eerst controleren dat PHP-FPM de overschreven `REQUEST_URI`
+ziet (`fastcgi.conf` zet hem ook): anoniem moet een bestand een 302 naar
+`/avpvh-login/` of Authelia geven, een lid met sessie het bestand. De oude
+Authelia-regel voor `uploads/private/` in `access_control` mag daarna weg.
 
 ### Aanleiding
 
