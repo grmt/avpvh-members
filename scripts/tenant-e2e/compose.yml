@@ -7,10 +7,24 @@ services:
     image: php:8.3-cli
     command: php -S 0.0.0.0:9091 /srv/authz.php
     volumes: [ "./authz.php:/srv/authz.php:ro" ]
+  idp:
+    image: php:8.3-cli
+    command: php -S 0.0.0.0:9092 /srv/idp.php
+    ports: [ "127.0.0.1:8089:9092" ]
+    volumes: [ "./idp.php:/srv/idp.php:ro" ]
+  openldap:
+    image: bitnamilegacy/openldap:2.6.10-debian-12-r4
+    environment:
+      LDAP_ROOT: dc=nl
+      LDAP_ADMIN_USERNAME: admin
+      LDAP_ADMIN_PASSWORD: beheer-test
+      LDAP_CUSTOM_LDIF_DIR: /ldifs
+      LDAP_PORT_NUMBER: "1389"
+    volumes: [ "./directory/seed.ldif:/ldifs/seed.ldif:ro" ]
   wp:
     image: wordpress:6-apache
     ports: [ "127.0.0.1:8088:80" ]
-    depends_on: [ db, authz ]
+    depends_on: [ db, authz, idp, openldap ]
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wp

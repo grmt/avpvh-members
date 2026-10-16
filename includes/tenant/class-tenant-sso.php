@@ -11,7 +11,10 @@
  *   neither                     → no session on this site
  *
  * Rights are recalculated at every login and at least every
- * recheck_seconds; any failure ends the session (fail closed).
+ * recheck_seconds; any failure ends the session (fail closed). A session
+ * started with Google or Microsoft (AVPVH_Tenant_OAuth) is rechecked
+ * against the directory instead of Authelia, and only ever reads: an
+ * administrator logs in through Authelia, with two-factor authentication.
  */
 
 defined('ABSPATH') || exit;
@@ -23,6 +26,13 @@ class AVPVH_Tenant_SSO {
     const CHECKED_META  = 'avpvh_directory_checked';
     const ROLE_META     = 'avpvh_provisioned_role';
     const LOGOUT_ACTION = 'avpvh_tenant_logout';
+    /** Session information: how this WordPress session was started. */
+    const LOGIN_KEY     = 'avpvh_login';
+    const VIA_AUTHELIA  = 'authelia';
+    const CHOOSER_PATH  = '/avpvh-login/';
+
+    /** How the session about to be created was started. */
+    private string $login_method = self::VIA_AUTHELIA;
 
     private AVPVH_Tenant_Config $config;
 
@@ -37,6 +47,7 @@ class AVPVH_Tenant_SSO {
         add_filter('logout_url',      [$this, 'logout_url'], 10, 2);
         add_filter('login_url',       [$this, 'filter_login_url'], 10, 2);
         add_filter('allowed_redirect_hosts', [$this, 'allow_authelia_host']);
+        add_filter('attach_session_information', [$this, 'attach_login_method']);
     }
 
     /** The local role for a set of directory groups, or null for no access. */
@@ -50,7 +61,19 @@ class AVPVH_Tenant_SSO {
         return null;
     }
 
+    /**
+     * Where "Inloggen" goes: the page with the choice between Google,
+     * Microsoft and Authelia when OAuth is configured, otherwise Authelia.
+     */
     public function login_url(string $redirect_to = ''): string {
+        if (!$this->config->oauth_clients()) {
+            return $this->authelia_login_url($redirect_to);
+        }
+        $chooser = home_url(self::CHOOSER_PATH);
+        return $redirect_to !== '' ? add_query_arg('redirect_to', rawurlencode($redirect_to), $chooser) : $chooser;
+    }
+
+    public function authelia_login_url(string $redirect_to = ''): string {
         $target = home_url('/' . trim((string) $this->config->get('identity_probe_path'), '/') . '/');
         if ($redirect_to !== '') {
             $target = add_query_arg('redirect_to', rawurlencode($redirect_to), $target);
@@ -85,12 +108,8 @@ class AVPVH_Tenant_SSO {
         if (!$this->is_probe_request()) {
             return;
         }
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the redirect target is validated against this site below
-        $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
-        $target = $redirect_to !== '' ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
-        if (wp_parse_url($target, PHP_URL_HOST) !== $this->config->get('canonical_host')) {
-            $target = home_url('/');
-        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the redirect target is validated against this site
+        $target = $this->safe_target(sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? '')));
 
         $identity = AVPVH_Tenant_Identity::probe($this->config);
         if ($identity['status'] !== AVPVH_Tenant_Identity::OK) {
@@ -113,18 +132,52 @@ class AVPVH_Tenant_SSO {
             $this->deny(__('Je account kon niet aan deze site worden gekoppeld. Neem contact op met de beheerder.', 'avpvh-members'), 409);
         }
 
-        if (is_user_logged_in() && get_current_user_id() !== $user_id) {
-            wp_logout();
-        }
-        if (get_current_user_id() !== $user_id) {
-            $user = get_user_by('id', $user_id);
-            wp_set_current_user($user_id);
-            wp_set_auth_cookie($user_id);
-            do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WP core's own hook, so other login listeners still run
-        }
+        $this->log_in($user_id, self::VIA_AUTHELIA);
         $this->log('callback', $identity['uid'], $role);
         wp_safe_redirect($target);
         exit;
+    }
+
+    /** A same-site target for after the login; the home page otherwise. */
+    public function safe_target(string $redirect_to): string {
+        $target = $redirect_to !== '' ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
+        return wp_parse_url($target, PHP_URL_HOST) === $this->config->get('canonical_host') ? $target : home_url('/');
+    }
+
+    /**
+     * Start a WordPress session for $user_id, started via $method. An
+     * existing session of someone else, or one started another way, ends
+     * first, so the recheck always asks the right source.
+     */
+    public function log_in(int $user_id, string $method): void {
+        if (is_user_logged_in() && (get_current_user_id() !== $user_id || $this->session_login() !== $method)) {
+            wp_logout();
+            wp_set_current_user(0);
+        }
+        if (get_current_user_id() === $user_id) {
+            return;
+        }
+        $user = get_user_by('id', $user_id);
+        $this->login_method = $method;
+        wp_set_current_user($user_id);
+        wp_set_auth_cookie($user_id);
+        $this->login_method = self::VIA_AUTHELIA;
+        do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WP core's own hook, so other login listeners still run
+    }
+
+    public function attach_login_method(array $session): array {
+        $session[self::LOGIN_KEY] = $this->login_method;
+        return $session;
+    }
+
+    /** How the current session was started: authelia, google or microsoft. */
+    public function session_login(): string {
+        $token = wp_get_session_token();
+        if (!is_user_logged_in() || $token === '') {
+            return self::VIA_AUTHELIA;
+        }
+        $session = \WP_Session_Tokens::get_instance(get_current_user_id())->get($token);
+        return (string) ($session[self::LOGIN_KEY] ?? self::VIA_AUTHELIA);
     }
 
     /**
@@ -146,11 +199,23 @@ class AVPVH_Tenant_SSO {
             return;
         }
 
-        $identity = AVPVH_Tenant_Identity::probe($this->config);
         $expected = $this->config->tenant_id() . '/';
-        $same_user = $identity['status'] === AVPVH_Tenant_Identity::OK
-            && $subject === $expected . $identity['uid'];
-        $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
+        if ($this->session_login() === self::VIA_AUTHELIA) {
+            $identity = AVPVH_Tenant_Identity::probe($this->config);
+            $same_user = $identity['status'] === AVPVH_Tenant_Identity::OK
+                && $subject === $expected . $identity['uid'];
+            $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
+        } else {
+            // No Authelia session behind this one: the directory says
+            // whether the account still has access. Reading only.
+            $directory = AVPVH_Tenant_Directory::for_config($this->config);
+            $identity = $directory && str_starts_with($subject, $expected)
+                ? $directory->find_by_uid(substr($subject, strlen($expected)))
+                : ['status' => AVPVH_Tenant_Directory::ERROR];
+            $same_user = $identity['status'] === AVPVH_Tenant_Directory::OK;
+            $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
+            $role = $role === 'subscriber' ? $role : null;
+        }
         if ($role === null) {
             $this->log('recheck', $identity['uid'] ?? '', $same_user ? 'no_tenant_access' : $identity['status']);
             wp_logout();

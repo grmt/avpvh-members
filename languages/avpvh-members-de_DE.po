@@ -3061,3 +3061,28 @@ msgstr "Zeitraum"
 #: includes/class-member-profile-form.php
 msgid "Filter op naam"
 msgstr "Nach Namen filtern"
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Het inloggen duurde te lang of is in een ander venster begonnen. Probeer het opnieuw."
+msgstr "Die Anmeldung hat zu lange gedauert oder wurde in einem anderen Fenster begonnen. Bitte versuche es erneut."
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen is niet gelukt: de provider bevestigde geen e-mailadres. Probeer het opnieuw."
+msgstr "Die Anmeldung ist fehlgeschlagen: Der Anbieter hat keine E-Mail-Adresse bestätigt. Bitte versuche es erneut."
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Met dit e-mailadres is geen account met toegang tot deze site bekend. Gebruik het adres dat bij de beheerder bekend is, of neem contact op met de beheerder."
+msgstr "Zu dieser E-Mail-Adresse ist kein Konto mit Zugang zu dieser Website bekannt. Verwende die Adresse, die der Verwaltung bekannt ist, oder wende dich an die Verwaltung."
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Dit account is van een beheerder. Log in met gebruikersnaam en wachtwoord, met de tweede stap."
+msgstr "Dieses Konto gehört einer Verwaltungsperson. Melde dich mit Benutzername und Passwort an, mit dem zweiten Schritt."
+
+#. translators: %s: Google or Microsoft
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen met %s"
+msgstr "Anmelden mit %s"
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen met gebruikersnaam en wachtwoord"
+msgstr "Anmelden mit Benutzername und Passwort"

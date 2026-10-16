@@ -109,6 +109,7 @@ class AVPVH_Tenant_Config {
             'plugin_locale'           => '',
             'shares'                  => [],
             'directory'               => null,
+            'oauth'                   => [],
             'local_login'             => true,
             'recheck_seconds'         => 300,
         ];
@@ -187,6 +188,12 @@ class AVPVH_Tenant_Config {
         }
         $values['shares'] = self::normalise_shares($values['shares'], $errors);
         $values['directory'] = self::normalise_directory($values['directory'], $errors);
+        $values['oauth'] = self::normalise_oauth($values['oauth'], $errors);
+        // A verified address only means something with a directory to
+        // find the account in.
+        if ($values['oauth'] && $values['directory'] === null) {
+            $errors[] = 'oauth';
+        }
 
         return new self($values, array_values(array_unique($errors)));
     }
@@ -242,6 +249,30 @@ class AVPVH_Tenant_Config {
         return $result;
     }
 
+    /**
+     * OAuth clients per provider (google, microsoft): client ID and the
+     * secret, from a file or inline (exactly one of the two).
+     */
+    private static function normalise_oauth(mixed $oauth, array &$errors): array {
+        $result = [];
+        foreach ((array) $oauth as $provider => $client) {
+            $client = (array) $client;
+            $id     = (string) ($client['client_id'] ?? '');
+            $file   = (string) ($client['client_secret_file'] ?? '');
+            $secret = (string) ($client['client_secret'] ?? '');
+            $valid  = in_array($provider, ['google', 'microsoft'], true)
+                && preg_match('/^[A-Za-z0-9._-]{1,200}$/', $id)
+                && ($file === '') !== ($secret === '')
+                && ($file === '' || (str_starts_with($file, '/') && !str_contains($file, '..')));
+            if (!$valid) {
+                $errors[] = 'oauth';
+                continue;
+            }
+            $result[(string) $provider] = ['client_id' => $id, 'client_secret_file' => $file, 'client_secret' => $secret];
+        }
+        return $result;
+    }
+
     private static function admin_groups_of(array $values): array {
         return array_values(array_unique(array_merge($values['ancestor_admin_groups'], [$values['admin_group']])));
     }
@@ -280,6 +311,11 @@ class AVPVH_Tenant_Config {
     /** @return array{url: string, bind_dn: string, bind_password_file: string, base_dn: string, timeout: int}|null */
     public function directory(): ?array {
         return $this->values['directory'];
+    }
+
+    /** @return array<string, array{client_id: string, client_secret_file: string, client_secret: string}> */
+    public function oauth_clients(): array {
+        return $this->values['oauth'];
     }
 
     public function identity_probe_url(): string {

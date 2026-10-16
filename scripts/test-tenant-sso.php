@@ -99,7 +99,15 @@ function is_user_logged_in(): bool { return $GLOBALS['test_current'] > 0; }
 function get_current_user_id(): int { return $GLOBALS['test_current']; }
 function wp_get_current_user(): WP_User { return $GLOBALS['test_users'][$GLOBALS['test_current']] ?? new WP_User(); }
 function wp_set_current_user(int $id): void { $GLOBALS['test_current'] = $id; }
-function wp_set_auth_cookie(int $id): void { $GLOBALS['test_auth_cookie'] = $id; }
+function wp_set_auth_cookie(int $id): void {
+    $GLOBALS['test_auth_cookie'] = $id;
+    $GLOBALS['test_session'] = $GLOBALS['test_sso']->attach_login_method([]);
+}
+function wp_get_session_token(): string { return 'test-token'; }
+class WP_Session_Tokens {
+    public static function get_instance(int $id): self { return new self(); }
+    public function get(string $token): ?array { return $GLOBALS['test_session']; }
+}
 function wp_logout(): void { $GLOBALS['test_current'] = 0; $GLOBALS['test_auth_cookie'] = 0; }
 function do_action(string $hook, mixed ...$args): void {
     // Other login listeners are not part of this test.
@@ -172,6 +180,7 @@ function current_user_can(string $cap): bool {
 
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-config.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-identity.php';
+require_once dirname(__DIR__) . '/includes/tenant/class-tenant-directory.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-sso.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-content.php';
 
@@ -219,6 +228,14 @@ check('directory base DN must be a DN', in_array('directory', tenant_config(['di
 check('directory password file must be an absolute path', in_array('directory', tenant_config(['directory' => ['bind_password_file' => 'secret'] + $directory])->errors(), true));
 check('directory password file may not climb', in_array('directory', tenant_config(['directory' => ['bind_password_file' => '/run/../etc/passwd'] + $directory])->errors(), true));
 check('directory timeout is capped', tenant_config(['directory' => ['timeout' => 999] + $directory])->directory()['timeout'] === 30);
+$google = ['client_id' => 'test-client.apps.example.invalid', 'client_secret_file' => '/run/secrets/google'];
+check('oauth is optional', $vp->oauth_clients() === []);
+check('valid oauth config', ($o = tenant_config(['directory' => $directory, 'oauth' => ['google' => $google]]))->is_valid() && array_keys($o->oauth_clients()) === ['google']);
+check('oauth needs a directory', in_array('oauth', tenant_config(['oauth' => ['google' => $google]])->errors(), true));
+check('oauth: unknown provider is rejected', in_array('oauth', tenant_config(['directory' => $directory, 'oauth' => ['facebook' => $google]])->errors(), true));
+check('oauth: secret file or inline, not both', in_array('oauth', tenant_config(['directory' => $directory, 'oauth' => ['google' => ['client_secret' => 'x'] + $google]])->errors(), true));
+check('oauth: a secret is required', in_array('oauth', tenant_config(['directory' => $directory, 'oauth' => ['google' => ['client_id' => 'x']]])->errors(), true));
+check('oauth: secret file may not climb', in_array('oauth', tenant_config(['directory' => $directory, 'oauth' => ['google' => ['client_secret_file' => '/run/../etc/passwd'] + $google]])->errors(), true));
 
 // --- Authorisation matrix --------------------------------------------------
 
@@ -275,6 +292,8 @@ check('probe replays only the session cookie for the probe URL', $sent['Cookie']
 // --- SSO callback and provisioning -----------------------------------------
 
 $sso = new AVPVH_Tenant_SSO($vp);
+$test_sso = $sso;
+$test_session = [];
 function callback(AVPVH_Tenant_SSO $sso, string $redirect_to = ''): AVPVH_Test_Exit {
     $_SERVER['REQUEST_URI'] = '/avpvh-sso/' . ($redirect_to !== '' ? '?redirect_to=' . rawurlencode($redirect_to) : '');
     $_GET = $redirect_to !== '' ? ['redirect_to' => $redirect_to] : [];
@@ -293,6 +312,7 @@ $test_remote = member_response(['vp4042-leden']);
 $exit = callback($sso, 'https://site.example.invalid/leden/');
 $member_id = $test_current;
 check('member logs in and returns to the page', $exit->kind === 'redirect' && $exit->detail === 'https://site.example.invalid/leden/' && $test_auth_cookie === $member_id && $member_id > 0);
+check('the session is marked as started via Authelia', ($test_session['avpvh_login'] ?? '') === 'authelia');
 check('member is provisioned as subscriber', $test_users[$member_id]->roles === ['subscriber']);
 check('user is linked to the tenant-bound subject', $test_meta[$member_id]['avpvh_directory_subject'] === 'rsp_vve_vp4042/test.lid');
 
@@ -362,6 +382,17 @@ $test_meta[$member_id]['avpvh_directory_checked'] = time();
 $test_remote_calls = 0;
 $sso->recheck_session();
 check('no Authelia call within the recheck interval', $test_remote_calls === 0 && $test_current === $member_id);
+
+// A session started with Google/Microsoft is rechecked against the
+// directory, never Authelia; without a reachable directory it ends.
+$test_current = $member_id;
+$test_meta[$member_id]['avpvh_directory_checked'] = time() - 3600;
+$test_session = ['avpvh_login' => 'google'];
+$test_remote = member_response(['vp4042-leden']);
+$test_remote_calls = 0;
+$sso->recheck_session();
+check('OAuth session: no directory ends the session, Authelia is not asked', $test_current === 0 && $test_remote_calls === 0);
+$test_session = ['avpvh_login' => 'authelia'];
 
 $test_current = 50;
 $test_remote_calls = 0;

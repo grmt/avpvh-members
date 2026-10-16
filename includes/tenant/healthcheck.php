@@ -64,8 +64,14 @@ if ($directory) {
 } else {
     echo "Directory: niet ingesteld (inloggen met Google/Microsoft staat uit)\n";
 }
+$oauth_ok = true;
+foreach ($config->oauth_clients() as $provider => $client) {
+    $readable = $client['client_secret_file'] === '' || is_readable($client['client_secret_file']);
+    $oauth_ok = $oauth_ok && $readable;
+    echo "Inloggen met {$provider}: " . ($client['client_secret_file'] === '' ? 'secret in het tenantbestand' : ($readable ? 'secret-bestand leesbaar' : 'secret-bestand NIET leesbaar')) . "\n";
+}
 if (!in_array($code, [401, 302], true)) {
     fwrite(STDERR, "FOUT: verwacht 401/302. Controleer authelia_authz_url en de one_factor-regel voor het probepad.\n");
     exit(1);
 }
-exit(($pages || !$config->get('members_only_pages')) && $directory_ok ? 0 : 1);
+exit(($pages || !$config->get('members_only_pages')) && $directory_ok && $oauth_ok ? 0 : 1);

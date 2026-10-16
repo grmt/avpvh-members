@@ -44,6 +44,7 @@ check('member without displayName falls back to cn', $r['status'] === 'ok' && $r
 
 $r = $d->find_by_email('lid.twee@gmail.example.invalid');
 check('a second mail value finds the account too', $r['status'] === 'ok' && $r['uid'] === 'lid.twee', $r);
+check('the first mail value is returned, not the one looked up', ($r['email'] ?? '') === 'lid.twee@provider.example.invalid', $r);
 
 $r = $d->find_by_email('avp.lid@example.invalid');
 check('an account in another OU is found with its tenant groups', $r['status'] === 'ok' && $r['uid'] === 'avp.lid' && $r['groups'] === ['vp4042-leden'], $r);

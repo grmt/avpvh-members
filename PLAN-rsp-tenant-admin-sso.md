@@ -97,11 +97,26 @@ Daarna, volgens fase 5:
 
 ## Vervolg: inloggen met Google of Microsoft
 
-Status: fase 1 gebouwd. Dat is `AVPVH_Tenant_Directory`
-(`includes/tenant/class-tenant-directory.php`): het optionele
-`directory`-blok in het tenantbestand en een regel in de healthcheck. Getest
-met `scripts/tenant-e2e/directory/run.sh`, met een OpenLDAP en fictieve
-accounts. Fase 2–4 volgen.
+Status: fase 1 en 2 gebouwd, fase 3–4 volgen.
+
+- Fase 1: `AVPVH_Tenant_Directory`
+  (`includes/tenant/class-tenant-directory.php`), het optionele
+  `directory`-blok in het tenantbestand en een regel in de healthcheck.
+  Getest met `scripts/tenant-e2e/directory/run.sh`, met een OpenLDAP en
+  fictieve accounts.
+- Fase 2: `AVPVH_Tenant_OAuth` (`includes/tenant/class-tenant-oauth.php`)
+  met het `oauth`-blok (client-ID plus `client_secret_file` of
+  `client_secret` per provider) en de keuzepagina `/avpvh-login/`. De
+  sessie onthoudt hoe hij begon (`avpvh_login` in de WordPress-sessie); de
+  hercontrole vraagt bij Google/Microsoft de directory. Beheerders krijgen
+  via deze route geen sessie maar de melding om via Authelia (2FA) in te
+  loggen (de eerste open vraag, zoals voorgesteld). Getest in
+  `scripts/tenant-e2e/run.sh` met een nep-provider (`idp.php`) en dezelfde
+  OpenLDAP-testdata.
+- Tot fase 3 klaar is, krijgt wie via Google/Microsoft inlogt de
+  ledenpagina's wel, maar de bestanden onder `uploads/private/` niet
+  (nginx vraagt daar nog een Authelia-sessie). Zet `oauth` op de server
+  dus pas aan na fase 3.
 
 ### Aanleiding
 
