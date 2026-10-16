@@ -199,23 +199,7 @@ class AVPVH_Tenant_SSO {
             return;
         }
 
-        $expected = $this->config->tenant_id() . '/';
-        if ($this->session_login() === self::VIA_AUTHELIA) {
-            $identity = AVPVH_Tenant_Identity::probe($this->config);
-            $same_user = $identity['status'] === AVPVH_Tenant_Identity::OK
-                && $subject === $expected . $identity['uid'];
-            $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
-        } else {
-            // No Authelia session behind this one: the directory says
-            // whether the account still has access. Reading only.
-            $directory = AVPVH_Tenant_Directory::for_config($this->config);
-            $identity = $directory && str_starts_with($subject, $expected)
-                ? $directory->find_by_uid(substr($subject, strlen($expected)))
-                : ['status' => AVPVH_Tenant_Directory::ERROR];
-            $same_user = $identity['status'] === AVPVH_Tenant_Directory::OK;
-            $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
-            $role = $role === 'subscriber' ? $role : null;
-        }
+        [$identity, $same_user, $role] = $this->current_access($subject);
         if ($role === null) {
             $this->log('recheck', $identity['uid'] ?? '', $same_user ? 'no_tenant_access' : $identity['status']);
             wp_logout();
@@ -223,6 +207,31 @@ class AVPVH_Tenant_SSO {
             return;
         }
         $this->sync_user($user_id, $identity, $role);
+    }
+
+    /**
+     * Who the session's subject is now and which role that gives: asked of
+     * Authelia, or of the directory for a Google/Microsoft session (which
+     * has no Authelia session behind it and only ever reads).
+     *
+     * @return array{0: array, 1: bool, 2: ?string} identity, same user, role
+     */
+    private function current_access(string $subject): array {
+        $expected = $this->config->tenant_id() . '/';
+        if ($this->session_login() === self::VIA_AUTHELIA) {
+            $identity = AVPVH_Tenant_Identity::probe($this->config);
+            $same_user = $identity['status'] === AVPVH_Tenant_Identity::OK
+                && $subject === $expected . $identity['uid'];
+            $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
+            return [$identity, $same_user, $role];
+        }
+        $directory = AVPVH_Tenant_Directory::for_config($this->config);
+        $identity = $directory && str_starts_with($subject, $expected)
+            ? $directory->find_by_uid(substr($subject, strlen($expected)))
+            : ['status' => AVPVH_Tenant_Directory::ERROR];
+        $same_user = $identity['status'] === AVPVH_Tenant_Directory::OK;
+        $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
+        return [$identity, $same_user, $role === 'subscriber' ? $role : null];
     }
 
     /**

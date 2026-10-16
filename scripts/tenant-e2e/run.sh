@@ -129,10 +129,11 @@ ok "guessing is braked after 10 tries" '[[ "$(curl -s -b $SJ --data-urlencode "e
 # oauth <provider> <address> <cookie jar> [extra authorize args] [redirect_to]
 # → where the site sends the browser after the callback
 oauth() {
-    local start cb
-    start=$(loc -c "$3" -b "$3" "$B/wp-json/avpvh/v1/tenant-oauth/$1/start?redirect_to=${5:-$B/leden/notulen/}")
-    cb=$(loc "$start&account=$2${4:-}")
-    loc -c "$3" -b "$3" "$cb"
+    local provider=$1 account=$2 jar=$3 extra=${4:-} target=${5:-$B/leden/notulen/} start cb
+    start=$(loc -c "$jar" -b "$jar" "$B/wp-json/avpvh/v1/tenant-oauth/$provider/start?redirect_to=$target")
+    cb=$(loc "$start&account=$account$extra")
+    loc -c "$jar" -b "$jar" "$cb"
+    return 0
 }
 OG=$(mktemp); rm -f $OG
 start=$(loc -c $OG "$B/wp-json/avpvh/v1/tenant-oauth/google/start")

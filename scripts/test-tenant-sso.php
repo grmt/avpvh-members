@@ -105,8 +105,11 @@ function wp_set_auth_cookie(int $id): void {
 }
 function wp_get_session_token(): string { return 'test-token'; }
 class WP_Session_Tokens {
-    public static function get_instance(int $id): self { return new self(); }
-    public function get(string $token): ?array { return $GLOBALS['test_session']; }
+    public function __construct(private int $user_id) {}
+    public static function get_instance(int $id): self { return new self($id); }
+    public function get(string $token): ?array {
+        return $token === 'test-token' && $this->user_id === $GLOBALS['test_current'] ? $GLOBALS['test_session'] : null;
+    }
 }
 function wp_logout(): void { $GLOBALS['test_current'] = 0; $GLOBALS['test_auth_cookie'] = 0; }
 function do_action(string $hook, mixed ...$args): void {

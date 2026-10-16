@@ -7,7 +7,13 @@
 $b64 = static fn(string $s): string => rtrim(strtr(base64_encode($s), '+/', '-_'), '=');
 $path = (string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $consumers = '9188040d-6c67-4c5b-b112-36a304b66dad';
+// Only back to the test site, like a real provider's registered URIs.
+$redirect = (string) ($_GET['redirect_uri'] ?? '');
 if (preg_match('#^/(google|microsoft)/authorize$#', $path, $m)) {
+    if (!str_starts_with($redirect, 'http://localhost:8088/wp-json/avpvh/v1/tenant-oauth/')) {
+        http_response_code(400);
+        exit;
+    }
     $code = $b64(json_encode([
         'provider'  => $m[1],
         'email'     => $_GET['account'] ?? '',
@@ -15,9 +21,9 @@ if (preg_match('#^/(google|microsoft)/authorize$#', $path, $m)) {
         'nonce'     => $_GET['nonce'] ?? '',
         'challenge' => $_GET['code_challenge'] ?? '',
         'client'    => $_GET['client_id'] ?? '',
-        'redirect'  => $_GET['redirect_uri'] ?? '',
+        'redirect'  => $redirect,
     ]));
-    header('Location: ' . $_GET['redirect_uri'] . '?' . http_build_query(['code' => $code, 'state' => $_GET['state'] ?? '']), true, 302);
+    header('Location: ' . $redirect . '?' . http_build_query(['code' => $code, 'state' => $_GET['state'] ?? '']), true, 302);
     exit;
 }
 if (preg_match('#^/(google|microsoft)/token$#', $path, $m)) {
@@ -30,9 +36,13 @@ if (preg_match('#^/(google|microsoft)/token$#', $path, $m)) {
         exit;
     }
     $claims = ['aud' => $c['client'], 'exp' => time() + 300, 'nonce' => $c['nonce'], 'email' => $c['email'], 'name' => 'Test'];
-    $claims += $m[1] === 'google'
-        ? ['iss' => 'https://accounts.google.com', 'email_verified' => $c['verified']]
-        : ['iss' => "https://login.microsoftonline.com/$consumers/v2.0", 'tid' => $c['verified'] ? $consumers : 'f0000000-0000-0000-0000-000000000000'];
+    if ($m[1] === 'google') {
+        $claims += ['iss' => 'https://accounts.google.com', 'email_verified' => $c['verified']];
+    } else {
+        // An unverified Microsoft address: a work or school account.
+        $tenant = $c['verified'] ? $consumers : 'f0000000-0000-0000-0000-000000000000';
+        $claims += ['iss' => "https://login.microsoftonline.com/$consumers/v2.0", 'tid' => $tenant];
+    }
     header('Content-Type: application/json');
     echo json_encode(['access_token' => 'test', 'id_token' => $b64('{"alg":"none"}') . '.' . $b64(json_encode($claims)) . '.']);
     exit;

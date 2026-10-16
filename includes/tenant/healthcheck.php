@@ -66,9 +66,13 @@ if ($directory) {
 }
 $oauth_ok = true;
 foreach ($config->oauth_clients() as $provider => $client) {
-    $readable = $client['client_secret_file'] === '' || is_readable($client['client_secret_file']);
-    $oauth_ok = $oauth_ok && $readable;
-    echo "Inloggen met {$provider}: " . ($client['client_secret_file'] === '' ? 'secret in het tenantbestand' : ($readable ? 'secret-bestand leesbaar' : 'secret-bestand NIET leesbaar')) . "\n";
+    $secret = 'secret in het tenantbestand';
+    if ($client['client_secret_file'] !== '') {
+        $readable = is_readable($client['client_secret_file']);
+        $oauth_ok = $oauth_ok && $readable;
+        $secret = $readable ? 'secret-bestand leesbaar' : 'secret-bestand NIET leesbaar';
+    }
+    echo "Inloggen met {$provider}: {$secret}\n";
 }
 if (!in_array($code, [401, 302], true)) {
     fwrite(STDERR, "FOUT: verwacht 401/302. Controleer authelia_authz_url en de one_factor-regel voor het probepad.\n");
