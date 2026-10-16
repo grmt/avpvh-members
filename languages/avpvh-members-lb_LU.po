@@ -3061,3 +3061,28 @@ msgstr "Period"
 #: includes/class-member-profile-form.php
 msgid "Filter op naam"
 msgstr "No Numm filteren"
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Het inloggen duurde te lang of is in een ander venster begonnen. Probeer het opnieuw."
+msgstr "D'Aloggen huet ze laang gedauert oder gouf an enger anerer Fënster ugefaangen. Probéier w.e.g. nach eng Kéier."
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen is niet gelukt: de provider bevestigde geen e-mailadres. Probeer het opnieuw."
+msgstr "D'Aloggen huet net geklappt: de Provider huet keng E-Mail-Adress bestätegt. Probéier w.e.g. nach eng Kéier."
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Met dit e-mailadres is geen account met toegang tot deze site bekend. Gebruik het adres dat bij de beheerder bekend is, of neem contact op met de beheerder."
+msgstr "Fir dës E-Mail-Adress ass kee Kont mat Zougang zu dësem Site bekannt. Benotz d'Adress déi der Verwaltung bekannt ass, oder mell dech bei der Verwaltung."
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Dit account is van een beheerder. Log in met gebruikersnaam en wachtwoord, met de tweede stap."
+msgstr "Dëse Kont gehéiert engem Administrateur. Log dech mat Benotzernumm a Passwuert an, mam zweete Schrëtt."
+
+#. translators: %s: Google or Microsoft
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen met %s"
+msgstr "Aloggen mat %s"
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen met gebruikersnaam en wachtwoord"
+msgstr "Aloggen mat Benotzernumm a Passwuert"

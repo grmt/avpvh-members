@@ -3514,3 +3514,28 @@ msgstr ""
 #: includes/class-member-profile-form.php
 msgid "Filter op naam"
 msgstr ""
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Het inloggen duurde te lang of is in een ander venster begonnen. Probeer het opnieuw."
+msgstr ""
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen is niet gelukt: de provider bevestigde geen e-mailadres. Probeer het opnieuw."
+msgstr ""
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Met dit e-mailadres is geen account met toegang tot deze site bekend. Gebruik het adres dat bij de beheerder bekend is, of neem contact op met de beheerder."
+msgstr ""
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Dit account is van een beheerder. Log in met gebruikersnaam en wachtwoord, met de tweede stap."
+msgstr ""
+
+#. translators: %s: Google or Microsoft
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen met %s"
+msgstr ""
+
+#: includes/tenant/class-tenant-oauth.php
+msgid "Inloggen met gebruikersnaam en wachtwoord"
+msgstr ""

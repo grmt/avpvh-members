@@ -19,4 +19,14 @@ return [
             'emails' => ['Gast@Example.invalid'],
         ],
     ],
+    'directory' => [
+        'url' => 'ldap://openldap:1389',
+        'bind_dn' => 'cn=tenant-reader,dc=nl',
+        'bind_password_file' => '/tmp/reader',
+        'base_dn' => 'dc=nl',
+    ],
+    'oauth' => [
+        'google' => ['client_id' => 'test-google', 'client_secret' => 'test-secret-google'],
+        'microsoft' => ['client_id' => 'test-microsoft', 'client_secret_file' => '/tmp/microsoft-secret'],
+    ],
 ];

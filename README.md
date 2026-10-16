@@ -57,6 +57,9 @@ the plugin runs as a generic login layer for a Rechtspreker tenant such as
 VP40-42 instead of the AVP-PvH member system: Authelia login, local users
 per directory account, `administrator` for the tenant's own or an ancestor
 admin group, `subscriber` for the member group, and members-only pages.
+Optionally members also log in with Google or Microsoft (`oauth` plus a
+read-only `directory` in the tenant file): the verified address must match
+one directory account, and this route never gives more than `subscriber`.
 No AVP module or table is loaded. Design, configuration and rollout:
 `PLAN-rsp-tenant-admin-sso.md`; tests: `scripts/test-tenant-*.php` and
 `scripts/tenant-e2e/run.sh` (Docker); server check:

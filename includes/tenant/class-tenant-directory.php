@@ -100,7 +100,9 @@ class AVPVH_Tenant_Directory {
             'status' => self::OK,
             'uid'    => $uid,
             'dn'     => (string) $entry['dn'],
-            'email'  => strtolower((string) ($attribute === 'mail' ? $value : ($entry['mail'][0] ?? ''))),
+            // The first address, also when another one was looked up: the
+            // same one Authelia passes on, so the WordPress user keeps it.
+            'email'  => strtolower((string) ($entry['mail'][0] ?? '')),
             'name'   => (string) ($entry['displayname'][0] ?? $entry['cn'][0] ?? $uid),
             'groups' => $groups,
         ];
