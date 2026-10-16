@@ -34,6 +34,13 @@ services:
     volumes:
       - wp:/var/www/html
       - "../..:/var/www/html/wp-content/plugins/avpvh-members:ro"
+  edge:
+    image: nginx:1.27-alpine
+    ports: [ "127.0.0.1:8090:80" ]
+    depends_on: [ wp ]
+    volumes:
+      - wp:/var/www/html:ro
+      - "./nginx.conf:/etc/nginx/conf.d/default.conf:ro"
   cli:
     image: wordpress:cli
     user: "33:33"

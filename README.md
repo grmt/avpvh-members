@@ -60,6 +60,8 @@ admin group, `subscriber` for the member group, and members-only pages.
 Optionally members also log in with Google or Microsoft (`oauth` plus a
 read-only `directory` in the tenant file): the verified address must match
 one directory account, and this route never gives more than `subscriber`.
+Private files under `uploads/private/` are checked by the plugin for
+nginx's `auth_request` (`/avpvh-file-auth/`), so both logins open them.
 No AVP module or table is loaded. Design, configuration and rollout:
 `PLAN-rsp-tenant-admin-sso.md`; tests: `scripts/test-tenant-*.php` and
 `scripts/tenant-e2e/run.sh` (Docker); server check:
