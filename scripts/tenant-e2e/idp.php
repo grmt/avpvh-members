@@ -7,10 +7,14 @@
 $b64 = static fn(string $s): string => rtrim(strtr(base64_encode($s), '+/', '-_'), '=');
 $path = (string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $consumers = '9188040d-6c67-4c5b-b112-36a304b66dad';
-// Only back to the test site, like a real provider's registered URIs.
-$redirect = (string) ($_GET['redirect_uri'] ?? '');
+// Only back to the test site's registered callback, as a real provider.
+$callbacks = [
+    'google'    => 'http://localhost:8088/wp-json/avpvh/v1/tenant-oauth/google/callback',
+    'microsoft' => 'http://localhost:8088/wp-json/avpvh/v1/tenant-oauth/microsoft/callback',
+];
 if (preg_match('#^/(google|microsoft)/authorize$#', $path, $m)) {
-    if (!str_starts_with($redirect, 'http://localhost:8088/wp-json/avpvh/v1/tenant-oauth/')) {
+    $redirect = $callbacks[$m[1]];
+    if (($_GET['redirect_uri'] ?? '') !== $redirect) {
         http_response_code(400);
         exit;
     }
