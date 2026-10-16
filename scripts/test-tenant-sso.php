@@ -210,6 +210,15 @@ check('share file may not leave delen/', in_array('shares', tenant_config(['shar
 check('share needs valid addresses', in_array('shares', tenant_config(['shares' => ['test' => ['emails' => ['geen-adres']] + $share]])->errors(), true));
 check('invalid plugin_locale is rejected', in_array('plugin_locale', tenant_config(['plugin_locale' => 'nl'])->errors(), true));
 check('unknown keys are ignored', tenant_config(['local_login' => false, 'evil' => 1])->get('evil') === null);
+$directory = ['url' => 'ldap://openldap:1389', 'bind_dn' => 'cn=tenant-reader,dc=nl', 'bind_password_file' => '/run/secrets/reader', 'base_dn' => 'dc=nl'];
+check('directory is optional', $vp->directory() === null);
+check('valid directory config', ($d = tenant_config(['directory' => $directory]))->is_valid() && $d->directory()['timeout'] === 5);
+check('directory url must be ldap(s)', in_array('directory', tenant_config(['directory' => ['url' => 'https://ldap.example.invalid'] + $directory])->errors(), true));
+check('directory bind DN must be a DN', in_array('directory', tenant_config(['directory' => ['bind_dn' => 'reader'] + $directory])->errors(), true));
+check('directory base DN must be a DN', in_array('directory', tenant_config(['directory' => ['base_dn' => ''] + $directory])->errors(), true));
+check('directory password file must be an absolute path', in_array('directory', tenant_config(['directory' => ['bind_password_file' => 'secret'] + $directory])->errors(), true));
+check('directory password file may not climb', in_array('directory', tenant_config(['directory' => ['bind_password_file' => '/run/../etc/passwd'] + $directory])->errors(), true));
+check('directory timeout is capped', tenant_config(['directory' => ['timeout' => 999] + $directory])->directory()['timeout'] === 30);
 
 // --- Authorisation matrix --------------------------------------------------
 

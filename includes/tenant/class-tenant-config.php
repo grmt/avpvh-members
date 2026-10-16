@@ -33,6 +33,14 @@
  *       'plugin_locale'           => 'nl_NL',
  *       // Files shared by e-mail address; see AVPVH_Tenant_Shares.
  *       'shares'                  => [],
+ *       // Optional, read-only: finds the account behind a verified e-mail
+ *       // address (Google/Microsoft login); see AVPVH_Tenant_Directory.
+ *       'directory'               => [
+ *           'url'                => 'ldap://openldap:1389',
+ *           'bind_dn'            => 'cn=tenant-reader,dc=nl',
+ *           'bind_password_file' => '/run/secrets/tenant_reader_password',
+ *           'base_dn'            => 'dc=nl',
+ *       ],
  *   ];
  */
 
@@ -100,6 +108,7 @@ class AVPVH_Tenant_Config {
             'navigation_refs'         => [],
             'plugin_locale'           => '',
             'shares'                  => [],
+            'directory'               => null,
             'local_login'             => true,
             'recheck_seconds'         => 300,
         ];
@@ -177,6 +186,7 @@ class AVPVH_Tenant_Config {
             $errors[] = 'plugin_locale';
         }
         $values['shares'] = self::normalise_shares($values['shares'], $errors);
+        $values['directory'] = self::normalise_directory($values['directory'], $errors);
 
         return new self($values, array_values(array_unique($errors)));
     }
@@ -199,6 +209,35 @@ class AVPVH_Tenant_Config {
                 continue;
             }
             $result[(string) $id] = ['title' => (string) $share['title'], 'file' => $file, 'emails' => array_values($emails)];
+        }
+        return $result;
+    }
+
+    /**
+     * Read-only directory access for looking up an account by e-mail
+     * address (Google/Microsoft login): optional, null without it.
+     */
+    private static function normalise_directory(mixed $directory, array &$errors): ?array {
+        if ($directory === null) {
+            return null;
+        }
+        $directory = (array) $directory;
+        $result = [
+            'url'                => (string) ($directory['url'] ?? ''),
+            'bind_dn'            => (string) ($directory['bind_dn'] ?? ''),
+            'bind_password_file' => (string) ($directory['bind_password_file'] ?? ''),
+            'base_dn'            => (string) ($directory['base_dn'] ?? ''),
+            'timeout'            => max(1, min(30, (int) ($directory['timeout'] ?? 5))),
+        ];
+        $dn = '/^[A-Za-z][A-Za-z0-9-]*=[^,=]+(,[A-Za-z][A-Za-z0-9-]*=[^,=]+)*$/';
+        $valid = in_array(wp_parse_url($result['url'], PHP_URL_SCHEME), ['ldap', 'ldaps'], true)
+            && wp_parse_url($result['url'], PHP_URL_HOST)
+            && preg_match($dn, $result['bind_dn'])
+            && preg_match($dn, $result['base_dn'])
+            && str_starts_with($result['bind_password_file'], '/')
+            && !str_contains($result['bind_password_file'], '..');
+        if (!$valid) {
+            $errors[] = 'directory';
         }
         return $result;
     }
@@ -236,6 +275,11 @@ class AVPVH_Tenant_Config {
 
     public function member_group(): string {
         return (string) $this->values['member_group'];
+    }
+
+    /** @return array{url: string, bind_dn: string, bind_password_file: string, base_dn: string, timeout: int}|null */
+    public function directory(): ?array {
+        return $this->values['directory'];
     }
 
     public function identity_probe_url(): string {
