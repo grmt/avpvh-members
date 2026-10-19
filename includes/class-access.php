@@ -171,6 +171,17 @@ class AVPVH_Access {
             wp_safe_redirect($target);
             exit;
         }
+
+        // dmarc-reports.py (docker-scripts) publishes its report as a page
+        // under /leden/; it is shown in wp-admin under DMARC-rapporten, so
+        // the page itself is never shown, not even to ordinary members.
+        $dmarc_page_id = (int) get_option(AVPVH_DMARC_PAGE_OPTION);
+        if ($dmarc_page_id && is_page($dmarc_page_id)) {
+            wp_safe_redirect(AVPVH_Roles::can_view_dmarc()
+                ? admin_url('admin.php?page=avpvh-dmarc')
+                : home_url('/'));
+            exit;
+        }
     }
 
     private function is_members_only_request(): bool {
