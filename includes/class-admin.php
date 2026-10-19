@@ -309,7 +309,7 @@ class AVPVH_Admin {
     }
 
     public function render_dmarc(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/dmarc.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/dmarc.php';
     }
 
     public function render_newsletter(): void {
