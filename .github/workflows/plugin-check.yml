@@ -92,3 +92,5 @@ jobs:
             direct_db_queries
             plugin_readme
             trademarks
+          ignore-codes: |
+            plugin_updater_detected

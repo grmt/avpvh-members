@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.73)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Plugin ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine tag and version
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Package avpvh-members.zip
+        run: |
+          STAGE_DIR="$(mktemp -d)/avpvh-members"
+          mkdir -p "$STAGE_DIR"
+          rsync -a --exclude='.git' --exclude='.github' --exclude='tests' --exclude='node_modules' ./ "$STAGE_DIR/"
+          (cd "$(dirname "$STAGE_DIR")" && zip -r "$GITHUB_WORKSPACE/avpvh-members.zip" avpvh-members)
+
+      - name: Create or Update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" avpvh-members.zip --clobber
+          else
+            gh release create "$TAG" avpvh-members.zip \
+              --title "avpvh-members ${VERSION}" \
+              --generate-notes
+          fi
