@@ -106,7 +106,7 @@ class AVPVH_Admin {
     }
 
     // Ledenbeheer (incl. Ledendetail, Nieuwe persoon), Activiteiten,
-    // Nieuwsbrief and Loginpogingen follow the Paginarechten matrix (see
+    // Nieuwsbrief, Loginpogingen and DMARC-rapporten follow the Paginarechten matrix (see
     // AVPVH_Roles::get_page_permissions()); Instellingen and Leden
     // samenvoegen stay manage_options-only.
     private function can_manage_members(): bool {
@@ -127,6 +127,7 @@ class AVPVH_Admin {
         $activities_cap = AVPVH_Roles::can_manage_activities() ? 'read' : 'manage_options';
         $newsletter_cap = AVPVH_Roles::can_send_newsletter() ? 'read' : 'manage_options';
         $login_attempts_cap = AVPVH_Roles::can_view_login_attempts() ? 'read' : 'manage_options';
+        $dmarc_cap = AVPVH_Roles::can_view_dmarc() ? 'read' : 'manage_options';
 
         $hook = add_menu_page(
             __('AV-PvH Leden', 'avpvh-members'), __('AV-PvH Leden', 'avpvh-members'), $members_cap,
@@ -212,6 +213,10 @@ class AVPVH_Admin {
                 return array_values(array_unique($hidden));
             }, 10, 2);
         });
+        add_submenu_page(
+            'avpvh-members', __('DMARC-rapporten', 'avpvh-members'), __('DMARC-rapporten', 'avpvh-members'), $dmarc_cap,
+            'avpvh-dmarc', [$this, 'render_dmarc']
+        );
         add_submenu_page(
             'avpvh-members', __('Nieuwsbrief', 'avpvh-members'), __('Nieuwsbrief', 'avpvh-members'), $newsletter_cap,
             'avpvh-newsletter', [$this, 'render_newsletter']
@@ -301,6 +306,10 @@ class AVPVH_Admin {
 
     public function render_login_attempts(): void {
         require AVPVH_PLUGIN_DIR . 'admin/login-attempts.php';
+    }
+
+    public function render_dmarc(): void {
+        require_once AVPVH_PLUGIN_DIR . 'admin/dmarc.php';
     }
 
     public function render_newsletter(): void {

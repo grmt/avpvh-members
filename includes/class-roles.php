@@ -61,6 +61,7 @@ class AVPVH_Roles {
             || self::can_manage_activities()
             || self::can_send_newsletter()
             || self::can_view_login_attempts()
+            || self::can_view_dmarc()
             || self::can_view_roles_page()
             || self::can_manage_page_permissions();
     }
@@ -99,18 +100,21 @@ class AVPVH_Roles {
             'activities'     => __('Activiteiten', 'avpvh-members'),
             'newsletter'     => __('Nieuwsbrief', 'avpvh-members'),
             'login_attempts' => __('Loginpogingen', 'avpvh-members'),
+            'dmarc'          => __('DMARC-rapporten', 'avpvh-members'),
         ];
     }
 
     // The rules from before the matrix existed (Ledenbeheer: secretaris as
     // membership registrar, penningmeester for contributie; Activiteiten
     // and Nieuwsbrief: secretaris), plus the IT-beheerder everywhere.
+    // DMARC-rapporten is mail-server plumbing: IT-beheerder only.
     public static function get_default_page_permissions(): array {
         return [
             'members'        => ['secretaris', 'penningmeester', self::IT_ROLE],
             'activities'     => ['secretaris', self::IT_ROLE],
             'newsletter'     => ['secretaris', self::IT_ROLE],
             'login_attempts' => [self::IT_ROLE],
+            'dmarc'          => [self::IT_ROLE],
         ];
     }
 
@@ -181,6 +185,10 @@ class AVPVH_Roles {
 
     public static function can_view_login_attempts(): bool {
         return self::current_user_can_access_page('login_attempts');
+    }
+
+    public static function can_view_dmarc(): bool {
+        return self::current_user_can_access_page('dmarc');
     }
 
     // Rollen & delegatie: voorzitter only. A delegation hands out real

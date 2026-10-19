@@ -3086,3 +3086,18 @@ msgstr ""
 #: includes/tenant/class-tenant-oauth.php
 msgid "Inloggen met gebruikersnaam en wachtwoord"
 msgstr ""
+
+#: includes/class-admin.php
+#: includes/class-roles.php
+msgid "DMARC-rapporten"
+msgstr ""
+
+#: admin/dmarc.php
+#. translators: %s: date and time
+#, php-format
+msgid "Laatst gewijzigd: %s"
+msgstr ""
+
+#: admin/dmarc.php
+msgid "Er is nog geen DMARC-rapport. Het wordt aangemaakt door het script dmarc-reports.py in de repository docker-scripts, dat dagelijks op de server draait."
+msgstr ""

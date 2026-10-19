@@ -3,7 +3,7 @@
  * Plugin Name: AV-PvH Members
  * Plugin URI:  https://github.com/grmt/avpvh-members
  * Description: Member login, access control, fee tracking and admin for AV Philips van Horne.
- * Version:     1.0.73+634306f
+ * Version:     1.0.74+7da357b
  * Author:      grmt
  * Author URI:  https://github.com/grmt/avpvh-members
  * Text Domain: avpvh-members
@@ -14,6 +14,11 @@
 defined('ABSPATH') || exit;
 
 define('AVPVH_PLUGIN_DIR', plugin_dir_path(__FILE__));
+// Option in which dmarc-reports.py (docker-scripts) stores the ID of the
+// page it publishes; matches page_option in its config file.
+if (!defined('AVPVH_DMARC_PAGE_OPTION')) {
+    define('AVPVH_DMARC_PAGE_OPTION', 'avpvh_dmarc_page_id');
+}
 // LLDAP database name in the shared MariaDB instance. Override in wp-config.php if needed.
 if (!defined('AVPVH_LLDAP_DB')) {
     define('AVPVH_LLDAP_DB', 'lldap');

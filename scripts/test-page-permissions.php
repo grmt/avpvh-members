@@ -60,6 +60,7 @@ check('secretaris: Ledenbeheer', AVPVH_Roles::can_manage_members());
 check('secretaris: Activiteiten', AVPVH_Roles::can_manage_activities());
 check('secretaris: Nieuwsbrief', AVPVH_Roles::can_send_newsletter());
 check('secretaris: geen Loginpogingen', !AVPVH_Roles::can_view_login_attempts());
+check('secretaris: geen DMARC-rapporten', !AVPVH_Roles::can_view_dmarc());
 check('secretaris: geen Paginarechten', !AVPVH_Roles::can_manage_page_permissions());
 
 as_user(['penningmeester']);
@@ -68,7 +69,8 @@ check('penningmeester: geen Activiteiten', !AVPVH_Roles::can_manage_activities()
 
 as_user(['it-beheer']);
 check('IT-beheerder: alle pagina\'s', AVPVH_Roles::can_manage_members() && AVPVH_Roles::can_manage_activities()
-    && AVPVH_Roles::can_send_newsletter() && AVPVH_Roles::can_view_login_attempts());
+    && AVPVH_Roles::can_send_newsletter() && AVPVH_Roles::can_view_login_attempts()
+    && AVPVH_Roles::can_view_dmarc());
 check('IT-beheerder: Paginarechten', AVPVH_Roles::can_manage_page_permissions());
 check('IT-beheerder: geen Rollen & delegatie', !AVPVH_Roles::can_manage_roles());
 check('IT-beheerder: mag wp-admin in', AVPVH_Roles::current_user_needs_wp_admin());
@@ -76,6 +78,7 @@ check('IT-beheerder: mag wp-admin in', AVPVH_Roles::current_user_needs_wp_admin(
 as_user(['voorzitter']);
 check('voorzitter: Paginarechten', AVPVH_Roles::can_manage_page_permissions());
 check('voorzitter: standaard geen Ledenbeheer', !AVPVH_Roles::can_manage_members());
+check('voorzitter: standaard geen DMARC-rapporten', !AVPVH_Roles::can_view_dmarc());
 
 as_user(['penningmeester'], false, ['secretaris']);
 check('penningmeester met delegatie secretaris: Activiteiten', AVPVH_Roles::can_manage_activities());
@@ -86,7 +89,7 @@ check('IT-beheer is niet te delegeren', !AVPVH_Roles::can_manage_members() && !A
 as_user(['leden']);
 check('gewoon lid: geen wp-admin', !AVPVH_Roles::current_user_needs_wp_admin());
 check('gewoon lid: niets', !AVPVH_Roles::can_manage_members() && !AVPVH_Roles::can_view_login_attempts()
-    && !AVPVH_Roles::can_manage_page_permissions());
+    && !AVPVH_Roles::can_manage_page_permissions() && !AVPVH_Roles::can_view_dmarc());
 
 // Saving overrides the defaults; unknown roles and pages are dropped.
 AVPVH_Roles::save_page_permissions([
@@ -95,7 +98,7 @@ AVPVH_Roles::save_page_permissions([
     'bogus_page'     => ['secretaris'],
 ]);
 check('onbekende rol/pagina niet opgeslagen', $test_option === [
-    'members' => ['voorzitter'], 'activities' => [], 'newsletter' => [], 'login_attempts' => ['bestuur'],
+    'members' => ['voorzitter'], 'activities' => [], 'newsletter' => [], 'login_attempts' => ['bestuur'], 'dmarc' => [],
 ]);
 as_user(['voorzitter']);
 check('voorzitter: Ledenbeheer na opslaan', AVPVH_Roles::can_manage_members());
@@ -107,6 +110,7 @@ check('IT-beheerder: Paginarechten blijft (geen lockout)', AVPVH_Roles::can_mana
 
 as_user([], true);
 check('WP-beheerder: altijd alles', AVPVH_Roles::can_manage_members() && AVPVH_Roles::can_manage_activities()
-    && AVPVH_Roles::can_view_login_attempts() && AVPVH_Roles::can_manage_page_permissions());
+    && AVPVH_Roles::can_view_login_attempts() && AVPVH_Roles::can_manage_page_permissions()
+    && AVPVH_Roles::can_view_dmarc());
 
 echo "Page permission tests: OK\n";

@@ -387,3 +387,16 @@
         min-width: 0;
     }
 }
+
+/* DMARC-rapporten: the report HTML comes from dmarc-reports.py. */
+.avpvh-dmarc .dmarc-report table {
+    border-collapse: collapse;
+    margin: 1em 0;
+    background: #fff;
+}
+.avpvh-dmarc .dmarc-report th,
+.avpvh-dmarc .dmarc-report td {
+    border: 1px solid #c3c4c7;
+    padding: 4px 10px;
+    text-align: left;
+}
