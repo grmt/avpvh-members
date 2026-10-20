@@ -57,11 +57,17 @@ class AVPVH_Admin {
         );
 
         if ($page === 'avpvh-members') {
-            wp_enqueue_script(
-                'avpvh-members-list',
-                $base . 'assets/members-list.js',
+            wp_enqueue_style(
+                'avpvh-sortable-table',
+                $base . 'assets/sortable-table.css',
                 [],
-                avpvh_asset_version('assets/members-list.js'),
+                avpvh_asset_version('assets/sortable-table.css')
+            );
+            wp_enqueue_script(
+                'avpvh-sortable-table',
+                $base . 'assets/sortable-table.js',
+                [],
+                avpvh_asset_version('assets/sortable-table.js'),
                 true
             );
         } elseif ($page === 'avpvh-activity-participation') {
@@ -129,7 +135,7 @@ class AVPVH_Admin {
         $login_attempts_cap = AVPVH_Roles::can_view_login_attempts() ? 'read' : 'manage_options';
         $dmarc_cap = AVPVH_Roles::can_view_dmarc() ? 'read' : 'manage_options';
 
-        $hook = add_menu_page(
+        add_menu_page(
             __('AV-PvH Leden', 'avpvh-members'), __('AV-PvH Leden', 'avpvh-members'), $members_cap,
             'avpvh-members', [$this, 'render_members_list'],
             'dashicons-groups', 30
@@ -139,15 +145,6 @@ class AVPVH_Admin {
             'avpvh-members', [$this, 'render_members_list']
         );
 
-        // Wires up the "Screen Options" column show/hide checkboxes for the
-        // members list — WordPress remembers the choice per user on its own
-        // once this filter exists, no custom persistence code needed.
-        add_action('load-' . $hook, function () {
-            require_once AVPVH_PLUGIN_DIR . 'admin/class-members-list-table.php';
-            add_filter('manage_' . get_current_screen()->id . '_columns', function () {
-                return (new AVPVH_Members_List_Table())->get_columns();
-            });
-        });
         add_submenu_page(
             'avpvh-members', __('Ledendetail', 'avpvh-members'), __('Ledendetail', 'avpvh-members'), $members_cap,
             'avpvh-member-detail', [$this, 'render_member_detail']
@@ -299,7 +296,7 @@ class AVPVH_Admin {
             set_transient('avpvh_visitor_delete_result_' . get_current_user_id(), $result->get_error_message(), 10 * MINUTE_IN_SECONDS);
             wp_safe_redirect(add_query_arg(['page' => 'avpvh-delete-visitor', 'id' => $id], admin_url('admin.php')));
         } else {
-            wp_safe_redirect(add_query_arg(['page' => 'avpvh-members', 'visitor_deleted' => 1, 'status' => ['visitor']], admin_url('admin.php')));
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-members', 'visitor_deleted' => 1, 'f_status' => rawurlencode(__('Bezoeker', 'avpvh-members'))], admin_url('admin.php')));
         }
         exit;
     }

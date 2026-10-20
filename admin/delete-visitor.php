@@ -15,7 +15,7 @@ $plan = AVPVH_Visitor_Delete::preview($id);
     <?php if ($error) : ?>
         <div class="notice notice-error"><p><?php echo esc_html($error); ?></p></div>
     <?php endif; ?>
-    <p><a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-members', 'status' => ['visitor']], admin_url('admin.php'))); ?>"><?php esc_html_e('Terug naar bezoekers', 'avpvh-members'); ?></a></p>
+    <p><a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-members', 'f_status' => rawurlencode(__('Bezoeker', 'avpvh-members'))], admin_url('admin.php'))); ?>"><?php esc_html_e('Terug naar bezoekers', 'avpvh-members'); ?></a></p>
     <?php if (is_wp_error($plan)) : ?>
         <div class="notice notice-error"><p><?php echo esc_html($plan->get_error_message()); ?></p></div>
     <?php else : ?>

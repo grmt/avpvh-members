@@ -3101,3 +3101,29 @@ msgstr "Last changed: %s"
 #: admin/dmarc.php
 msgid "Er is nog geen DMARC-rapport. Het wordt aangemaakt door het script dmarc-reports.py in de repository docker-scripts, dat dagelijks op de server draait."
 msgstr "There is no DMARC report yet. It is created by the script dmarc-reports.py in the docker-scripts repository, which runs daily on the server."
+
+#: admin/members-list.php
+msgid "Alle"
+msgstr "All"
+
+#: admin/members-list.php
+msgid "Filter…"
+msgstr "Filter…"
+
+#: admin/members-list.php
+#. translators: %d: number of checked filter values
+#, php-format
+msgid "%d geselecteerd"
+msgstr "%d selected"
+
+#: admin/members-list.php
+#. translators: %d: number of excluded filter values
+#, php-format
+msgid "%d uitgesloten"
+msgstr "%d excluded"
+
+#: admin/members-list.php
+#. translators: 1: number of members shown, 2: total number of members
+#, php-format
+msgid "%1$d van %2$d personen"
+msgstr "%1$d of %2$d people"
