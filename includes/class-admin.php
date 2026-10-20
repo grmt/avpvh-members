@@ -57,19 +57,9 @@ class AVPVH_Admin {
         );
 
         if ($page === 'avpvh-members') {
-            wp_enqueue_style(
-                'avpvh-sortable-table',
-                $base . 'assets/sortable-table.css',
-                [],
-                avpvh_asset_version('assets/sortable-table.css')
-            );
-            wp_enqueue_script(
-                'avpvh-sortable-table',
-                $base . 'assets/sortable-table.js',
-                [],
-                avpvh_asset_version('assets/sortable-table.js'),
-                true
-            );
+            // Registered in avpvh-members.php (shared with avpvh-bookkeeping).
+            wp_enqueue_style('avpvh-sortable-table');
+            wp_enqueue_script('avpvh-sortable-table');
         } elseif ($page === 'avpvh-activity-participation') {
             wp_enqueue_script(
                 'avpvh-activity-participation-list',
