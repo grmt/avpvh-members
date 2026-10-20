@@ -9,6 +9,7 @@
  * Text Domain: avpvh-members
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Update URI:  https://github.com/grmt/avpvh-members
  */
 
 defined('ABSPATH') || exit;
