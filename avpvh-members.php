@@ -3,7 +3,7 @@
  * Plugin Name: AV-PvH Members
  * Plugin URI:  https://github.com/grmt/avpvh-members
  * Description: Member login, access control, fee tracking and admin for AV Philips van Horne.
- * Version:     1.0.75+4646d4d
+ * Version:     1.0.76+425429d
  * Author:      grmt
  * Author URI:  https://github.com/grmt/avpvh-members
  * Text Domain: avpvh-members
@@ -79,6 +79,19 @@ add_action('plugins_loaded', ['AVPVH_DB', 'maybe_upgrade']);
 add_action('wp_enqueue_scripts', function () {
     wp_enqueue_style('avpvh', plugin_dir_url(__FILE__) . 'assets/avpvh.css', [], avpvh_asset_version('assets/avpvh.css'));
 });
+
+// The sortable/filterable table (assets/sortable-table.js) as registered
+// handles, so other plugins (avpvh-bookkeeping) can depend on it instead of
+// keeping their own copy: wp_enqueue_script('avpvh-sortable-table') plus
+// wp_enqueue_style('avpvh-sortable-table'). Priority 5, ahead of their
+// default-priority enqueue callbacks; front end and admin both.
+function avpvh_register_sortable_table(): void {
+    $base = plugin_dir_url(__FILE__);
+    wp_register_style('avpvh-sortable-table', $base . 'assets/sortable-table.css', [], avpvh_asset_version('assets/sortable-table.css'));
+    wp_register_script('avpvh-sortable-table', $base . 'assets/sortable-table.js', [], avpvh_asset_version('assets/sortable-table.js'), true);
+}
+add_action('wp_enqueue_scripts', 'avpvh_register_sortable_table', 5);
+add_action('admin_enqueue_scripts', 'avpvh_register_sortable_table', 5);
 
 add_action('login_init', function () {
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended

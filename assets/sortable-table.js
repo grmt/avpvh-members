@@ -16,6 +16,15 @@
  *
  * Deep links: ?f_<col>=<value> pre-fills a column filter (repeat the param
  * for several values of a select column), ?s=<text> the search box.
+ *
+ * A <tfoot> with one cell per column is hidden/shown along with its column.
+ *
+ * Event: after every filter change the table dispatches
+ * 'avpvh-table-filtered' (detail: {visible, total}); hidden rows have
+ * row.hidden set. Use it for page-specific extras such as footer totals.
+ * The first one, for the initial (deep-linked) state, is dispatched
+ * asynchronously, so a listener added in a later DOMContentLoaded handler
+ * still receives it.
  */
 document.addEventListener('DOMContentLoaded', function () {
     'use strict';
@@ -287,11 +296,19 @@ document.addEventListener('DOMContentLoaded', function () {
             if (countEl) {
                 countEl.textContent = i18n.count.replace('%1$d', visibleCount).replace('%2$d', rows.length);
             }
+            return visibleCount;
+        }
+
+        function notifyFiltered(visibleCount) {
+            table.dispatchEvent(new CustomEvent('avpvh-table-filtered', {
+                bubbles: true,
+                detail: { visible: visibleCount, total: rows.length }
+            }));
         }
 
         function applyFiltersPreservingScroll() {
             var previousScroll = window.scrollY;
-            applyFilters();
+            notifyFiltered(applyFilters());
             window.requestAnimationFrame(function () { window.scrollTo(0, previousScroll); });
         }
 
@@ -316,7 +333,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (searchInput && urlParams.get('s')) {
             searchInput.value = urlParams.get('s');
         }
-        applyFilters();
+        var initialVisible = applyFilters();
+        window.setTimeout(function () { notifyFiltered(initialVisible); }, 0);
 
         // --- Column show/hide, remembered per browser ---
         var storageKey = table.dataset.storageKey || 'avpvh_hidden_cols';
@@ -344,10 +362,12 @@ document.addEventListener('DOMContentLoaded', function () {
         function setColumnVisibility(index, visible) {
             // Explicit 'table-cell' (not '') so this inline style wins over
             // the .avpvh-col-optional{display:none} mobile rule when a
-            // column is switched back on by hand.
-            [headerRow, filterRow].concat(dataRows()).forEach(function (row) {
-                var cell = row.cells[index];
-                if (cell) cell.style.display = visible ? 'table-cell' : 'none';
+            // column is switched back on by hand. A <tfoot> (e.g. totals)
+            // follows along when it has one cell per column, no colspan.
+            var footRows = table.tFoot ? Array.prototype.slice.call(table.tFoot.rows) : [];
+            [headerRow, filterRow].concat(dataRows(), footRows).forEach(function (row) {
+                if (row.cells.length !== headerCells.length) return;
+                row.cells[index].style.display = visible ? 'table-cell' : 'none';
             });
         }
 
