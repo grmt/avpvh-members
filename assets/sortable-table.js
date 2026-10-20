@@ -22,10 +22,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var collator = new Intl.Collator('nl', { numeric: true, sensitivity: 'base' });
     var urlParams = new URLSearchParams(window.location.search);
+    // Each click on a checklist option cycles none -> include (✓) -> exclude (−) -> none.
+    var NEXT_STATE = { none: 'include', include: 'exclude', exclude: 'none' };
+    var STATE_ICON = { none: '', include: '✓', exclude: '−' };
+
+    function sortValue(row, index, type) {
+        var cell = row.cells[index];
+        var text = cell.dataset.sortValue === undefined ? cell.textContent.trim() : cell.dataset.sortValue;
+        if (type !== 'number') return text;
+        var n = Number.parseFloat(text);
+        return Number.isNaN(n) ? -Infinity : n;
+    }
+
+    function compareValues(av, bv, type) {
+        if (type !== 'number') return collator.compare(av, bv);
+        if (av === bv) return 0;
+        return av < bv ? -1 : 1;
+    }
+
+    // A cell can carry several values (e.g. a member with two flags) —
+    // split into individual options instead of one combined "A, B"
+    // option, and match a row if ANY of its own values matches.
+    function splitValues(cell, sep) {
+        var raw = cell.dataset.filterValue === undefined ? cell.textContent : cell.dataset.filterValue;
+        return raw.split(sep)
+            .map(function (s) { return s.trim(); })
+            .filter(function (s) { return s !== ''; });
+    }
+
+    function filterText(cell) {
+        return (cell.dataset.filterValue === undefined ? cell.textContent : cell.dataset.filterValue).trim().toLowerCase();
+    }
 
     document.querySelectorAll('[data-avpvh-sortable]').forEach(function (root) {
         var table = root.querySelector('table.avpvh-sortable-table');
-        if (!table || !table.tHead || !table.tBodies[0]) return;
+        if (!table?.tHead || !table.tBodies[0]) return;
 
         var i18n = {
             all: root.dataset.i18nAll || 'Alle',
@@ -51,13 +82,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!rows.length) return;
 
         // --- Sorting ---
-        function sortValue(row, index, type) {
-            var cell = row.cells[index];
-            var text = cell.dataset.sortValue !== undefined ? cell.dataset.sortValue : cell.textContent.trim();
-            if (type !== 'number') return text;
-            var n = parseFloat(text);
-            return isNaN(n) ? -Infinity : n;
-        }
 
         headerCells.forEach(function (th, index) {
             if (!th.dataset.col) return;
@@ -84,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 dataRows().sort(function (a, b) {
                     var av = sortValue(a, index, type);
                     var bv = sortValue(b, index, type);
-                    var cmp = type === 'number' ? (av === bv ? 0 : (av < bv ? -1 : 1)) : collator.compare(av, bv);
+                    var cmp = compareValues(av, bv, type);
                     return dir === 'asc' ? cmp : -cmp;
                 }).forEach(function (row) { tbody.appendChild(row); });
                 window.requestAnimationFrame(function () { window.scrollTo(0, previousScroll); });
@@ -127,16 +151,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         thead.appendChild(filterRow);
 
-        // A cell can carry several values (e.g. a member with two flags) —
-        // split into individual options instead of one combined "A, B"
-        // option, and match a row if ANY of its own values matches.
-        function splitValues(cell, sep) {
-            var raw = cell.dataset.filterValue !== undefined ? cell.dataset.filterValue : cell.textContent;
-            return raw.split(sep)
-                .map(function (s) { return s.trim(); })
-                .filter(function (s) { return s !== ''; });
-        }
-
         function buildChecklist(th, index) {
             var sep = th.dataset.filterSep || ',';
             var wrapper = document.createElement('div');
@@ -154,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var values = [];
             dataRows().forEach(function (row) {
                 splitValues(row.cells[index], sep).forEach(function (v) {
-                    if (values.indexOf(v) === -1) values.push(v);
+                    if (!values.includes(v)) values.push(v);
                 });
             });
             values.sort(collator.compare);
@@ -171,7 +185,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 toggle.textContent = parts.length ? parts.join(', ') : i18n.all;
             }
 
-            // Each click cycles an option none -> include (✓) -> exclude (−) -> none.
             var optionsByKey = {};
             values.forEach(function (v) {
                 var key = v.toLowerCase();
@@ -185,11 +198,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 option.appendChild(document.createTextNode(' ' + v));
                 optionsByKey[key] = option;
                 option.addEventListener('click', function () {
-                    var next = option.dataset.state === 'none' ? 'include'
-                        : option.dataset.state === 'include' ? 'exclude'
-                        : 'none';
+                    var next = NEXT_STATE[option.dataset.state];
                     option.dataset.state = next;
-                    icon.textContent = next === 'include' ? '✓' : next === 'exclude' ? '−' : '';
+                    icon.textContent = STATE_ICON[next];
                     if (next === 'none') delete states[key];
                     else states[key] = next;
                     updateToggleLabel();
@@ -243,9 +254,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 filterMatches: function (cell) {
                     var hasInclude = Object.keys(states).some(function (k) { return states[k] === 'include'; });
                     var matchesInclude = !hasInclude;
-                    var cellValues = splitValues(cell, sep);
-                    for (var i = 0; i < cellValues.length; i++) {
-                        var state = states[cellValues[i].toLowerCase()];
+                    for (var value of splitValues(cell, sep)) {
+                        var state = states[value.toLowerCase()];
                         if (state === 'exclude') return false;
                         if (state === 'include') matchesInclude = true;
                     }
@@ -259,17 +269,16 @@ document.addEventListener('DOMContentLoaded', function () {
             var visibleCount = 0;
             dataRows().forEach(function (row) {
                 var visible = !query
-                    || (row.textContent + ' ' + (row.dataset.search || '')).toLowerCase().indexOf(query) !== -1;
+                    || (row.textContent + ' ' + (row.dataset.search || '')).toLowerCase().includes(query);
                 Object.keys(filters).forEach(function (idxStr) {
                     if (!visible) return;
                     var control = filters[idxStr];
-                    var cell = row.cells[parseInt(idxStr, 10)];
+                    var cell = row.cells[Number.parseInt(idxStr, 10)];
                     if (control.filterMatches) {
                         visible = control.filterMatches(cell);
                     } else {
                         var filterVal = control.value.trim().toLowerCase();
-                        var cellText = (cell.dataset.filterValue !== undefined ? cell.dataset.filterValue : cell.textContent).trim().toLowerCase();
-                        if (filterVal && cellText.indexOf(filterVal) === -1) visible = false;
+                        if (filterVal && !filterText(cell).includes(filterVal)) visible = false;
                     }
                 });
                 row.hidden = !visible;
@@ -298,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function () {
             urlParams.getAll('f_' + col).forEach(function (wanted) {
                 if (control.options) {
                     var option = control.options[wanted.toLowerCase()];
-                    if (option && option.dataset.state === 'none') option.click();
+                    if (option?.dataset.state === 'none') option.click();
                 } else {
                     control.value = wanted;
                 }
@@ -319,7 +328,9 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 var raw = window.localStorage.getItem(storageKey);
                 return raw ? JSON.parse(raw) : null;
-            } catch (e) {
+            } catch {
+                // Storage blocked (private window, cleared site data) or a
+                // corrupt value: fall back to the default columns.
                 return null;
             }
         }
@@ -327,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function () {
         function saveHidden(list) {
             try {
                 window.localStorage.setItem(storageKey, JSON.stringify(list));
-            } catch (e) { /* private window etc. — just not remembered */ }
+            } catch { /* private window etc. — just not remembered */ }
         }
 
         function setColumnVisibility(index, visible) {
@@ -340,17 +351,19 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        var stored = storedHidden();
-        var hidden = stored !== null
-            ? stored
-            : (window.matchMedia && window.matchMedia('(max-width: 782px)').matches
+        var hidden = storedHidden();
+        if (hidden === null) {
+            // Nothing chosen yet: on a narrow screen start without the optional columns.
+            var narrow = window.matchMedia?.('(max-width: 782px)').matches;
+            hidden = narrow
                 ? headerCells.filter(function (th) { return th.classList.contains('avpvh-col-optional'); }).map(function (th) { return th.dataset.col; })
-                : []);
+                : [];
+        }
 
         headerCells.forEach(function (th, index) {
             var col = th.dataset.col;
             if (!col) return;
-            var isHidden = hidden.indexOf(col) !== -1;
+            var isHidden = hidden.includes(col);
             if (isHidden) setColumnVisibility(index, false);
 
             var label = document.createElement('label');

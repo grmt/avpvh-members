@@ -65,27 +65,27 @@
     display: none;
 }
 
-/* Element+class and !important: wp-admin's input[type="text"] rules
-   (padding, and min-height: 40px in newer WP versions) outweigh a bare
-   class selector, which made the text filters taller than the checklist
-   buttons next to them. */
-input.avpvh-filter-control,
-.avpvh-checklist-toggle {
-    box-sizing: border-box !important;
-    width: 100% !important;
+/* Scoped under the table (three classes + an element) so this outweighs
+   wp-admin's input[type="text"] rules, padding and min-height: 40px among
+   them, which made the text filters taller than the checklist buttons
+   next to them. */
+.avpvh-sortable-table .avpvh-filter-row input.avpvh-filter-control,
+.avpvh-sortable-table .avpvh-filter-row .avpvh-checklist-toggle {
+    box-sizing: border-box;
+    width: 100%;
     min-width: 6em;
-    height: 1.7rem !important;
-    min-height: 0 !important;
-    line-height: 1.7rem !important;
-    margin: 0 !important;
-    padding: 0 .3rem !important;
-    border: 1px solid #8c8f94 !important;
-    border-radius: 4px !important;
-    background: #fff !important;
-    font-family: inherit !important;
-    font-size: .85em !important;
-    font-weight: normal !important;
-    color: #2c3338 !important;
+    height: 1.7rem;
+    min-height: 0;
+    line-height: 1.7rem;
+    margin: 0;
+    padding: 0 .3rem;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #fff;
+    font-family: inherit;
+    font-size: .85em;
+    font-weight: normal;
+    color: #2c3338;
 }
 
 .avpvh-checklist-toggle {
