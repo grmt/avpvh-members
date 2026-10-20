@@ -17,6 +17,8 @@
  * Deep links: ?f_<col>=<value> pre-fills a column filter (repeat the param
  * for several values of a select column), ?s=<text> the search box.
  *
+ * A <tfoot> with one cell per column is hidden/shown along with its column.
+ *
  * Event: after every filter change the table dispatches
  * 'avpvh-table-filtered' (detail: {visible, total}); hidden rows have
  * row.hidden set. Use it for page-specific extras such as footer totals.
@@ -360,10 +362,12 @@ document.addEventListener('DOMContentLoaded', function () {
         function setColumnVisibility(index, visible) {
             // Explicit 'table-cell' (not '') so this inline style wins over
             // the .avpvh-col-optional{display:none} mobile rule when a
-            // column is switched back on by hand.
-            [headerRow, filterRow].concat(dataRows()).forEach(function (row) {
-                var cell = row.cells[index];
-                if (cell) cell.style.display = visible ? 'table-cell' : 'none';
+            // column is switched back on by hand. A <tfoot> (e.g. totals)
+            // follows along when it has one cell per column, no colspan.
+            var footRows = table.tFoot ? Array.prototype.slice.call(table.tFoot.rows) : [];
+            [headerRow, filterRow].concat(dataRows(), footRows).forEach(function (row) {
+                if (row.cells.length !== headerCells.length) return;
+                row.cells[index].style.display = visible ? 'table-cell' : 'none';
             });
         }
 
