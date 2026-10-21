@@ -41,10 +41,9 @@ jobs:
 
       - name: Package avpvh-members.zip
         run: |
-          STAGE_DIR="$(mktemp -d)/avpvh-members"
-          mkdir -p "$STAGE_DIR"
-          rsync -a --exclude='.git' --exclude='.github' --exclude='tests' --exclude='node_modules' ./ "$STAGE_DIR/"
-          (cd "$(dirname "$STAGE_DIR")" && zip -r "$GITHUB_WORKSPACE/avpvh-members.zip" avpvh-members)
+          # git archive honours export-ignore in .gitattributes, so the ZIP
+          # holds exactly what a live deploy holds.
+          git archive --format=zip --prefix=avpvh-members/ -o "$GITHUB_WORKSPACE/avpvh-members.zip" HEAD
 
       - name: Create or Update GitHub Release
         env:

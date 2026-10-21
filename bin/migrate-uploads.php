@@ -12,6 +12,14 @@
  *     php /var/www/html/wp-content-pvh/plugins/avpvh-members/bin/migrate-uploads.php [--dry-run]
  */
 
+// Command line only: over the web $argv is missing, so --dry-run can't be
+// given and the script would run for real. It used to be deployed inside the
+// public plugin directory, where opening its URL did exactly that.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 define('ABSPATH', '/var/www/html/');
 require_once ABSPATH . 'wp-load.php';
 
