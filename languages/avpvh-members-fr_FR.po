@@ -3127,3 +3127,51 @@ msgstr "%d exclu(s)"
 #, php-format
 msgid "%1$d van %2$d personen"
 msgstr "%1$d sur %2$d personnes"
+
+#: includes/class-db.php
+#. translators: %d: number of participants
+#, php-format
+msgid "%d deelnemer"
+msgid_plural "%d deelnemers"
+msgstr[0] "%d participant"
+msgstr[1] "%d participants"
+
+#: includes/class-db.php
+msgid "de boekhouding kan nog niet worden gecontroleerd (avpvh-bookkeeping bijwerken)"
+msgstr "la comptabilité ne peut pas encore être vérifiée (mettre à jour avpvh-bookkeeping)"
+
+#: includes/class-admin.php
+msgid "Vink eerst aan dat je deze activiteit definitief wilt verwijderen."
+msgstr "Coche d'abord la case pour confirmer la suppression définitive de cette activité."
+
+#: admin/activity-participation-list.php
+#. translators: %s: name and year of the deleted activity
+#, php-format
+msgid "Activiteit %s is verwijderd."
+msgstr "L'activité %s a été supprimée."
+
+#: admin/activity-participation-list.php
+msgid "De activiteit is niet verwijderd: er hoort inmiddels nog iets bij (zie \"Activiteit verwijderen\")."
+msgstr "L'activité n'a pas été supprimée : quelque chose y est désormais lié (voir \"Supprimer l'activité\")."
+
+#: admin/activity-participation-list.php
+msgid "Activiteit verwijderen"
+msgstr "Supprimer l'activité"
+
+#: admin/activity-participation-list.php
+msgid "Deze activiteit kan niet worden verwijderd, want er hoort nog het volgende bij:"
+msgstr "Cette activité ne peut pas être supprimée, car les éléments suivants y sont encore liés :"
+
+#: admin/activity-participation-list.php
+msgid "Alleen een activiteit waar niets meer bij hoort (bijvoorbeeld een per ongeluk aangemaakte) kan worden verwijderd."
+msgstr "Seule une activité à laquelle plus rien n'est lié (par exemple créée par erreur) peut être supprimée."
+
+#: admin/activity-participation-list.php
+msgid "Er hoort niets bij deze activiteit: geen deelnemers en niets in de boekhouding. Verwijderen kan niet ongedaan worden gemaakt."
+msgstr "Rien n'est lié à cette activité : aucun participant et rien dans la comptabilité. La suppression est irréversible."
+
+#: admin/activity-participation-list.php
+#. translators: %s: activity name and year
+#, php-format
+msgid "Ja, verwijder %s definitief"
+msgstr "Oui, supprimer définitivement %s"

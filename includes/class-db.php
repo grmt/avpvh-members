@@ -1792,6 +1792,63 @@ class AVPVH_DB {
         return (int) $wpdb->insert_id;
     }
 
+    /**
+     * Why an activity can't be deleted: one human-readable reason per kind of
+     * data that still refers to it; empty means it is unused. Participation
+     * is checked here; other plugins add their own references through the
+     * avpvh_activity_delete_blockers filter (avpvh-bookkeeping: rates, fee
+     * items, transactions, payment requests), so this plugin doesn't need to
+     * know their tables.
+     *
+     * @return string[]
+     */
+    public static function get_activity_delete_blockers(int $activity_id): array {
+        global $wpdb;
+        $blockers = [];
+        $participants = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}avm_activity_participation WHERE activity_id = %d",
+            $activity_id
+        ));
+        if ($participants) {
+            $blockers[] = sprintf(
+                /* translators: %d: number of participants */
+                _n('%d deelnemer', '%d deelnemers', $participants, 'avpvh-members'),
+                $participants
+            );
+        }
+        // avpvh-bookkeeping active but too old to answer the filter: its
+        // rates/fee items/payments can't be checked, so don't allow it.
+        if (defined('AVBK_PLUGIN_DIR') && !has_filter('avpvh_activity_delete_blockers')) {
+            $blockers[] = __('de boekhouding kan nog niet worden gecontroleerd (avpvh-bookkeeping bijwerken)', 'avpvh-members');
+        }
+        return array_values(array_filter(array_map(
+            'strval',
+            (array) apply_filters('avpvh_activity_delete_blockers', $blockers, $activity_id)
+        )));
+    }
+
+    /**
+     * Deletes an activity only if nothing refers to it any more (see
+     * get_activity_delete_blockers(), checked again here so a stale page
+     * can't delete one that gained a participant in the meantime).
+     *
+     * @return string[] the blockers; empty means the activity was deleted
+     */
+    public static function delete_activity_if_unused(int $activity_id): array {
+        global $wpdb;
+        $activity = self::get_activity($activity_id);
+        if (!$activity) {
+            return [__('Activiteit niet gevonden.', 'avpvh-members')];
+        }
+        $blockers = self::get_activity_delete_blockers($activity_id);
+        if ($blockers) {
+            return $blockers;
+        }
+        $wpdb->delete("{$wpdb->prefix}avm_activities", ['id' => $activity_id], ['%d']);
+        do_action('avpvh_activity_deleted', $activity_id, $activity);
+        return [];
+    }
+
     /** All participation rows for one activity, joined with member name/status. */
     public static function get_participation_for_activity(int $activity_id): array {
         global $wpdb;

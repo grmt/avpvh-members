@@ -3127,3 +3127,51 @@ msgstr "%d excluded"
 #, php-format
 msgid "%1$d van %2$d personen"
 msgstr "%1$d of %2$d people"
+
+#: includes/class-db.php
+#. translators: %d: number of participants
+#, php-format
+msgid "%d deelnemer"
+msgid_plural "%d deelnemers"
+msgstr[0] "%d participant"
+msgstr[1] "%d participants"
+
+#: includes/class-db.php
+msgid "de boekhouding kan nog niet worden gecontroleerd (avpvh-bookkeeping bijwerken)"
+msgstr "the bookkeeping can't be checked yet (update avpvh-bookkeeping)"
+
+#: includes/class-admin.php
+msgid "Vink eerst aan dat je deze activiteit definitief wilt verwijderen."
+msgstr "First tick the box to confirm you want to delete this activity permanently."
+
+#: admin/activity-participation-list.php
+#. translators: %s: name and year of the deleted activity
+#, php-format
+msgid "Activiteit %s is verwijderd."
+msgstr "Activity %s has been deleted."
+
+#: admin/activity-participation-list.php
+msgid "De activiteit is niet verwijderd: er hoort inmiddels nog iets bij (zie \"Activiteit verwijderen\")."
+msgstr "The activity was not deleted: something now belongs to it (see \"Delete activity\")."
+
+#: admin/activity-participation-list.php
+msgid "Activiteit verwijderen"
+msgstr "Delete activity"
+
+#: admin/activity-participation-list.php
+msgid "Deze activiteit kan niet worden verwijderd, want er hoort nog het volgende bij:"
+msgstr "This activity can't be deleted because the following still belongs to it:"
+
+#: admin/activity-participation-list.php
+msgid "Alleen een activiteit waar niets meer bij hoort (bijvoorbeeld een per ongeluk aangemaakte) kan worden verwijderd."
+msgstr "Only an activity that nothing belongs to any more (for example one created by mistake) can be deleted."
+
+#: admin/activity-participation-list.php
+msgid "Er hoort niets bij deze activiteit: geen deelnemers en niets in de boekhouding. Verwijderen kan niet ongedaan worden gemaakt."
+msgstr "Nothing belongs to this activity: no participants and nothing in the bookkeeping. Deleting can't be undone."
+
+#: admin/activity-participation-list.php
+#. translators: %s: activity name and year
+#, php-format
+msgid "Ja, verwijder %s definitief"
+msgstr "Yes, permanently delete %s"

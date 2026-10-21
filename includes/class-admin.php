@@ -17,6 +17,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_save_participation', [$this, 'handle_save_participation']);
         add_action('admin_post_avpvh_create_activity',    [$this, 'handle_create_activity']);
         add_action('admin_post_avpvh_save_activity',      [$this, 'handle_save_activity']);
+        add_action('admin_post_avpvh_delete_activity',    [$this, 'handle_delete_activity']);
         add_action('admin_post_avpvh_save_activity_types',[$this, 'handle_save_activity_types']);
         add_action('admin_post_avpvh_export_activity_participation', [$this, 'handle_export_activity_participation']);
         add_action('admin_post_avpvh_delegate_role',      [$this, 'handle_delegate_role']);
@@ -1215,6 +1216,38 @@ class AVPVH_Admin {
 
         wp_safe_redirect(add_query_arg([
             'page' => 'avpvh-activity-participation', 'activity_id' => $activity_id, 'activity_saved' => '1',
+        ], admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Deletes an activity that nothing refers to (no participants, nothing
+     * in avpvh-bookkeeping) — e.g. one created by mistake. Anything still
+     * using it blocks the delete; see AVPVH_DB::get_activity_delete_blockers().
+     */
+    public function handle_delete_activity(): void {
+        $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
+        check_admin_referer('avpvh_delete_activity_' . $activity_id);
+        if (!AVPVH_Roles::can_manage_activities()) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        if (empty($_POST['confirm_delete'])) {
+            wp_die(esc_html__('Vink eerst aan dat je deze activiteit definitief wilt verwijderen.', 'avpvh-members'), 400);
+        }
+
+        $activity = AVPVH_DB::get_activity($activity_id);
+        $blockers = AVPVH_DB::delete_activity_if_unused($activity_id);
+        if ($blockers) {
+            wp_safe_redirect(add_query_arg([
+                'page' => 'avpvh-activity-participation', 'activity_id' => $activity_id, 'delete_blocked' => '1',
+            ], admin_url('admin.php')));
+            exit;
+        }
+
+        wp_safe_redirect(add_query_arg([
+            'page'             => 'avpvh-activity-participation',
+            'activity_year'    => (int) $activity->year,
+            'activity_deleted' => rawurlencode($activity->name . ' (' . $activity->year . ')'),
         ], admin_url('admin.php')));
         exit;
     }
