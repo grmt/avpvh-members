@@ -3580,3 +3580,51 @@ msgstr "%d uitgesloten"
 #, php-format
 msgid "%1$d van %2$d personen"
 msgstr "%1$d van %2$d personen"
+
+#: includes/class-db.php
+#. translators: %d: number of participants
+#, php-format
+msgid "%d deelnemer"
+msgid_plural "%d deelnemers"
+msgstr[0] "%d deelnemer"
+msgstr[1] "%d deelnemers"
+
+#: includes/class-db.php
+msgid "de boekhouding kan nog niet worden gecontroleerd (avpvh-bookkeeping bijwerken)"
+msgstr "de boekhouding kan nog niet worden gecontroleerd (avpvh-bookkeeping bijwerken)"
+
+#: includes/class-admin.php
+msgid "Vink eerst aan dat je deze activiteit definitief wilt verwijderen."
+msgstr "Vink eerst aan dat je deze activiteit definitief wilt verwijderen."
+
+#: admin/activity-participation-list.php
+#. translators: %s: name and year of the deleted activity
+#, php-format
+msgid "Activiteit %s is verwijderd."
+msgstr "Activiteit %s is verwijderd."
+
+#: admin/activity-participation-list.php
+msgid "De activiteit is niet verwijderd: er hoort inmiddels nog iets bij (zie \"Activiteit verwijderen\")."
+msgstr "De activiteit is niet verwijderd: er hoort inmiddels nog iets bij (zie \"Activiteit verwijderen\")."
+
+#: admin/activity-participation-list.php
+msgid "Activiteit verwijderen"
+msgstr "Activiteit verwijderen"
+
+#: admin/activity-participation-list.php
+msgid "Deze activiteit kan niet worden verwijderd, want er hoort nog het volgende bij:"
+msgstr "Deze activiteit kan niet worden verwijderd, want er hoort nog het volgende bij:"
+
+#: admin/activity-participation-list.php
+msgid "Alleen een activiteit waar niets meer bij hoort (bijvoorbeeld een per ongeluk aangemaakte) kan worden verwijderd."
+msgstr "Alleen een activiteit waar niets meer bij hoort (bijvoorbeeld een per ongeluk aangemaakte) kan worden verwijderd."
+
+#: admin/activity-participation-list.php
+msgid "Er hoort niets bij deze activiteit: geen deelnemers en niets in de boekhouding. Verwijderen kan niet ongedaan worden gemaakt."
+msgstr "Er hoort niets bij deze activiteit: geen deelnemers en niets in de boekhouding. Verwijderen kan niet ongedaan worden gemaakt."
+
+#: admin/activity-participation-list.php
+#. translators: %s: activity name and year
+#, php-format
+msgid "Ja, verwijder %s definitief"
+msgstr "Ja, verwijder %s definitief"

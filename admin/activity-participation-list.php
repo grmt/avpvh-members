@@ -12,6 +12,8 @@ $activity = $activity_id ? AVPVH_DB::get_activity($activity_id) : null;
 $activity_saved = !empty($_GET['activity_saved']);
 $types_saved = !empty($_GET['types_saved']);
 $activity_created = !empty($_GET['activity_created']);
+$activity_deleted = sanitize_text_field(wp_unslash($_GET['activity_deleted'] ?? ''));
+$delete_blocked = !empty($_GET['delete_blocked']);
 $activity_types = AVPVH_DB::get_activity_types();
 
 $activity_years = array_values(array_unique(array_map(fn($a) => (int) $a->year, $activities)));
@@ -34,6 +36,7 @@ if (!$activity || !in_array($activity_id, $matching_ids, true)) {
 }
 
 $is_contribution = $activity && ($activity->type_name ?? '') === 'Contributie';
+$delete_blockers = $activity ? AVPVH_DB::get_activity_delete_blockers((int) $activity->id) : [];
 $table = new AVPVH_Activity_Participation_List_Table($activity_id, $is_contribution);
 $table->prepare_items();
 
@@ -105,6 +108,13 @@ $export_url = wp_nonce_url(
         </div>
         <p class="description"><?php esc_html_e('Jaar en type bepalen welke activiteiten je kunt kiezen. Kies daarna een activiteit om de deelnemers te bekijken.', 'avpvh-members'); ?></p>
     </form>
+
+    <?php if ($activity_deleted !== '') : ?>
+        <div class="notice notice-success"><p><?php
+            /* translators: %s: name and year of the deleted activity */
+            echo esc_html(sprintf(__('Activiteit %s is verwijderd.', 'avpvh-members'), $activity_deleted));
+        ?></p></div>
+    <?php endif; ?>
 
     <?php if (!$activity) : ?>
         <div class="notice notice-info inline"><p><?php echo esc_html($filtered_activities
@@ -228,6 +238,34 @@ $export_url = wp_nonce_url(
                 </table>
                 <p class="submit"><button type="submit" class="button"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button></p>
             </form>
+        </details>
+
+        <?php if ($delete_blocked && $delete_blockers) : ?>
+            <div class="notice notice-error"><p><?php esc_html_e('De activiteit is niet verwijderd: er hoort inmiddels nog iets bij (zie "Activiteit verwijderen").', 'avpvh-members'); ?></p></div>
+        <?php endif; ?>
+        <details style="margin-bottom:1rem;"<?php echo $delete_blocked ? ' open' : ''; ?>>
+            <summary><?php esc_html_e('Activiteit verwijderen', 'avpvh-members'); ?></summary>
+            <?php if ($delete_blockers) : ?>
+                <p><?php esc_html_e('Deze activiteit kan niet worden verwijderd, want er hoort nog het volgende bij:', 'avpvh-members'); ?></p>
+                <ul style="list-style:disc;margin-left:1.5em;">
+                    <?php foreach ($delete_blockers as $blocker) : ?>
+                        <li><?php echo esc_html($blocker); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+                <p class="description"><?php esc_html_e('Alleen een activiteit waar niets meer bij hoort (bijvoorbeeld een per ongeluk aangemaakte) kan worden verwijderd.', 'avpvh-members'); ?></p>
+            <?php else : ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:.5rem;">
+                    <?php wp_nonce_field('avpvh_delete_activity_' . (int) $activity->id); ?>
+                    <input type="hidden" name="action" value="avpvh_delete_activity">
+                    <input type="hidden" name="activity_id" value="<?php echo esc_attr($activity->id); ?>">
+                    <p><?php esc_html_e('Er hoort niets bij deze activiteit: geen deelnemers en niets in de boekhouding. Verwijderen kan niet ongedaan worden gemaakt.', 'avpvh-members'); ?></p>
+                    <p><label><input type="checkbox" name="confirm_delete" value="1" required> <?php
+                        /* translators: %s: activity name and year */
+                        echo esc_html(sprintf(__('Ja, verwijder %s definitief', 'avpvh-members'), $activity->name . ' (' . $activity->year . ')'));
+                    ?></label></p>
+                    <p class="submit"><button type="submit" class="button button-link-delete"><?php esc_html_e('Activiteit verwijderen', 'avpvh-members'); ?></button></p>
+                </form>
+            <?php endif; ?>
         </details>
 
         <details style="margin-bottom:1rem;">

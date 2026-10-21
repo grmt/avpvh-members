@@ -3339,3 +3339,51 @@ msgstr ""
 #, php-format
 msgid "%1$d van %2$d personen"
 msgstr ""
+
+#: includes/class-db.php
+#. translators: %d: number of participants
+#, php-format
+msgid "%d deelnemer"
+msgid_plural "%d deelnemers"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-db.php
+msgid "de boekhouding kan nog niet worden gecontroleerd (avpvh-bookkeeping bijwerken)"
+msgstr ""
+
+#: includes/class-admin.php
+msgid "Vink eerst aan dat je deze activiteit definitief wilt verwijderen."
+msgstr ""
+
+#: admin/activity-participation-list.php
+#. translators: %s: name and year of the deleted activity
+#, php-format
+msgid "Activiteit %s is verwijderd."
+msgstr ""
+
+#: admin/activity-participation-list.php
+msgid "De activiteit is niet verwijderd: er hoort inmiddels nog iets bij (zie \"Activiteit verwijderen\")."
+msgstr ""
+
+#: admin/activity-participation-list.php
+msgid "Activiteit verwijderen"
+msgstr ""
+
+#: admin/activity-participation-list.php
+msgid "Deze activiteit kan niet worden verwijderd, want er hoort nog het volgende bij:"
+msgstr ""
+
+#: admin/activity-participation-list.php
+msgid "Alleen een activiteit waar niets meer bij hoort (bijvoorbeeld een per ongeluk aangemaakte) kan worden verwijderd."
+msgstr ""
+
+#: admin/activity-participation-list.php
+msgid "Er hoort niets bij deze activiteit: geen deelnemers en niets in de boekhouding. Verwijderen kan niet ongedaan worden gemaakt."
+msgstr ""
+
+#: admin/activity-participation-list.php
+#. translators: %s: activity name and year
+#, php-format
+msgid "Ja, verwijder %s definitief"
+msgstr ""
