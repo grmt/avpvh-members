@@ -25,15 +25,19 @@ git -C "$SRC" add "$MAIN_FILE"
 git -C "$SRC" commit -m "build: bump version to $new_version"
 git -C "$SRC" push origin
 
+# Same set as export-ignore in .gitattributes: everything in the plugin
+# directory is reachable over the web.
 rsync -rl --delete --no-owner --no-group \
   --exclude='.git' \
   --exclude='.claude' \
-  --exclude='PLAN.md' \
-  --exclude='README.md' \
-  --exclude='AGENTS.md' \
-  --exclude='GEMINI.md' \
+  --exclude='/*.md' \
   --exclude='scripts/' \
+  --exclude='bin/' \
+  --exclude='.github/' \
+  --exclude='.venv/' \
   --exclude='config/' \
+  --exclude='.gitignore' \
+  --exclude='.gitattributes' \
   "$SRC/" "$DEST"
 
 echo "deployed $new_version to $DEST"
