@@ -1,0 +1,11 @@
+# Kept out of `git archive`, which is what gets deployed to the live plugin
+# directory and packaged as the release ZIP. Everything under
+# wp-content/plugins/ is reachable over the web, so only what the plugin
+# loads at runtime may go there: no operator scripts, tests, plans or CI.
+/scripts           export-ignore
+/bin               export-ignore
+/.github           export-ignore
+/.venv             export-ignore
+/*.md              export-ignore
+/.gitignore        export-ignore
+/.gitattributes    export-ignore
