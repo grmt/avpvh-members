@@ -8,9 +8,11 @@
 define('ABSPATH', __DIR__ . '/');
 $GLOBALS['filters'] = [];
 $GLOBALS['actions'] = [];
+const THREE_PARTICIPANTS = '3 deelnemers';
+const TWO_RATES = '2 tarieven';
 
-function __($s, $domain = '') { return $s; }
-function _n($single, $plural, $n, $domain = '') { return $n === 1 ? $single : $plural; }
+function __($s) { return $s; }
+function _n($single, $plural, $n) { return $n === 1 ? $single : $plural; }
 function add_filter($name, $fn) { $GLOBALS['filters'][$name][] = $fn; }
 function has_filter($name) { return !empty($GLOBALS['filters'][$name]); }
 function apply_filters($name, $value, ...$args) {
@@ -44,7 +46,7 @@ class Fake_Wpdb {
 }
 
 $wpdb = new Fake_Wpdb();
-require __DIR__ . '/../includes/class-db.php';
+require_once __DIR__ . '/../includes/class-db.php';
 
 $failures = 0;
 function check(string $name, bool $ok): void {
@@ -66,8 +68,8 @@ function reset_fixture(): void {
 // Without avpvh-bookkeeping loaded: only participation counts.
 reset_fixture();
 check('unused activity has no blockers', AVPVH_DB::get_activity_delete_blockers(1) === []);
-check('participants block', AVPVH_DB::get_activity_delete_blockers(2) === ['3 deelnemers']);
-check('blocked delete returns reasons', AVPVH_DB::delete_activity_if_unused(2) === ['3 deelnemers']);
+check('participants block', AVPVH_DB::get_activity_delete_blockers(2) === [THREE_PARTICIPANTS]);
+check('blocked delete returns reasons', AVPVH_DB::delete_activity_if_unused(2) === [THREE_PARTICIPANTS]);
 check('blocked delete deletes nothing', $wpdb->deleted === [] && isset($wpdb->activities[2]));
 check('unused delete succeeds', AVPVH_DB::delete_activity_if_unused(1) === []);
 check('only the activity row is deleted', $wpdb->deleted === [['wp_avm_activities', 1]]);
@@ -83,13 +85,13 @@ check('old bookkeeping: nothing deleted', AVPVH_DB::delete_activity_if_unused(1)
 
 // avpvh-bookkeeping answering the filter.
 add_filter('avpvh_activity_delete_blockers', function ($blockers, $activity_id) {
-    if ($activity_id === 1) { $blockers[] = '2 tarieven'; }
+    if ($activity_id === 1) { $blockers[] = TWO_RATES; }
     return $blockers;
 });
 reset_fixture();
-check('filter receives activity id and adds reason', AVPVH_DB::get_activity_delete_blockers(1) === ['2 tarieven']);
-check('filter reasons block the delete', AVPVH_DB::delete_activity_if_unused(1) === ['2 tarieven'] && $wpdb->deleted === []);
-check('reasons combine', AVPVH_DB::get_activity_delete_blockers(2) === ['3 deelnemers']);
+check('filter receives activity id and adds reason', AVPVH_DB::get_activity_delete_blockers(1) === [TWO_RATES]);
+check('filter reasons block the delete', AVPVH_DB::delete_activity_if_unused(1) === [TWO_RATES] && $wpdb->deleted === []);
+check('reasons combine', AVPVH_DB::get_activity_delete_blockers(2) === [THREE_PARTICIPANTS]);
 $wpdb->activities[3] = (object) ['id' => 3, 'name' => 'Leeg', 'year' => 2026, 'type_name' => ''];
 check('bookkeeping says unused: deleted', AVPVH_DB::delete_activity_if_unused(3) === [] && $wpdb->deleted === [['wp_avm_activities', 3]]);
 
