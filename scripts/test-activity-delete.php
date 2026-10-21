@@ -12,7 +12,7 @@ const THREE_PARTICIPANTS = '3 deelnemers';
 const TWO_RATES = '2 tarieven';
 
 function __($s) { return $s; }
-function _n($single, $plural, $n) { return $n === 1 ? $single : $plural; }
+function _n(...$args) { return $args[2] === 1 ? $args[0] : $args[1]; }
 function add_filter($name, $fn) { $GLOBALS['filters'][$name][] = $fn; }
 function has_filter($name) { return !empty($GLOBALS['filters'][$name]); }
 function apply_filters($name, $value, ...$args) {
