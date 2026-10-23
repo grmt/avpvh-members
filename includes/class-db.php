@@ -5,6 +5,10 @@ class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
     const SCHEMA_VERSION = '2.24';
+    // Activities before this year are the association's history (shown in
+    // the reunion/outing lists on the site) and are never deleted, even
+    // without any participants recorded.
+    const ACTIVITY_DELETE_MIN_YEAR = 2026;
 
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
@@ -1794,8 +1798,8 @@ class AVPVH_DB {
 
     /**
      * Why an activity can't be deleted: one human-readable reason per kind of
-     * data that still refers to it; empty means it is unused. Participation
-     * is checked here; other plugins add their own references through the
+     * data that still refers to it; empty means it is unused. Activities
+     * before ACTIVITY_DELETE_MIN_YEAR and participation are checked here; other plugins add their own references through the
      * avpvh_activity_delete_blockers filter (avpvh-bookkeeping: rates, fee
      * items, transactions, payment requests), so this plugin doesn't need to
      * know their tables.
@@ -1805,6 +1809,14 @@ class AVPVH_DB {
     public static function get_activity_delete_blockers(int $activity_id): array {
         global $wpdb;
         $blockers = [];
+        $activity = self::get_activity($activity_id);
+        if ($activity && (int) $activity->year < self::ACTIVITY_DELETE_MIN_YEAR) {
+            $blockers[] = sprintf(
+                /* translators: %d: first year whose activities can be deleted */
+                __('activiteit van vóór %d (geschiedenis van de vereniging)', 'avpvh-members'),
+                self::ACTIVITY_DELETE_MIN_YEAR
+            );
+        }
         $participants = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}avm_activity_participation WHERE activity_id = %d",
             $activity_id

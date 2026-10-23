@@ -95,5 +95,11 @@ check('reasons combine', AVPVH_DB::get_activity_delete_blockers(2) === [THREE_PA
 $wpdb->activities[3] = (object) ['id' => 3, 'name' => 'Leeg', 'year' => 2026, 'type_name' => ''];
 check('bookkeeping says unused: deleted', AVPVH_DB::delete_activity_if_unused(3) === [] && $wpdb->deleted === [['wp_avm_activities', 3]]);
 
+// Activities before 2026 are history: never deleted.
+$wpdb->activities[4] = (object) ['id' => 4, 'name' => 'Weekend', 'year' => 2025, 'type_name' => ''];
+$blockers = AVPVH_DB::get_activity_delete_blockers(4);
+check('pre-2026 activity blocks', count($blockers) === 1 && str_contains($blockers[0], '2026'));
+check('pre-2026 activity: nothing deleted', AVPVH_DB::delete_activity_if_unused(4) !== [] && isset($wpdb->activities[4]) && count($wpdb->deleted) === 1);
+
 echo $failures ? "$failures FAILED\n" : "All passed\n";
 exit($failures ? 1 : 0);

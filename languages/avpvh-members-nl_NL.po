@@ -3590,6 +3590,11 @@ msgstr[0] "%d deelnemer"
 msgstr[1] "%d deelnemers"
 
 #: includes/class-db.php
+#, php-format
+msgid "activiteit van vóór %d (geschiedenis van de vereniging)"
+msgstr "activiteit van vóór %d (geschiedenis van de vereniging)"
+
+#: includes/class-db.php
 msgid "de boekhouding kan nog niet worden gecontroleerd (avpvh-bookkeeping bijwerken)"
 msgstr "de boekhouding kan nog niet worden gecontroleerd (avpvh-bookkeeping bijwerken)"
 
