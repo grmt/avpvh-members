@@ -221,6 +221,20 @@ header.wp-block-template-part .wp-block-site-title {
     cursor: pointer;
 }
 
+/* Logged in: green check badge on the person icon (assets/nav-auth.js). */
+.avpvh-auth-status__icon {
+    position: relative;
+    display: inline-flex;
+}
+
+.avpvh-auth-status__check {
+    position: absolute;
+    right: -4px;
+    bottom: -3px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px #fff;
+}
+
 .avpvh-auth-status__menu-label .wp-block-navigation-item__content {
     font-size: .8rem;
     color: #777;

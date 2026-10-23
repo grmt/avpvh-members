@@ -170,13 +170,27 @@ document.addEventListener('DOMContentLoaded', function () {
         var content = document.createElement('button');
         content.type = 'button';
         content.className = 'wp-block-navigation-item__content avpvh-auth-status__content';
-        content.setAttribute('aria-label', loginStatus + (cfg.isLoggedIn && cfg.userLabel ? ' · ' + cfg.userLabel : ''));
-        content.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
+        var accessibleLabel = loginStatus + (cfg.isLoggedIn && cfg.userLabel ? ' · ' + cfg.userLabel : '');
+        content.setAttribute('aria-label', accessibleLabel);
+        content.innerHTML = '<span class="avpvh-auth-status__icon">'
+            + '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
             + '<path fill="currentColor" d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z"/>'
-            + '</svg>';
-        var statusLabel = document.createElement('span');
-        statusLabel.textContent = loginStatus;
-        content.appendChild(statusLabel);
+            + '</svg></span>';
+        if (cfg.isLoggedIn) {
+            // Logged in: a green check on the person icon instead of the
+            // word "Ingelogd", to save space; the text stays in aria-label
+            // and shows as a tooltip.
+            content.title = accessibleLabel;
+            content.firstChild.insertAdjacentHTML('beforeend',
+                '<svg class="avpvh-auth-status__check" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">'
+                + '<circle cx="6" cy="6" r="6" fill="#1e8e3e"/>'
+                + '<path d="M3.2 6.2l1.9 1.9 3.7-3.9" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'
+                + '</svg>');
+        } else {
+            var statusLabel = document.createElement('span');
+            statusLabel.textContent = loginStatus;
+            content.appendChild(statusLabel);
+        }
         content.addEventListener('click', toggleOpen);
 
         var chevron = document.createElement('button');
