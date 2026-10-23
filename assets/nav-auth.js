@@ -150,6 +150,29 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }).observe(document.body, { attributes: true, attributeFilter: ['aria-expanded'], subtree: true });
 
+    // --- open desktop dropdowns leftward when they'd pass the right edge ---
+    // The items at the right end of the header (Activiteiten with its nested
+    // year submenus, the account icon) would otherwise open past the window
+    // edge. Measured each time a dropdown opens (hover, keyboard focus or
+    // click), so it adapts to the window width; avpvh.css does the flip.
+    function flipIfOverflowing(li) {
+        if (!li || li.closest('.wp-block-navigation__responsive-container.is-menu-open')) return;
+        var sub = li.querySelector(':scope > .wp-block-navigation__submenu-container');
+        if (!sub) return;
+        li.classList.remove('avpvh-submenu-flip');
+        if (sub.getBoundingClientRect().right > document.documentElement.clientWidth) {
+            li.classList.add('avpvh-submenu-flip');
+        }
+    }
+    function onOpen(e) {
+        var li = e.target.closest && e.target.closest('header .wp-block-navigation-item.has-child');
+        if (li) requestAnimationFrame(function () { flipIfOverflowing(li); });
+    }
+    // Capture phase: the account toggle stops its click from bubbling.
+    document.addEventListener('mouseover', onOpen, true);
+    document.addEventListener('focusin', onOpen, true);
+    document.addEventListener('click', onOpen, true);
+
     // Builds the account entry using the same has-child/submenu-toggle
     // markup core's own nav menu items use (e.g. "Welkom!", "De vereniging"),
     // so it automatically gets their existing desktop dropdown positioning
@@ -179,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (cfg.isLoggedIn) {
             // Logged in: a green check on the person icon instead of the
             // word "Ingelogd", to save space; the text stays in aria-label
-            // and shows as a tooltip.
+            // and shows as a tooltip. Same for logged out below.
             content.title = accessibleLabel;
             content.firstChild.insertAdjacentHTML('beforeend',
                 '<svg class="avpvh-auth-status__check" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">'
@@ -187,9 +210,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 + '<path d="M3.2 6.2l1.9 1.9 3.7-3.9" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'
                 + '</svg>');
         } else {
-            var statusLabel = document.createElement('span');
-            statusLabel.textContent = loginStatus;
-            content.appendChild(statusLabel);
+            // Logged out: a soft-red "go in" arrow in the same spot.
+            content.title = accessibleLabel;
+            content.firstChild.insertAdjacentHTML('beforeend',
+                '<svg class="avpvh-auth-status__check avpvh-auth-status__check--login" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">'
+                + '<circle cx="6" cy="6" r="6" fill="#d9534f"/>'
+                + '<path d="M2.6 6h5.2M5.8 3.8L8 6 5.8 8.2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+                + '</svg>');
         }
         content.addEventListener('click', toggleOpen);
 
