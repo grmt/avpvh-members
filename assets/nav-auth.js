@@ -63,7 +63,47 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!ul) return;
 
         ul.appendChild(makeAccountItem(cfg));
+        addSectionToggles(ul);
     });
+
+    // --- opened mobile menu: main items fold open ---
+    // Each main item with a submenu gets an arrow button (shown only in the
+    // opened mobile menu, see avpvh.css) that folds its submenu open; the
+    // item's own link still goes to its page. Open from the start: the
+    // section with the current page, and the account section for visitors
+    // who aren't logged in, so "Inloggen" stays in view.
+    function addSectionToggles(ul) {
+        ul.querySelectorAll(':scope > li.has-child').forEach(function (li) {
+            var content = li.querySelector(':scope > .wp-block-navigation-item__content');
+            var label = content ? content.textContent.trim() : '';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'avpvh-acc-btn';
+            btn.setAttribute('aria-label', label ? label + ' submenu' : (cfg.labels && cfg.labels.accountMenu) || 'Submenu');
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false"><path d="M1.5 4L6 8L10.5 4" stroke="currentColor" stroke-width="1.5"></path></svg>';
+            function setOpen(open) {
+                li.classList.toggle('avpvh-acc-open', open);
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                setOpen(!li.classList.contains('avpvh-acc-open'));
+            });
+            // An item without a page of its own (the account icon) opens
+            // its section when tapped in the mobile menu.
+            if (content && content.tagName === 'BUTTON') {
+                content.addEventListener('click', function () {
+                    if (li.closest('.wp-block-navigation__responsive-container.is-menu-open')) {
+                        setOpen(!li.classList.contains('avpvh-acc-open'));
+                    }
+                });
+            }
+            var isCurrent = li.querySelector('.current-menu-item, [aria-current="page"]');
+            var isLoggedOutAccount = li.classList.contains('avpvh-auth-status') && !cfg.isLoggedIn;
+            setOpen(!!(isCurrent || isLoggedOutAccount));
+            li.insertBefore(btn, li.querySelector(':scope > .wp-block-navigation__submenu-container'));
+        });
+    }
 
     // --- "Uitgelogd als ..." after logout (and after an identity mismatch) ---
     // The server leaves which account(s) were signed out in a short-lived
