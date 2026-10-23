@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
             content.firstChild.insertAdjacentHTML('beforeend',
                 '<svg class="avpvh-auth-status__check avpvh-auth-status__check--login" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">'
                 + '<circle cx="6" cy="6" r="6" fill="#d9534f"/>'
-                + '<path d="M2.6 6h5.2M5.8 3.8L8 6 5.8 8.2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+                + '<path d="M3.4 6h5M6.2 3.8L8.4 6 6.2 8.2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
                 + '</svg>');
         }
         content.addEventListener('click', toggleOpen);
