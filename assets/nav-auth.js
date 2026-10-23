@@ -63,7 +63,47 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!ul) return;
 
         ul.appendChild(makeAccountItem(cfg));
+        addSectionToggles(ul);
     });
+
+    // --- opened mobile menu: main items fold open ---
+    // Each main item with a submenu gets an arrow button (shown only in the
+    // opened mobile menu, see avpvh.css) that folds its submenu open; the
+    // item's own link still goes to its page. Open from the start: the
+    // section with the current page, and the account section for visitors
+    // who aren't logged in, so "Inloggen" stays in view.
+    function addSectionToggles(ul) {
+        ul.querySelectorAll(':scope > li.has-child').forEach(function (li) {
+            var content = li.querySelector(':scope > .wp-block-navigation-item__content');
+            var label = content ? content.textContent.trim() : '';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'avpvh-acc-btn';
+            btn.setAttribute('aria-label', label ? label + ' submenu' : (cfg.labels && cfg.labels.accountMenu) || 'Submenu');
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false"><path d="M1.5 4L6 8L10.5 4" stroke="currentColor" stroke-width="1.5"></path></svg>';
+            function setOpen(open) {
+                li.classList.toggle('avpvh-acc-open', open);
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                setOpen(!li.classList.contains('avpvh-acc-open'));
+            });
+            // An item without a page of its own (the account icon) opens
+            // its section when tapped in the mobile menu.
+            if (content && content.tagName === 'BUTTON') {
+                content.addEventListener('click', function () {
+                    if (li.closest('.wp-block-navigation__responsive-container.is-menu-open')) {
+                        setOpen(!li.classList.contains('avpvh-acc-open'));
+                    }
+                });
+            }
+            var isCurrent = li.querySelector('.current-menu-item, [aria-current="page"]');
+            var isLoggedOutAccount = li.classList.contains('avpvh-auth-status') && !cfg.isLoggedIn;
+            setOpen(!!(isCurrent || isLoggedOutAccount));
+            li.insertBefore(btn, li.querySelector(':scope > .wp-block-navigation__submenu-container'));
+        });
+    }
 
     // --- "Uitgelogd als ..." after logout (and after an identity mismatch) ---
     // The server leaves which account(s) were signed out in a short-lived
@@ -150,6 +190,29 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }).observe(document.body, { attributes: true, attributeFilter: ['aria-expanded'], subtree: true });
 
+    // --- open desktop dropdowns leftward when they'd pass the right edge ---
+    // The items at the right end of the header (Activiteiten with its nested
+    // year submenus, the account icon) would otherwise open past the window
+    // edge. Measured each time a dropdown opens (hover, keyboard focus or
+    // click), so it adapts to the window width; avpvh.css does the flip.
+    function flipIfOverflowing(li) {
+        if (!li || li.closest('.wp-block-navigation__responsive-container.is-menu-open')) return;
+        var sub = li.querySelector(':scope > .wp-block-navigation__submenu-container');
+        if (!sub) return;
+        li.classList.remove('avpvh-submenu-flip');
+        if (sub.getBoundingClientRect().right > document.documentElement.clientWidth) {
+            li.classList.add('avpvh-submenu-flip');
+        }
+    }
+    function onOpen(e) {
+        var li = e.target.closest && e.target.closest('header .wp-block-navigation-item.has-child');
+        if (li) requestAnimationFrame(function () { flipIfOverflowing(li); });
+    }
+    // Capture phase: the account toggle stops its click from bubbling.
+    document.addEventListener('mouseover', onOpen, true);
+    document.addEventListener('focusin', onOpen, true);
+    document.addEventListener('click', onOpen, true);
+
     // Builds the account entry using the same has-child/submenu-toggle
     // markup core's own nav menu items use (e.g. "Welkom!", "De vereniging"),
     // so it automatically gets their existing desktop dropdown positioning
@@ -170,13 +233,31 @@ document.addEventListener('DOMContentLoaded', function () {
         var content = document.createElement('button');
         content.type = 'button';
         content.className = 'wp-block-navigation-item__content avpvh-auth-status__content';
-        content.setAttribute('aria-label', loginStatus + (cfg.isLoggedIn && cfg.userLabel ? ' · ' + cfg.userLabel : ''));
-        content.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
+        var accessibleLabel = loginStatus + (cfg.isLoggedIn && cfg.userLabel ? ' · ' + cfg.userLabel : '');
+        content.setAttribute('aria-label', accessibleLabel);
+        content.innerHTML = '<span class="avpvh-auth-status__icon">'
+            + '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
             + '<path fill="currentColor" d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z"/>'
-            + '</svg>';
-        var statusLabel = document.createElement('span');
-        statusLabel.textContent = loginStatus;
-        content.appendChild(statusLabel);
+            + '</svg></span>';
+        if (cfg.isLoggedIn) {
+            // Logged in: a green check on the person icon instead of the
+            // word "Ingelogd", to save space; the text stays in aria-label
+            // and shows as a tooltip. Same for logged out below.
+            content.title = accessibleLabel;
+            content.firstChild.insertAdjacentHTML('beforeend',
+                '<svg class="avpvh-auth-status__check" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">'
+                + '<circle cx="6" cy="6" r="6" fill="#1e8e3e"/>'
+                + '<path d="M3.2 6.2l1.9 1.9 3.7-3.9" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'
+                + '</svg>');
+        } else {
+            // Logged out: a soft-red "go in" arrow in the same spot.
+            content.title = accessibleLabel;
+            content.firstChild.insertAdjacentHTML('beforeend',
+                '<svg class="avpvh-auth-status__check avpvh-auth-status__check--login" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">'
+                + '<circle cx="6" cy="6" r="6" fill="#d9534f"/>'
+                + '<path d="M3.4 6h5M6.2 3.8L8.4 6 6.2 8.2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+                + '</svg>');
+        }
         content.addEventListener('click', toggleOpen);
 
         var chevron = document.createElement('button');

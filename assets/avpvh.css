@@ -221,14 +221,123 @@ header.wp-block-template-part .wp-block-site-title {
     cursor: pointer;
 }
 
+/* Badge on the person icon (assets/nav-auth.js): green check when logged
+   in, soft-red arrow when logged out. */
+.avpvh-auth-status__icon {
+    position: relative;
+    display: inline-flex;
+}
+
+.avpvh-auth-status__check {
+    position: absolute;
+    right: -4px;
+    bottom: -3px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px #fff;
+}
+
 .avpvh-auth-status__menu-label .wp-block-navigation-item__content {
     font-size: .8rem;
     color: #777;
     white-space: nowrap;
 }
 
-.wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__container > .avpvh-auth-status {
-    order: -1;
+/* Desktop dropdowns that would pass the right window edge open leftward
+   (class set by assets/nav-auth.js): top level aligned to the item's right
+   edge, nested submenus to the left of their parent. */
+.wp-block-navigation .has-child.avpvh-submenu-flip > .wp-block-navigation__submenu-container {
+    left: auto;
+    right: -1px;
+}
+
+.wp-block-navigation .wp-block-navigation__submenu-container .has-child.avpvh-submenu-flip > .wp-block-navigation__submenu-container {
+    left: auto;
+    right: 100%;
+}
+
+/* Opened mobile menu: the levels look different (main items large and
+   bold with a line between them, the level below behind a yellow bar,
+   deeper levels small and grey behind a thin grey line), and each main
+   item folds open with its own arrow button (assets/nav-auth.js), so the
+   menu starts as a short list of sections. Desktop is unaffected. */
+.avpvh-acc-btn {
+    display: none;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__container {
+    gap: 0;
+    width: 100%;
+    align-items: stretch;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__container > .wp-block-navigation-item {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    align-items: stretch;
+    padding: .9rem 2.6rem .9rem 0;
+    border-top: 1px solid #ddd;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__container > .wp-block-navigation-item:first-child {
+    border-top: 0;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__container > .wp-block-navigation-item > .wp-block-navigation-item__content {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__container > .has-child > .wp-block-navigation__submenu-container {
+    gap: .55rem;
+    margin: .7rem 0 0 .2rem;
+    padding: .2rem 0 .2rem .9rem;
+    border-left: 3px solid #e6a817;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__container > .has-child:not(.avpvh-acc-open) > .wp-block-navigation__submenu-container {
+    display: none;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__container > .has-child > .wp-block-navigation__submenu-container > .wp-block-navigation-item > .wp-block-navigation-item__content {
+    font-weight: 600;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__submenu-container .wp-block-navigation__submenu-container {
+    gap: .4rem;
+    margin: .4rem 0 .2rem .1rem;
+    padding: .2rem 0 .2rem .8rem;
+    border-left: 2px solid #ccc;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__submenu-container .wp-block-navigation__submenu-container .wp-block-navigation-item__content {
+    font-size: .9rem;
+    font-weight: 400;
+    color: #555;
+}
+
+.wp-block-navigation .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content .avpvh-acc-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: .55rem;
+    right: 0;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.avpvh-acc-btn svg {
+    transition: transform .15s;
+}
+
+.avpvh-acc-open > .avpvh-acc-btn svg {
+    transform: rotate(180deg);
 }
 
 /* "Uitgelogd als ..." notice after logout (assets/nav-auth.js) */
