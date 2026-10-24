@@ -110,4 +110,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.querySelectorAll('.avpvh-member-combo').forEach(wireMemberCombo);
+
+    // Typing a corrected e-mail address selects that option.
+    var customEmail = document.getElementById('avpvh-merge-email-custom');
+    var customChoice = document.getElementById('avpvh-merge-email-custom-choice');
+    if (customEmail && customChoice) {
+        customEmail.addEventListener('focus', function () { customChoice.checked = true; });
+    }
 });

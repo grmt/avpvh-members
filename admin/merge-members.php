@@ -66,6 +66,9 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                     <?php esc_html_e('Samengevoegd in', 'avpvh-members'); ?>
                     <a href="<?php echo esc_url($detail_url((int) $result['keep_id'])); ?>"><?php echo esc_html($result['keep_name']); ?></a>.
                 </p>
+                <?php foreach ($result['notes'] ?? [] as $note) : ?>
+                    <p><?php echo esc_html($note); ?></p>
+                <?php endforeach; ?>
             </div>
             <?php foreach ($result['warnings'] as $warning) : ?>
                 <div class="notice notice-warning"><p><?php echo esc_html($warning); ?></p></div>
@@ -149,7 +152,44 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                     </tr>
                 </tbody>
             </table>
-            <p class="description"><?php esc_html_e('Een echt e-mailadres van het dubbele account wordt als (onbevestigd) inlogadres aan het behouden lid toegevoegd.', 'avpvh-members'); ?></p>
+
+            <?php
+            $email = $preview['email'];
+            $email_label = fn(string $address): string => $address === '' ? '<em>' . esc_html__('geen', 'avpvh-members') . '</em>' : esc_html($address);
+            ?>
+            <h3><?php esc_html_e('E-mailadres na samenvoegen', 'avpvh-members'); ?></h3>
+            <fieldset class="avpvh-merge-email">
+                <p><label>
+                    <input type="radio" name="email[choice]" value="keep" <?php checked($email['default'], 'keep'); ?>>
+                    <?php echo $email_label($email['keep']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $email_label ?>
+                    <span class="description">(<?php esc_html_e('behouden lid', 'avpvh-members'); ?>)</span>
+                </label></p>
+                <?php if ($email['remove'] !== '' && strcasecmp($email['remove'], $email['keep']) !== 0) : ?>
+                    <p><label>
+                        <input type="radio" name="email[choice]" value="remove" <?php checked($email['default'], 'remove'); ?>>
+                        <?php echo esc_html($email['remove']); ?>
+                        <span class="description">(<?php esc_html_e('dubbele lid', 'avpvh-members'); ?>)</span>
+                    </label></p>
+                <?php endif; ?>
+                <p>
+                    <label>
+                        <input type="radio" name="email[choice]" value="custom" id="avpvh-merge-email-custom-choice">
+                        <?php esc_html_e('Ander of gecorrigeerd adres:', 'avpvh-members'); ?>
+                    </label>
+                    <label class="screen-reader-text" for="avpvh-merge-email-custom"><?php esc_html_e('Ander of gecorrigeerd adres', 'avpvh-members'); ?></label>
+                    <input type="text" inputmode="email" autocomplete="off" class="regular-text" id="avpvh-merge-email-custom" name="email[custom]" value="<?php echo esc_attr($email['remove'] ?: $email['keep']); ?>">
+                </p>
+                <?php if ($email['remove'] !== '' && strcasecmp($email['remove'], $email['keep']) !== 0) : ?>
+                    <p>
+                        <input type="hidden" name="email[add_other]" value="0">
+                        <label>
+                            <input type="checkbox" name="email[add_other]" value="1" checked>
+                            <?php echo esc_html(sprintf(/* translators: %s: e-mail address */ __('%s bewaren als extra (onbevestigd) inlogadres als het niet het e-mailadres wordt — vink uit als het adres fout is', 'avpvh-members'), $email['remove'])); ?>
+                        </label>
+                    </p>
+                <?php endif; ?>
+                <p class="description"><?php esc_html_e('Het gekozen adres wordt het e-mailadres van het account en het primaire inlogadres. Inlogadressen waarmee het dubbele lid al eens heeft ingelogd gaan altijd mee; een fout adres verwijder je daarna in Ledendetail.', 'avpvh-members'); ?></p>
+            </fieldset>
 
             <h3><?php esc_html_e('Gegevens', 'avpvh-members'); ?></h3>
             <?php if (!$preview['fields']) : ?>
