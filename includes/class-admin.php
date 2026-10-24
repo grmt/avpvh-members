@@ -934,6 +934,12 @@ class AVPVH_Admin {
             ),
         ];
         $choices['addresses'] = array_combine(array_map('intval', array_keys($choices['addresses'])), $choices['addresses']) ?: [];
+        $email_post = (array) wp_unslash($_POST['email'] ?? []);
+        $choices['email'] = [
+            'choice'    => in_array($email_post['choice'] ?? '', ['keep', 'remove', 'custom'], true) ? $email_post['choice'] : 'keep',
+            'custom'    => sanitize_email((string) ($email_post['custom'] ?? '')),
+            'add_other' => !empty($email_post['add_other']),
+        ];
 
         $result = empty($_POST['confirm'])
             ? new \WP_Error('unconfirmed', 'Bevestig eerst dat het om dezelfde persoon gaat.')
@@ -950,7 +956,8 @@ class AVPVH_Admin {
         set_transient($transient, [
             'keep_id'   => $keep_id,
             'keep_name' => $keep ? avpvh_format_name($keep) : '#' . $keep_id,
-            'warnings'  => $result,
+            'warnings'  => $result['warnings'],
+            'notes'     => $result['notes'],
         ], 10 * MINUTE_IN_SECONDS);
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members'], admin_url('admin.php')));
         exit;
