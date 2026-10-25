@@ -103,11 +103,10 @@ class AVPVH_OAuth {
     }
 
     private function get_client_ip(): string {
-        // Trust X-Forwarded-For only from our nginx proxy (runs on the same host).
-        $forwarded = sanitize_text_field(wp_unslash($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
-        if ($forwarded) {
-            return trim(explode(',', $forwarded)[0]);
-        }
+        // nginx talks FastCGI to PHP and sets REMOTE_ADDR to the real client
+        // address. X-Forwarded-For reaches PHP unchanged from the client, so
+        // trusting it would let anyone pick a new "IP" per request and skip
+        // the failure throttle below.
         return sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? ''));
     }
 
