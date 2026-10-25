@@ -135,7 +135,12 @@
             }
             var parts = [];
             $fieldset.find('input[type=text], input[type=email], input[type=tel], input[type=date], select').each(function() {
-                var value = this.tagName === 'SELECT' ? $(this).find('option:selected').text() : this.value;
+                if ($(this).closest('[hidden]').length) {
+                    return;
+                }
+                var value = this.tagName === 'SELECT'
+                    ? (this.value ? $(this).find('option:selected').text() : '')
+                    : this.value;
                 value = $.trim(value || '');
                 if (value !== '' && parts.length < 3) {
                     parts.push(value);
