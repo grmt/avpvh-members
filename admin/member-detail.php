@@ -201,7 +201,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th><?php esc_html_e('Status', 'avpvh-members'); ?></th><td><?php echo esc_html(AVPVH_Roles::get_status_label($member->status)); ?></td></tr>
         <tr><th><?php esc_html_e('Telefoon', 'avpvh-members'); ?></th><td><?php echo esc_html($member->phone); ?></td></tr>
         <tr><th><?php esc_html_e('Mobiel', 'avpvh-members'); ?></th><td><?php echo esc_html($member->mobile); ?></td></tr>
-        <tr><th><?php esc_html_e('Noodcontact', 'avpvh-members'); ?></th><td><?php echo esc_html($member->emergency_contact); ?></td></tr>
+        <tr><th><?php esc_html_e('Noodcontact', 'avpvh-members'); ?></th><td><?php echo esc_html(AVPVH_Member_Merge::field_display($member, 'emergency_contact')); ?></td></tr>
         <tr>
             <th><?php esc_html_e('Geboortedatum', 'avpvh-members'); ?></th>
             <td>

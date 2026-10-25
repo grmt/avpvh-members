@@ -668,6 +668,7 @@ class AVPVH_Member_Merge {
         return match ($field) {
             'name'              => ['first_name', 'suffix', 'last_name'],
             'directory_consent' => ['directory_consent', 'directory_consent_at'],
+            'emergency_contact' => ['emergency_contact', 'emergency_relation', 'emergency_phone', 'emergency_address'],
             default             => [$field],
         };
     }
@@ -676,10 +677,21 @@ class AVPVH_Member_Merge {
         return match ($field) {
             'name'       => avpvh_format_name($member),
             'is_student' => (int) $member->is_student ? 'ja' : 'nee',
+            'emergency_contact' => self::emergency_display($member),
             default      => str_starts_with($field, 'share_')
                 ? ((int) $member->$field ? 'ja' : 'nee')
                 : self::str($member->$field),
         };
+    }
+
+    /** Name (relation) · phone · address, empty parts left out. */
+    private static function emergency_display(object $member): string {
+        $relation = self::str($member->emergency_relation ?? '');
+        $name = trim(self::str($member->emergency_contact) . ($relation !== '' ? " ($relation)" : ''));
+        return implode(' · ', array_filter(
+            [$name, self::str($member->emergency_phone ?? ''), self::str($member->emergency_address ?? '')],
+            fn($part) => $part !== ''
+        ));
     }
 
     private static function default_choice(object $keep, object $remove, string $field): string {
