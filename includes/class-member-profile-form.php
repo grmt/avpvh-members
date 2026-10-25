@@ -937,8 +937,11 @@ class AVPVH_Member_Profile_Form {
         $is_admin_edit = AVPVH_Roles::can_manage_members() && !empty($_POST['member_id']);
         $member_data = $this->sanitize_member_data($_POST, $is_admin_edit);
 
-        // A name alone is no use in an emergency.
-        if ($member_data['emergency_contact'] !== '' && $member_data['emergency_phone'] === '') {
+        // A name alone is no use in an emergency. Only enforced on the
+        // member's own profile: an admin or housemate editing someone else
+        // usually doesn't know the number and shouldn't be blocked by it.
+        $is_own_profile = (int) ($member->wp_user_id ?? 0) === get_current_user_id();
+        if ($is_own_profile && $member_data['emergency_contact'] !== '' && $member_data['emergency_phone'] === '') {
             wp_send_json_error(__('Vul ook het telefoonnummer van je noodcontact in.', 'avpvh-members'));
         }
 
