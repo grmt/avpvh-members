@@ -300,11 +300,36 @@ class AVPVH_Member_Profile_Form {
                         <input type="tel" id="mobile" name="mobile"
                             value="<?php echo esc_attr($member->mobile); ?>">
                     </div>
+                </fieldset>
+
+                <fieldset class="avpvh-fields-grid">
+                    <legend><?php esc_html_e('Noodcontact', 'avpvh-members'); ?></legend>
+                    <p class="avpvh-field-hint avpvh-fields-grid__full"><?php esc_html_e('Wie we bellen als er tijdens een activiteit iets met je gebeurt. Alleen zichtbaar voor jou, je huisgenoten en de beheerders.', 'avpvh-members'); ?></p>
 
                     <div class="form-group">
-                        <label for="emergency_contact"><?php esc_html_e('Contactpersoon in noodgevallen', 'avpvh-members'); ?></label>
-                        <input type="text" id="emergency_contact" name="emergency_contact"
+                        <label for="emergency_contact"><?php esc_html_e('Naam', 'avpvh-members'); ?></label>
+                        <input type="text" id="emergency_contact" name="emergency_contact" maxlength="200"
                             value="<?php echo esc_attr($member->emergency_contact); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="emergency_relation"><?php esc_html_e('Relatie', 'avpvh-members'); ?></label>
+                        <input type="text" id="emergency_relation" name="emergency_relation" maxlength="100"
+                            placeholder="<?php esc_attr_e('bijv. partner, vader, buurvrouw', 'avpvh-members'); ?>"
+                            value="<?php echo esc_attr($member->emergency_relation ?? ''); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="emergency_phone"><?php esc_html_e('Telefoon', 'avpvh-members'); ?></label>
+                        <input type="tel" id="emergency_phone" name="emergency_phone" maxlength="30"
+                            value="<?php echo esc_attr($member->emergency_phone ?? ''); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="emergency_address"><?php esc_html_e('Adres', 'avpvh-members'); ?></label>
+                        <input type="text" id="emergency_address" name="emergency_address" maxlength="255"
+                            placeholder="<?php esc_attr_e('straat, huisnummer, postcode, plaats', 'avpvh-members'); ?>"
+                            value="<?php echo esc_attr($member->emergency_address ?? ''); ?>">
                     </div>
                 </fieldset>
 
@@ -914,6 +939,11 @@ class AVPVH_Member_Profile_Form {
         $is_admin_edit = AVPVH_Roles::can_manage_members() && !empty($_POST['member_id']);
         $member_data = $this->sanitize_member_data($_POST, $is_admin_edit);
 
+        // A name alone is no use in an emergency.
+        if ($member_data['emergency_contact'] !== '' && $member_data['emergency_phone'] === '') {
+            wp_send_json_error(__('Vul ook het telefoonnummer van je noodcontact in.', 'avpvh-members'));
+        }
+
         try {
             // Save language preference if provided
             if (isset($_POST['user_locale'])) {
@@ -1355,6 +1385,9 @@ class AVPVH_Member_Profile_Form {
             'phone' => sanitize_text_field($data['phone'] ?? ''),
             'mobile' => sanitize_text_field($data['mobile'] ?? ''),
             'emergency_contact' => sanitize_text_field($data['emergency_contact'] ?? ''),
+            'emergency_relation' => sanitize_text_field($data['emergency_relation'] ?? ''),
+            'emergency_phone' => sanitize_text_field($data['emergency_phone'] ?? ''),
+            'emergency_address' => sanitize_text_field($data['emergency_address'] ?? ''),
             'diet' => sanitize_text_field($data['diet'] ?? ''),
         ];
 

@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.24';
+    const SCHEMA_VERSION = '2.25';
 
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
@@ -41,6 +41,9 @@ class AVPVH_DB {
             phone VARCHAR(30) NOT NULL DEFAULT '',
             mobile VARCHAR(30) NOT NULL DEFAULT '',
             emergency_contact VARCHAR(200) NOT NULL DEFAULT '',
+            emergency_relation VARCHAR(100) NOT NULL DEFAULT '',
+            emergency_phone VARCHAR(30) NOT NULL DEFAULT '',
+            emergency_address VARCHAR(255) NOT NULL DEFAULT '',
             diet VARCHAR(255) NOT NULL DEFAULT '',
             status ENUM('active','inactive','visitor') NOT NULL DEFAULT 'active',
             joined_year YEAR NULL,
@@ -821,6 +824,13 @@ class AVPVH_DB {
             self::install();
             update_option('avpvh_db_version', '2.24');
         }
+        if (version_compare($version, '2.25', '<')) {
+            // Emergency contact split up: emergency_contact keeps the name
+            // (existing free text stays there), plus relation, phone and
+            // address of that person.
+            self::install();
+            update_option('avpvh_db_version', '2.25');
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -1087,7 +1097,7 @@ class AVPVH_DB {
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
                        m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.birth_year, m.is_student,
-                       m.phone, m.mobile, m.emergency_contact, m.diet,
+                       m.phone, m.mobile, m.emergency_contact, m.emergency_relation, m.emergency_phone, m.emergency_address, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
                        m.share_email, m.share_phone, m.share_address, m.share_activity_history,

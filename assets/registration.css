@@ -326,6 +326,11 @@ button.button-primary:active {
     margin: .5rem 0;
 }
 
+.avpvh-member-profile-form fieldset.avpvh-fields-grid > .avpvh-fields-grid__full {
+    grid-column: 1 / -1;
+    margin: 0 0 .25rem;
+}
+
 /* Collapsible sections: every fieldset's legend doubles as a toggle
    (see registration.js) so a returning member can collapse sections they
    don't need to revisit, like Change History. */
