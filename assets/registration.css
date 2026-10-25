@@ -326,32 +326,177 @@ button.button-primary:active {
     margin: .5rem 0;
 }
 
-/* Collapsible sections: every fieldset's legend doubles as a toggle
-   (see registration.js) so a returning member can collapse sections they
-   don't need to revisit, like Change History. */
+/* Profile sections (see registration.js): every top-level fieldset folds
+   the same way, its legend a full-width bar with the title, a one-line
+   summary while closed, and a chevron. */
+.avpvh-member-profile-form {
+    /* clip instead of hidden: hidden makes this a scroll container, which
+       stops the section bar below from sticking to the viewport. */
+    overflow: clip;
+}
+
+.avpvh-member-profile-form fieldset {
+    scroll-margin-top: 4.5rem;
+}
+
+/* Sections after the main form (login addresses, relations, consent…)
+   sit directly in the card; give them the form's side padding so every
+   section lines up. */
+.avpvh-member-profile-form > fieldset {
+    margin-left: 2rem;
+    margin-right: 2rem;
+}
+
+/* Floated, a legend is laid out inside the fieldset instead of on its
+   top border, so a closed section is a single bar, not a title hanging
+   over an empty box. */
 .avpvh-member-profile-form fieldset > legend {
+    float: left;
+    box-sizing: border-box;
     cursor: pointer;
     display: flex;
+    gap: .75rem;
     width: 100%;
-    align-items: center;
-    justify-content: space-between;
+    align-items: baseline;
     -webkit-user-select: none;
     user-select: none;
 }
 
-.avpvh-member-profile-form fieldset > legend::after {
-    content: '\2212';
-    margin-left: .75rem;
-    font-weight: normal;
-    color: #777;
+.avpvh-member-profile-form fieldset > legend + * {
+    clear: both;
 }
 
-.avpvh-member-profile-form fieldset.avpvh-collapsed > legend::after {
-    content: '+';
+.avpvh-member-profile-form fieldset > legend:focus-visible {
+    outline: 2px solid #0073aa;
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+.avpvh-section-title {
+    flex: 0 0 auto;
+}
+
+.avpvh-section-summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: .9rem;
+    font-weight: normal;
+    color: #666;
+}
+
+.avpvh-section-chevron {
+    flex: 0 0 auto;
+    margin-left: auto;
+    align-self: center;
+    color: #0073aa;
+    transform: rotate(180deg);
+    transition: transform .15s ease;
+}
+
+.avpvh-member-profile-form fieldset.avpvh-collapsed > legend .avpvh-section-chevron {
+    transform: none;
+}
+
+.avpvh-member-profile-form fieldset.avpvh-collapsed {
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+}
+
+.avpvh-member-profile-form fieldset.avpvh-collapsed > legend {
+    margin-bottom: 0;
 }
 
 .avpvh-member-profile-form fieldset.avpvh-collapsed > *:not(legend) {
     display: none;
+}
+
+.avpvh-profile-nav {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem 1rem;
+    margin: 0 2rem 1rem;
+    padding: .6rem 0;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.admin-bar .avpvh-profile-nav {
+    top: 32px;
+}
+
+.avpvh-profile-nav__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    flex: 1 1 auto;
+}
+
+.avpvh-profile-nav__links a {
+    display: inline-block;
+    padding: .2rem .6rem;
+    border: 1px solid #c8d7e1;
+    border-radius: 999px;
+    font-size: .85rem;
+    line-height: 1.4;
+    color: #0073aa;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.avpvh-profile-nav__links a:hover,
+.avpvh-profile-nav__links a:focus-visible {
+    background: #0073aa;
+    border-color: #0073aa;
+    color: #fff;
+}
+
+.avpvh-profile-nav__all {
+    display: flex;
+    gap: .75rem;
+}
+
+.avpvh-profile-nav__button {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: .85rem;
+    color: #0073aa;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .avpvh-profile-nav {
+        margin: 0 1rem 1rem;
+    }
+
+    /* One scrollable row instead of several wrapped lines of pills. */
+    .avpvh-profile-nav__links {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .avpvh-section-summary {
+        display: none;
+    }
+}
+
+@media (max-width: 782px) {
+    .admin-bar .avpvh-profile-nav {
+        top: 46px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -384,6 +529,11 @@ button.button-primary:active {
 
     .avpvh-member-profile-form fieldset {
         margin: 1rem 0;
+    }
+
+    .avpvh-member-profile-form > fieldset {
+        margin-left: 1rem;
+        margin-right: 1rem;
     }
 
     .avpvh-member-profile-form fieldset.avpvh-fields-grid {

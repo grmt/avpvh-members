@@ -84,41 +84,92 @@
         }
     });
 
-    // Collapsible profile sections (Persoonlijke gegevens, Contact, etc.) —
-    // each fieldset's legend toggles its own contents, remembered per
-    // section in localStorage so it stays collapsed on the next visit.
+    // Profile sections: every top-level fieldset is a section that folds
+    // open and shut the same way. The first one starts open, the rest
+    // closed, so everyone sees the same page; a section with a save notice
+    // or the one named in the URL hash (e.g. #lidmaatschap) opens too.
+    // A bar above the sections jumps to one and opens it.
     $(document).ready(function() {
-        $('.avpvh-member-profile-form fieldset').each(function() {
-            var $fieldset = $(this);
-            var $legend = $fieldset.children('legend').first();
-            if ($legend.length === 0) {
-                return;
-            }
+        var $root = $('.avpvh-member-profile-form').first();
+        var $sections = $root.find('fieldset').filter(function() {
+            return $(this).children('legend').length > 0 && $(this).parent().closest('fieldset').length === 0;
+        });
+        if ($sections.length === 0) {
+            return;
+        }
 
-            var key = 'avpvh-profile-collapsed:' + $legend.text().trim();
-            $legend.attr({ role: 'button', tabindex: '0' });
-
-            function setCollapsed(collapsed) {
-                $fieldset.toggleClass('avpvh-collapsed', collapsed);
-                $legend.attr('aria-expanded', collapsed ? 'false' : 'true');
-            }
-
-            try {
-                setCollapsed(window.localStorage.getItem(key) === '1');
-            } catch (e) {
-                setCollapsed(false);
-            }
-
-            $legend.on('click', function() {
-                var collapsed = !$fieldset.hasClass('avpvh-collapsed');
-                setCollapsed(collapsed);
-                try {
-                    window.localStorage.setItem(key, collapsed ? '1' : '0');
-                } catch (e) {
-                    // Private browsing / storage disabled — toggling still works, just isn't remembered.
+        try {
+            Object.keys(window.localStorage).forEach(function(key) {
+                if (key.indexOf('avpvh-profile-collapsed:') === 0) {
+                    window.localStorage.removeItem(key);
                 }
             });
+        } catch (e) {
+            // Storage disabled — nothing left over to clean up.
+        }
 
+        var chevron = '<svg class="avpvh-section-chevron" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        var usedIds = {};
+
+        function slug(text) {
+            var base = 'sectie-' + text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            var id = base;
+            for (var n = 2; usedIds[id] || (document.getElementById(id) && !$sections.is('#' + id)); n++) {
+                id = base + '-' + n;
+            }
+            usedIds[id] = true;
+            return id;
+        }
+
+        // Short "value · value · value" line shown in a closed section's bar,
+        // from the section's own filled-in fields (only the plain field grids).
+        function summary($fieldset) {
+            if (!$fieldset.hasClass('avpvh-fields-grid')) {
+                return '';
+            }
+            var parts = [];
+            $fieldset.find('input[type=text], input[type=email], input[type=tel], input[type=date], select').each(function() {
+                var value = this.tagName === 'SELECT' ? $(this).find('option:selected').text() : this.value;
+                value = $.trim(value || '');
+                if (value !== '' && parts.length < 3) {
+                    parts.push(value);
+                }
+            });
+            return parts.join(' · ');
+        }
+
+        function setOpen($fieldset, open) {
+            $fieldset.toggleClass('avpvh-collapsed', !open);
+            $fieldset.children('legend').attr('aria-expanded', open ? 'true' : 'false');
+            $fieldset.find('> legend .avpvh-section-summary').text(open ? '' : summary($fieldset));
+        }
+
+        var $nav = $('<nav class="avpvh-profile-nav"></nav>').attr('aria-label', 'Profielonderdelen');
+        var $links = $('<ul class="avpvh-profile-nav__links"></ul>').appendTo($nav);
+
+        $sections.each(function(index) {
+            var $fieldset = $(this);
+            var $legend = $fieldset.children('legend').first();
+            var title = $.trim($legend.text());
+            if (!this.id) {
+                this.id = slug(title);
+            }
+            $legend.empty()
+                .append($('<span class="avpvh-section-title"></span>').text(title))
+                .append('<span class="avpvh-section-summary"></span>')
+                .append(chevron)
+                .attr({ role: 'button', tabindex: '0', 'aria-controls': this.id });
+
+            $('<li></li>').append($('<a></a>').attr('href', '#' + this.id).text(title)).appendTo($links);
+
+            var open = index === 0
+                || $fieldset.find('.avpvh-identity-notice').length > 0
+                || window.location.hash === '#' + this.id;
+            setOpen($fieldset, open);
+
+            $legend.on('click', function() {
+                setOpen($fieldset, $fieldset.hasClass('avpvh-collapsed'));
+            });
             $legend.on('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -126,6 +177,39 @@
                 }
             });
         });
+
+        var $all = $('<div class="avpvh-profile-nav__all"></div>').appendTo($nav);
+        $('<button type="button" class="avpvh-profile-nav__button"></button>').text('Alles open').appendTo($all)
+            .on('click', function() { $sections.each(function() { setOpen($(this), true); }); });
+        $('<button type="button" class="avpvh-profile-nav__button"></button>').text('Alles dicht').appendTo($all)
+            .on('click', function() { $sections.each(function() { setOpen($(this), false); }); });
+
+        if ($sections.length > 1) {
+            $nav.insertBefore($sections.first().closest($root.children()));
+        }
+
+        $nav.on('click', 'a', function(e) {
+            var $target = $sections.filter(this.getAttribute('href'));
+            e.preventDefault();
+            setOpen($target, true);
+            $target[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (window.history.replaceState) {
+                window.history.replaceState(null, '', this.getAttribute('href'));
+            }
+        });
+
+        if (window.location.hash && $sections.filter(window.location.hash.replace(/[^#\w-]/g, '')).length) {
+            $sections.filter(window.location.hash.replace(/[^#\w-]/g, ''))[0].scrollIntoView({ block: 'start' });
+        }
+
+        // A required field in a closed section would make the browser
+        // refuse to submit without showing why — open it first.
+        $root[0].addEventListener('invalid', function(e) {
+            var $fieldset = $(e.target).closest($sections);
+            if ($fieldset.hasClass('avpvh-collapsed')) {
+                setOpen($fieldset, true);
+            }
+        }, true);
     });
 
 })(jQuery);
