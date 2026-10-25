@@ -128,6 +128,33 @@
     // A bar above the sections jumps to one and opens it.
     $(document).ready(function() {
         var $root = $('.avpvh-member-profile-form').first();
+        if ($root.length === 0) {
+            return;
+        }
+
+        // Shortcodes placed after [avpvh_member_profile] on the profile page
+        // (photo shares from avpvh-gallery, balance from avpvh-bookkeeping)
+        // render as sibling divs with an h2/h3 heading; fold them into the
+        // profile card as fieldsets so they behave like the other sections.
+        $('.avpvh-gallery-shares, .avbk-balance').each(function() {
+            var $block = $(this);
+            if ($block.closest($root).length) {
+                return;
+            }
+            var $heading = $block.children('h2, h3').first();
+            if ($heading.length === 0) {
+                return;
+            }
+            var $fieldset = $('<fieldset></fieldset>')
+                .attr('class', $block.attr('class'))
+                .attr('id', $block.attr('id'));
+            $('<legend></legend>').text($.trim($heading.text())).appendTo($fieldset);
+            $heading.remove();
+            $fieldset.append($block.contents());
+            $block.remove();
+            $root.append($fieldset);
+        });
+
         var $sections = $root.find('fieldset').filter(function() {
             return $(this).children('legend').length > 0 && $(this).parent().closest('fieldset').length === 0;
         });
@@ -205,7 +232,7 @@
             $('<li></li>').append($('<a></a>').attr('href', '#' + this.id).text(title)).appendTo($links);
 
             var open = index === 0
-                || $fieldset.find('.avpvh-identity-notice').length > 0
+                || $fieldset.find('.avpvh-identity-notice, .avbk-balance-notice').length > 0
                 || window.location.hash === '#' + this.id;
             setOpen($fieldset, open);
 

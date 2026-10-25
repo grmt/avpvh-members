@@ -344,6 +344,7 @@ button.button-primary:disabled {
     /* clip instead of hidden: hidden makes this a scroll container, which
        stops the section bar below from sticking to the viewport. */
     overflow: clip;
+    padding-bottom: .75rem;
 }
 
 .avpvh-member-profile-form fieldset {
@@ -358,6 +359,25 @@ button.button-primary:disabled {
 .avpvh-member-profile-form > fieldset {
     margin-left: 2rem;
     margin-right: 2rem;
+    max-width: none;
+}
+
+/* Nested fieldsets inside a section (e.g. "Betaal ook voor:" inside
+   Bijdrage) are plain groups, not collapsible sections. */
+.avpvh-member-profile-form fieldset fieldset {
+    margin: 1rem 0;
+    padding: .75rem 1rem;
+    background: #fff;
+}
+
+.avpvh-member-profile-form fieldset fieldset > legend {
+    float: none;
+    cursor: default;
+    display: block;
+    width: auto;
+    font-size: 1rem;
+    margin-bottom: 0;
+    color: inherit;
 }
 
 /* Floated, a legend is laid out inside the fieldset instead of on its
