@@ -410,15 +410,15 @@ class AVPVH_Member_Profile_Form {
             <!-- Audit Trail -->
             <?php $this->render_audit_trail($member); ?>
             <?php if (!$is_admin_edit && !$is_household_edit && $member->status === 'visitor') : ?>
-                <section id="lidmaatschap">
-                    <h2><?php esc_html_e('Lidmaatschap aanvragen', 'avpvh-members'); ?></h2>
+                <fieldset id="lidmaatschap">
+                    <legend><?php esc_html_e('Lidmaatschap aanvragen', 'avpvh-members'); ?></legend>
                     <p><?php esc_html_e('Je kunt lidmaatschap aanvragen bij de secretaris. Zorg dat je voorletters, naam en adres in je profiel compleet zijn.', 'avpvh-members'); ?></p>
                     <p><?php esc_html_e('Voor meerderjarigen zijn twee voordrachten van leden nodig. Laat beide leden hun voordracht per e-mail aan de secretaris sturen. Voor minderjarigen moet minstens één wettelijke vertegenwoordiger zelf lid zijn.', 'avpvh-members'); ?></p>
                     <p><?php esc_html_e('Het bestuur beslist over je toelating. De secretaris laat je de beslissing schriftelijk weten.', 'avpvh-members'); ?></p>
                     <?php $contact_page = get_page_by_path('contact'); ?>
                     <p><a class="button" href="<?php echo esc_url($contact_page ? get_permalink($contact_page) : home_url('/?page_id=25')); ?>"><?php esc_html_e('Neem contact op met de secretaris', 'avpvh-members'); ?></a></p>
                     <p><a href="<?php echo esc_url(home_url('/over-de-vereniging/statuten-en-hr/')); ?>"><?php esc_html_e('Statuten en huishoudelijk reglement', 'avpvh-members'); ?></a></p>
-                </section>
+                </fieldset>
             <?php endif; ?>
         </div>
         <?php
@@ -775,7 +775,7 @@ class AVPVH_Member_Profile_Form {
             <legend><?php esc_html_e('Zichtbaarheid in ledenlijst', 'avpvh-members'); ?></legend>
 
             <?php if (!empty($_GET['consent_saved'])) : ?>
-                <p><?php esc_html_e('Je voorkeuren zijn opgeslagen.', 'avpvh-members'); ?></p>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Je voorkeuren zijn opgeslagen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
             <?php if ($member->directory_consent === 'granted') : ?>
@@ -833,7 +833,7 @@ class AVPVH_Member_Profile_Form {
             <legend><?php esc_html_e('Nieuwsbrief & activiteiten-mail', 'avpvh-members'); ?></legend>
 
             <?php if (!empty($_GET['newsletter_saved'])) : ?>
-                <p><?php esc_html_e('Je voorkeur is opgeslagen.', 'avpvh-members'); ?></p>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Je voorkeur is opgeslagen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -876,8 +876,6 @@ class AVPVH_Member_Profile_Form {
         }
 
         ?>
-        <hr style="margin: 2rem 0;">
-
         <fieldset>
             <legend><?php esc_html_e('Wijzigingsgeschiedenis', 'avpvh-members'); ?></legend>
             <p style="font-size: 0.9em; color: #666;"><?php esc_html_e('Alle wijzigingen aan je profiel worden hieronder bijgehouden:', 'avpvh-members'); ?></p>
