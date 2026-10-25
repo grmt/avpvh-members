@@ -306,7 +306,19 @@ class AVPVH_Member_Profile_Form {
                     <legend><?php esc_html_e('Noodcontact', 'avpvh-members'); ?></legend>
                     <p class="avpvh-field-hint avpvh-fields-grid__full"><?php esc_html_e('Wie we bellen als er tijdens een activiteit iets met je gebeurt. Alleen zichtbaar voor jou, je huisgenoten en de beheerders.', 'avpvh-members'); ?></p>
 
-                    <div class="form-group">
+                    <?php $emergency_member_id = (int) ($member->emergency_member_id ?? 0); ?>
+                    <div class="form-group avpvh-fields-grid__full">
+                        <label for="emergency_member_id"><?php esc_html_e('Lid van de vereniging', 'avpvh-members'); ?></label>
+                        <select id="emergency_member_id" name="emergency_member_id">
+                            <option value=""><?php esc_html_e('— geen lid, vul hieronder in —', 'avpvh-members'); ?></option>
+                            <?php foreach ($this->emergency_candidates($member, $own_member) as $candidate_id => $candidate_name) : ?>
+                                <option value="<?php echo esc_attr((string) $candidate_id); ?>" <?php selected($emergency_member_id, $candidate_id); ?>><?php echo esc_html($candidate_name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="avpvh-field-hint"><?php esc_html_e('Is je noodcontact lid? Kies die persoon dan hier: we gebruiken de naam, het telefoonnummer en het adres uit diens profiel.', 'avpvh-members'); ?></p>
+                    </div>
+
+                    <div class="form-group avpvh-emergency-manual"<?php echo $emergency_member_id ? ' hidden' : ''; ?>>
                         <label for="emergency_contact"><?php esc_html_e('Naam', 'avpvh-members'); ?></label>
                         <input type="text" id="emergency_contact" name="emergency_contact" maxlength="200"
                             value="<?php echo esc_attr($member->emergency_contact); ?>">
@@ -319,13 +331,13 @@ class AVPVH_Member_Profile_Form {
                             value="<?php echo esc_attr($member->emergency_relation ?? ''); ?>">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group avpvh-emergency-manual"<?php echo $emergency_member_id ? ' hidden' : ''; ?>>
                         <label for="emergency_phone"><?php esc_html_e('Telefoon', 'avpvh-members'); ?></label>
                         <input type="tel" id="emergency_phone" name="emergency_phone" maxlength="30"
                             value="<?php echo esc_attr($member->emergency_phone ?? ''); ?>">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group avpvh-emergency-manual"<?php echo $emergency_member_id ? ' hidden' : ''; ?>>
                         <label for="emergency_address"><?php esc_html_e('Adres', 'avpvh-members'); ?></label>
                         <input type="text" id="emergency_address" name="emergency_address" maxlength="255"
                             placeholder="<?php esc_attr_e('straat, huisnummer, postcode, plaats', 'avpvh-members'); ?>"
@@ -937,11 +949,19 @@ class AVPVH_Member_Profile_Form {
         $is_admin_edit = AVPVH_Roles::can_manage_members() && !empty($_POST['member_id']);
         $member_data = $this->sanitize_member_data($_POST, $is_admin_edit);
 
-        // A name alone is no use in an emergency. Only enforced on the
-        // member's own profile: an admin or housemate editing someone else
-        // usually doesn't know the number and shouldn't be blocked by it.
+        $emergency_member_id = absint(wp_unslash($_POST['emergency_member_id'] ?? 0));
+        if ($emergency_member_id && !isset($this->emergency_candidates($member, AVPVH_DB::get_member_by_wp_user(get_current_user_id()))[$emergency_member_id])) {
+            wp_send_json_error(__('Dit lid kan niet als noodcontact gekozen worden.', 'avpvh-members'));
+        }
+        // As a string, like the stored value, so the audit log only notes real changes.
+        $member_data['emergency_member_id'] = $emergency_member_id ? (string) $emergency_member_id : null;
+
+        // A name alone is no use in an emergency (a linked member brings
+        // their own number). Only enforced on the member's own profile: an
+        // admin or housemate editing someone else usually doesn't know the
+        // number and shouldn't be blocked by it.
         $is_own_profile = (int) ($member->wp_user_id ?? 0) === get_current_user_id();
-        if ($is_own_profile && $member_data['emergency_contact'] !== '' && $member_data['emergency_phone'] === '') {
+        if ($is_own_profile && !$emergency_member_id && $member_data['emergency_contact'] !== '' && $member_data['emergency_phone'] === '') {
             wp_send_json_error(__('Vul ook het telefoonnummer van je noodcontact in.', 'avpvh-members'));
         }
 
@@ -1000,6 +1020,27 @@ class AVPVH_Member_Profile_Form {
         } catch (Exception $e) {
             wp_send_json_error($e->getMessage());
         }
+    }
+
+    /**
+     * Members that can be picked as $member's emergency contact, id => name:
+     * the ledenlijst as the editor sees it (AVPVH_DB::get_members_with_address(),
+     * so opted-out members and other people's minors are left out), minus
+     * $member. The current link always stays selectable, even if that
+     * member has since left the ledenlijst.
+     */
+    private function emergency_candidates(object $member, ?object $own_member): array {
+        $candidates = [];
+        foreach (AVPVH_DB::get_members_with_address((int) ($own_member->id ?? 0), AVPVH_Roles::can_manage_members()) as $m) {
+            if ((int) $m->id !== (int) $member->id) {
+                $candidates[(int) $m->id] = avpvh_format_name($m);
+            }
+        }
+        $current_id = (int) ($member->emergency_member_id ?? 0);
+        if ($current_id && !isset($candidates[$current_id]) && ($current = AVPVH_DB::get_member($current_id))) {
+            $candidates[$current_id] = avpvh_format_name($current);
+        }
+        return $candidates;
     }
 
     private function get_target_member_for_save(): ?object {

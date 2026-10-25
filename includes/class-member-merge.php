@@ -374,6 +374,10 @@ class AVPVH_Member_Merge {
             self::repoint("{$p}avm_member_audit_log", 'member_id', $remove_id, $keep_id);
             self::repoint("{$p}avm_role_delegations", 'delegated_to_member_id', $remove_id, $keep_id);
             self::repoint("{$p}avm_role_delegations", 'delegated_by_member_id', $remove_id, $keep_id);
+            self::repoint("{$p}avm_members", 'emergency_member_id', $remove_id, $keep_id);
+            // Whoever had one of the two as emergency contact now has the
+            // merged member; the merged member itself can't be its own.
+            self::check($wpdb->update("{$p}avm_members", ['emergency_member_id' => null], ['id' => $keep_id, 'emergency_member_id' => $keep_id]), 'noodcontact bijwerken');
 
             foreach (self::external_columns() as [$table, $column]) {
                 self::repoint($table, $column, $remove_id, $keep_id);
@@ -668,7 +672,7 @@ class AVPVH_Member_Merge {
         return match ($field) {
             'name'              => ['first_name', 'suffix', 'last_name'],
             'directory_consent' => ['directory_consent', 'directory_consent_at'],
-            'emergency_contact' => ['emergency_contact', 'emergency_relation', 'emergency_phone', 'emergency_address'],
+            'emergency_contact' => ['emergency_contact', 'emergency_member_id', 'emergency_relation', 'emergency_phone', 'emergency_address'],
             default             => [$field],
         };
     }
@@ -684,14 +688,23 @@ class AVPVH_Member_Merge {
         };
     }
 
-    /** Name (relation) · phone · address, empty parts left out. */
+    /**
+     * Name (relation) · phone · address, empty parts left out. A linked
+     * member (emergency_member_id) supplies all three from their own
+     * record; the typed-in fields are only the fallback.
+     */
     private static function emergency_display(object $member): string {
+        [$name, $phone, $address] = [self::str($member->emergency_contact), self::str($member->emergency_phone ?? ''), self::str($member->emergency_address ?? '')];
+        $linked = !empty($member->emergency_member_id) ? AVPVH_DB::get_member((int) $member->emergency_member_id) : null;
+        if ($linked) {
+            $a = AVPVH_DB::current_address((int) $linked->id);
+            $name = avpvh_format_name($linked) . ' [lid]';
+            $phone = self::str($linked->mobile) !== '' ? self::str($linked->mobile) : self::str($linked->phone);
+            $address = $a ? trim(trim("{$a->street} {$a->house_number}") . ', ' . trim("{$a->postal_code} {$a->city}"), ' ,') : '';
+        }
         $relation = self::str($member->emergency_relation ?? '');
-        $name = trim(self::str($member->emergency_contact) . ($relation !== '' ? " ($relation)" : ''));
-        return implode(' · ', array_filter(
-            [$name, self::str($member->emergency_phone ?? ''), self::str($member->emergency_address ?? '')],
-            fn($part) => $part !== ''
-        ));
+        $name = trim($name . ($relation !== '' ? " ($relation)" : ''));
+        return implode(' · ', array_filter([$name, $phone, $address], fn($part) => $part !== ''));
     }
 
     private static function default_choice(object $keep, object $remove, string $field): string {

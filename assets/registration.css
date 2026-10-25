@@ -599,3 +599,8 @@ button.button-primary:active {
     width: 1px;
     word-wrap: normal;
 }
+
+/* .form-group sets display:flex, which would beat the hidden attribute. */
+.avpvh-member-profile-form .avpvh-emergency-manual[hidden] {
+    display: none;
+}

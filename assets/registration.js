@@ -11,6 +11,12 @@
             return;
         }
 
+        // A member picked as emergency contact brings their own name, phone
+        // and address, so the typed-in fields are hidden meanwhile.
+        $form.on('change', '#emergency_member_id', function() {
+            $form.find('.avpvh-emergency-manual').prop('hidden', this.value !== '');
+        });
+
         // Handle form submission
         $form.on('submit', function(e) {
             e.preventDefault();

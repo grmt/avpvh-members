@@ -108,7 +108,7 @@ if (empty($config['merges']) || !is_array($config['merges'])) {
 
 $member_fields = [
     'birth_date', 'birth_year', 'phone', 'mobile', 'emergency_contact',
-    'emergency_relation', 'emergency_phone', 'emergency_address',
+    'emergency_member_id', 'emergency_relation', 'emergency_phone', 'emergency_address',
     'diet', 'joined_year', 'left_year', 'passport_name', 'initials',
 ];
 $plans = [];
