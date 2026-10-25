@@ -341,7 +341,9 @@ button.button-primary:active {
 }
 
 .avpvh-member-profile-form fieldset {
-    scroll-margin-top: 4.5rem;
+    /* --avpvh-profile-nav-height is set by registration.js: the sticky
+       bar wraps to one or more rows, so its height isn't fixed. */
+    scroll-margin-top: calc(var(--avpvh-profile-nav-height, 4.5rem) + .75rem);
 }
 
 /* Sections after the main form (login addresses, relations, consent…)

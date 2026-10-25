@@ -186,6 +186,12 @@
 
         if ($sections.length > 1) {
             $nav.insertBefore($sections.first().closest($root.children()));
+            var setNavHeight = function() {
+                var top = parseFloat(window.getComputedStyle($nav[0]).top) || 0;
+                $root[0].style.setProperty('--avpvh-profile-nav-height', ($nav.outerHeight() + top) + 'px');
+            };
+            setNavHeight();
+            $(window).on('resize', setNavHeight);
         }
 
         $nav.on('click', 'a', function(e) {
