@@ -402,7 +402,7 @@ class AVPVH_Member_Profile_Form {
                     </div>
                 </fieldset>
 
-                <button type="submit" class="button button-primary"><?php esc_html_e('Profiel bijwerken', 'avpvh-members'); ?></button>
+                <button type="submit" class="button button-primary" disabled><?php esc_html_e('Profiel bijwerken', 'avpvh-members'); ?></button>
             </form>
 
             <?php if (!$is_admin_edit) : ?>

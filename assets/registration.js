@@ -11,20 +11,32 @@
             return;
         }
 
+        const $submit = $form.find('button[type="submit"]');
+        let initialData = $form.serialize();
+
+        function updateSubmitState() {
+            $submit.prop('disabled', $form.hasClass('loading') || $form.serialize() === initialData);
+        }
+
         // A member picked as emergency contact brings their own name, phone
         // and address, so the typed-in fields are hidden meanwhile.
         $form.on('change', '#emergency_member_id', function() {
             $form.find('.avpvh-emergency-manual').prop('hidden', this.value !== '');
         });
 
+        updateSubmitState();
+        $form.on('input change', updateSubmitState);
+
         // Handle form submission
         $form.on('submit', function(e) {
             e.preventDefault();
+            if ($form.serialize() === initialData) {
+                return;
+            }
             submitForm();
         });
 
         function submitForm() {
-            const $submit = $form.find('button[type="submit"]');
             const originalText = $submit.text();
 
             var configEl = document.getElementById('avpvh-registration-config');
@@ -56,6 +68,7 @@
                 contentType: false,
                 success: function(response) {
                     if (response.success) {
+                        initialData = $form.serialize();
                         var message = typeof response.data === 'string' ? response.data : (response.data && response.data.message ? response.data.message : successText);
                         showMessage('success', message);
                         setTimeout(function() {
@@ -69,8 +82,9 @@
                     showMessage('error', failedText);
                 },
                 complete: function() {
-                    $submit.prop('disabled', false).text(originalText);
+                    $submit.text(originalText);
                     $form.removeClass('loading');
+                    updateSubmitState();
                 }
             });
         }
@@ -88,6 +102,23 @@
                 });
             }, 5000);
         }
+
+        // Keep the consent and newsletter save buttons disabled until a
+        // checkbox is changed (except when directory consent isn't granted
+        // yet, where "Voorkeuren opslaan" itself grants consent).
+        $('.avpvh-newsletter-consent form, .avpvh-directory-consent form').each(function() {
+            var $f = $(this);
+            if ($f.closest('.avpvh-directory-consent').length && $f.find('button[value="declined"]').length === 0) {
+                return;
+            }
+            var $btn = $f.find('button.button-primary');
+            var init = $f.serialize();
+            var sync = function() {
+                $btn.prop('disabled', $f.serialize() === init);
+            };
+            sync();
+            $f.on('change', sync);
+        });
     });
 
     // Profile sections: every top-level fieldset is a section that folds
