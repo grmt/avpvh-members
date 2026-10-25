@@ -151,6 +151,7 @@
             $('<legend></legend>').text($.trim($heading.text())).appendTo($fieldset);
             $heading.remove();
             $fieldset.append($block.contents());
+            $fieldset.find('> table').wrap('<div class="avpvh-audit-table-wrap"></div>');
             $block.remove();
             $root.append($fieldset);
         });

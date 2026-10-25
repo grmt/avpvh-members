@@ -630,3 +630,95 @@ button.button-primary:disabled {
 .avpvh-member-profile-form .avpvh-emergency-manual[hidden] {
     display: none;
 }
+
+/* [avpvh_gallery_shares] folded into the profile card: full-width table,
+   compact action buttons, and inline "Opruimen" next to the open count. */
+.avpvh-member-profile-form .avpvh-gallery-shares > p {
+    display: inline-block;
+    margin: .25rem .6rem .75rem 0;
+    color: #444;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares > p:empty {
+    display: none;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares table {
+    width: 100%;
+    max-width: none;
+    border-collapse: collapse;
+    margin-top: .25rem;
+    font-size: .88rem;
+    background: #fff;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares th,
+.avpvh-member-profile-form .avpvh-gallery-shares td {
+    padding: .55rem .7rem;
+    border: 1px solid #e0e0e0;
+    text-align: left;
+    vertical-align: top;
+    line-height: 1.45;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares thead th {
+    background: #f0f0f0;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares td:first-child {
+    width: 36%;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares td:nth-child(4) {
+    min-width: 15rem;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares td:first-child a,
+.avpvh-member-profile-form .avpvh-gallery-shares td:nth-child(4) a {
+    color: #0073aa;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares td:first-child a:hover,
+.avpvh-member-profile-form .avpvh-gallery-shares td:nth-child(4) a:hover {
+    text-decoration: underline;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares td:nth-child(2),
+.avpvh-member-profile-form .avpvh-gallery-shares td:nth-child(5) {
+    white-space: nowrap;
+    color: #555;
+    font-size: .84rem;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares th:nth-child(3),
+.avpvh-member-profile-form .avpvh-gallery-shares td:nth-child(3) {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares td:nth-child(4) form {
+    display: inline-block !important;
+    margin: .2rem .3rem 0 0;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares button {
+    display: inline-block;
+    padding: .2rem .55rem;
+    font-size: .8rem;
+    line-height: 1.35;
+    color: #0073aa;
+    background: #f6f7f7;
+    border: 1px solid #0073aa;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.avpvh-member-profile-form .avpvh-gallery-shares button:hover {
+    background: #0073aa;
+    color: #fff;
+}
