@@ -313,13 +313,12 @@ $export_url = wp_nonce_url(
                 </button>
                 <div id="avpvh-activity-columns-panel" class="avpvh-activity-columns__panel" hidden>
                     <?php foreach ($table->get_columns() as $column_key => $column_label) : ?>
-                        <?php if (in_array($column_key, ['name', 'actions'], true)) : ?>
-                            <?php continue; ?>
+                        <?php if (!in_array($column_key, ['name', 'actions'], true)) : ?>
+                            <label>
+                                <input type="checkbox" value="<?php echo esc_attr($column_key); ?>" checked>
+                                <?php echo esc_html($column_label); ?>
+                            </label>
                         <?php endif; ?>
-                        <label>
-                            <input type="checkbox" value="<?php echo esc_attr($column_key); ?>" checked>
-                            <?php echo esc_html($column_label); ?>
-                        </label>
                     <?php endforeach; ?>
                 </div>
             </div>
