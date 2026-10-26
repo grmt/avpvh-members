@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.25';
+    const SCHEMA_VERSION = '2.26';
 
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
@@ -41,6 +41,7 @@ class AVPVH_DB {
             phone VARCHAR(30) NOT NULL DEFAULT '',
             mobile VARCHAR(30) NOT NULL DEFAULT '',
             emergency_contact VARCHAR(200) NOT NULL DEFAULT '',
+            emergency_member_id INT UNSIGNED NULL,
             emergency_relation VARCHAR(100) NOT NULL DEFAULT '',
             emergency_phone VARCHAR(30) NOT NULL DEFAULT '',
             emergency_address VARCHAR(255) NOT NULL DEFAULT '',
@@ -58,7 +59,8 @@ class AVPVH_DB {
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY lldap_user_id (lldap_user_id),
-            KEY wp_user_id (wp_user_id)
+            KEY wp_user_id (wp_user_id),
+            KEY emergency_member_id (emergency_member_id)
         ) $charset;");
 
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_addresses (
@@ -831,6 +833,13 @@ class AVPVH_DB {
             self::install();
             update_option('avpvh_db_version', '2.25');
         }
+        if (version_compare($version, '2.26', '<')) {
+            // Emergency contact can be another member (emergency_member_id);
+            // their name, phone and address are then used instead of the
+            // typed-in fields.
+            self::install();
+            update_option('avpvh_db_version', '2.26');
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -1097,7 +1106,7 @@ class AVPVH_DB {
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
                        m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.birth_year, m.is_student,
-                       m.phone, m.mobile, m.emergency_contact, m.emergency_relation, m.emergency_phone, m.emergency_address, m.diet,
+                       m.phone, m.mobile, m.emergency_contact, m.emergency_member_id, m.emergency_relation, m.emergency_phone, m.emergency_address, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
                        m.share_email, m.share_phone, m.share_address, m.share_activity_history,
