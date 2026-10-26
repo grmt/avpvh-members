@@ -62,7 +62,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const toggle = document.querySelector(selector + ' .avpvh-ledenlijst-dropdown-toggle');
         if (!toggle) return;
         if (!toggle.dataset.baseLabel) {
-            toggle.dataset.baseLabel = toggle.textContent.replace(/\s*\(.*\)\s*▾|\s*▾/, '').trim() || defaultLabel;
+            // Strip the " (n)" count and the "▾" marker without a backtracking regex.
+            const raw = toggle.textContent.replace('▾', '');
+            const paren = raw.indexOf('(');
+            toggle.dataset.baseLabel = (paren === -1 ? raw : raw.slice(0, paren)).trim() || defaultLabel;
         }
         const baseLabel = toggle.dataset.baseLabel;
         const count = checkedValues(boxes).length;
