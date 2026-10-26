@@ -38,12 +38,13 @@ function absint($value) { return abs((int) $value); }
 function wp_unslash($value) { return $value; }
 function sanitize_text_field($value) { return trim($value); }
 function avpvh_format_name($member) { return $member->first_name . ' ' . $member->last_name; }
-function wp_nonce_field($action) { echo '<input type="hidden" name="_wpnonce" value="' . hash('sha256', $action . '-fixture') . '">'; }
+function wp_nonce_field($action = -1, $name = '_wpnonce', $referer = true, $display = true) { echo '<input type="hidden" name="_wpnonce" value="' . hash('sha256', $action . '-fixture') . '">'; }
 class Fixture_Controller_Result extends \RuntimeException {}
 function wp_die($message, $title, $args) { throw new Fixture_Controller_Result($message, $args['response']); }
 function wp_safe_redirect($url) { throw new Fixture_Controller_Result($url, 302); }
-function check_admin_referer($action) {
-    if (($_POST['_wpnonce'] ?? '') !== hash('sha256', $action . '-fixture')) { throw new Fixture_Controller_Result('nonce failed', 403); }
+function check_admin_referer($action = -1, $query_arg = '_wpnonce') {
+    if (($_POST[$query_arg] ?? '') !== hash('sha256', $action . '-fixture')) { throw new Fixture_Controller_Result('nonce failed', 403); }
+    return 1;
 }
 function add_action(...$args) { /* Not needed in this test. */ }
 function user_can($user, $cap) { return $GLOBALS['privileged_users'][$user->ID] ?? false; }

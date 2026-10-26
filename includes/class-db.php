@@ -989,8 +989,8 @@ class AVPVH_DB {
         }
 
         global $wpdb;
-        $forwarded = sanitize_text_field(wp_unslash($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
-        $ip = $forwarded ? trim(explode(',', $forwarded)[0]) : sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? ''));
+        // REMOTE_ADDR, not X-Forwarded-For: the latter comes from the client (see AVPVH_OAuth::get_client_ip()).
+        $ip = sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? ''));
         $wpdb->insert(
             "{$wpdb->prefix}avm_login_attempts",
             ['email' => $email, 'method' => $method, 'result' => $result, 'ip' => $ip],

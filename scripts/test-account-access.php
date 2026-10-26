@@ -57,7 +57,7 @@ function is_single(): bool { return $GLOBALS['post']->post_type === 'post'; }
 function is_author(): bool { return false; }
 function is_singular(): bool { return true; }
 function post_password_required(): bool { return true; }
-function get_post(): WP_Post { return $GLOBALS['post']; }
+function get_post($post = null, $output = 'OBJECT', $filter = 'raw'): ?WP_Post { return $GLOBALS['post']; }
 function has_shortcode(string $content, string $tag): bool { return str_contains($content, '[' . $tag . ']'); }
 function shortcode_exists(string $tag): bool { return true; }
 function get_posts(array $args): array { return [10]; }

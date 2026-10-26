@@ -99,7 +99,7 @@ function is_user_logged_in(): bool { return $GLOBALS['test_current'] > 0; }
 function get_current_user_id(): int { return $GLOBALS['test_current']; }
 function wp_get_current_user(): WP_User { return $GLOBALS['test_users'][$GLOBALS['test_current']] ?? new WP_User(); }
 function wp_set_current_user(int $id): void { $GLOBALS['test_current'] = $id; }
-function wp_set_auth_cookie(int $id): void {
+function wp_set_auth_cookie(int $id, $remember = false, $secure = '', $token = ''): void {
     $GLOBALS['test_auth_cookie'] = $id;
     $GLOBALS['test_session'] = $GLOBALS['test_sso']->attach_login_method([]);
 }
