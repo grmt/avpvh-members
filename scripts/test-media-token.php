@@ -38,8 +38,8 @@ function nocache_headers(): void { /* Not needed in this test. */ }
 class Test_JSON_Response extends RuntimeException {
     public function __construct(public array $data, public int $status, public bool $success) { parent::__construct('JSON response'); }
 }
-function wp_send_json_error($data, $status): void { throw new Test_JSON_Response($data, $status, false); }
-function wp_send_json_success($data): void { throw new Test_JSON_Response($data, 200, true); }
+function wp_send_json_error($data = null, $status = null, $flags = 0): void { throw new Test_JSON_Response($data, $status ?? 200, false); }
+function wp_send_json_success($data = null, $status = null, $flags = 0): void { throw new Test_JSON_Response($data, $status ?? 200, true); }
 
 require __DIR__ . '/../includes/class-media-token.php';
 
