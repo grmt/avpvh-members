@@ -9,3 +9,4 @@
 /*.md              export-ignore
 /.gitignore        export-ignore
 /.gitattributes    export-ignore
+/.sonarcloud.properties export-ignore
