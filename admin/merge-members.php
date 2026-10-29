@@ -226,7 +226,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                 . ' – ' . $format_address_date($a->valid_until, __('heden', 'avpvh-members'));
             ?>
             <p class="description">
-                <?php esc_html_e('Overnemen bewaart de getoonde begin- en einddatum. Bestaande periodes worden niet automatisch ingekort of aaneengesloten; controleer daarom eventuele overlap hieronder.', 'avpvh-members'); ?>
+                <?php esc_html_e('Overnemen bewaart de getoonde begin- en einddatum, tenzij je kiest voor afsluiten op vandaag of op een zelfgekozen datum. Bestaande periodes worden niet automatisch ingekort of aaneengesloten; controleer daarom eventuele overlap hieronder.', 'avpvh-members'); ?>
             </p>
             <h4><?php esc_html_e('Adreshistorie van het behouden lid', 'avpvh-members'); ?></h4>
             <?php if (!$preview['addresses']['keep']) : ?>
@@ -292,8 +292,15 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                                     <?php if (empty($address->valid_until)) : ?>
                                         <option value="history" <?php selected($default, 'history'); ?>><?php esc_html_e('Overnemen — afsluiten op vandaag', 'avpvh-members'); ?></option>
                                     <?php endif; ?>
+                                    <option value="close"><?php esc_html_e('Overnemen — afsluiten op datum…', 'avpvh-members'); ?></option>
                                     <option value="delete" <?php selected($default, 'delete'); ?>><?php esc_html_e('Niet overnemen', 'avpvh-members'); ?></option>
                                 </select>
+                                <label class="avpvh-address-close-date" hidden>
+                                    <span class="screen-reader-text"><?php esc_html_e('Einddatum', 'avpvh-members'); ?></span>
+                                    <input type="date" name="address_until[<?php echo esc_attr($address->id); ?>]"
+                                        value="<?php echo esc_attr($address->valid_until ?: current_time('Y-m-d')); ?>"
+                                        <?php echo $address->valid_from ? 'min="' . esc_attr($address->valid_from) . '"' : ''; ?>>
+                                </label>
                             </td>
                         </tr>
                     <?php endforeach; ?>

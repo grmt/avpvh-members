@@ -284,8 +284,8 @@ class AVPVH_Member_Merge {
     }
 
     /**
-     * $choices: ['fields' => [field => 'keep'|'remove'], 'addresses' => [id => 'move'|'history'|'delete'],
-     * 'email' => see resolve_email()].
+     * $choices: ['fields' => [field => 'keep'|'remove'], 'addresses' => [id => 'move'|'history'|'close'|'delete'],
+     * 'address_until' => [id => 'Y-m-d', for 'close'], 'email' => see resolve_email()].
      * Returns ['warnings' => post-commit problems, 'notes' => what happened to the e-mail addresses].
      */
     public static function execute(int $keep_id, int $remove_id, array $choices, string $fingerprint): array|\WP_Error {
@@ -313,6 +313,23 @@ class AVPVH_Member_Merge {
         $owner = $email['primary'] !== '' ? AVPVH_DB::get_identity_by_email($email['primary']) : null;
         if ($owner && !in_array((int) $owner->member_id, [$keep_id, $remove_id], true)) {
             return new \WP_Error('email_taken', sprintf(/* translators: %s: e-mail address */ __('%s is al een inlogadres van een ander lid.', 'avpvh-members'), $email['primary']));
+        }
+
+        $address_until = [];
+        foreach ($preview['addresses']['remove'] as $address) {
+            $address_id = (int) $address->id;
+            if (($choices['addresses'][$address_id] ?? '') !== 'close') {
+                continue;
+            }
+            $until = (string) ($choices['address_until'][$address_id] ?? '');
+            $parsed = \DateTime::createFromFormat('!Y-m-d', $until);
+            if (!$parsed || $parsed->format('Y-m-d') !== $until) {
+                return new \WP_Error('address_until', sprintf(/* translators: %s: address */ __('Geef een geldige einddatum op voor %s.', 'avpvh-members'), self::format_address($address)));
+            }
+            if ($address->valid_from && $until < $address->valid_from) {
+                return new \WP_Error('address_until', sprintf(/* translators: %s: address */ __('De einddatum voor %s ligt vóór de begindatum.', 'avpvh-members'), self::format_address($address)));
+            }
+            $address_until[$address_id] = $until;
         }
 
         $updates = [];
@@ -348,6 +365,8 @@ class AVPVH_Member_Merge {
                 $data = ['member_id' => $keep_id];
                 if ($action === 'history' && empty($address->valid_until)) {
                     $data['valid_until'] = $today;
+                } elseif ($action === 'close' && isset($address_until[$address_id])) {
+                    $data['valid_until'] = $address_until[$address_id];
                 }
                 self::check($wpdb->update("{$p}avm_addresses", $data, ['id' => $address_id]), 'adres overzetten');
             }
@@ -740,6 +759,10 @@ class AVPVH_Member_Merge {
     /** Same-address key shared with the household check; '' (no street) never counts as a duplicate. */
     private static function address_key(object $address): string {
         return AVPVH_Address_Normalizer::match_key($address) ?: 'id:' . (int) $address->id;
+    }
+
+    private static function format_address(object $address): string {
+        return trim("{$address->street} {$address->house_number}, {$address->postal_code} {$address->city}", ' ,');
     }
 
     /** Address dates are inclusive; an empty boundary means open-ended. */

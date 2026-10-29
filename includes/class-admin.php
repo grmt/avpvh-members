@@ -930,10 +930,14 @@ class AVPVH_Admin {
             ),
             'addresses' => array_filter(
                 array_map('sanitize_key', (array) wp_unslash($_POST['addresses'] ?? [])),
-                fn($action) => in_array($action, ['move', 'history', 'delete'], true)
+                fn($action) => in_array($action, ['move', 'history', 'close', 'delete'], true)
             ),
         ];
         $choices['addresses'] = array_combine(array_map('intval', array_keys($choices['addresses'])), $choices['addresses']) ?: [];
+        $choices['address_until'] = [];
+        foreach ((array) wp_unslash($_POST['address_until'] ?? []) as $address_id => $until) {
+            $choices['address_until'][(int) $address_id] = sanitize_text_field((string) $until);
+        }
         $email_post = (array) wp_unslash($_POST['email'] ?? []);
         $choices['email'] = [
             'choice'    => in_array($email_post['choice'] ?? '', ['keep', 'remove', 'custom'], true) ? $email_post['choice'] : 'keep',
