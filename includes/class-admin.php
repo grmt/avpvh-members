@@ -103,9 +103,9 @@ class AVPVH_Admin {
     }
 
     // Ledenbeheer (incl. Ledendetail, Nieuwe persoon), Activiteiten,
-    // Nieuwsbrief, Loginpogingen and DMARC-rapporten follow the Paginarechten matrix (see
-    // AVPVH_Roles::get_page_permissions()); Instellingen and Leden
-    // samenvoegen stay manage_options-only.
+    // Nieuwsbrief, Loginpogingen, DMARC-rapporten and Leden samenvoegen
+    // follow the Paginarechten matrix (see AVPVH_Roles::get_page_permissions());
+    // Instellingen stays manage_options-only.
     private function can_manage_members(): bool {
         return AVPVH_Roles::can_manage_members();
     }
@@ -125,6 +125,7 @@ class AVPVH_Admin {
         $newsletter_cap = AVPVH_Roles::can_send_newsletter() ? 'read' : 'manage_options';
         $login_attempts_cap = AVPVH_Roles::can_view_login_attempts() ? 'read' : 'manage_options';
         $dmarc_cap = AVPVH_Roles::can_view_dmarc() ? 'read' : 'manage_options';
+        $merge_cap = AVPVH_Roles::can_merge_members() ? 'read' : 'manage_options';
 
         add_menu_page(
             __('AV-PvH Leden', 'avpvh-members'), __('AV-PvH Leden', 'avpvh-members'), $members_cap,
@@ -144,10 +145,10 @@ class AVPVH_Admin {
             'avpvh-members', __('Nieuwe persoon', 'avpvh-members'), __('Nieuwe persoon', 'avpvh-members'), $members_cap,
             'avpvh-add-member', [$this, 'render_add_member']
         );
-        // manage_options only, not secretaris — a merge deletes an account
-        // and can't be undone (same reasoning as handle_save_groups()).
+        // A merge deletes an account and can't be undone: nobody but WP
+        // admins until the Paginarechten matrix grants it.
         add_submenu_page(
-            'avpvh-members', __('Leden samenvoegen', 'avpvh-members'), __('Leden samenvoegen', 'avpvh-members'), 'manage_options',
+            'avpvh-members', __('Leden samenvoegen', 'avpvh-members'), __('Leden samenvoegen', 'avpvh-members'), $merge_cap,
             'avpvh-merge-members', [$this, 'render_merge_members']
         );
         add_submenu_page(
@@ -916,7 +917,7 @@ class AVPVH_Admin {
 
     public function handle_merge_members(): void {
         check_admin_referer('avpvh_merge_members');
-        if (!current_user_can('manage_options')) {
+        if (!AVPVH_Roles::can_merge_members()) {
             wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
 
@@ -930,10 +931,14 @@ class AVPVH_Admin {
             ),
             'addresses' => array_filter(
                 array_map('sanitize_key', (array) wp_unslash($_POST['addresses'] ?? [])),
-                fn($action) => in_array($action, ['move', 'history', 'delete'], true)
+                fn($action) => in_array($action, ['move', 'history', 'close', 'delete'], true)
             ),
         ];
         $choices['addresses'] = array_combine(array_map('intval', array_keys($choices['addresses'])), $choices['addresses']) ?: [];
+        $choices['address_until'] = [];
+        foreach ((array) wp_unslash($_POST['address_until'] ?? []) as $address_id => $until) {
+            $choices['address_until'][(int) $address_id] = sanitize_text_field((string) $until);
+        }
         $email_post = (array) wp_unslash($_POST['email'] ?? []);
         $choices['email'] = [
             'choice'    => in_array($email_post['choice'] ?? '', ['keep', 'remove', 'custom'], true) ? $email_post['choice'] : 'keep',

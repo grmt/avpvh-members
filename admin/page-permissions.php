@@ -17,7 +17,7 @@ $roles       = array_intersect_key($roles, array_flip(AVPVH_Roles::PAGE_PERMISSI
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Paginarechten opgeslagen.', 'avpvh-members'); ?></p></div>
     <?php endif; ?>
     <p><?php esc_html_e('Kies welke functies welke beheerpagina zien. Een tijdelijke delegatie van een functie geeft dezelfde toegang. WordPress-beheerders zien altijd alle pagina\'s. De IT-beheerder is wie in de groep it-beheer zit.', 'avpvh-members'); ?></p>
-    <p><?php esc_html_e('Niet toewijsbaar, met vaste rechten: Instellingen, Leden samenvoegen, groepen en kenmerken (alleen WordPress-beheerders) en Rollen & delegatie (voorzitter).', 'avpvh-members'); ?></p>
+    <p><?php esc_html_e('Niet toewijsbaar, met vaste rechten: Instellingen, groepen en kenmerken (alleen WordPress-beheerders) en Rollen & delegatie (voorzitter). Leden samenvoegen verwijdert een account en kan niet ongedaan worden gemaakt; wie geen WordPress-beheerder is, kan geen leden met een bestuursfunctie of beheerrechten samenvoegen.', 'avpvh-members'); ?></p>
 
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <?php wp_nonce_field('avpvh_save_page_permissions'); ?>

@@ -111,6 +111,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.avpvh-member-combo').forEach(wireMemberCombo);
 
+    // "Afsluiten op datum…" reveals that row's date field.
+    document.querySelectorAll('.avpvh-address-merge select').forEach(function (select) {
+        var dateLabel = select.parentNode.querySelector('.avpvh-address-close-date');
+        if (!dateLabel) return;
+        var dateInput = dateLabel.querySelector('input');
+        function sync() {
+            var show = select.value === 'close';
+            dateLabel.hidden = !show;
+            // Disabled while hidden, so its min= can't block the submit
+            // and an unused date isn't posted.
+            dateInput.disabled = !show;
+            dateInput.required = show;
+        }
+        select.addEventListener('change', sync);
+        sync();
+    });
+
     // Typing a corrected e-mail address selects that option.
     var customEmail = document.getElementById('avpvh-merge-email-custom');
     var customChoice = document.getElementById('avpvh-merge-email-custom-choice');

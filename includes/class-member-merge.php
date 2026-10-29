@@ -164,17 +164,23 @@ class AVPVH_Member_Merge {
         foreach (['keep' => $keep, 'remove' => $remove] as $side => $member) {
             $full = AVPVH_DB::get_member((int) $member->id);
             $groups = AVPVH_Directory::get_user_groups((string) $member->lldap_user_id);
-            if (is_wp_error($groups)) {
+            $groups_known = !is_wp_error($groups);
+            if (!$groups_known) {
                 $warnings[] = sprintf(/* translators: %s: member name */ __('De groepen van %s konden niet worden opgehaald.', 'avpvh-members'), avpvh_format_name($member));
                 $groups = [];
             }
             $accounts[$side] = [
+                'groups_known' => $groups_known,
                 'uid'    => (string) $member->lldap_user_id,
                 'exists' => $full !== null,
                 'email'  => $full ? (string) $full->email : '',
                 'groups' => AVPVH_Directory::only_pvh_groups($groups),
             ];
         }
+        if (!current_user_can('manage_options') && self::involves_elevated_access($keep, $remove, $accounts)) {
+            $blockers[] = __('Een van beide leden heeft een bestuursfunctie, beheerrechten of blogrechten. Alleen een WordPress-beheerder kan zulke leden samenvoegen.', 'avpvh-members');
+        }
+
         $missing_groups = array_values(array_diff($accounts['remove']['groups'], $accounts['keep']['groups']));
         if ($missing_groups) {
             $warnings[] = sprintf(
@@ -284,8 +290,8 @@ class AVPVH_Member_Merge {
     }
 
     /**
-     * $choices: ['fields' => [field => 'keep'|'remove'], 'addresses' => [id => 'move'|'history'|'delete'],
-     * 'email' => see resolve_email()].
+     * $choices: ['fields' => [field => 'keep'|'remove'], 'addresses' => [id => 'move'|'history'|'close'|'delete'],
+     * 'address_until' => [id => 'Y-m-d', for 'close'], 'email' => see resolve_email()].
      * Returns ['warnings' => post-commit problems, 'notes' => what happened to the e-mail addresses].
      */
     public static function execute(int $keep_id, int $remove_id, array $choices, string $fingerprint): array|\WP_Error {
@@ -313,6 +319,23 @@ class AVPVH_Member_Merge {
         $owner = $email['primary'] !== '' ? AVPVH_DB::get_identity_by_email($email['primary']) : null;
         if ($owner && !in_array((int) $owner->member_id, [$keep_id, $remove_id], true)) {
             return new \WP_Error('email_taken', sprintf(/* translators: %s: e-mail address */ __('%s is al een inlogadres van een ander lid.', 'avpvh-members'), $email['primary']));
+        }
+
+        $address_until = [];
+        foreach ($preview['addresses']['remove'] as $address) {
+            $address_id = (int) $address->id;
+            if (($choices['addresses'][$address_id] ?? '') !== 'close') {
+                continue;
+            }
+            $until = (string) ($choices['address_until'][$address_id] ?? '');
+            $parsed = \DateTime::createFromFormat('!Y-m-d', $until);
+            if (!$parsed || $parsed->format('Y-m-d') !== $until) {
+                return new \WP_Error('address_until', sprintf(/* translators: %s: address */ __('Geef een geldige einddatum op voor %s.', 'avpvh-members'), self::format_address($address)));
+            }
+            if ($address->valid_from && $until < $address->valid_from) {
+                return new \WP_Error('address_until', sprintf(/* translators: %s: address */ __('De einddatum voor %s ligt vóór de begindatum.', 'avpvh-members'), self::format_address($address)));
+            }
+            $address_until[$address_id] = $until;
         }
 
         $updates = [];
@@ -348,6 +371,8 @@ class AVPVH_Member_Merge {
                 $data = ['member_id' => $keep_id];
                 if ($action === 'history' && empty($address->valid_until)) {
                     $data['valid_until'] = $today;
+                } elseif ($action === 'close' && isset($address_until[$address_id])) {
+                    $data['valid_until'] = $address_until[$address_id];
                 }
                 self::check($wpdb->update("{$p}avm_addresses", $data, ['id' => $address_id]), 'adres overzetten');
             }
@@ -740,6 +765,32 @@ class AVPVH_Member_Merge {
     /** Same-address key shared with the household check; '' (no street) never counts as a duplicate. */
     private static function address_key(object $address): string {
         return AVPVH_Address_Normalizer::match_key($address) ?: 'id:' . (int) $address->id;
+    }
+
+    /**
+     * A merge can change the kept account's login e-mail and deletes the
+     * other account, so a non-admin granted Leden samenvoegen must not be
+     * able to aim it at someone with real access: a board role, it-beheer,
+     * bloggers, the boek group, or a WP user with more than member rights.
+     * An existing account whose groups couldn't be read counts as elevated
+     * (fail closed).
+     */
+    private static function involves_elevated_access(object $keep, object $remove, array $accounts): bool {
+        $elevated_groups = array_merge(AVPVH_Roles::ALL_ROLES, [AVPVH_Roles::IT_GROUP, AVPVH_Roles::BLOGGER_GROUP, 'boek']);
+        foreach (['keep' => $keep, 'remove' => $remove] as $side => $member) {
+            if (($accounts[$side]['exists'] && !$accounts[$side]['groups_known']) || array_intersect($elevated_groups, $accounts[$side]['groups'])) {
+                return true;
+            }
+            $wp_user = $member->wp_user_id ? get_userdata((int) $member->wp_user_id) : null;
+            if ($wp_user && (user_can($wp_user, 'manage_options') || user_can($wp_user, 'edit_users') || array_diff($wp_user->roles, ['subscriber', 'contributor']))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function format_address(object $address): string {
+        return trim("{$address->street} {$address->house_number}, {$address->postal_code} {$address->city}", ' ,');
     }
 
     /** Address dates are inclusive; an empty boundary means open-ended. */
