@@ -62,6 +62,7 @@ class AVPVH_Roles {
             || self::can_send_newsletter()
             || self::can_view_login_attempts()
             || self::can_view_dmarc()
+            || self::can_merge_members()
             || self::can_view_roles_page()
             || self::can_manage_page_permissions();
     }
@@ -82,9 +83,11 @@ class AVPVH_Roles {
     // voorzitter or the IT-beheerder edits on Paginarechten (stored in the
     // option below; get_default_page_permissions() until then). WP admins
     // always see every page. Deliberately not in the matrix, with fixed,
-    // narrower rules: Instellingen (OAuth/directory credentials), Leden
-    // samenvoegen, groups and flags (manage_options), and Rollen &
-    // delegatie (can_manage_roles()).
+    // narrower rules: Instellingen (OAuth/directory credentials), groups and
+    // flags (manage_options), and Rollen & delegatie (can_manage_roles()).
+    // Leden samenvoegen is in the matrix but granted to nobody by default,
+    // and a non-admin can't merge members with elevated access (see
+    // AVPVH_Member_Merge::preview()).
 
     // Directory group for the IT-beheerder. A real group, not a delegation:
     // whoever is in it can edit the matrix, which a time-boxed handoff
@@ -101,13 +104,16 @@ class AVPVH_Roles {
             'newsletter'     => __('Nieuwsbrief', 'avpvh-members'),
             'login_attempts' => __('Loginpogingen', 'avpvh-members'),
             'dmarc'          => __('DMARC-rapporten', 'avpvh-members'),
+            'merge_members'  => __('Leden samenvoegen', 'avpvh-members'),
         ];
     }
 
     // The rules from before the matrix existed (Ledenbeheer: secretaris as
     // membership registrar, penningmeester for contributie; Activiteiten
     // and Nieuwsbrief: secretaris), plus the IT-beheerder everywhere.
-    // DMARC-rapporten is mail-server plumbing: IT-beheerder only.
+    // DMARC-rapporten is mail-server plumbing: IT-beheerder only. Leden
+    // samenvoegen deletes an account and can't be undone: WP admins only
+    // until the matrix grants it.
     public static function get_default_page_permissions(): array {
         return [
             'members'        => ['secretaris', 'penningmeester', self::IT_ROLE],
@@ -115,6 +121,7 @@ class AVPVH_Roles {
             'newsletter'     => ['secretaris', self::IT_ROLE],
             'login_attempts' => [self::IT_ROLE],
             'dmarc'          => [self::IT_ROLE],
+            'merge_members'  => [],
         ];
     }
 
@@ -189,6 +196,10 @@ class AVPVH_Roles {
 
     public static function can_view_dmarc(): bool {
         return self::current_user_can_access_page('dmarc');
+    }
+
+    public static function can_merge_members(): bool {
+        return self::current_user_can_access_page('merge_members');
     }
 
     // Rollen & delegatie: voorzitter only. A delegation hands out real

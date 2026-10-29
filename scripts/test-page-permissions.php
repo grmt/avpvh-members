@@ -91,15 +91,26 @@ check('gewoon lid: geen wp-admin', !AVPVH_Roles::current_user_needs_wp_admin());
 check('gewoon lid: niets', !AVPVH_Roles::can_manage_members() && !AVPVH_Roles::can_view_login_attempts()
     && !AVPVH_Roles::can_manage_page_permissions() && !AVPVH_Roles::can_view_dmarc());
 
+// Leden samenvoegen: nobody but WP admins by default.
+as_user(['penningmeester']);
+check('penningmeester: Ledenbeheer', AVPVH_Roles::can_manage_members());
+check('penningmeester: standaard niet samenvoegen', !AVPVH_Roles::can_merge_members());
+as_user(['it-beheer']);
+check('IT-beheerder: standaard niet samenvoegen', !AVPVH_Roles::can_merge_members());
+
 // Saving overrides the defaults; unknown roles and pages are dropped.
 AVPVH_Roles::save_page_permissions([
     'members'        => ['voorzitter', 'hacker'],
     'login_attempts' => ['bestuur'],
     'bogus_page'     => ['secretaris'],
+    'merge_members'  => ['penningmeester'],
 ]);
 check('onbekende rol/pagina niet opgeslagen', $test_option === [
     'members' => ['voorzitter'], 'activities' => [], 'newsletter' => [], 'login_attempts' => ['bestuur'], 'dmarc' => [],
+    'merge_members' => ['penningmeester'],
 ]);
+as_user(['penningmeester']);
+check('penningmeester: samenvoegen na toekennen', AVPVH_Roles::can_merge_members() && AVPVH_Roles::current_user_needs_wp_admin());
 as_user(['voorzitter']);
 check('voorzitter: Ledenbeheer na opslaan', AVPVH_Roles::can_manage_members());
 check('voorzitter (impliciet bestuur): Loginpogingen', AVPVH_Roles::can_view_login_attempts());
@@ -111,6 +122,6 @@ check('IT-beheerder: Paginarechten blijft (geen lockout)', AVPVH_Roles::can_mana
 as_user([], true);
 check('WP-beheerder: altijd alles', AVPVH_Roles::can_manage_members() && AVPVH_Roles::can_manage_activities()
     && AVPVH_Roles::can_view_login_attempts() && AVPVH_Roles::can_manage_page_permissions()
-    && AVPVH_Roles::can_view_dmarc());
+    && AVPVH_Roles::can_view_dmarc() && AVPVH_Roles::can_merge_members());
 
 echo "Page permission tests: OK\n";
