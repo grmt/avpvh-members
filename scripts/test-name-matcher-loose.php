@@ -48,3 +48,18 @@ same('surname of only tussenvoegsels gives no key', ['Jan', 'van der'], ['Jan', 
 same('ij and y', ['Anna', 'van Dijk'], ['Anna', 'van Dyk']);
 same('ij and y in the first name', ['Thijs', 'Berg'], ['Thys', 'Berg']);
 same('ij and y still keep other names apart', ['Anna', 'van Dijk'], ['Anna', 'van Dijken'], false);
+
+$compatible = fn(string $a, string $b, bool $expected, string $label) => (function () use ($a, $b, $expected, $label) {
+    $ok = AVPVH_Name_Matcher::first_names_compatible($a, $b) === $expected;
+    echo ($ok ? '[OK] ' : '[FAIL] ') . $label . PHP_EOL;
+    if (!$ok) {
+        exit(1);
+    }
+})();
+$compatible('Anna-M.', 'Anna Maria', true, 'abbreviated second first name');
+$compatible('J.', 'Jan', true, 'initial for the whole first name');
+$compatible('J.W.', 'Jan Willem', true, 'two initials');
+$compatible('Jan', 'Jaap', false, 'two full first names stay apart');
+$compatible('Jan', 'Jan', false, 'identical names are the other route');
+$compatible('Anna-M.', 'Anna', false, 'a different number of names stays apart');
+$compatible('Jo.', 'Jan', false, 'an initial must start the name');
