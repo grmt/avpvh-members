@@ -331,6 +331,10 @@
     font-weight: 400;
     color: #646970;
 }
+.avpvh-open-address-periods .avpvh-merge-result td {
+    border-top: 1px solid #c3c4c7;
+    padding-top: .35rem;
+}
 .avpvh-address-overlaps {
     margin: .35rem 0 0 1.25rem;
     list-style: disc;
