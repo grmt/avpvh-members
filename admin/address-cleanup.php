@@ -249,22 +249,50 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
 
             <h2 class="title"><?php echo esc_html(AVPVH_Address_Cleanup::format($options[0]['fields'])); ?></h2>
 
+            <?php
+            // What each row becomes: a run of duplicates folds into its
+            // lowest id (earliest start, latest end), the rest of the run
+            // goes; with folding switched off every row keeps its period.
+            $folded = [];
+            foreach ($group['clusters'] as $ids) {
+                $run = array_values(array_filter($group['rows'], fn($r) => in_array((int) $r->id, $ids, true)));
+                $froms = array_column($run, 'valid_from');
+                $untils = array_column($run, 'valid_until');
+                $folded[min($ids)] = [in_array(null, $froms, true) ? null : min($froms), in_array(null, $untils, true) ? null : max($untils)];
+            }
+            $period = fn(?string $from, ?string $until): string => $format_date($from, __('onbekend', 'avpvh-members')) . ' – ' . $format_date($until, __('heden', 'avpvh-members'));
+            ?>
             <table class="widefat striped">
                 <thead><tr>
                     <th><?php esc_html_e('Lid', 'avpvh-members'); ?></th>
                     <th><?php esc_html_e('Zoals opgeslagen', 'avpvh-members'); ?></th>
-                    <th><?php esc_html_e('Periode', 'avpvh-members'); ?></th>
+                    <th><?php esc_html_e('Van', 'avpvh-members'); ?></th>
+                    <th><?php esc_html_e('Tot', 'avpvh-members'); ?></th>
+                    <th><?php esc_html_e('Na toepassen', 'avpvh-members'); ?></th>
                 </tr></thead>
                 <tbody>
-                <?php foreach ($group['rows'] as $row) : ?>
+                <?php foreach ($group['rows'] as $row) :
+                    $id = (int) $row->id;
+                    $in_run = in_array($id, $clustered, true);
+                    ?>
                     <tr>
                         <td><a href="<?php echo esc_url($detail_url((int) $row->member_id)); ?>"><?php echo esc_html(avpvh_format_name($row)); ?></a></td>
                         <td><?php echo esc_html(AVPVH_Address_Cleanup::format(AVPVH_Address_Cleanup::fields($row))); ?></td>
+                        <td><?php echo esc_html($format_date($row->valid_from, __('onbekend', 'avpvh-members'))); ?></td>
                         <td>
-                            <?php echo esc_html($format_date($row->valid_from, __('onbekend', 'avpvh-members')) . ' – ' . $format_date($row->valid_until, __('heden', 'avpvh-members'))); ?>
-                            <?php if (in_array((int) $row->id, $clustered, true)) : ?>
+                            <?php echo esc_html($format_date($row->valid_until, __('heden', 'avpvh-members'))); ?>
+                            <?php if ($in_run) : ?>
                                 <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('dubbel', 'avpvh-members'); ?></span>
                             <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ($in_run && !isset($folded[$id])) : ?>
+                                <span class="avpvh-if-merge avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('vervalt (samengevoegd)', 'avpvh-members'); ?></span>
+                            <?php elseif ($in_run) : ?>
+                                <span class="avpvh-if-merge"><span class="avpvh-result-address"><?php echo esc_html(AVPVH_Address_Cleanup::format($options[0]['fields'])); ?></span>, <strong><?php echo esc_html($period(...$folded[$id])); ?></strong>
+                                    <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('samengevoegd', 'avpvh-members'); ?></span></span>
+                            <?php endif; ?>
+                            <span<?php echo $in_run ? ' class="avpvh-if-no-merge" hidden' : ''; ?>><span class="avpvh-result-address"><?php echo esc_html(AVPVH_Address_Cleanup::format($options[0]['fields'])); ?></span>, <?php echo esc_html($period($row->valid_from, $row->valid_until)); ?></span>
                         </td>
                     </tr>
                 <?php endforeach; ?>

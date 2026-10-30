@@ -153,7 +153,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // "Wordt:" row: the address as it will be stored, kept in step
         // with the chosen spelling and any correction typed in.
-        var result = form.dataset.result ? document.getElementById(form.dataset.result) : null;
+        var results = Array.prototype.slice.call(form.querySelectorAll('.avpvh-result-address'));
+        if (form.dataset.result && document.getElementById(form.dataset.result)) {
+            results.push(document.getElementById(form.dataset.result));
+        }
         function value(name) {
             var input = form.querySelector('input[name="' + name + '"]');
             return input ? input.value.trim() : '';
@@ -166,13 +169,25 @@ document.addEventListener('DOMContentLoaded', function () {
             return /^\p{L}$/u.test(addition) ? number + addition : number + '-' + addition;
         }
         function showResult() {
-            if (!result) return;
             var line = (value('street') + ' ' + houseNumber(value('house_number'), value('house_number_addition'))).trim();
             var place = (value('postal_code') + ' ' + value('city')).trim();
-            result.textContent = [line, place].filter(Boolean).join(', ');
+            results.forEach(function (el) { el.textContent = [line, place].filter(Boolean).join(', '); });
         }
         form.querySelectorAll('input[type="text"]').forEach(function (input) {
             input.addEventListener('input', showResult);
         });
+
+        // "Dubbele regels samenvoegen" switches the Na toepassen column
+        // between the folded and the unfolded outcome.
+        var mergeRuns = form.querySelector('input[name="merge_runs"]');
+        function showMerge() {
+            var on = !mergeRuns || mergeRuns.checked;
+            form.querySelectorAll('.avpvh-if-merge').forEach(function (el) { el.hidden = !on; });
+            form.querySelectorAll('.avpvh-if-no-merge').forEach(function (el) { el.hidden = on; });
+        }
+        if (mergeRuns) {
+            mergeRuns.addEventListener('change', showMerge);
+            showMerge();
+        }
     });
 });
