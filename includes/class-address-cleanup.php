@@ -95,17 +95,86 @@ class AVPVH_Address_Cleanup {
             usort($member_rows, fn($a, $b) => strcmp((string) $b->valid_from, (string) $a->valid_from) ?: (int) $b->id <=> (int) $a->id);
             $newest = $member_rows[0];
             $others = array_filter($member_rows, fn($r) => $key($r) !== $key($newest));
-            $tie = (string) $newest->valid_from === '' || array_filter($others, fn($r) => $r->valid_from === $newest->valid_from);
+            // A typo in street or postcode isn't a move: offer to merge.
+            $same_place = !array_filter($others, fn($r) => !self::probably_same_address($r, $newest));
+            $tie = $same_place || (string) $newest->valid_from === '' || array_filter($others, fn($r) => $r->valid_from === $newest->valid_from);
             $until = $tie ? null : gmdate('Y-m-d', strtotime($newest->valid_from . ' -1 day'));
             $conflicts[$member_id] = [
                 'member_id'   => $member_id,
                 'rows'        => $member_rows,
+                'same_place'  => $same_place,
+                'variants'    => $same_place ? self::variants($member_rows) : [],
                 'keep'        => $tie ? null : (int) $newest->id,
                 'close'       => $tie ? [] : array_fill_keys(array_map(fn($r) => (int) $r->id, $others), $until),
                 'fingerprint' => self::fingerprint($member_rows),
             ];
         }
         return $conflicts;
+    }
+
+    /**
+     * Two rows that differ only by a typo: same house number, and either the
+     * same city or a postcode one character off, with street names mostly
+     * alike or that postcode slip ("D. van Poldersveldtweg 14, 6523 ND" vs
+     * "Dommer van Polderveldtweg 14, 6521 ND", both Nijmegen).
+     */
+    public static function probably_same_address(object $left, object $right): bool {
+        $number = fn(object $a): string => AVPVH_Address_Normalizer::normalize_house_number((string) $a->house_number, (string) ($a->house_number_addition ?? ''));
+        if ($number($left) === '' || $number($left) !== $number($right)) {
+            return false;
+        }
+        $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
+        [$left_pc, $right_pc] = [$compact((string) $left->postal_code), $compact((string) $right->postal_code)];
+        $postcode_slip = strlen($left_pc) === 6 && strlen($right_pc) === 6 && levenshtein($left_pc, $right_pc) === 1;
+        $same_city = $compact((string) $left->city) !== '' && $compact((string) $left->city) === $compact((string) $right->city);
+        similar_text($compact((string) $left->street), $compact((string) $right->street), $street_percent);
+        return ($same_city || $postcode_slip) && ($street_percent >= 75 || $postcode_slip);
+    }
+
+    /**
+     * Merges $member_id's open rows that probably_same_address() matched
+     * into one: written as $fields, from the earliest start, still open.
+     * $fields must keep the same house number.
+     */
+    public static function merge_same_place(int $member_id, array $fields, string $fingerprint): array|\WP_Error {
+        global $wpdb;
+        $conflict = self::find_open_conflicts()[$member_id] ?? null;
+        if (!$conflict || !$conflict['same_place'] || !hash_equals($conflict['fingerprint'], $fingerprint)) {
+            return new \WP_Error('stale', __('De adressen van dit lid zijn gewijzigd sinds je de pagina opende. Bekijk ze opnieuw.', 'avpvh-members'));
+        }
+        $rows = $conflict['rows'];
+        $cleaned = AVPVH_Address_Normalizer::clean(array_intersect_key($fields, array_flip(self::FIELDS)) + ['country' => $rows[0]->country]);
+        $fields = [];
+        foreach (self::FIELDS as $field) {
+            $fields[$field] = (string) ($cleaned[$field] ?? '');
+        }
+        $number = AVPVH_Address_Normalizer::normalize_house_number($fields['house_number'], $fields['house_number_addition']);
+        if ($fields['street'] === '' || $number !== AVPVH_Address_Normalizer::normalize_house_number((string) $rows[0]->house_number, (string) $rows[0]->house_number_addition)) {
+            return new \WP_Error('other_address', __('Dat is een ander huisnummer. Hier kun je alleen de schrijfwijze kiezen.', 'avpvh-members'));
+        }
+        $froms = array_column($rows, 'valid_from');
+        $from = in_array(null, $froms, true) ? null : min($froms);
+        $ids = array_map(fn($r) => (int) $r->id, $rows);
+        sort($ids);
+        $keep_id = array_shift($ids);
+        $wpdb->query('START TRANSACTION');
+        try {
+            self::check($wpdb->update("{$wpdb->prefix}avm_addresses", $fields + ['valid_from' => $from, 'valid_until' => null], ['id' => $keep_id]));
+            foreach ($ids as $id) {
+                self::check($wpdb->delete("{$wpdb->prefix}avm_addresses", ['id' => $id], ['%d']));
+            }
+            AVPVH_DB::log_member_change(
+                $member_id,
+                'adres',
+                implode(' / ', array_unique(array_map(fn($r) => self::format(self::fields($r)), $rows))),
+                self::format($fields) . sprintf(/* translators: %s: start date */ __(' (sinds %s)', 'avpvh-members'), $from ?? '?')
+            );
+            $wpdb->query('COMMIT');
+        } catch (\Throwable $exception) {
+            $wpdb->query('ROLLBACK');
+            return new \WP_Error('failed', sprintf(/* translators: %s: error message */ __('Samenvoegen afgebroken, er is niets gewijzigd: %s', 'avpvh-members'), $exception->getMessage()));
+        }
+        return ['merged' => count($rows)];
     }
 
     /** Ends $member_id's older open addresses as find_open_conflicts() proposes. */
@@ -116,7 +185,7 @@ class AVPVH_Address_Cleanup {
             return new \WP_Error('stale', __('De adressen van dit lid zijn gewijzigd sinds je de pagina opende. Bekijk ze opnieuw.', 'avpvh-members'));
         }
         if ($conflict['keep'] === null) {
-            return new \WP_Error('manual', __('Niet duidelijk welk adres het nieuwste is; zet de einddatum in Ledendetail.', 'avpvh-members'));
+            return new \WP_Error('manual', __('Geen voorstel om af te sluiten voor dit lid.', 'avpvh-members'));
         }
         $rows = array_column($conflict['rows'], null, 'id');
         $wpdb->query('START TRANSACTION');

@@ -113,6 +113,8 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                                             <?php esc_html_e('heden', 'avpvh-members'); ?>
                                             <?php if ($id === $conflict['keep']) : ?>
                                                 <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('blijft doorlopen', 'avpvh-members'); ?></span>
+                                            <?php elseif ($conflict['same_place']) : ?>
+                                                <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('waarschijnlijk hetzelfde adres', 'avpvh-members'); ?></span>
                                             <?php endif; ?>
                                         <?php endif; ?>
                                     </td>
@@ -122,7 +124,36 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                         </table>
                     </td>
                     <td>
-                        <?php if ($conflict['keep'] === null) : ?>
+                        <?php if ($conflict['same_place']) : ?>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="avpvh-address-cleanup">
+                                <?php wp_nonce_field('avpvh_address_merge_same_place'); ?>
+                                <input type="hidden" name="action" value="avpvh_address_merge_same_place">
+                                <input type="hidden" name="member_id" value="<?php echo esc_attr((string) $conflict['member_id']); ?>">
+                                <input type="hidden" name="fingerprint" value="<?php echo esc_attr($conflict['fingerprint']); ?>">
+                                <p class="description"><?php esc_html_e('Waarschijnlijk een tikfout, geen verhuizing. Kies of verbeter de schrijfwijze; de regels worden één adres vanaf de vroegste begindatum.', 'avpvh-members'); ?></p>
+                                <?php foreach ($conflict['variants'] as $i => $variant) : ?>
+                                    <label style="display:block">
+                                        <input type="radio" name="variant" class="avpvh-address-variant" <?php checked($i, 0); ?>
+                                            data-fields="<?php echo esc_attr((string) wp_json_encode($variant['fields'])); ?>">
+                                        <?php echo esc_html(AVPVH_Address_Cleanup::format($variant['fields'])); ?>
+                                    </label>
+                                <?php endforeach; ?>
+                                <p>
+                                    <?php foreach ([
+                                        'street'                => [__('Straat', 'avpvh-members'), 22],
+                                        'house_number'          => [__('Huisnummer', 'avpvh-members'), 5],
+                                        'house_number_addition' => [__('Toevoeging', 'avpvh-members'), 4],
+                                        'postal_code'           => [__('Postcode', 'avpvh-members'), 7],
+                                        'city'                  => [__('Plaats', 'avpvh-members'), 12],
+                                    ] as $field => [$label, $size]) : ?>
+                                        <label><span class="screen-reader-text"><?php echo esc_html($label); ?></span>
+                                            <input type="text" name="<?php echo esc_attr($field); ?>" size="<?php echo esc_attr((string) $size); ?>" placeholder="<?php echo esc_attr($label); ?>" value="<?php echo esc_attr($conflict['variants'][0]['fields'][$field]); ?>"<?php echo in_array($field, ['street', 'house_number'], true) ? ' required' : ''; ?>>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </p>
+                                <button type="submit" class="button button-small"><?php esc_html_e('Samenvoegen tot één adres', 'avpvh-members'); ?></button>
+                            </form>
+                        <?php elseif ($conflict['keep'] === null) : ?>
                             <span class="description"><?php esc_html_e('Niet duidelijk welk adres het nieuwste is; zet de einddatum in Ledendetail.', 'avpvh-members'); ?></span>
                         <?php else : ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">

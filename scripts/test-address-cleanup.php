@@ -104,4 +104,29 @@ check('older ends the day before the newest started', $conflicts[7]['close'], [1
 check('no start dates: no proposal', [$conflicts[9]['keep'], $conflicts[9]['close']], [null, []]);
 check('duplicate of the newest is not closed', $conflicts[10]['close'], [7 => '2022-01-31']);
 
+function place(string $street, string $number, string $postal, string $city): object {
+    return (object) ['street' => $street, 'house_number' => $number, 'house_number_addition' => '', 'postal_code' => $postal, 'city' => $city];
+}
+$same = [AVPVH_Address_Cleanup::class, 'probably_same_address'];
+check('abbreviated and misspelled street, postcode one off',
+    $same(place('J. van Lindenweg', '14', '6523 ND', 'Utrecht'), place('Johan van Lindeweg', '14', '6521 ND', 'Utrecht')), true);
+check('postcode one off, other city spelling',
+    $same(place('Kerkstraat', '3', '1234 AB', 'Den Bosch'), place('Kerkstraat', '3', '1234 AC', "'s-Hertogenbosch")), true);
+check('different house number is never the same',
+    $same(place('Kerkstraat', '3', '1234 AB', 'Utrecht'), place('Kerkstraat', '5', '1234 AB', 'Utrecht')), false);
+check('same number, other street, same city is a move',
+    $same(place('Kerkstraat', '3', '1234 AB', 'Utrecht'), place('Molenweg', '3', '3581 XY', 'Utrecht')), false);
+check('same street name in another town is a move',
+    $same(place('Kerkstraat', '3', '1234 AB', 'Utrecht'), place('Kerkstraat', '3', '9876 ZZ', 'Groningen')), false);
+
+$wpdb->open = [
+    row(11, 20, '1999-06-01', null, 'J. van Lindenweg', '14'),
+    row(12, 20, '2026-01-01', null, 'Johan van Lindeweg', '14'),
+];
+$wpdb->open[0]->postal_code = '6523 ND';
+$wpdb->open[1]->postal_code = '6521 ND';
+$conflicts = AVPVH_Address_Cleanup::find_open_conflicts();
+check('typo pair is flagged, not closed', [$conflicts[20]['same_place'], $conflicts[20]['keep'], $conflicts[20]['close']], [true, null, []]);
+check('both spellings offered', count($conflicts[20]['variants']), 2);
+
 echo "Address cleanup tests: OK\n";
