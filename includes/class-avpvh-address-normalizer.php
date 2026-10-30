@@ -66,8 +66,10 @@ class AVPVH_Address_Normalizer {
      * number field ("40-1 hoog", or a caller that only knows one field)
      * moves to house_number_addition. The country gets its one stored name;
      * a European postcode loses its country prefix ("B-2000" -> "2000");
-     * in Belgium and Luxembourg a house number still inside the street
-     * ("Kerkstraat 12 bus 3", "12, rue Haute") moves to its own field.
+     * a house number still inside the street ("Kerkstraat 12 bus 3",
+     * "12, rue Haute") moves to its own field when that is empty — in the
+     * Netherlands only one of up to three digits, as a street may end in a
+     * year.
      * Keys not given are left out.
      */
     public static function clean(array $address): array {
@@ -81,8 +83,13 @@ class AVPVH_Address_Normalizer {
             $clean['country'] = self::canonical_country($clean['country']);
         }
         $country = $clean['country'] ?? '';
-        if (isset($clean['street'], $clean['house_number']) && $clean['house_number'] === '' && in_array($country, ['België', 'Luxemburg'], true)) {
-            [$clean['street'], $clean['house_number']] = self::number_from_street($clean['street']);
+        if (isset($clean['street'], $clean['house_number']) && $clean['house_number'] === '') {
+            [$street, $number] = self::number_from_street($clean['street']);
+            // In the Netherlands a street can end in a year ("Plein 1940"):
+            // only a number of one to three digits is taken as the house number.
+            if ($number !== '' && (in_array($country, ['België', 'Luxemburg'], true) || preg_match('/^\d{1,3}(?!\d)/', $number))) {
+                [$clean['street'], $clean['house_number']] = [$street, $number];
+            }
         }
         if (isset($clean['house_number'])) {
             [$number, $addition] = self::split_house_number($clean['house_number'] . ' ' . ($clean['house_number_addition'] ?? ''));

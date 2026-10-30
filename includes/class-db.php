@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.30';
+    const SCHEMA_VERSION = '2.31';
 
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
@@ -867,6 +867,12 @@ class AVPVH_DB {
             // the member's addresses on it.
             self::install();
             update_option('avpvh_db_version', '2.30');
+        }
+        if (version_compare($version, '2.31', '<')) {
+            // Same pass again: clean() now also takes a Dutch house number
+            // (one to three digits) out of the street when it is empty.
+            self::normalize_stored_addresses();
+            update_option('avpvh_db_version', '2.31');
         }
     }
 

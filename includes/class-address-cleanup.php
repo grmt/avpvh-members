@@ -266,11 +266,16 @@ class AVPVH_Address_Cleanup {
      */
     public static function probably_same_address(object $left, object $right): bool {
         $number = fn(object $a): string => AVPVH_Address_Normalizer::normalize_house_number((string) $a->house_number, (string) ($a->house_number_addition ?? ''));
+        $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
+        [$left_pc, $right_pc] = [$compact((string) $left->postal_code), $compact((string) $right->postal_code)];
+        if ($number($left) === '' && $number($right) === '') {
+            // No number on either side: only a respelled street at the same postcode.
+            similar_text($compact((string) $left->street), $compact((string) $right->street), $percent);
+            return $left_pc !== '' && $left_pc === $right_pc && $percent >= 75;
+        }
         if ($number($left) === '' || $number($left) !== $number($right)) {
             return false;
         }
-        $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
-        [$left_pc, $right_pc] = [$compact((string) $left->postal_code), $compact((string) $right->postal_code)];
         if (preg_match('/^\d{4}[a-z]{2}$/', $left_pc) && $left_pc === $right_pc) {
             return true;
         }
