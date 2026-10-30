@@ -2,7 +2,9 @@
 /**
  * Records dates of death from a list, sets the kenmerken it names, and
  * adds people who aren't in the administration yet as ex-lid with
- * kenmerk Overleden. A dry run unless AVPVH_APPLY=1.
+ * kenmerk Overleden. When the list spells a member's name differently
+ * from the administration, that spelling is kept as a name variant
+ * (source "Wij gedenken"). A dry run unless AVPVH_APPLY=1.
  *
  * The list stays out of git (scripts/*.local.txt), one person per line:
  *   naam | JJJJ-MM-DD (of leeg) | kenmerk-slugs met komma's | #lid-id (optioneel)
@@ -105,6 +107,9 @@ foreach ($avpvh_death_lines as $line) {
     $member = AVPVH_DB::get_member((int) $hits[0]->id);
     $current = array_map(fn($flag) => $flag->slug, AVPVH_DB::get_flags_for_member((int) $member->id));
     $add = array_values(array_diff($wanted, $current));
+    [$alias_first, $alias_suffix, $alias_last] = $split_name($name);
+    $new_variant = AVPVH_DB::normalize_person_name($alias_first, $alias_suffix, $alias_last) !== AVPVH_DB::normalize_person_name($member->first_name, $member->suffix, $member->last_name)
+        && !array_filter(AVPVH_DB::get_name_aliases((int) $member->id), fn($a) => $a->normalized_key === AVPVH_DB::normalize_person_name($alias_first, $alias_suffix, $alias_last));
     $open = (int) $wpdb->get_var($wpdb->prepare(
         "SELECT COUNT(*) FROM {$wpdb->prefix}avm_addresses WHERE member_id = %d AND (valid_until IS NULL OR valid_until > %s)",
         $member->id, $date ?: '9999-12-31'
@@ -113,9 +118,19 @@ foreach ($avpvh_death_lines as $line) {
         $date && $date !== ($member->death_date ?? null) ? "overleden {$date}" : null,
         $add ? 'kenmerken + ' . implode(',', $add) : null,
         $date && $open ? "{$open} adres(sen) eindigen op {$date}" : null,
+        $new_variant ? "naamvariant '{$name}'" : null,
     ]);
     echo ($changes ? 'BIJWERKEN    ' : 'KLOPT AL     ') . "{$name} -> #{$member->id} " . avpvh_format_name($member) . ($changes ? ': ' . implode('; ', $changes) : '') . "\n";
     if ($apply && $changes) {
+        if ($new_variant) {
+            $error = AVPVH_DB::save_name_alias((int) $member->id, [
+                'first_name' => $alias_first, 'suffix' => $alias_suffix, 'last_name' => $alias_last,
+                'alias_type' => 'spelling', 'source' => 'Wij gedenken',
+            ]);
+            if ($error !== '') {
+                echo "  naamvariant niet opgeslagen: {$error}\n";
+            }
+        }
         if ($add) {
             AVPVH_DB::set_member_flags((int) $member->id, array_map(fn($slug) => $flag_ids[$slug], array_merge($current, $add)));
         }
