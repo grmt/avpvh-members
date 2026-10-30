@@ -12,6 +12,30 @@ if ($result) {
 $groups = AVPVH_Address_Cleanup::find_groups();
 $conflicts = AVPVH_Address_Cleanup::find_open_conflicts();
 $proposals = array_filter($conflicts, fn($c) => $c['keep'] !== null);
+
+// Official spelling from PDOK (BAG) as the first choice, where it gives
+// one clear address that is recognizably this one (a mistyped postcode can
+// belong to another street); a stored spelling that matches it is marked.
+$same_place_rows = array_merge([], ...array_column(array_filter($conflicts, fn($c) => $c['same_place']), 'rows'));
+AVPVH_PDOK::prefetch(array_merge(array_map(fn($g) => $g['rows'][0], $groups), $same_place_rows));
+$with_official = function (array $variants, array $rows): array {
+    $official = null;
+    foreach ($rows as $row) {
+        $found = AVPVH_PDOK::lookup($row);
+        if ($found && AVPVH_Address_Cleanup::probably_same_address((object) $found, $row)) {
+            $official = $found;
+            break;
+        }
+    }
+    $options = array_map(fn($v) => $v + ['official' => $official !== null && $v['fields'] === $official], $variants);
+    if ($official && !array_filter($options, fn($o) => $o['official'])) {
+        $options[] = ['fields' => $official, 'count' => 0, 'official' => true];
+    }
+    usort($options, fn($a, $b) => $b['official'] <=> $a['official']);
+    return $options;
+};
+$option_label = fn(array $option): string => AVPVH_Address_Cleanup::format($option['fields'])
+    . ($option['official'] ? ' — ' . __('officieel (BAG)', 'avpvh-members') : '');
 $detail_url = fn(int $id): string => add_query_arg(['page' => 'avpvh-member-detail', 'id' => $id], admin_url('admin.php'));
 $tab_url = fn(string $tab): string => add_query_arg(array_filter(['page' => 'avpvh-merge-members', 'tab' => $tab]), admin_url('admin.php'));
 $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M Y', strtotime($date)) : $empty;
@@ -131,11 +155,12 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr((string) $conflict['member_id']); ?>">
                                 <input type="hidden" name="fingerprint" value="<?php echo esc_attr($conflict['fingerprint']); ?>">
                                 <p class="description"><?php esc_html_e('Waarschijnlijk een tikfout, geen verhuizing. Kies of verbeter de schrijfwijze; de regels worden één adres vanaf de vroegste begindatum.', 'avpvh-members'); ?></p>
-                                <?php foreach ($conflict['variants'] as $i => $variant) : ?>
+                                <?php $options = $with_official($conflict['variants'], $conflict['rows']); ?>
+                                <?php foreach ($options as $i => $option) : ?>
                                     <label style="display:block">
                                         <input type="radio" name="variant" class="avpvh-address-variant" <?php checked($i, 0); ?>
-                                            data-fields="<?php echo esc_attr((string) wp_json_encode($variant['fields'])); ?>">
-                                        <?php echo esc_html(AVPVH_Address_Cleanup::format($variant['fields'])); ?>
+                                            data-fields="<?php echo esc_attr((string) wp_json_encode($option['fields'])); ?>">
+                                        <?php echo esc_html($option_label($option)); ?>
                                     </label>
                                 <?php endforeach; ?>
                                 <p>
@@ -147,7 +172,7 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                                         'city'                  => [__('Plaats', 'avpvh-members'), 12],
                                     ] as $field => [$label, $size]) : ?>
                                         <label><span class="screen-reader-text"><?php echo esc_html($label); ?></span>
-                                            <input type="text" name="<?php echo esc_attr($field); ?>" size="<?php echo esc_attr((string) $size); ?>" placeholder="<?php echo esc_attr($label); ?>" value="<?php echo esc_attr($conflict['variants'][0]['fields'][$field]); ?>"<?php echo in_array($field, ['street', 'house_number'], true) ? ' required' : ''; ?>>
+                                            <input type="text" name="<?php echo esc_attr($field); ?>" size="<?php echo esc_attr((string) $size); ?>" placeholder="<?php echo esc_attr($label); ?>" value="<?php echo esc_attr($options[0]['fields'][$field]); ?>"<?php echo in_array($field, ['street', 'house_number'], true) ? ' required' : ''; ?>>
                                         </label>
                                     <?php endforeach; ?>
                                 </p>
@@ -202,8 +227,9 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
     <?php endif; ?>
 
     <?php foreach ($groups as $group) :
-        $form_id = 'avpvh-address-group-' . substr(md5($group['key']), 0, 10);
+        $form_id = 'avpvh-address-group-' . substr(hash('sha256', $group['key']), 0, 10);
         $clustered = array_merge([], ...$group['clusters']);
+        $options = $with_official($group['variants'], [$group['rows'][0]]);
         ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="avpvh-address-cleanup card" id="<?php echo esc_attr($form_id); ?>" style="max-width:none">
             <?php wp_nonce_field('avpvh_address_cleanup'); ?>
@@ -211,7 +237,7 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
             <input type="hidden" name="group_key" value="<?php echo esc_attr($group['key']); ?>">
             <input type="hidden" name="fingerprint" value="<?php echo esc_attr($group['fingerprint']); ?>">
 
-            <h2 class="title"><?php echo esc_html(AVPVH_Address_Cleanup::format($group['default'])); ?></h2>
+            <h2 class="title"><?php echo esc_html(AVPVH_Address_Cleanup::format($options[0]['fields'])); ?></h2>
 
             <table class="widefat striped">
                 <thead><tr>
@@ -235,15 +261,17 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                 </tbody>
             </table>
 
-            <?php if (count($group['variants']) > 1) : ?>
+            <?php if (count($options) > 1) : ?>
                 <fieldset style="margin-top:1em">
                     <legend><strong><?php esc_html_e('Schrijfwijze', 'avpvh-members'); ?></strong></legend>
-                    <?php foreach ($group['variants'] as $i => $variant) : ?>
+                    <?php foreach ($options as $i => $option) : ?>
                         <label style="display:block">
                             <input type="radio" name="variant" class="avpvh-address-variant" <?php checked($i, 0); ?>
-                                data-fields="<?php echo esc_attr((string) wp_json_encode($variant['fields'])); ?>">
-                            <?php echo esc_html(AVPVH_Address_Cleanup::format($variant['fields'])); ?>
-                            <span class="description">(<?php echo esc_html(sprintf(/* translators: %d: number of rows */ _n('%d regel', '%d regels', $variant['count'], 'avpvh-members'), $variant['count'])); ?>)</span>
+                                data-fields="<?php echo esc_attr((string) wp_json_encode($option['fields'])); ?>">
+                            <?php echo esc_html($option_label($option)); ?>
+                            <?php if ($option['count']) : ?>
+                                <span class="description">(<?php echo esc_html(sprintf(/* translators: %d: number of rows */ _n('%d regel', '%d regels', $option['count'], 'avpvh-members'), $option['count'])); ?>)</span>
+                            <?php endif; ?>
                         </label>
                     <?php endforeach; ?>
                 </fieldset>
@@ -258,7 +286,7 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                     'city'         => [__('Plaats', 'avpvh-members'), 16],
                 ] as $field => [$label, $size]) : ?>
                     <label><?php echo esc_html($label); ?>
-                        <input type="text" name="<?php echo esc_attr($field); ?>" size="<?php echo esc_attr((string) $size); ?>" value="<?php echo esc_attr($group['default'][$field]); ?>" required>
+                        <input type="text" name="<?php echo esc_attr($field); ?>" size="<?php echo esc_attr((string) $size); ?>" value="<?php echo esc_attr($options[0]['fields'][$field]); ?>"<?php echo $field === 'house_number_addition' ? '' : ' required'; ?>>
                     </label>
                 <?php endforeach; ?>
             </p>
