@@ -38,6 +38,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_delete_flag',        [$this, 'handle_delete_flag']);
         add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
         add_action('admin_post_avpvh_merge_members',      [$this, 'handle_merge_members']);
+        add_action('admin_post_avpvh_set_death_date',     [$this, 'handle_set_death_date']);
         add_action('admin_post_avpvh_address_cleanup',    [$this, 'handle_address_cleanup']);
         add_action('admin_post_avpvh_address_cleanup_bulk', [$this, 'handle_address_cleanup_bulk']);
         add_action('admin_post_avpvh_address_close_older', [$this, 'handle_address_close_older']);
@@ -1198,6 +1199,26 @@ class AVPVH_Admin {
             }
         }
 
+        $member_id = self::create_person($first_name, $suffix, $last_name, $birth_date, $birth_year, $status, $flag_ids);
+        if (is_wp_error($member_id)) {
+            wp_safe_redirect(add_query_arg([
+                'page' => 'avpvh-add-member', 'add_member_error' => 'lldap',
+                'add_member_error_message' => rawurlencode($member_id->get_error_message()),
+            ], admin_url('admin.php')));
+            exit;
+        }
+
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'created' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * A new person: a directory account with a placeholder e-mail (no
+     * login until a real address is added), the member row, kenmerken and
+     * the matching membership group. Shared by Nieuwe persoon and operator
+     * scripts. Returns the member id.
+     */
+    public static function create_person(string $first_name, string $suffix, string $last_name, ?string $birth_date, ?int $birth_year, string $status, array $flag_ids): int|\WP_Error {
         // uid: first.last, lowercased, non [a-z0-9._-] characters folded to
         // "." — same slug shape the ops-scripts already use, so a later
         // hand-run script never collides with one created here.
@@ -1208,16 +1229,11 @@ class AVPVH_Admin {
             $n++;
             $uid = "{$base_uid}{$n}";
         }
-        $email = "{$uid}@avpvh.local";
         $display_name = trim(preg_replace('/\s+/', ' ', "{$first_name} {$suffix} {$last_name}"));
 
-        $created = AVPVH_Directory::create_user($uid, $email, $display_name);
+        $created = AVPVH_Directory::create_user($uid, "{$uid}@avpvh.local", $display_name);
         if (is_wp_error($created)) {
-            wp_safe_redirect(add_query_arg([
-                'page' => 'avpvh-add-member', 'add_member_error' => 'lldap',
-                'add_member_error_message' => rawurlencode($created->get_error_message()),
-            ], admin_url('admin.php')));
-            exit;
+            return $created;
         }
 
         $member_id = AVPVH_DB::create_member($uid, $first_name, $suffix, $last_name, $birth_date, $status, $birth_year);
@@ -1230,8 +1246,27 @@ class AVPVH_Admin {
             // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output
             error_log("AVPVH_Admin: new person {$uid} not put in the matching membership group: " . $synced->get_error_message());
         }
+        return $member_id;
+    }
 
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'created' => '1'], admin_url('admin.php')));
+    /** Ledendetail "Overleden": date of death, ends the addresses on it. */
+    public function handle_set_death_date(): void {
+        check_admin_referer('avpvh_set_death_date');
+        if (!$this->can_manage_members()) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $raw = sanitize_text_field(wp_unslash($_POST['death_date'] ?? ''));
+        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) && checkdate((int) substr($raw, 5, 2), (int) substr($raw, 8, 2), (int) substr($raw, 0, 4)) ? $raw : null;
+        $result = AVPVH_DB::set_death_date($member_id, $date);
+        if ($date && AVPVH_DB::member_has_inactivating_flag($member_id)) {
+            AVPVH_Roles::strip_bestuur_roles($member_id);
+            AVPVH_Roles::sync_status_group($member_id);
+        }
+        wp_safe_redirect(add_query_arg([
+            'page' => 'avpvh-member-detail', 'id' => $member_id, 'death_saved' => '1',
+            'addresses_closed' => $result['closed'], 'addresses_later' => $result['later'],
+        ], admin_url('admin.php')));
         exit;
     }
 

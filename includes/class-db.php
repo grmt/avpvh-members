@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.29';
+    const SCHEMA_VERSION = '2.30';
 
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
@@ -37,6 +37,7 @@ class AVPVH_DB {
             initials VARCHAR(20) NOT NULL DEFAULT '',
             birth_date DATE NULL,
             birth_year SMALLINT UNSIGNED NULL,
+            death_date DATE NULL,
             is_student TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             phone VARCHAR(30) NOT NULL DEFAULT '',
             mobile VARCHAR(30) NOT NULL DEFAULT '',
@@ -861,6 +862,12 @@ class AVPVH_DB {
             self::normalize_stored_addresses();
             update_option('avpvh_db_version', '2.29');
         }
+        if (version_compare($version, '2.30', '<')) {
+            // Date of death (avm_members.death_date): set_death_date() ends
+            // the member's addresses on it.
+            self::install();
+            update_option('avpvh_db_version', '2.30');
+        }
     }
 
     /**
@@ -1163,7 +1170,7 @@ class AVPVH_DB {
         $identity = self::identity_table();
         return "SELECT u.user_id, u.email, u.display_name,
                        m.id, m.lldap_user_id, m.wp_user_id,
-                       m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.birth_year, m.is_student,
+                       m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.birth_year, m.death_date, m.is_student,
                        m.phone, m.mobile, m.emergency_contact, m.emergency_member_id, m.emergency_relation, m.emergency_phone, m.emergency_address, m.diet,
                        m.status, m.joined_year, m.left_year,
                        m.directory_consent, m.directory_consent_at,
@@ -2692,6 +2699,50 @@ class AVPVH_DB {
                 ['%d', '%d']
             );
         }
+    }
+
+    /**
+     * Records a member's date of death (null clears it). With a date the
+     * member gets the Overleden kenmerk, and so becomes ex-lid, and every
+     * address that runs on past that day ends on it. Returns ['closed' =>
+     * addresses ended, 'later' => addresses that only start after that day,
+     * left for someone to look at].
+     */
+    public static function set_death_date(int $member_id, ?string $date): array {
+        global $wpdb;
+        $member = self::get_member($member_id);
+        if (!$member) {
+            return ['closed' => 0, 'later' => 0];
+        }
+        if (($member->death_date ?? null) !== $date) {
+            $wpdb->update("{$wpdb->prefix}avm_members", ['death_date' => $date], ['id' => $member_id], ['%s'], ['%d']);
+            self::log_member_change($member_id, 'death_date', $member->death_date ?? null, $date);
+        }
+        if ($date === null) {
+            return ['closed' => 0, 'later' => 0];
+        }
+
+        $flag_ids = array_map(fn($flag) => (int) $flag->id, self::get_flags_for_member($member_id));
+        $overleden = (int) $wpdb->get_var("SELECT id FROM {$wpdb->prefix}avm_member_flags WHERE slug = 'overleden'");
+        if ($overleden && !in_array($overleden, $flag_ids, true)) {
+            self::set_member_flags($member_id, array_merge($flag_ids, [$overleden]));
+        }
+
+        $table = "{$wpdb->prefix}avm_addresses";
+        $closed = (int) $wpdb->query($wpdb->prepare(
+            "UPDATE {$table} SET valid_until = %s
+             WHERE member_id = %d AND (valid_until IS NULL OR valid_until > %s) AND (valid_from IS NULL OR valid_from <= %s)",
+            $date, $member_id, $date, $date
+        ));
+        $later = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE member_id = %d AND valid_from > %s",
+            $member_id, $date
+        ));
+        if ($closed) {
+            /* translators: 1: number of addresses, 2: date of death */
+            self::log_member_change($member_id, 'adres', null, sprintf(__('%1$d adres(sen) afgesloten op overlijdensdatum %2$s', 'avpvh-members'), $closed, $date));
+        }
+        return ['closed' => $closed, 'later' => $later];
     }
 
     /** Whether the member currently has a kenmerk that forces inactive status (e.g. geroyeerd, overleden). */

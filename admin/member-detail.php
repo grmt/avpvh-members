@@ -143,6 +143,16 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Dit lid heeft deze naamvariant al.', 'avpvh-members'); ?></p></div>
     <?php elseif ($alias_error !== '') : ?>
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Naamvariant kon niet worden opgeslagen.', 'avpvh-members'); ?></p></div>
+    <?php elseif (!empty($_GET['death_saved'])) : ?>
+        <div class="notice notice-success is-dismissible"><p>
+            <?php esc_html_e('Overlijdensdatum opgeslagen.', 'avpvh-members'); ?>
+            <?php if ((int) ($_GET['addresses_closed'] ?? 0)) : ?>
+                <?php echo esc_html(sprintf(/* translators: %d: number of addresses */ __('%d adres(sen) afgesloten op die datum.', 'avpvh-members'), (int) $_GET['addresses_closed'])); ?>
+            <?php endif; ?>
+            <?php if ((int) ($_GET['addresses_later'] ?? 0)) : ?>
+                <strong><?php echo esc_html(sprintf(/* translators: %d: number of addresses */ __('%d adres(sen) begint pas ná die datum; kijk die na.', 'avpvh-members'), (int) $_GET['addresses_later'])); ?></strong>
+            <?php endif; ?>
+        </p></div>
     <?php elseif (!empty($_GET['flags_saved']) && !empty($_GET['bestuur_stripped'])) : ?>
         <div class="notice notice-warning is-dismissible"><p><?php esc_html_e('Kenmerken opgeslagen. Dit lid is daardoor uit het bestuur en alle bestuursrollen gehaald en lopende delegaties zijn beëindigd. Vergeet de KVK niet als diegene daar als bestuurder staat.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['flags_saved'])) : ?>
@@ -214,6 +224,20 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                 <?php else : ?>
                     &mdash;
                 <?php endif; ?>
+            </td>
+        </tr>
+        <tr>
+            <th><?php esc_html_e('Overleden', 'avpvh-members'); ?></th>
+            <td>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+                    <?php wp_nonce_field('avpvh_set_death_date'); ?>
+                    <input type="hidden" name="action" value="avpvh_set_death_date">
+                    <input type="hidden" name="member_id" value="<?php echo esc_attr((string) $member_id); ?>">
+                    <label class="screen-reader-text" for="avpvh-death-date"><?php esc_html_e('Overlijdensdatum', 'avpvh-members'); ?></label>
+                    <input type="date" id="avpvh-death-date" name="death_date" value="<?php echo esc_attr((string) ($member->death_date ?? '')); ?>">
+                    <button type="submit" class="button button-small"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button>
+                </form>
+                <p class="description"><?php esc_html_e('Met een datum krijgt het lid het kenmerk Overleden (en wordt ex-lid), en eindigen alle adressen op die dag. Leeg maken haalt alleen de datum weg.', 'avpvh-members'); ?></p>
             </td>
         </tr>
         <tr><th><?php esc_html_e('Scholier/student', 'avpvh-members'); ?></th><td><?php echo !empty($member->is_student) ? esc_html__('Ja', 'avpvh-members') : esc_html__('Nee', 'avpvh-members'); ?></td></tr>
