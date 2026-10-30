@@ -3,257 +3,360 @@
  * Import DGéén ledenlijst snapshots (from the `scan` repo's already-parsed
  * avpvh/02-DGéén/transcripties/{editie}/page_XX.md tables) into avm_members /
  * avm_addresses, treating each publication date as an address-validity
- * boundary.
+ * boundary. A dry run unless DGEEN_DRY_RUN=0.
  *
- * Run via wp eval-file (NOT as a standalone python/pymysql script like the
- * sibling reconcile-members.py/import-avpvh-members.py): leden-admin's
- * LLDAP API now sits behind Authelia two_factor, so a bare Python
- * `_avpvh_import_common.py`-style `lldap_login()` against
- * https://leden-admin.avphilipsvanhorne.nl can no longer reach it
- * unattended. This script instead uses AVPVH_LLDAP/AVPVH_DB/$wpdb from
- * inside WordPress, which talk to LLDAP over the internal Docker network
- * (http://lldap:17170) — no Authelia in the way, same pattern already used
- * for one-off member creation via wp eval-file.
+ * Input: JSON produced by the (local, uncommitted) extraction script in
+ * the `scan` repo — a list of editions {editie, datum, personen: [{voornaam,
+ * suffix, achternaam, straat, huisnummer, postcode, plaats, land,
+ * geboortedatum, telefoon, needs_review}]}. It holds names and addresses,
+ * so it stays out of git and out of the web root: give its path in
+ * DGEEN_JSON, or set $avpvh_dgeen_editions in a wrapper that embeds it.
  *
- * Usage:
- *   DGEEN_DRY_RUN=1 docker compose -f docker-compose.yml run --rm -T \
- *     --no-deps -e DGEEN_DRY_RUN=1 wpcli-pvh wp eval-file \
- *     /var/www/html/wp-content-pvh/plugins/avpvh-members/scripts/import-dgeen-ledenlijsten.php
- *   (drop -e DGEEN_DRY_RUN=1, or set it to 0, for a live/committed run)
+ *   docker compose run --rm -T -e DGEEN_JSON=/pad/in/container.json wpcli-pvh \
+ *     wp eval-file scripts/import-dgeen-ledenlijsten.php
+ *   (add -e DGEEN_DRY_RUN=0 for a live run)
  *
- * Input JSON is produced by a local (uncommitted, one-off) extraction
- * script that parses the GFM tables in the transcripties/*.md files —
- * see avpvh/02-DGéén/LEDENLIJST-IMPORT-STATUS.md in the `scan` repo for
- * which editions have been run through this and what got fixed in the
- * source .md tables to make them parseable (missing commas, ";" instead
- * of ",", tussenvoegsel-order variants, etc.).
+ * Persons: linked automatically only on an exact name or a recorded name
+ * variant (AVPVH_DB::get_name_key_index()). A looser match — accents,
+ * ij/y, tussenvoegsels, a first name in initials — or more than one
+ * candidate is reported for a human and left alone: a wrong merge of two
+ * people is worse than a check. Only a name with no candidate at all
+ * becomes a new person (ex-lid, AVPVH_Admin::create_person()).
  *
- * Matching: normalize_name_key(voornaam, achternaam), exact only — same
- * philosophy as reconcile-members.py (a false-positive merge of two
- * different people is worse than a false negative that needs a human to
- * check). Non-matches get created as new status='inactive' members, NOT
- * added to the "leden" LLDAP group (historical/former members/contacts,
- * not current members).
+ * Addresses: cleaned (AVPVH_Address_Normalizer::clean()) and checked
+ * against the country's register (AVPVH_Address_Lookup); a scan or typing
+ * slip that is recognizably the same address gets the official spelling.
+ * Consecutive snapshots with the same address (match_key()) form one
+ * period, until the day before the next snapshot with another address.
+ * Two different addresses for one person in the same edition keep the
+ * first and report the second. Periods are merged into the existing
+ * history: a stored row of the same address around those dates is only
+ * widened to the editions that list it; nothing runs into another stored
+ * address of that person; only one address runs on to the present (the
+ * newest start); a period is never written with its end before its start.
  *
- * Per matched (or newly created) person, across all snapshots in date
- * order: consecutive identical addresses are coalesced into a single
- * avm_addresses row (valid_from = first snapshot date with that address,
- * valid_until = day before the next snapshot date with a DIFFERENT
- * address, or NULL if it's the address in the person's last-known
- * snapshot).
- *
- * birth_date / phone are one-time backfills onto avm_members (only if
- * currently empty) — avm_addresses has no phone/birthdate history columns,
- * so older values are never written, only used to fill a gap or compared
- * against the current value for a conflict report (never silently
- * overwritten on a mismatch).
- *
- * Rows flagged needs_review by the extraction script (missing comma in the
- * "Naam" cell, or a non-person entry like "sg Philips van Horne" / "Fam.
- * Voorbeeld") are excluded from matching/creation entirely and only listed
- * in the report — never guessed at.
+ * birth_date / phone only fill an empty field; a different birth date is
+ * reported, never overwritten. Rows flagged needs_review are reported only.
  */
+
+defined('ABSPATH') || exit;
 
 global $wpdb;
 
-$dry_run = getenv('DGEEN_DRY_RUN') !== '0' && getenv('DGEEN_DRY_RUN') !== false
-    ? getenv('DGEEN_DRY_RUN') === '1'
-    : true;
-echo $dry_run ? "=== DRY RUN ===\n\n" : "=== LIVE RUN ===\n\n";
+$dry_run = getenv('DGEEN_DRY_RUN') !== '0';
+echo $dry_run ? "=== PROEFDRAAI (niets wordt geschreven) ===\n\n" : "=== ECHTE RUN ===\n\n";
 
-$json_path = '/var/www/html/wp-content-pvh/plugins/avpvh-members/scripts/_dgeen_ledenlijsten.json';
-$editions = json_decode(file_get_contents($json_path), true);
+if (!isset($avpvh_dgeen_editions)) {
+    $json_path = (string) getenv('DGEEN_JSON');
+    if ($json_path === '' || !is_readable($json_path)) {
+        fwrite(STDERR, "Geef het JSON-bestand in DGEEN_JSON.\n");
+        exit(2);
+    }
+    $avpvh_dgeen_editions = json_decode((string) file_get_contents($json_path), true);
+}
+if (!is_array($avpvh_dgeen_editions)) {
+    fwrite(STDERR, "Ongeldige JSON.\n");
+    exit(2);
+}
 
-// --- normalize_name_key equivalent (mirrors _avpvh_import_common.py) ---
-$TUSSENVOEGSEL_PREFIXES = ['van der ', 'van den ', 'van de ', 'ten ', 'ter ',
-    'de ', 'van ', 'te ', 'von ', 'la ', 'le ', 'du ', 'v/d ', 'vd '];
-
-function avpvh_normalize_dgeen_suffix(string $suffix): string
-{
+/**
+ * "v/d" (with the slash) is unambiguous in this source: the historical
+ * DGéén ledenlijsten consistently use it for "van den". Bare "vd"/"v.d."
+ * has no such single meaning here and stays ambiguous.
+ */
+function avpvh_normalize_dgeen_suffix(string $suffix): string {
     $suffix = trim($suffix);
-
-    // "v/d" (with the slash) is unambiguous in this specific source: the
-    // historical DGéén ledenlijsten consistently use it to mean "van den",
-    // unlike the general Dutch-naming ambiguity (van de / van den / van der
-    // all possible) that AVPVH_Name_Matcher has to assume for other,
-    // less-consistent sources -- so it's expanded here rather than kept as
-    // a bare abbreviation. Bare "vd"/"v.d." (no slash) has no such
-    // confirmed single meaning in this source and is still left ambiguous.
     if (preg_match('/^v\s*\/\s*d\.?$/iu', $suffix)) {
         return 'van den';
     }
     if (preg_match('/^v\.?\s*d\.?$/iu', $suffix)) {
         return 'vd';
     }
-
     return $suffix;
 }
 
-function normalize_name_key(string $first, string $last): string {
-    global $TUSSENVOEGSEL_PREFIXES;
-    $last = trim($last);
-    if (str_contains($last, ',')) {
-        $core = explode(',', $last, 2)[0];
+/** A scanned address as cleaned avm_addresses fields, or null when it holds no street or town. */
+function avpvh_dgeen_address(array $p): ?array {
+    if (trim((string) ($p['straat'] ?? '')) === '' && trim((string) ($p['plaats'] ?? '')) === '') {
+        return null;
+    }
+    $clean = AVPVH_Address_Normalizer::clean([
+        'street'       => (string) ($p['straat'] ?? ''),
+        'house_number' => (string) ($p['huisnummer'] ?? ''),
+        'postal_code'  => (string) ($p['postcode'] ?? ''),
+        'city'         => (string) ($p['plaats'] ?? ''),
+        'country'      => (string) ($p['land'] ?? '') ?: 'Nederland',
+    ]);
+    return array_intersect_key($clean, array_flip(['street', 'house_number', 'house_number_addition', 'postal_code', 'city', 'country']));
+}
+
+/** Same address: match_key(), or the record id-free fallback of the whole cleaned text. */
+function avpvh_dgeen_key(array $address): string {
+    return AVPVH_Address_Normalizer::match_key($address) ?: 'tekst:' . AVPVH_Address_Normalizer::fold(implode(' ', $address));
+}
+
+$day_before = static fn(string $date): string => gmdate('Y-m-d', strtotime($date . ' -1 day'));
+$day_after = static fn(string $date): string => gmdate('Y-m-d', strtotime($date . ' +1 day'));
+$report = ['gekoppeld' => 0, 'via_variant' => 0, 'nieuw' => 0, 'controleren' => [], 'meerdere' => [], 'needs_review' => [],
+    'verbeterd' => [], 'onbekend' => [], 'zelfde_editie' => [], 'verlengd' => 0, 'toegevoegd' => 0, 'afgesloten' => 0,
+    'overgeslagen_periode' => [], 'geboortedatum_ingevuld' => 0, 'telefoon_ingevuld' => 0, 'geboortedatum_conflict' => []];
+
+// --- group the scanned rows per person (strict name key), in date order ---
+$people = [];
+foreach ($avpvh_dgeen_editions as $edition) {
+    foreach ($edition['personen'] ?? [] as $p) {
+        $p['suffix'] = avpvh_normalize_dgeen_suffix((string) ($p['suffix'] ?? ''));
+        $name = trim((string) preg_replace('/\s+/u', ' ', "{$p['voornaam']} {$p['suffix']} {$p['achternaam']}"));
+        if (!empty($p['needs_review'])) {
+            $report['needs_review'][] = "{$edition['editie']} ({$edition['datum']}): {$name}";
+            continue;
+        }
+        $key = AVPVH_DB::normalize_person_name((string) $p['voornaam'], $p['suffix'], (string) $p['achternaam']);
+        $people[$key] ??= ['name' => $name, 'p' => $p, 'snapshots' => []];
+        $people[$key]['snapshots'][] = [$edition['datum'], $p, $edition['editie']];
+    }
+}
+ksort($people);
+echo count($people) . ' personen in ' . count($avpvh_dgeen_editions) . " edities\n\n";
+
+// --- check every scanned address against its register (Dutch ones in parallel) ---
+$scanned = [];
+foreach ($people as $person) {
+    foreach ($person['snapshots'] as [, $p]) {
+        if ($address = avpvh_dgeen_address($p)) {
+            $scanned[] = $address;
+        }
+    }
+}
+AVPVH_Address_Lookup::prefetch($scanned);
+$official = static function (array $address, string $who) use (&$report): array {
+    $found = AVPVH_Address_Lookup::lookup($address);
+    if ($found && AVPVH_Address_Cleanup::probably_same_address((object) $found['fields'], (object) $address)) {
+        $fields = $found['fields'] + ['country' => $address['country']];
+        if (AVPVH_Address_Cleanup::format($fields) !== AVPVH_Address_Cleanup::format($address)) {
+            $report['verbeterd'][AVPVH_Address_Cleanup::format($address)] = AVPVH_Address_Cleanup::format($fields) . " ({$found['source']})";
+        }
+        return $fields;
+    }
+    if (in_array($address['country'], ['', 'Nederland'], true)) {
+        $report['onbekend'][AVPVH_Address_Cleanup::format($address)] = $who;
+    }
+    return $address;
+};
+
+$strict = AVPVH_DB::get_name_key_index();
+$loose = AVPVH_DB::get_name_key_index(true);
+$all_members = $wpdb->get_results("SELECT id, first_name, suffix, last_name FROM {$wpdb->prefix}avm_members") ?: [];
+
+foreach ($people as $key => $person) {
+    $p0 = $person['p'];
+    $name = $person['name'];
+    $snapshots = $person['snapshots'];
+    usort($snapshots, fn($a, $b) => strcmp($a[0], $b[0]));
+
+    // --- who is it ---
+    $exact = array_values($strict[$key] ?? []);
+    if (count($exact) > 1) {
+        $report['meerdere'][] = "{$name}: " . implode(', ', array_map(fn($m) => "#{$m->id} " . avpvh_format_name($m), $exact));
+        continue;
+    }
+    $member = $exact[0] ?? null;
+    if (!$member) {
+        $candidates = $loose[AVPVH_Name_Matcher::loose_key((string) $p0['voornaam'], (string) $p0['achternaam'])] ?? [];
+        $surname = AVPVH_Name_Matcher::loose_surname((string) $p0['achternaam']);
+        foreach ($all_members as $m) {
+            if (AVPVH_Name_Matcher::loose_surname((string) $m->last_name) === $surname
+                && AVPVH_Name_Matcher::first_names_compatible((string) $p0['voornaam'], (string) $m->first_name)) {
+                $candidates[(int) $m->id] = $m;
+            }
+        }
+        if ($candidates) {
+            $report['controleren'][] = "{$name} ~ " . implode(', ', array_map(fn($m) => "#{$m->id} " . avpvh_format_name($m), $candidates))
+                . ' — niet gekoppeld; leg zo nodig een naamvariant vast en draai opnieuw';
+            continue;
+        }
+    }
+
+    $member_id = $member ? (int) $member->id : 0;
+    if ($member) {
+        $report['gekoppeld']++;
+        $report['via_variant'] += $member->matched_via !== '' ? 1 : 0;
     } else {
-        $lowered = strtolower($last);
-        $core = $last;
-        foreach ($TUSSENVOEGSEL_PREFIXES as $prefix) {
-            if (str_starts_with($lowered, $prefix)) {
-                $core = substr($last, strlen($prefix));
+        $report['nieuw']++;
+        echo "  NIEUW (ex-lid): {$name}\n";
+        if (!$dry_run) {
+            $created = AVPVH_Admin::create_person((string) $p0['voornaam'], $p0['suffix'], (string) $p0['achternaam'], null, null, 'inactive', []);
+            if (is_wp_error($created)) {
+                echo '    MISLUKT: ' . $created->get_error_message() . "\n";
+                continue;
+            }
+            $member_id = $created;
+        }
+    }
+
+    // --- birth date / phone: only fill what's empty ---
+    $birth = null;
+    $phone = null;
+    foreach ($snapshots as [, $p]) {
+        $birth = !empty($p['geboortedatum']) ? $p['geboortedatum'] : $birth;
+        $phone = !empty($p['telefoon']) ? $p['telefoon'] : $phone;
+    }
+    $current = $member_id ? AVPVH_DB::get_member($member_id) : null;
+    $fill = [];
+    if ($birth && empty($current->birth_date)) {
+        $fill['birth_date'] = $birth;
+        $report['geboortedatum_ingevuld']++;
+    } elseif ($birth && $current && (string) $current->birth_date !== $birth) {
+        $report['geboortedatum_conflict'][] = "{$name}: administratie {$current->birth_date}, ledenlijst {$birth}";
+    }
+    if ($phone && empty($current->phone)) {
+        $fill['phone'] = $phone;
+        $report['telefoon_ingevuld']++;
+    }
+    if ($fill && !$dry_run && $member_id) {
+        $wpdb->update("{$wpdb->prefix}avm_members", $fill, ['id' => $member_id]);
+    }
+
+    // --- address periods from the snapshots ---
+    $periods = [];
+    $last_date = null;
+    foreach ($snapshots as [$date, $p, $edition]) {
+        $address = avpvh_dgeen_address($p);
+        if (!$address) {
+            continue;
+        }
+        $address = $official($address, $name);
+        $open = $periods ? $periods[count($periods) - 1] : null;
+        if ($open && $date === $last_date && avpvh_dgeen_key($open['address']) !== avpvh_dgeen_key($address)) {
+            $report['zelfde_editie'][] = "{$name}, {$edition}: tweede adres " . AVPVH_Address_Cleanup::format($address) . ' niet gebruikt';
+            continue;
+        }
+        $last_date = $date;
+        if ($open && avpvh_dgeen_key($open['address']) === avpvh_dgeen_key($address)) {
+            $periods[count($periods) - 1]['seen_until'] = $date;
+            continue;
+        }
+        if ($open) {
+            $periods[count($periods) - 1]['until'] = $day_before($date);
+        }
+        // from/until: the period the snapshots imply; seen_*: the editions
+        // that actually list this address.
+        $periods[] = ['address' => $address, 'from' => $date, 'until' => null, 'seen_from' => $date, 'seen_until' => $date];
+    }
+
+    // --- merge into the member's existing history ---
+    $table = "{$wpdb->prefix}avm_addresses";
+    $rows = $member_id ? ($wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} WHERE member_id = %d", $member_id)) ?: []) : [];
+    // A period never runs into another stored address of the same person:
+    // it ends the day before a later one starts, and starts the day after
+    // an earlier one (that started before it) ends.
+    $cap = static function (?string $from, ?string $until, string $key, ?object $self) use (&$rows, $day_before, $day_after): array {
+        foreach ($rows as $row) {
+            if ($row === $self || avpvh_dgeen_key((array) $row) === $key) {
+                continue;
+            }
+            if ($row->valid_from !== null && (string) $row->valid_from > (string) $from && ($until === null || $until >= $row->valid_from)) {
+                $until = $day_before((string) $row->valid_from);
+            }
+            if ($row->valid_until !== null && ($row->valid_from === null || (string) $row->valid_from <= (string) $from)
+                && (string) $row->valid_until >= (string) $from && ($until === null || (string) $row->valid_until < $until)) {
+                $from = $day_after((string) $row->valid_until);
+            }
+        }
+        return [$from, $until];
+    };
+    foreach ($periods as $period) {
+        $key = avpvh_dgeen_key($period['address']);
+        $shown = AVPVH_Address_Cleanup::format($period['address']);
+
+        // The same address already stored around these dates: widen it to
+        // the editions that list it, no further.
+        $same = null;
+        foreach ($rows as $row) {
+            if (avpvh_dgeen_key((array) $row) === $key
+                && ($row->valid_from ?? '0000-01-01') <= ($period['until'] === null ? '9999-12-31' : $day_after($period['until']))
+                && ($row->valid_until ?? '9999-12-31') >= $day_before($period['from'])) {
+                $same = $row;
                 break;
             }
         }
-    }
-    return strtolower(trim($first)) . '|' . strtolower(trim($core));
-}
-
-// --- load existing members ---
-$db_members = [];
-$rows = $wpdb->get_results("SELECT id, first_name, last_name, suffix, birth_date, phone, lldap_user_id FROM {$wpdb->prefix}avm_members");
-foreach ($rows as $r) {
-    $key = normalize_name_key($r->first_name, $r->last_name);
-    if (isset($db_members[$key])) {
-        echo "  WARNING: duplicate name among DB members, first one wins: {$r->first_name} {$r->last_name} (id={$r->id})\n";
-        continue;
-    }
-    $db_members[$key] = $r;
-}
-
-// --- group ledenlijst rows by normalized name, preserving date order ---
-$people = [];
-$review_needed = [];
-foreach ($editions as $ed) {
-    $datum = $ed['datum'];
-    foreach ($ed['personen'] as $p) {
-        $p['suffix'] = avpvh_normalize_dgeen_suffix($p['suffix'] ?? '');
-        if (!empty($p['needs_review'])) {
-            // Missing-comma OCR/typesetting artifact that couldn't be
-            // resolved by fixing the source .md (or a genuine non-person
-            // entry like an institution/family name) — never guessed,
-            // reported only, no avm_members/avm_addresses row from these.
-            $review_needed[] = [$ed['editie'], $datum, $p];
+        if ($same) {
+            $from = $same->valid_from === null ? null : min((string) $same->valid_from, $period['seen_from']);
+            $until = $same->valid_until === null ? null : max((string) $same->valid_until, $period['seen_until']);
+            [$from, $until] = $cap($from, $until, $key, $same);
+            if (($from !== null && $until !== null && $until < $from) || ($from === $same->valid_from && $until === $same->valid_until)) {
+                continue;
+            }
+            $report['verlengd']++;
+            [$same->valid_from, $same->valid_until] = [$from, $until];
+            if (!$dry_run) {
+                AVPVH_DB::update_address((int) $same->id, $member_id, $from, $until);
+            }
             continue;
         }
-        $key = normalize_name_key($p['voornaam'], $p['achternaam']);
-        if (!isset($people[$key])) {
-            $people[$key] = ['display' => $p, 'snapshots' => []];
-        }
-        $people[$key]['snapshots'][] = [$datum, $p];
-    }
-}
 
-echo count($people) . " unieke personen over " . count($editions) . " snapshots (na normalisatie)\n\n";
-
-if ($review_needed) {
-    echo "=== " . count($review_needed) . " regels met needs_review (ontbrekende komma o.i.d.) ===\n";
-    foreach ($review_needed as [$ed_name, $d, $p]) {
-        echo "  $ed_name ($d): \"{$p['voornaam']} {$p['achternaam']}\" suffix=\"{$p['suffix']}\"\n";
-    }
-    echo "\n";
-}
-
-function addr_key(array $a): string {
-    return implode('|', [$a['straat'], $a['huisnummer'], $a['postcode'], $a['plaats'], $a['land']]);
-}
-
-// coalesce consecutive identical addresses into periods
-function coalesce_periods(array $snapshots): array {
-    $periods = [];
-    foreach ($snapshots as [$d, $addr]) {
-        if (empty($addr['straat']) && empty($addr['plaats'])) continue;
-        if ($periods && addr_key(end($periods)['addr']) === addr_key($addr)) continue;
-        if ($periods) {
-            $prev = new DateTime($d);
-            $prev->modify('-1 day');
-            $periods[count($periods) - 1]['valid_until'] = $prev->format('Y-m-d');
-        }
-        $periods[] = ['valid_from' => $d, 'valid_until' => null, 'addr' => $addr];
-    }
-    return $periods;
-}
-
-ksort($people);
-
-$n_matched = 0; $n_created = 0; $n_addr_rows = 0;
-$n_birthdate_filled = 0; $n_birthdate_conflict = 0; $n_phone_filled = 0;
-$conflicts = [];
-
-foreach ($people as $key => $entry) {
-    $p0 = $entry['display'];
-    $voornaam = $p0['voornaam']; $achternaam = $p0['achternaam']; $suffix = $p0['suffix'];
-    $snapshots = $entry['snapshots'];
-    usort($snapshots, fn($a, $b) => strcmp($a[0], $b[0]));
-
-    $db_row = $db_members[$key] ?? null;
-    $member_id = null;
-
-    if ($db_row) {
-        $n_matched++;
-        $member_id = (int) $db_row->id;
-    } else {
-        $n_created++;
-        $uid_base = preg_replace('/[^a-z0-9._-]/', '.', strtolower("$voornaam.$achternaam"));
-        $email = "$uid_base@avpvh.local";
-        echo "  NIEUW (inactive): $voornaam $suffix $achternaam <$email>\n";
-        if (!$dry_run) {
-            $existing = AVPVH_LLDAP::get_user_display_name($uid_base);
-            if ($existing === null) {
-                $created = AVPVH_LLDAP::create_user($uid_base, $email, trim("$voornaam $achternaam"));
-                if (is_wp_error($created)) {
-                    echo "    LLDAP create FAILED: " . $created->get_error_message() . "\n";
-                    continue;
+        // A new period. Still open (the person's last edition): the newest
+        // start keeps running, so an older open address of another kind
+        // ends the day before; a later stored address ends this one ($cap).
+        if ($period['until'] === null) {
+            foreach ($rows as $row) {
+                if ($row->valid_until === null && avpvh_dgeen_key((array) $row) !== $key
+                    && ($row->valid_from === null || (string) $row->valid_from < $period['from'])) {
+                    $report['afgesloten']++;
+                    $row->valid_until = $day_before($period['from']);
+                    if (!$dry_run) {
+                        AVPVH_DB::update_address((int) $row->id, $member_id, $row->valid_from, $row->valid_until);
+                    }
                 }
             }
-            $member_id = AVPVH_DB::create_member($uid_base, $voornaam, $suffix, $achternaam, null, 'inactive');
         }
-    }
-
-    // birth_date / phone backfill from most recent snapshot with a value
-    $new_birth = null; $new_phone = null;
-    foreach ($snapshots as [$d, $p]) {
-        if (!empty($p['geboortedatum'])) $new_birth = $p['geboortedatum'];
-        if (!empty($p['telefoon'])) $new_phone = $p['telefoon'];
-    }
-
-    if ($db_row) {
-        if ($new_birth && empty($db_row->birth_date)) {
-            $n_birthdate_filled++;
-            if (!$dry_run) $wpdb->update("{$wpdb->prefix}avm_members", ['birth_date' => $new_birth], ['id' => $member_id]);
-        } elseif ($new_birth && !empty($db_row->birth_date) && (string)$db_row->birth_date !== $new_birth) {
-            $n_birthdate_conflict++;
-            $conflicts[] = "$voornaam $achternaam: DB birth_date={$db_row->birth_date} vs ledenlijst=$new_birth";
+        [$from, $until] = $cap($period['from'], $period['until'], $key, null);
+        if ($until !== null && $until < $from) {
+            $report['overgeslagen_periode'][] = "{$name}: {$shown} ({$period['from']} – {$period['until']}) valt binnen andere adressen";
+            continue;
         }
-        if ($new_phone && empty($db_row->phone)) {
-            $n_phone_filled++;
-            if (!$dry_run) $wpdb->update("{$wpdb->prefix}avm_members", ['phone' => $new_phone], ['id' => $member_id]);
-        }
-    } elseif (!$dry_run && $member_id && ($new_birth || $new_phone)) {
-        $wpdb->update("{$wpdb->prefix}avm_members", ['birth_date' => $new_birth, 'phone' => $new_phone], ['id' => $member_id]);
-    }
-
-    // address periods
-    $periods = coalesce_periods($snapshots);
-    $n_addr_rows += count($periods);
-    foreach ($periods as $period) {
-        $a = $period['addr'];
+        $report['toegevoegd']++;
+        $row = (object) ($period['address'] + ['id' => 0, 'member_id' => $member_id, 'valid_from' => $from, 'valid_until' => $until]);
         if (!$dry_run && $member_id) {
-            $wpdb->insert("{$wpdb->prefix}avm_addresses", [
-                'member_id' => $member_id,
-                'street' => $a['straat'], 'house_number' => $a['huisnummer'],
-                'postal_code' => $a['postcode'], 'city' => $a['plaats'], 'country' => $a['land'],
-                'valid_from' => $period['valid_from'], 'valid_until' => $period['valid_until'],
-            ]);
+            $wpdb->insert($table, $period['address'] + ['member_id' => $member_id, 'valid_from' => $from, 'valid_until' => $until]);
+            $row->id = (int) $wpdb->insert_id;
         }
+        $rows[] = $row;
     }
 }
 
+// --- report ---
 echo "\n=== Samenvatting ===\n";
-echo "Gematchte bestaande leden: $n_matched\n";
-echo "Nieuw aan te maken (inactive) leden: $n_created\n";
-echo "avm_addresses rijen (na samenvoegen): $n_addr_rows\n";
-echo "birth_date ingevuld (was leeg): $n_birthdate_filled\n";
-echo "phone ingevuld (was leeg): $n_phone_filled\n";
-echo "birth_date CONFLICTEN (niet overschreven): $n_birthdate_conflict\n";
-foreach ($conflicts as $c) echo "  - $c\n";
-
-echo $dry_run ? "\nDry-run compleet — niets weggeschreven.\n" : "\nKlaar — gecommit.\n";
+echo "Gekoppeld aan bestaande personen: {$report['gekoppeld']} (waarvan via naamvariant: {$report['via_variant']})\n";
+echo "Nieuw aangemaakt (ex-lid): {$report['nieuw']}\n";
+echo "Adresregels toegevoegd: {$report['toegevoegd']}, bestaande verlengd: {$report['verlengd']}, oudere afgesloten: {$report['afgesloten']}\n";
+echo "Geboortedatum ingevuld: {$report['geboortedatum_ingevuld']}, telefoon ingevuld: {$report['telefoon_ingevuld']}\n";
+$sections = [
+    'controleren'            => 'Mogelijk bestaande persoon (niet gekoppeld, niet aangemaakt)',
+    'meerdere'               => 'Naam past bij meerdere personen (overgeslagen)',
+    'needs_review'           => 'Regels gemarkeerd needs_review (overgeslagen)',
+    'geboortedatum_conflict' => 'Andere geboortedatum (niet overschreven)',
+    'zelfde_editie'          => 'Twee adressen in dezelfde editie',
+    'overgeslagen_periode'   => 'Periode met einde vóór begin (niet geschreven)',
+];
+foreach ($sections as $section => $title) {
+    if ($report[$section]) {
+        echo "\n{$title}: " . count($report[$section]) . "\n";
+        foreach ($report[$section] as $line) {
+            echo "  - {$line}\n";
+        }
+    }
+}
+if ($report['verbeterd']) {
+    echo "\nAdressen verbeterd naar de officiële schrijfwijze: " . count($report['verbeterd']) . "\n";
+    foreach ($report['verbeterd'] as $from => $to) {
+        echo "  - {$from} -> {$to}\n";
+    }
+}
+if ($report['onbekend']) {
+    echo "\nNederlandse adressen niet (eenduidig) in de BAG: " . count($report['onbekend']) . "\n";
+    foreach ($report['onbekend'] as $address => $who) {
+        echo "  - {$address} ({$who})\n";
+    }
+}
+echo $dry_run ? "\nProefdraai klaar: niets geschreven (DGEEN_DRY_RUN=0 om toe te passen).\n" : "\nKlaar.\n";
