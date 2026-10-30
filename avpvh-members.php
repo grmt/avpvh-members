@@ -104,6 +104,13 @@ add_action('login_init', function () {
     exit;
 });
 
+// No "session expired" dialog in wp-admin. It loads wp-login.php?interim-login=1
+// in a 380px iframe; the redirect above turns that into the full front-end
+// login page, which never sends the success signal the dialog waits for (so
+// it never closes), and Google refuses to be framed. Without it, the next
+// click after the session ends goes through auth_redirect() to /avpvh-login/.
+remove_action('admin_enqueue_scripts', 'wp_auth_check_load');
+
 add_filter('logout_url', function (): string {
     return rest_url('avpvh/v1/logout');
 });
