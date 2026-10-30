@@ -85,7 +85,7 @@ class AVPVH_Name_Matcher {
 
     /**
      * Whether two different first names can be the same person's, one
-     * written with initials: "Marie-L." = "Marie Louise", "J." = "Jan",
+     * written with initials: "Anna-M." = "Anna Maria", "J." = "Jan",
      * "J.W." = "Jan Willem". Word by word, each pair equal or one an
      * initial (one or two letters) that starts the other. Only for the
      * merge page's suggestions.

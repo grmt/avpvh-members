@@ -114,7 +114,7 @@ class AVPVH_Member_Merge {
      * official name or a name alias (each row's matched_via says which) —
      * suggestions only, a human decides. A pair found through both routes
      * is listed once. Also pairs with the same surname whose first names
-     * differ only by initials ("Marie-L." and "Marie Louise").
+     * differ only by initials ("Anna-M." and "Anna Maria").
      */
     public static function find_duplicate_candidates(): array {
         $groups = [];
