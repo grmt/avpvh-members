@@ -9,7 +9,7 @@
  *   AVPVH_ADDRESS_AS_OF=2026-01-01 wp eval-file scripts/report-address-overlaps.php
  *
  * equivalent_duplicates: all current rows are the same address according to
- * AVPVH_Address_Normalizer::match_key() (spelling/spacing differences only),
+ * AVPVH_Address_Normalizer::match_key() (spelling, spacing and house-number notation only),
  * so the extra rows can be closed or removed. conflicting_addresses: the
  * current rows are really different addresses and need a manual decision.
  */

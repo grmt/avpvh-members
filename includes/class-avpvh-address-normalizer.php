@@ -51,11 +51,38 @@ class AVPVH_Address_Normalizer {
     }
 
     /**
-     * "postcode|number|street" comparison key; spaces are dropped inside each
-     * part so "12 a" = "12a" and "1234AB" = "1234 ab". City and country are
-     * deliberately left out: postcode + house number already pin the address
-     * down, and city is often missing or spelled differently ("Den Bosch").
-     * Returns '' when there is no street, so empty addresses never match.
+     * House number as "number-addition" for comparison: "40 1", "40-1",
+     * "40 1 hoog", "40-I" and "40 1e" all give "40-1"; "12 A" and "12a" give
+     * "12-a". The number and addition stay apart, so "40-1" never equals
+     * "401". "huis", "hs" and "bg" (ground floor) fold to "h".
+     */
+    public static function normalize_house_number(string $house_number): string {
+        $folded = self::fold($house_number);
+        if (!preg_match('/^0*(\d+)\s*(.*)$/', $folded, $m)) {
+            return str_replace(' ', '', $folded);
+        }
+        $number = $m[1];
+        $addition = str_replace(' ', '', $m[2]);
+        $floor = '(?:hoog|hg|h|e|ste|de|etage|verdieping)?';
+        $romans = ['i' => '1', 'ii' => '2', 'iii' => '3', 'iv' => '4', 'v' => '5', 'vi' => '6'];
+        if (preg_match('/^0*(\d+)' . $floor . '$/', $addition, $a)) {
+            $addition = $a[1];
+        } elseif (preg_match('/^(i|ii|iii|iv|v|vi)' . $floor . '$/', $addition, $a)) {
+            $addition = $romans[$a[1]];
+        } elseif (in_array($addition, ['huis', 'hs', 'bg', 'beg', 'beganegrond', 'parterre'], true)) {
+            $addition = 'h';
+        }
+        return $addition === '' ? $number : $number . '-' . $addition;
+    }
+
+    /**
+     * Comparison key. With a Dutch postcode, "postcode|number": postcode and
+     * house number pin the address down, so street spellings ("3e
+     * Weteringdwarsstr" vs "...straat") don't matter. Otherwise
+     * "postcode|number|street", with spaces dropped inside the postcode and
+     * street. City and country are left out in both cases: city is often
+     * missing or spelled differently ("Den Bosch", "A'dam"). Returns '' when
+     * there is no street, so empty addresses never match.
      */
     public static function match_key(array|object $address): string {
         $address = (array) $address;
@@ -64,6 +91,10 @@ class AVPVH_Address_Normalizer {
         if ($part('street') === '') {
             return '';
         }
-        return $part('postal_code') . '|' . $part('house_number') . '|' . $part('street');
+        $number = self::normalize_house_number((string) ($address['house_number'] ?? ''));
+        if (preg_match('/^\d{4}[a-z]{2}$/', $part('postal_code')) && $number !== '') {
+            return $part('postal_code') . '|' . $number;
+        }
+        return $part('postal_code') . '|' . $number . '|' . $part('street');
     }
 }

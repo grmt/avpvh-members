@@ -41,6 +41,28 @@ check('different number differs',
 check('no street gives empty key', $key(addr('', '12', '1234 AB')), '');
 check('object input', $key((object) addr('Kerkstraat', '1', '1234 AB')), $key(addr('Kerkstraat', '1', '1234AB')));
 
+$hn = [AVPVH_Address_Normalizer::class, 'normalize_house_number'];
+foreach (['40 1', '40-1', '40 1 hoog', '40-1-hoog', '40 1e', '40-I', '40 I hg', '40 01', '040-1'] as $variant) {
+    check("house number '$variant' = 40-1", $hn($variant), '40-1');
+}
+check('40-1 is not 401', $hn('40-1') === $hn('401'), false);
+check('letter addition', $hn('12 A'), '12-a');
+check('letter addition without space', $hn('12a'), '12-a');
+check('bis', $hn('7 bis'), '7-bis');
+check('huis and hs fold to h', [$hn('19 huis'), $hn('19-hs'), $hn('19 H')], ['19-h', '19-h', '19-h']);
+check('2 hoog differs from 1 hoog', $hn('40 2 hoog') === $hn('40 1 hoog'), false);
+check('plain number', $hn(' 40 '), '40');
+check('no number', $hn('ong.'), 'ong');
+
+check('Dutch postcode: street abbreviation ignored',
+    $key(addr('3e Weteringdwarsstr', '19a', '1017 AA', "A'dam")), $key(addr('3e Weteringdwarsstraat', '19 A', '1017AA', 'Amsterdam')));
+check('Dutch postcode: floor notations match',
+    $key(addr('Kerkstraat', '40-1', '1234 AB')), $key(addr('Kerkstraat', '40 1 hoog', '1234AB')));
+check('Dutch postcode: 40-1 is not 401',
+    $key(addr('Kerkstraat', '40-1', '1234 AB')) === $key(addr('Kerkstraat', '401', '1234 AB')), false);
+check('foreign postcode still compares street',
+    $key(addr('Rue Haute', '1', 'B-1000')) === $key(addr('Rue Basse', '1', 'B-1000')), false);
+
 $clean = AVPVH_Address_Normalizer::clean(addr(' Kerk  straat ', '1', '1234ab') + ['country' => 'Nederland', 'valid_from' => '2026-01-01']);
 check('clean tidies whitespace', $clean['street'], 'Kerk straat');
 check('clean formats Dutch postcode', $clean['postal_code'], '1234 AB');
