@@ -41,6 +41,13 @@ function is_wp_error(mixed $thing): bool {
 }
 function wp_remote_get(string $url, array $args = []): array {
     $GLOBALS['test_requests'][] = $url;
+    if (str_contains($url, 'fl=straatnaam,woonplaatsnaam&')) {
+        // All addresses of a postcode: one street, or (5555AA) two.
+        $docs = str_contains($url, 'postcode:5555AA')
+            ? [['straatnaam' => 'Kerkstraat', 'woonplaatsnaam' => 'Utrecht'], ['straatnaam' => 'Molenweg', 'woonplaatsnaam' => 'Utrecht']]
+            : [['straatnaam' => 'Sophiastraat', 'woonplaatsnaam' => 'Utrecht'], ['straatnaam' => 'Sophiastraat', 'woonplaatsnaam' => 'Utrecht']];
+        return ['body' => json_encode(['response' => ['docs' => $docs]])];
+    }
     if (str_contains($url, '?q=')) {
         // Free-text search: the same number in the right postcode, and in another town.
         return ['body' => json_encode(['response' => ['docs' => [
@@ -89,6 +96,13 @@ check('mistyped postcode: found by street, number and town', $found,
     ['street' => 'Johanna van Lindenweg', 'house_number' => '38', 'house_number_addition' => '', 'postal_code' => '4321 AW', 'city' => 'Breda']);
 check('mistyped postcode without a town: no suggestion',
     AVPVH_PDOK::lookup(['street' => 'J. van Lindenweg', 'house_number' => '38', 'postal_code' => '4321 AV', 'city' => '']), null);
+
+check('street of a postcode', AVPVH_PDOK::street_of_postcode('6543 xy'), ['street' => 'Sophiastraat', 'city' => 'Utrecht']);
+check('postcode with two streets: none', AVPVH_PDOK::street_of_postcode('5555AA'), null);
+check('foreign postcode: none', AVPVH_PDOK::street_of_postcode('B-2000'), null);
+$before = count($test_requests);
+AVPVH_PDOK::street_of_postcode('6543XY');
+check('street answer cached', count($test_requests), $before);
 
 $before = count($test_requests);
 $lookup('40', '1', '1234AB');
