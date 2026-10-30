@@ -251,9 +251,9 @@ class AVPVH_Admin {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- tab switch only
         $tab = sanitize_key(wp_unslash($_GET['tab'] ?? ''));
         if ($tab === 'addresses') {
-            require AVPVH_PLUGIN_DIR . 'admin/address-cleanup.php';
+            require_once AVPVH_PLUGIN_DIR . 'admin/address-cleanup.php';
         } else {
-            require AVPVH_PLUGIN_DIR . 'admin/merge-members.php';
+            require_once AVPVH_PLUGIN_DIR . 'admin/merge-members.php';
         }
     }
 

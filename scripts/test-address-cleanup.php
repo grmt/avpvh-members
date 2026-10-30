@@ -15,6 +15,13 @@ function __(string $text, string $domain = ''): string {
     return $text;
 }
 
+class WP_Error {
+    public function __construct(public string $code = '', public string $message = '') {}
+}
+function is_wp_error(mixed $thing): bool {
+    return $thing instanceof WP_Error;
+}
+
 require_once dirname(__DIR__) . '/includes/class-avpvh-address-normalizer.php';
 require_once dirname(__DIR__) . '/includes/class-address-cleanup.php';
 
@@ -54,5 +61,15 @@ check('most common spelling first', $v[0]['fields']['street'] . ' ' . $v[0]['fie
 check('count kept', $v[0]['count'], 2);
 $v = $variants->invoke(null, [row(1, 7, null, null, 'Kerkstr'), row(2, 8, null, null, 'Kerkstraat')]);
 check('tie: written-out street first', $v[0]['fields']['street'], 'Kerkstraat');
+
+$validate = new ReflectionMethod(AVPVH_Address_Cleanup::class, 'validated_fields');
+$group = ['fingerprint' => 'fp', 'rows' => [(object) ['country' => 'Nederland']]];
+$key = AVPVH_Address_Normalizer::match_key(['street' => 'Kerkstraat', 'house_number' => '40-1', 'postal_code' => '1234 AB']);
+$ok = $validate->invoke(null, $group, $key, ['city' => 'Utrecht', 'street' => 'Kerkstr', 'house_number' => '40 1 hoog', 'postal_code' => '1234ab'], 'fp');
+check('respelling accepted, cleaned, fields in fixed order', $ok,
+    ['street' => 'Kerkstr', 'house_number' => '40 1 hoog', 'postal_code' => '1234 AB', 'city' => 'Utrecht']);
+check('other house number refused', $validate->invoke(null, $group, $key, ['street' => 'Kerkstraat', 'house_number' => '42', 'postal_code' => '1234 AB', 'city' => ''], 'fp')->code, 'other_address');
+check('changed group refused', $validate->invoke(null, $group, $key, $ok, 'old')->code, 'stale');
+check('vanished group refused', $validate->invoke(null, null, $key, $ok, 'fp')->code, 'gone');
 
 echo "Address cleanup tests: OK\n";

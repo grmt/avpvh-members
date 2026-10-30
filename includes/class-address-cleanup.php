@@ -153,20 +153,9 @@ class AVPVH_Address_Cleanup {
         $table = "{$wpdb->prefix}avm_addresses";
 
         $group = self::find_groups()[$key] ?? null;
-        if (!$group) {
-            return new \WP_Error('gone', __('Deze adresgroep bestaat niet meer; misschien is hij al opgeschoond.', 'avpvh-members'));
-        }
-        if (!hash_equals($group['fingerprint'], $fingerprint)) {
-            return new \WP_Error('stale', __('De adressen zijn gewijzigd sinds je de pagina opende. Bekijk ze opnieuw.', 'avpvh-members'));
-        }
-
-        $cleaned = AVPVH_Address_Normalizer::clean(array_intersect_key($fields, array_flip(self::FIELDS)) + ['country' => $group['rows'][0]->country]);
-        $fields = [];
-        foreach (self::FIELDS as $field) {
-            $fields[$field] = (string) ($cleaned[$field] ?? '');
-        }
-        if (AVPVH_Address_Normalizer::match_key($fields) !== $key) {
-            return new \WP_Error('other_address', __('Dat is een ander adres (postcode, huisnummer of straat wijkt af). Hier kun je alleen de schrijfwijze kiezen.', 'avpvh-members'));
+        $fields = self::validated_fields($group, $key, $fields, $fingerprint);
+        if (is_wp_error($fields)) {
+            return $fields;
         }
 
         $rows = [];
@@ -200,6 +189,28 @@ class AVPVH_Address_Cleanup {
     }
 
     /**
+     * $fields cleaned and in FIELDS order, or why they can't be applied to
+     * $group: it's gone, changed since the page showed $fingerprint, or
+     * $fields are a different address.
+     */
+    private static function validated_fields(?array $group, string $key, array $fields, string $fingerprint): array|\WP_Error {
+        if (!$group) {
+            $error = new \WP_Error('gone', __('Deze adresgroep bestaat niet meer; misschien is hij al opgeschoond.', 'avpvh-members'));
+        } elseif (!hash_equals($group['fingerprint'], $fingerprint)) {
+            $error = new \WP_Error('stale', __('De adressen zijn gewijzigd sinds je de pagina opende. Bekijk ze opnieuw.', 'avpvh-members'));
+        } else {
+            $cleaned = AVPVH_Address_Normalizer::clean(array_intersect_key($fields, array_flip(self::FIELDS)) + ['country' => $group['rows'][0]->country]);
+            $fields = [];
+            foreach (self::FIELDS as $field) {
+                $fields[$field] = (string) ($cleaned[$field] ?? '');
+            }
+            $error = AVPVH_Address_Normalizer::match_key($fields) === $key ? null
+                : new \WP_Error('other_address', __('Dat is een ander adres (postcode, huisnummer of straat wijkt af). Hier kun je alleen de schrijfwijze kiezen.', 'avpvh-members'));
+        }
+        return $error ?? $fields;
+    }
+
+    /**
      * Folds the rows $ids into the lowest id (earliest start, latest end;
      * open-ended wins) and deletes the rest. Returns rows deleted.
      */
@@ -229,7 +240,11 @@ class AVPVH_Address_Cleanup {
     private static function check(int|false $result): void {
         if ($result === false) {
             global $wpdb;
-            throw new \RuntimeException($wpdb->last_error ?: 'databasefout');
+            throw new AVPVH_Address_Cleanup_Exception($wpdb->last_error ?: 'databasefout');
         }
     }
+}
+
+/** A failed write during Adressen opschonen; apply() rolls back on it. */
+class AVPVH_Address_Cleanup_Exception extends \RuntimeException {
 }
