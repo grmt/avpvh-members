@@ -40,6 +40,19 @@ $option_label = fn(array $option): string => AVPVH_Address_Cleanup::format($opti
 $detail_url = fn(int $id): string => add_query_arg(['page' => 'avpvh-member-detail', 'id' => $id], admin_url('admin.php'));
 $tab_url = fn(string $tab): string => add_query_arg(array_filter(['page' => 'avpvh-merge-members', 'tab' => $tab]), admin_url('admin.php'));
 $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M Y', strtotime($date)) : $empty;
+
+// After Toepassen/Afsluiten/Samenvoegen the page comes back at the next
+// item in the list (next_anchor), not at the top.
+$group_anchor = fn(array $g): string => 'avpvh-address-group-' . substr(hash('sha256', $g['key']), 0, 10);
+$anchors = array_merge(
+    array_map(fn($id) => 'avpvh-open-' . (int) $id, array_keys($conflicts)),
+    array_map($group_anchor, array_values($groups))
+);
+$next_anchor = function (string $anchor) use ($anchors): string {
+    $i = array_search($anchor, $anchors, true);
+    return $i === false ? '' : (string) ($anchors[$i + 1] ?? '');
+};
+$next_field = fn(string $anchor): string => '<input type="hidden" name="next_anchor" value="' . esc_attr($next_anchor($anchor)) . '">';
 ?>
 <div class="wrap">
     <h1><?php esc_html_e('Leden samenvoegen', 'avpvh-members'); ?></h1>
@@ -51,6 +64,7 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
         <?php esc_html_e('Adressen die volgens postcode en huisnummer hetzelfde zijn, maar verschillend geschreven ("…str" of "…straat", "40-I" of "40 1 hoog", leesfouten uit de import) of bij één lid dubbel staan. Kies per adres de juiste schrijfwijze; die wordt in alle regels gezet. Dubbele regels van één lid waarvan de periodes aansluiten of overlappen, kunnen tot één regel worden samengevoegd.', 'avpvh-members'); ?>
     </p>
 
+    <div class="avpvh-cleanup-notice">
     <?php if ($result) : ?>
         <?php if (!empty($result['error'])) : ?>
             <div class="notice notice-error"><p><?php echo esc_html($result['error']); ?></p></div>
@@ -85,6 +99,7 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                 )); ?>
             </p></div>
         <?php endif; ?>
+    </div>
     <?php endif; ?>
 
     <?php if ($conflicts) : ?>
@@ -116,8 +131,9 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                 $options = $conflict['same_place'] ? $with_official($conflict['variants'], $conflict['rows']) : [];
                 $result_id = 'avpvh-merge-result-' . (int) $conflict['member_id'];
                 $froms = array_column($conflict['rows'], 'valid_from');
+                $anchor = 'avpvh-open-' . (int) $conflict['member_id'];
                 ?>
-                <tr>
+                <tr id="<?php echo esc_attr($anchor); ?>">
                     <td><a href="<?php echo esc_url($detail_url((int) $conflict['member_id'])); ?>"><?php echo esc_html(avpvh_format_name($first)); ?></a></td>
                     <td>
                         <table class="avpvh-open-address-periods">
@@ -163,6 +179,7 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="avpvh-address-cleanup" data-result="<?php echo esc_attr($result_id); ?>">
                                 <?php wp_nonce_field('avpvh_address_merge_same_place'); ?>
                                 <input type="hidden" name="action" value="avpvh_address_merge_same_place">
+                                <?php echo $next_field($anchor); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built with esc_attr() above ?>
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr((string) $conflict['member_id']); ?>">
                                 <input type="hidden" name="fingerprint" value="<?php echo esc_attr($conflict['fingerprint']); ?>">
                                 <p class="description"><?php esc_html_e('Waarschijnlijk een tikfout, geen verhuizing. Kies of verbeter de schrijfwijze; de regels worden één adres vanaf de vroegste begindatum.', 'avpvh-members'); ?></p>
@@ -194,6 +211,7 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                                 <?php wp_nonce_field('avpvh_address_close_older'); ?>
                                 <input type="hidden" name="action" value="avpvh_address_close_older">
+                                <?php echo $next_field($anchor); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built with esc_attr() above ?>
                                 <input type="hidden" name="fingerprints[<?php echo esc_attr((string) $conflict['member_id']); ?>]" value="<?php echo esc_attr($conflict['fingerprint']); ?>">
                                 <button type="submit" class="button button-small"><?php esc_html_e('Afsluiten', 'avpvh-members'); ?></button>
                             </form>
@@ -237,13 +255,14 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
     <?php endif; ?>
 
     <?php foreach ($groups as $group) :
-        $form_id = 'avpvh-address-group-' . substr(hash('sha256', $group['key']), 0, 10);
+        $form_id = $group_anchor($group);
         $clustered = array_merge([], ...$group['clusters']);
         $options = $with_official($group['variants'], [$group['rows'][0]]);
         ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="avpvh-address-cleanup card" id="<?php echo esc_attr($form_id); ?>" style="max-width:none">
             <?php wp_nonce_field('avpvh_address_cleanup'); ?>
             <input type="hidden" name="action" value="avpvh_address_cleanup">
+            <?php echo $next_field($form_id); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built with esc_attr() above ?>
             <input type="hidden" name="group_key" value="<?php echo esc_attr($group['key']); ?>">
             <input type="hidden" name="fingerprint" value="<?php echo esc_attr($group['fingerprint']); ?>">
 

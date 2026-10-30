@@ -63,11 +63,13 @@ $v = $variants->invoke(null, [row(1, 7, null, null, 'Kerkstr'), row(2, 8, null, 
 check('tie: written-out street first', $v[0]['fields']['street'], 'Kerkstraat');
 
 $validate = new ReflectionMethod(AVPVH_Address_Cleanup::class, 'validated_fields');
-$group = ['fingerprint' => 'fp', 'rows' => [(object) ['country' => 'Nederland']]];
+$group = ['fingerprint' => 'fp', 'rows' => [(object) ['street' => 'Kerkstraat', 'house_number' => '40', 'house_number_addition' => '1', 'postal_code' => '1234 AB', 'city' => 'Utrecht', 'country' => 'Nederland']]];
 $key = AVPVH_Address_Normalizer::match_key(['street' => 'Kerkstraat', 'house_number' => '40-1', 'postal_code' => '1234 AB']);
 $ok = $validate->invoke(null, $group, $key, ['city' => 'Utrecht', 'street' => 'Kerkstr', 'house_number' => '40 1 hoog', 'postal_code' => '1234ab'], 'fp');
 check('respelling accepted, cleaned and split, fields in fixed order', $ok,
     ['street' => 'Kerkstr', 'house_number' => '40', 'house_number_addition' => '1', 'postal_code' => '1234 AB', 'city' => 'Utrecht']);
+$slip = $validate->invoke(null, $group, $key, ['street' => 'Kerkstraat', 'house_number' => '40', 'house_number_addition' => '1', 'postal_code' => '1234 AC', 'city' => 'Utrecht'], 'fp');
+check('postcode typo corrected (one character, same street)', $slip['postal_code'] ?? null, '1234 AC');
 check('other house number refused', $validate->invoke(null, $group, $key, ['street' => 'Kerkstraat', 'house_number' => '42', 'postal_code' => '1234 AB', 'city' => ''], 'fp')->code, 'other_address');
 check('changed group refused', $validate->invoke(null, $group, $key, $ok, 'old')->code, 'stale');
 check('vanished group refused', $validate->invoke(null, null, $key, $ok, 'fp')->code, 'gone');

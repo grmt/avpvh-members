@@ -925,6 +925,17 @@ class AVPVH_Admin {
         exit;
     }
 
+    /**
+     * Back to Adressen opschonen at the item after the one just handled
+     * (next_anchor from the form), or at $fallback.
+     */
+    private static function cleanup_return_url(string $fallback = ''): string {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- every caller checked its own nonce first
+        $anchor = sanitize_key(wp_unslash($_POST['next_anchor'] ?? ''));
+        $anchor = str_starts_with($anchor, 'avpvh-') ? $anchor : $fallback;
+        return add_query_arg(['page' => 'avpvh-merge-members', 'tab' => 'addresses'], admin_url('admin.php')) . ($anchor !== '' ? '#' . $anchor : '');
+    }
+
     public function handle_address_cleanup(): void {
         check_admin_referer('avpvh_address_cleanup');
         if (!AVPVH_Roles::can_merge_members()) {
@@ -946,7 +957,7 @@ class AVPVH_Admin {
             is_wp_error($result) ? ['error' => $result->get_error_message(), 'key' => $key] : $result + ['address' => AVPVH_Address_Cleanup::format($fields)],
             10 * MINUTE_IN_SECONDS
         );
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members', 'tab' => 'addresses'], admin_url('admin.php')));
+        wp_safe_redirect(self::cleanup_return_url());
         exit;
     }
 
@@ -1003,7 +1014,7 @@ class AVPVH_Admin {
             $done['closed'] += $result['closed'];
         }
         set_transient('avpvh_address_cleanup_result_' . get_current_user_id(), ['open' => true] + $done, 10 * MINUTE_IN_SECONDS);
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members', 'tab' => 'addresses'], admin_url('admin.php')) . '#avpvh-open-addresses');
+        wp_safe_redirect(self::cleanup_return_url('avpvh-open-addresses'));
         exit;
     }
 
@@ -1027,7 +1038,7 @@ class AVPVH_Admin {
             is_wp_error($result) ? ['error' => $result->get_error_message()] : ['bulk' => false, 'updated' => 1, 'removed' => $result['merged'] - 1, 'address' => AVPVH_Address_Cleanup::format($fields)],
             10 * MINUTE_IN_SECONDS
         );
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members', 'tab' => 'addresses'], admin_url('admin.php')) . '#avpvh-open-addresses');
+        wp_safe_redirect(self::cleanup_return_url('avpvh-open-addresses'));
         exit;
     }
 

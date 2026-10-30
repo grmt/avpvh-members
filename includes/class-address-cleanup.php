@@ -346,7 +346,11 @@ class AVPVH_Address_Cleanup {
             foreach (self::FIELDS as $field) {
                 $fields[$field] = (string) ($cleaned[$field] ?? '');
             }
-            $error = AVPVH_Address_Normalizer::match_key($fields) === $key ? null
+            // The same address, or a typo fixed in it (a postcode one
+            // character off, as the official spelling may correct).
+            $same = AVPVH_Address_Normalizer::match_key($fields) === $key
+                || self::probably_same_address((object) $fields, $group['rows'][0]);
+            $error = $same ? null
                 : new \WP_Error('other_address', __('Dat is een ander adres (postcode, huisnummer of straat wijkt af). Hier kun je alleen de schrijfwijze kiezen.', 'avpvh-members'));
         }
         return $error ?? $fields;
