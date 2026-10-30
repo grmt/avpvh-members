@@ -288,7 +288,10 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                                 <td><?php echo (int) $row->member_id === $keep_member_id ? esc_html__('Behouden', 'avpvh-members') : esc_html__('Opheffen', 'avpvh-members'); ?></td>
                                 <td><?php echo esc_html(AVPVH_Address_Cleanup::format(AVPVH_Address_Cleanup::fields($row))); ?></td>
                                 <td><?php echo esc_html($format_date($row->valid_from, __('onbekend', 'avpvh-members'))); ?></td>
-                                <td><?php echo esc_html($format_date($row->valid_until, __('heden', 'avpvh-members'))); ?></td>
+                                <td>
+                                    <?php echo esc_html($format_date($row->valid_until, __('heden', 'avpvh-members'))); ?>
+                                    <?php echo AVPVH_Address_Cleanup::outdated_badge($row, (string) ((int) $row->member_id === $keep_member_id ? $preview['keep']->status : $preview['remove']->status)); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside ?>
+                                </td>
                                 <td>
                                     <?php if ($result === null) : ?>
                                         <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('vervalt (samengevoegd)', 'avpvh-members'); ?></span>

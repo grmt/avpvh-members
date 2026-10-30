@@ -14,6 +14,12 @@ define('ABSPATH', __DIR__ . '/');
 function __(string $text, string $domain = ''): string {
     return $text;
 }
+function esc_html__(string $text, string $domain = ''): string {
+    return htmlspecialchars($text);
+}
+function esc_attr__(string $text, string $domain = ''): string {
+    return htmlspecialchars($text);
+}
 
 class WP_Error {
     public function __construct(public string $code = '', public string $message = '') {}
@@ -155,5 +161,10 @@ $results = array_merge(...array_column($plan, 'results'));
 check('an older open address ends the day before the newest starts', array_map(fn($r) => [$r['until'], $r['closed']], $results), [['2009-12-31', true], [null, false]]);
 $plan = AVPVH_Address_Cleanup::plan_history([row(1, 7, '1990-01-01', '1991-01-01', 'Kerkstraat', '1'), row(2, 7, '2000-01-01', null, 'Kerkstraat', '1')]);
 check('a gap keeps two periods of one address apart (moved away and back)', count($plan[0]['results']), 2);
+
+$badge = [AVPVH_Address_Cleanup::class, 'outdated_badge'];
+check('open address of an ex-member is marked', str_contains($badge(row(1, 7, '1991-02-01', null), 'inactive'), 'mogelijk verouderd'), true);
+check('closed address of an ex-member is not', $badge(row(1, 7, '1991-02-01', '1995-12-31'), 'inactive'), '');
+check('open address of a member is not', $badge(row(1, 7, '1991-02-01', null), 'active'), '');
 
 echo "Address cleanup tests: OK\n";
