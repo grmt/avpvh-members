@@ -105,9 +105,14 @@ class AVPVH_Address_Normalizer {
      * front, French style ("12, rue Haute"). Unchanged with no number found.
      */
     public static function number_from_street(string $street): array {
-        if (preg_match('/^(.*?\D)\s+(\d+\w*(?:\s*(?:bus|bte|boite|boîte)\s*\w+)?(?:\s*\([^)]*\))?)$/iu', $street, $m)) {
-            return [trim($m[1], ' ,'), $m[2]];
+        $note = '';
+        if (preg_match('/^(.*\S)\s*(\([^)]*\))$/u', $street, $m)) {
+            [$street, $note] = [$m[1], ' ' . $m[2]];
         }
+        if (preg_match('/^(.*?\D)\s+(\d+\w*(?:\s*(?:bus|bte|boite|boîte)\s*\w+)?)$/iu', $street, $m)) {
+            return [trim($m[1], ' ,'), $m[2] . $note];
+        }
+        $street .= $note;
         if (preg_match('/^(\d+\w?)\s*,?\s+(\D.*)$/u', $street, $m)) {
             return [trim($m[2]), $m[1]];
         }
