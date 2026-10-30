@@ -125,6 +125,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Vul een e-mailadres in.', 'avpvh-members'); ?></p></div>
     <?php elseif ($identity_error === 'laatste') : ?>
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Dit lid heeft nog maar één geverifieerd inlogadres — voeg eerst een tweede toe voordat je er een verwijdert.', 'avpvh-members'); ?></p></div>
+    <?php elseif (($_GET['address_error'] ?? '') === 'open') : ?>
+        <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Niet opgeslagen: er kan maar één adres doorlopen tot heden. Geef eerst het andere doorlopende adres een einddatum.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_updated'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Adres bijgewerkt.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_deleted'])) : ?>

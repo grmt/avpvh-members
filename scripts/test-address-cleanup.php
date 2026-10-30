@@ -72,4 +72,36 @@ check('other house number refused', $validate->invoke(null, $group, $key, ['stre
 check('changed group refused', $validate->invoke(null, $group, $key, $ok, 'old')->code, 'stale');
 check('vanished group refused', $validate->invoke(null, null, $key, $ok, 'fp')->code, 'gone');
 
+function wp_json_encode(mixed $data): string {
+    return (string) json_encode($data);
+}
+$wpdb = new class {
+    public string $prefix = 'wp_';
+    public array $open = [];
+    public function get_results(string $sql): array {
+        return $this->open;
+    }
+};
+$wpdb->open = [
+    // member 7: moved, both still open -> older one ends the day before
+    row(1, 7, '2015-03-01', null, 'Kerkstraat', '1'),
+    row(2, 7, '2021-06-15', null, 'Dorpsstraat', '9'),
+    // member 8: same address twice -> left to the duplicate folding
+    row(3, 8, '2020-01-01', null),
+    row(4, 8, null, null),
+    // member 9: no start dates -> no proposal
+    row(5, 9, null, null, 'Kerkstraat', '1'),
+    row(6, 9, null, null, 'Dorpsstraat', '9'),
+    // member 10: newest address stored twice, plus an old one
+    row(7, 10, '2010-01-01', null, 'Kerkstraat', '1'),
+    row(8, 10, '2022-02-01', null, 'Dorpsstraat', '9'),
+    row(9, 10, '2022-02-01', null, 'Dorpsstr', '9'),
+];
+$conflicts = AVPVH_Address_Cleanup::find_open_conflicts();
+check('only members with different open addresses', array_keys($conflicts), [7, 9, 10]);
+check('newest stays open', $conflicts[7]['keep'], 2);
+check('older ends the day before the newest started', $conflicts[7]['close'], [1 => '2021-06-14']);
+check('no start dates: no proposal', [$conflicts[9]['keep'], $conflicts[9]['close']], [null, []]);
+check('duplicate of the newest is not closed', $conflicts[10]['close'], [7 => '2022-01-31']);
+
 echo "Address cleanup tests: OK\n";
