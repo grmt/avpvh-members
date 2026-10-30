@@ -135,3 +135,19 @@ document.addEventListener('DOMContentLoaded', function () {
         customEmail.addEventListener('focus', function () { customChoice.checked = true; });
     }
 });
+
+// Adressen opschonen: picking a spelling fills that address's fields,
+// which stay editable for a correction none of the variants has.
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.avpvh-address-cleanup').forEach(function (form) {
+        form.querySelectorAll('.avpvh-address-variant').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                var fields = JSON.parse(radio.dataset.fields);
+                Object.keys(fields).forEach(function (name) {
+                    var input = form.querySelector('input[name="' + name + '"]');
+                    if (input) input.value = fields[name];
+                });
+            });
+        });
+    });
+});

@@ -53,6 +53,10 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
 ]); ?></script>
 <div class="wrap">
     <h1><?php esc_html_e('Leden samenvoegen', 'avpvh-members'); ?></h1>
+    <nav class="nav-tab-wrapper">
+        <a href="<?php echo esc_url($page_url()); ?>" class="nav-tab nav-tab-active"><?php esc_html_e('Dubbele leden', 'avpvh-members'); ?></a>
+        <a href="<?php echo esc_url($page_url(['tab' => 'addresses'])); ?>" class="nav-tab"><?php esc_html_e('Adressen opschonen', 'avpvh-members'); ?></a>
+    </nav>
     <p class="description">
         <?php esc_html_e('Voeg een dubbel ledenrecord samen met het lid dat blijft bestaan. Activiteiten, contributie, adressen, inlogadressen, relaties, kenmerken en boekhoudregels gaan mee; het dubbele lid en zijn account worden daarna verwijderd. Dit kan niet ongedaan worden gemaakt.', 'avpvh-members'); ?>
     </p>

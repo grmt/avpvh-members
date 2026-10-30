@@ -38,6 +38,8 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_delete_flag',        [$this, 'handle_delete_flag']);
         add_action('admin_post_avpvh_send_newsletter',    [$this, 'handle_send_newsletter']);
         add_action('admin_post_avpvh_merge_members',      [$this, 'handle_merge_members']);
+        add_action('admin_post_avpvh_address_cleanup',    [$this, 'handle_address_cleanup']);
+        add_action('admin_post_avpvh_address_cleanup_bulk', [$this, 'handle_address_cleanup_bulk']);
         add_action('admin_post_avpvh_delete_visitor',     [$this, 'handle_delete_visitor']);
         add_action('admin_post_avpvh_save_page_permissions', [$this, 'handle_save_page_permissions']);
         add_action('admin_enqueue_scripts',               [$this, 'enqueue_admin_assets']);
@@ -246,7 +248,9 @@ class AVPVH_Admin {
     }
 
     public function render_merge_members(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/merge-members.php';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- tab switch only
+        $tab = sanitize_key(wp_unslash($_GET['tab'] ?? ''));
+        require AVPVH_PLUGIN_DIR . ($tab === 'addresses' ? 'admin/address-cleanup.php' : 'admin/merge-members.php');
     }
 
     public function render_page_permissions(): void {
@@ -912,6 +916,63 @@ class AVPVH_Admin {
 
         $notice_key = $had_error ? 'groups_error' : 'groups_saved';
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', $notice_key => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    public function handle_address_cleanup(): void {
+        check_admin_referer('avpvh_address_cleanup');
+        if (!AVPVH_Roles::can_merge_members()) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        $key = sanitize_text_field(wp_unslash($_POST['group_key'] ?? ''));
+        $fields = [];
+        foreach (AVPVH_Address_Cleanup::FIELDS as $field) {
+            $fields[$field] = sanitize_text_field(wp_unslash($_POST[$field] ?? ''));
+        }
+        $result = AVPVH_Address_Cleanup::apply(
+            $key,
+            $fields,
+            !empty($_POST['merge_runs']),
+            sanitize_text_field(wp_unslash($_POST['fingerprint'] ?? ''))
+        );
+        set_transient(
+            'avpvh_address_cleanup_result_' . get_current_user_id(),
+            is_wp_error($result) ? ['error' => $result->get_error_message(), 'key' => $key] : $result + ['address' => AVPVH_Address_Cleanup::format($fields)],
+            10 * MINUTE_IN_SECONDS
+        );
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members', 'tab' => 'addresses'], admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * "Alle dubbele regels samenvoegen": only groups without spelling
+     * differences, each checked against the fingerprint the page showed.
+     */
+    public function handle_address_cleanup_bulk(): void {
+        check_admin_referer('avpvh_address_cleanup_bulk');
+        if (!AVPVH_Roles::can_merge_members()) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        $shown = (array) wp_unslash($_POST['fingerprints'] ?? []);
+        $groups = AVPVH_Address_Cleanup::find_groups();
+        $done = ['updated' => 0, 'removed' => 0, 'groups' => 0, 'skipped' => 0];
+        foreach ($shown as $key => $fingerprint) {
+            $group = $groups[(string) $key] ?? null;
+            if (!$group || count($group['variants']) !== 1 || !$group['clusters']) {
+                $done['skipped']++;
+                continue;
+            }
+            $result = AVPVH_Address_Cleanup::apply((string) $key, $group['default'], true, sanitize_text_field((string) $fingerprint));
+            if (is_wp_error($result)) {
+                $done['skipped']++;
+                continue;
+            }
+            $done['updated'] += $result['updated'];
+            $done['removed'] += $result['removed'];
+            $done['groups']++;
+        }
+        set_transient('avpvh_address_cleanup_result_' . get_current_user_id(), ['bulk' => true] + $done, 10 * MINUTE_IN_SECONDS);
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members', 'tab' => 'addresses'], admin_url('admin.php')));
         exit;
     }
 
