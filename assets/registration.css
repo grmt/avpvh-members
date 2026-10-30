@@ -722,3 +722,13 @@ button.button-primary:disabled {
     background: #0073aa;
     color: #fff;
 }
+
+/* Address check against the government register (address-check.js). */
+.avpvh-address-check {
+    grid-column: 1 / -1;
+    font-size: .9em;
+    color: #50575e;
+}
+.avpvh-address-check .button {
+    margin-left: .25em;
+}

@@ -345,7 +345,7 @@ class AVPVH_Member_Profile_Form {
                     </div>
                 </fieldset>
 
-                <fieldset class="avpvh-fields-grid">
+                <fieldset class="avpvh-fields-grid" data-avpvh-address>
                     <legend><?php esc_html_e('Adres', 'avpvh-members'); ?></legend>
 
                     <div class="form-group">
@@ -1527,6 +1527,7 @@ class AVPVH_Member_Profile_Form {
             add_action('wp_footer', function () use ($reg_config) {
                 wp_print_inline_script_tag($reg_config, ['type' => 'application/json', 'id' => 'avpvh-registration-config']);
             });
+            AVPVH_Address_Entry_Check::enqueue();
         }
     }
 }
