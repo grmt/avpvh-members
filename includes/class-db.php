@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.27';
+    const SCHEMA_VERSION = '2.28';
 
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
@@ -848,6 +848,31 @@ class AVPVH_DB {
             self::install();
             self::split_house_number_additions();
             update_option('avpvh_db_version', '2.27');
+        }
+        if (version_compare($version, '2.28', '<')) {
+            // Country names in one spelling, European postcodes without a
+            // country prefix, Belgian/Luxembourg numbers out of the street.
+            self::normalize_stored_addresses();
+            update_option('avpvh_db_version', '2.28');
+        }
+    }
+
+    /**
+     * 2.28: runs every address row through AVPVH_Address_Normalizer::clean()
+     * and writes back what changed. clean() is idempotent, so a rerun only
+     * catches rows saved some other way since.
+     */
+    private static function normalize_stored_addresses(): void {
+        global $wpdb;
+        $table = "{$wpdb->prefix}avm_addresses";
+        $fields = ['street', 'house_number', 'house_number_addition', 'postal_code', 'city', 'country'];
+        foreach ($wpdb->get_results("SELECT * FROM {$table}") ?: [] as $row) {
+            $stored = array_intersect_key((array) $row, array_flip($fields));
+            $cleaned = array_intersect_key(AVPVH_Address_Normalizer::clean($stored), $stored);
+            $changed = array_diff_assoc(array_map('strval', $cleaned), array_map('strval', $stored));
+            if ($changed) {
+                $wpdb->update($table, $changed, ['id' => (int) $row->id]);
+            }
         }
     }
 

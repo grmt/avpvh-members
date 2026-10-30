@@ -114,8 +114,8 @@ class AVPVH_Address_Cleanup {
 
     /**
      * Two rows that differ only by a typo: same house number, and the same
-     * Dutch postcode (that pins the address down), or the same city or a
-     * postcode one character off with street names mostly alike or that
+     * Dutch postcode (that pins the address down), or the same city or
+     * postcode or a postcode one character off, with street names mostly alike or that
      * postcode slip ("D. van Poldersveldtweg 14, 6523 ND" vs "Dommer van
      * Polderveldtweg 14, 6521 ND", both Nijmegen).
      */
@@ -131,8 +131,9 @@ class AVPVH_Address_Cleanup {
         }
         $postcode_slip = strlen($left_pc) === 6 && strlen($right_pc) === 6 && levenshtein($left_pc, $right_pc) === 1;
         $same_city = $compact((string) $left->city) !== '' && $compact((string) $left->city) === $compact((string) $right->city);
+        $same_postcode = $left_pc !== '' && $left_pc === $right_pc;
         similar_text($compact((string) $left->street), $compact((string) $right->street), $street_percent);
-        return ($same_city || $postcode_slip) && ($street_percent >= 75 || $postcode_slip);
+        return ($same_city || $same_postcode || $postcode_slip) && ($street_percent >= 75 || $postcode_slip);
     }
 
     /**

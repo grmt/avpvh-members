@@ -13,29 +13,30 @@ $groups = AVPVH_Address_Cleanup::find_groups();
 $conflicts = AVPVH_Address_Cleanup::find_open_conflicts();
 $proposals = array_filter($conflicts, fn($c) => $c['keep'] !== null);
 
-// Official spelling from PDOK (BAG) as the first choice, where it gives
+// Official spelling from the country's register (AVPVH_Address_Lookup:
+// BAG, geoportail.lu, Adressenregister Vlaanderen) as the first choice, where it gives
 // one clear address that is recognizably this one (a mistyped postcode can
 // belong to another street); a stored spelling that matches it is marked.
 $same_place_rows = array_merge([], ...array_column(array_filter($conflicts, fn($c) => $c['same_place']), 'rows'));
-AVPVH_PDOK::prefetch(array_merge(array_map(fn($g) => $g['rows'][0], $groups), $same_place_rows));
+AVPVH_Address_Lookup::prefetch(array_merge(array_map(fn($g) => $g['rows'][0], $groups), $same_place_rows));
 $with_official = function (array $variants, array $rows): array {
     $official = null;
     foreach ($rows as $row) {
-        $found = AVPVH_PDOK::lookup($row);
-        if ($found && AVPVH_Address_Cleanup::probably_same_address((object) $found, $row)) {
+        $found = AVPVH_Address_Lookup::lookup($row);
+        if ($found && AVPVH_Address_Cleanup::probably_same_address((object) $found['fields'], $row)) {
             $official = $found;
             break;
         }
     }
-    $options = array_map(fn($v) => $v + ['official' => $official !== null && $v['fields'] === $official], $variants);
-    if ($official && !array_filter($options, fn($o) => $o['official'])) {
-        $options[] = ['fields' => $official, 'count' => 0, 'official' => true];
+    $options = array_map(fn($v) => $v + ['official' => $official && $v['fields'] === $official['fields'] ? $official['source'] : ''], $variants);
+    if ($official && !array_filter($options, fn($o) => $o['official'] !== '')) {
+        $options[] = ['fields' => $official['fields'], 'count' => 0, 'official' => $official['source']];
     }
-    usort($options, fn($a, $b) => $b['official'] <=> $a['official']);
+    usort($options, fn($a, $b) => ($b['official'] !== '') <=> ($a['official'] !== ''));
     return $options;
 };
 $option_label = fn(array $option): string => AVPVH_Address_Cleanup::format($option['fields'])
-    . ($option['official'] ? ' — ' . __('officieel (BAG)', 'avpvh-members') : '');
+    . ($option['official'] !== '' ? ' — ' . sprintf(/* translators: %s: register name */ __('officieel (%s)', 'avpvh-members'), $option['official']) : '');
 $detail_url = fn(int $id): string => add_query_arg(['page' => 'avpvh-member-detail', 'id' => $id], admin_url('admin.php'));
 $tab_url = fn(string $tab): string => add_query_arg(array_filter(['page' => 'avpvh-merge-members', 'tab' => $tab]), admin_url('admin.php'));
 $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M Y', strtotime($date)) : $empty;
@@ -112,6 +113,9 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
             <tbody>
             <?php foreach ($conflicts as $conflict) :
                 $first = $conflict['rows'][0];
+                $options = $conflict['same_place'] ? $with_official($conflict['variants'], $conflict['rows']) : [];
+                $result_id = 'avpvh-merge-result-' . (int) $conflict['member_id'];
+                $froms = array_column($conflict['rows'], 'valid_from');
                 ?>
                 <tr>
                     <td><a href="<?php echo esc_url($detail_url((int) $conflict['member_id'])); ?>"><?php echo esc_html(avpvh_format_name($first)); ?></a></td>
@@ -138,24 +142,30 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                                             <?php if ($id === $conflict['keep']) : ?>
                                                 <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('blijft doorlopen', 'avpvh-members'); ?></span>
                                             <?php elseif ($conflict['same_place']) : ?>
-                                                <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('waarschijnlijk hetzelfde adres', 'avpvh-members'); ?></span>
+                                                <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('gaat op in nieuw adres', 'avpvh-members'); ?></span>
                                             <?php endif; ?>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
+                            <?php if ($conflict['same_place']) : ?>
+                                <tr class="avpvh-merge-result">
+                                    <td><strong><?php esc_html_e('Wordt:', 'avpvh-members'); ?></strong> <span id="<?php echo esc_attr($result_id); ?>"><?php echo esc_html(AVPVH_Address_Cleanup::format($options[0]['fields'])); ?></span></td>
+                                    <td><?php echo esc_html($format_date(in_array(null, $froms, true) ? null : min($froms), __('onbekend', 'avpvh-members'))); ?></td>
+                                    <td><?php esc_html_e('heden', 'avpvh-members'); ?> <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('nieuw', 'avpvh-members'); ?></span></td>
+                                </tr>
+                            <?php endif; ?>
                             </tbody>
                         </table>
                     </td>
                     <td>
                         <?php if ($conflict['same_place']) : ?>
-                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="avpvh-address-cleanup">
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="avpvh-address-cleanup" data-result="<?php echo esc_attr($result_id); ?>">
                                 <?php wp_nonce_field('avpvh_address_merge_same_place'); ?>
                                 <input type="hidden" name="action" value="avpvh_address_merge_same_place">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr((string) $conflict['member_id']); ?>">
                                 <input type="hidden" name="fingerprint" value="<?php echo esc_attr($conflict['fingerprint']); ?>">
                                 <p class="description"><?php esc_html_e('Waarschijnlijk een tikfout, geen verhuizing. Kies of verbeter de schrijfwijze; de regels worden één adres vanaf de vroegste begindatum.', 'avpvh-members'); ?></p>
-                                <?php $options = $with_official($conflict['variants'], $conflict['rows']); ?>
                                 <?php foreach ($options as $i => $option) : ?>
                                     <label style="display:block">
                                         <input type="radio" name="variant" class="avpvh-address-variant" <?php checked($i, 0); ?>

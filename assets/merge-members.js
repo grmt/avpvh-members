@@ -147,7 +147,32 @@ document.addEventListener('DOMContentLoaded', function () {
                     var input = form.querySelector('input[name="' + name + '"]');
                     if (input) input.value = fields[name];
                 });
+                showResult();
             });
+        });
+
+        // "Wordt:" row: the address as it will be stored, kept in step
+        // with the chosen spelling and any correction typed in.
+        var result = form.dataset.result ? document.getElementById(form.dataset.result) : null;
+        function value(name) {
+            var input = form.querySelector('input[name="' + name + '"]');
+            return input ? input.value.trim() : '';
+        }
+        function houseNumber(number, addition) {
+            addition = addition.toUpperCase().replace(/\s+/g, '');
+            if (!addition) return number;
+            var bus = addition.match(/^BUS(.+)$/);
+            if (bus) return number + ' bus ' + bus[1];
+            return /^\p{L}$/u.test(addition) ? number + addition : number + '-' + addition;
+        }
+        function showResult() {
+            if (!result) return;
+            var line = (value('street') + ' ' + houseNumber(value('house_number'), value('house_number_addition'))).trim();
+            var place = (value('postal_code') + ' ' + value('city')).trim();
+            result.textContent = [line, place].filter(Boolean).join(', ');
+        }
+        form.querySelectorAll('input[type="text"]').forEach(function (input) {
+            input.addEventListener('input', showResult);
         });
     });
 });
