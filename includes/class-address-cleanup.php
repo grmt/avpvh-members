@@ -109,31 +109,32 @@ class AVPVH_Address_Cleanup {
         }
         $clusters = [];
         foreach ($by_member as $member_rows) {
-            if (count($member_rows) < 2) {
-                continue;
-            }
-            usort($member_rows, fn($a, $b) => strcmp((string) $a->valid_from, (string) $b->valid_from) ?: (int) $a->id <=> (int) $b->id);
-            $run = [array_shift($member_rows)];
-            $run_until = $run[0]->valid_until;
-            foreach ($member_rows as $row) {
-                $touches = $run_until === null || $row->valid_from === null
-                    || $row->valid_from <= gmdate('Y-m-d', strtotime($run_until . ' +1 day'));
-                if ($touches) {
-                    $run[] = $row;
-                    $run_until = ($run_until === null || $row->valid_until === null) ? null : max($run_until, $row->valid_until);
-                    continue;
-                }
+            foreach (self::runs($member_rows) as $run) {
                 if (count($run) > 1) {
                     $clusters[] = array_map(fn($r) => (int) $r->id, $run);
                 }
-                $run = [$row];
-                $run_until = $row->valid_until;
-            }
-            if (count($run) > 1) {
-                $clusters[] = array_map(fn($r) => (int) $r->id, $run);
             }
         }
         return $clusters;
+    }
+
+    /** One member's rows split into runs of touching or overlapping periods. */
+    private static function runs(array $member_rows): array {
+        usort($member_rows, fn($a, $b) => strcmp((string) $a->valid_from, (string) $b->valid_from) ?: (int) $a->id <=> (int) $b->id);
+        $runs = [];
+        $run_until = null;
+        foreach ($member_rows as $row) {
+            $touches = $runs && ($run_until === null || $row->valid_from === null
+                || $row->valid_from <= gmdate('Y-m-d', strtotime($run_until . ' +1 day')));
+            if ($touches) {
+                $runs[count($runs) - 1][] = $row;
+                $run_until = ($run_until === null || $row->valid_until === null) ? null : max($run_until, $row->valid_until);
+            } else {
+                $runs[] = [$row];
+                $run_until = $row->valid_until;
+            }
+        }
+        return $runs;
     }
 
     private static function fingerprint(array $rows): string {
@@ -186,27 +187,8 @@ class AVPVH_Address_Cleanup {
                 AVPVH_DB::log_member_change((int) $row->member_id, 'adres', self::format(self::fields($row)), $new_display);
                 $updated++;
             }
-            if ($merge_runs) {
-                foreach ($group['clusters'] as $ids) {
-                    sort($ids);
-                    $run = array_map(fn($id) => $rows[$id], $ids);
-                    $froms = array_column($run, 'valid_from');
-                    $untils = array_column($run, 'valid_until');
-                    $from = in_array(null, $froms, true) ? null : min($froms);
-                    $until = in_array(null, $untils, true) ? null : max($untils);
-                    $keep_id = array_shift($ids);
-                    self::check($wpdb->update($table, ['valid_from' => $from, 'valid_until' => $until], ['id' => $keep_id]));
-                    foreach ($ids as $id) {
-                        self::check($wpdb->delete($table, ['id' => $id], ['%d']));
-                        $removed++;
-                    }
-                    AVPVH_DB::log_member_change(
-                        (int) $rows[$keep_id]->member_id,
-                        'adres',
-                        sprintf(/* translators: %d: number of address rows */ __('%d regels voor hetzelfde adres', 'avpvh-members'), count($run)),
-                        sprintf(/* translators: 1: start date, 2: end date */ __('samengevoegd tot één regel (%1$s – %2$s)', 'avpvh-members'), $from ?? '?', $until ?? __('heden', 'avpvh-members'))
-                    );
-                }
+            foreach ($merge_runs ? $group['clusters'] : [] as $ids) {
+                $removed += self::fold_run($ids, $rows);
             }
             $wpdb->query('COMMIT');
         } catch (\Throwable $exception) {
@@ -215,6 +197,33 @@ class AVPVH_Address_Cleanup {
         }
 
         return ['updated' => $updated, 'removed' => $removed];
+    }
+
+    /**
+     * Folds the rows $ids into the lowest id (earliest start, latest end;
+     * open-ended wins) and deletes the rest. Returns rows deleted.
+     */
+    private static function fold_run(array $ids, array $rows): int {
+        global $wpdb;
+        $table = "{$wpdb->prefix}avm_addresses";
+        sort($ids);
+        $run = array_map(fn($id) => $rows[$id], $ids);
+        $froms = array_column($run, 'valid_from');
+        $untils = array_column($run, 'valid_until');
+        $from = in_array(null, $froms, true) ? null : min($froms);
+        $until = in_array(null, $untils, true) ? null : max($untils);
+        $keep_id = array_shift($ids);
+        self::check($wpdb->update($table, ['valid_from' => $from, 'valid_until' => $until], ['id' => $keep_id]));
+        foreach ($ids as $id) {
+            self::check($wpdb->delete($table, ['id' => $id], ['%d']));
+        }
+        AVPVH_DB::log_member_change(
+            (int) $rows[$keep_id]->member_id,
+            'adres',
+            sprintf(/* translators: %d: number of address rows */ __('%d regels voor hetzelfde adres', 'avpvh-members'), count($run)),
+            sprintf(/* translators: 1: start date, 2: end date */ __('samengevoegd tot één regel (%1$s – %2$s)', 'avpvh-members'), $from ?? '?', $until ?? __('heden', 'avpvh-members'))
+        );
+        return count($ids);
     }
 
     private static function check(int|false $result): void {

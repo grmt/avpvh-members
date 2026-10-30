@@ -250,7 +250,11 @@ class AVPVH_Admin {
     public function render_merge_members(): void {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- tab switch only
         $tab = sanitize_key(wp_unslash($_GET['tab'] ?? ''));
-        require AVPVH_PLUGIN_DIR . ($tab === 'addresses' ? 'admin/address-cleanup.php' : 'admin/merge-members.php');
+        if ($tab === 'addresses') {
+            require AVPVH_PLUGIN_DIR . 'admin/address-cleanup.php';
+        } else {
+            require AVPVH_PLUGIN_DIR . 'admin/merge-members.php';
+        }
     }
 
     public function render_page_permissions(): void {
