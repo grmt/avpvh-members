@@ -53,6 +53,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-name-matcher.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-address-normalizer.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-merge.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-address-cleanup.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-pdok.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-visitor-delete.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory.php';

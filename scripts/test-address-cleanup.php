@@ -119,6 +119,9 @@ check('same number, other street, same city is a move',
 check('same street name in another town is a move',
     $same(place('Kerkstraat', '3', '1234 AB', 'Utrecht'), place('Kerkstraat', '3', '9876 ZZ', 'Groningen')), false);
 
+check('same Dutch postcode and number, city missing',
+    $same(place('Kerkstr', '3', '1234 AB', ''), place('Kerkstraat', '3', '1234AB', 'Utrecht')), true);
+
 $wpdb->open = [
     row(11, 20, '1999-06-01', null, 'J. van Lindenweg', '14'),
     row(12, 20, '2026-01-01', null, 'Johan van Lindeweg', '14'),
