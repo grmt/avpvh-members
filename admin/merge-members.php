@@ -237,95 +237,116 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
 
             <h3><?php esc_html_e('Adressen', 'avpvh-members'); ?></h3>
             <?php
-            $format_address = fn(object $a): string => trim(AVPVH_Address_Normalizer::format_street_line($a) . ", {$a->postal_code} {$a->city}", ' ,');
-            $format_address_date = fn(?string $date, string $empty): string => $date
-                ? wp_date((string) get_option('date_format'), strtotime($date))
-                : $empty;
-            $format_address_period = fn(object $a): string => $format_address_date($a->valid_from, __('onbekend', 'avpvh-members'))
-                . ' – ' . $format_address_date($a->valid_until, __('heden', 'avpvh-members'));
+            // Both records' addresses as one history, the same way and in the
+            // same layout as Adressen opschonen (AVPVH_Address_Cleanup::plan_history()).
+            $keep_member_id = (int) $preview['keep']->id;
+            $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M Y', strtotime($date)) : $empty;
+            $period = fn(?string $from, ?string $until): string => $format_date($from, __('onbekend', 'avpvh-members')) . ' – ' . $format_date($until, __('heden', 'avpvh-members'));
+            AVPVH_Address_Lookup::prefetch(array_merge($preview['addresses']['keep'], $preview['addresses']['remove']));
             ?>
             <p class="description">
-                <?php esc_html_e('Overnemen bewaart de getoonde begin- en einddatum, tenzij je kiest voor afsluiten op vandaag of op een zelfgekozen datum. Bestaande periodes worden niet automatisch ingekort of aaneengesloten; controleer daarom eventuele overlap hieronder.', 'avpvh-members'); ?>
+                <?php esc_html_e('De adressen van beide records samen, zoals bij Adressen opschonen: hetzelfde adres (ook anders geschreven) is één groep, periodes die aansluiten of overlappen worden één regel, en alleen het adres met de laatste begindatum loopt door. Kies per adres de schrijfwijze; een eigen einddatum en "niet overnemen" kan per adres.', 'avpvh-members'); ?>
             </p>
-            <h4><?php esc_html_e('Adreshistorie van het behouden lid', 'avpvh-members'); ?></h4>
-            <?php if (!$preview['addresses']['keep']) : ?>
+            <?php if (!$preview['address_plan']) : ?>
                 <p><em><?php esc_html_e('Geen adressen.', 'avpvh-members'); ?></em></p>
-            <?php else : ?>
-                <table class="widefat striped avpvh-address-history">
-                    <thead>
-                        <tr>
-                            <th><?php esc_html_e('Adres', 'avpvh-members'); ?></th>
+            <?php endif; ?>
+            <?php foreach ($preview['address_plan'] as $group) :
+                $options = AVPVH_Address_Cleanup::spelling_options($group['variants'], $group['rows']);
+                $prefix = 'address_groups[' . $group['id'] . ']';
+                $only_remove = !array_filter($group['rows'], fn($r) => (int) $r->member_id === $keep_member_id);
+                // Per stored row: the period it becomes, or null when it folds into another row.
+                $owner = [];
+                foreach ($group['rows'] as $row) {
+                    $owner[(int) $row->id] = (int) $row->member_id;
+                }
+                $outcome = [];
+                foreach ($group['results'] as $result) {
+                    $ids = $result['ids'];
+                    sort($ids);
+                    $own = array_values(array_filter($ids, fn($id) => $owner[$id] === $keep_member_id));
+                    $target = $own ? $own[0] : $ids[0];
+                    foreach ($ids as $id) {
+                        $outcome[$id] = $id === $target ? $result + ['folded' => count($ids) > 1] : null;
+                    }
+                }
+                ?>
+                <div class="avpvh-address-cleanup card" data-prefix="<?php echo esc_attr($prefix . '[fields]'); ?>" style="max-width:none">
+                    <h4 class="title"><?php echo esc_html(AVPVH_Address_Cleanup::format($options[0]['fields'])); ?></h4>
+                    <table class="widefat striped">
+                        <thead><tr>
+                            <th><?php esc_html_e('Record', 'avpvh-members'); ?></th>
+                            <th><?php esc_html_e('Zoals opgeslagen', 'avpvh-members'); ?></th>
                             <th><?php esc_html_e('Van', 'avpvh-members'); ?></th>
                             <th><?php esc_html_e('Tot', 'avpvh-members'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php foreach ($preview['addresses']['keep'] as $address) : ?>
-                        <tr>
-                            <td><?php echo esc_html($format_address($address)); ?></td>
-                            <td><?php echo esc_html($format_address_date($address->valid_from, __('onbekend', 'avpvh-members'))); ?></td>
-                            <td><?php echo esc_html($format_address_date($address->valid_until, __('heden', 'avpvh-members'))); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
-            <?php if (!$preview['addresses']['remove']) : ?>
-                <p><?php esc_html_e('Het dubbele lid heeft geen adressen.', 'avpvh-members'); ?></p>
-            <?php else : ?>
-                <h4><?php esc_html_e('Adressen van het dubbele lid', 'avpvh-members'); ?></h4>
-                <table class="widefat striped avpvh-address-merge">
-                    <thead><tr>
-                        <th><?php esc_html_e('Adres', 'avpvh-members'); ?></th>
-                        <th><?php esc_html_e('Periode', 'avpvh-members'); ?></th>
-                        <th><?php esc_html_e('Aansluiting op bestaande historie', 'avpvh-members'); ?></th>
-                        <th><?php esc_html_e('Actie', 'avpvh-members'); ?></th>
-                    </tr></thead>
-                    <tbody>
-                    <?php foreach ($preview['addresses']['remove'] as $address) :
-                        $address_id = (int) $address->id;
-                        $default = $preview['address_defaults'][$address_id];
-                        $overlaps = $preview['address_overlaps'][$address_id] ?? [];
-                        ?>
-                        <tr>
-                            <td data-col="<?php esc_attr_e('Adres', 'avpvh-members'); ?>"><?php echo esc_html($format_address($address)); ?></td>
-                            <td data-col="<?php esc_attr_e('Periode', 'avpvh-members'); ?>"><?php echo esc_html($format_address_period($address)); ?></td>
-                            <td data-col="<?php esc_attr_e('Aansluiting', 'avpvh-members'); ?>">
-                                <?php if (!$overlaps) : ?>
-                                    <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('Geen overlap met bekende periodes.', 'avpvh-members'); ?></span>
-                                <?php else : ?>
-                                    <span class="avpvh-address-fit avpvh-address-fit--warning">
-                                        <?php echo esc_html(sprintf(/* translators: %d: number of overlapping periods */ _n('Overlapt met %d bekende periode:', 'Overlapt met %d bekende periodes:', count($overlaps), 'avpvh-members'), count($overlaps))); ?>
-                                    </span>
-                                    <ul class="avpvh-address-overlaps">
-                                        <?php foreach ($overlaps as $overlap) : ?>
-                                            <li><?php echo esc_html($format_address($overlap) . ' (' . $format_address_period($overlap) . ')'); ?></li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <label class="screen-reader-text" for="avpvh-merge-address-<?php echo esc_attr($address->id); ?>"><?php esc_html_e('Actie', 'avpvh-members'); ?></label>
-                                <select id="avpvh-merge-address-<?php echo esc_attr($address->id); ?>" name="addresses[<?php echo esc_attr($address->id); ?>]">
-                                    <option value="move" <?php selected($default, 'move'); ?>><?php esc_html_e('Overnemen — periode behouden', 'avpvh-members'); ?></option>
-                                    <?php if (empty($address->valid_until)) : ?>
-                                        <option value="history" <?php selected($default, 'history'); ?>><?php esc_html_e('Overnemen — afsluiten op vandaag', 'avpvh-members'); ?></option>
+                            <th><?php esc_html_e('Na samenvoegen', 'avpvh-members'); ?></th>
+                        </tr></thead>
+                        <tbody>
+                        <?php foreach ($group['rows'] as $row) :
+                            $result = $outcome[(int) $row->id];
+                            ?>
+                            <tr>
+                                <td><?php echo (int) $row->member_id === $keep_member_id ? esc_html__('Behouden', 'avpvh-members') : esc_html__('Opheffen', 'avpvh-members'); ?></td>
+                                <td><?php echo esc_html(AVPVH_Address_Cleanup::format(AVPVH_Address_Cleanup::fields($row))); ?></td>
+                                <td><?php echo esc_html($format_date($row->valid_from, __('onbekend', 'avpvh-members'))); ?></td>
+                                <td><?php echo esc_html($format_date($row->valid_until, __('heden', 'avpvh-members'))); ?></td>
+                                <td>
+                                    <?php if ($result === null) : ?>
+                                        <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('vervalt (samengevoegd)', 'avpvh-members'); ?></span>
+                                    <?php else : ?>
+                                        <span class="avpvh-result-address"><?php echo esc_html(AVPVH_Address_Cleanup::format($options[0]['fields'])); ?></span>,
+                                        <strong><?php echo esc_html($period($result['from'], $result['until'])); ?></strong>
+                                        <?php if ($result['folded']) : ?>
+                                            <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('samengevoegd', 'avpvh-members'); ?></span>
+                                        <?php endif; ?>
+                                        <?php if ($result['closed']) : ?>
+                                            <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('afgesloten: er is een nieuwer adres', 'avpvh-members'); ?></span>
+                                        <?php endif; ?>
                                     <?php endif; ?>
-                                    <option value="close"><?php esc_html_e('Overnemen — afsluiten op datum…', 'avpvh-members'); ?></option>
-                                    <option value="delete" <?php selected($default, 'delete'); ?>><?php esc_html_e('Niet overnemen', 'avpvh-members'); ?></option>
-                                </select>
-                                <label class="avpvh-address-close-date" hidden>
-                                    <span class="screen-reader-text"><?php esc_html_e('Einddatum', 'avpvh-members'); ?></span>
-                                    <input type="date" name="address_until[<?php echo esc_attr($address->id); ?>]"
-                                        value="<?php echo esc_attr($address->valid_until ?: current_time('Y-m-d')); ?>"
-                                        <?php echo $address->valid_from ? 'min="' . esc_attr($address->valid_from) . '"' : ''; ?>>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+
+                    <?php if (count($options) > 1) : ?>
+                        <fieldset style="margin-top:1em">
+                            <legend><strong><?php esc_html_e('Schrijfwijze', 'avpvh-members'); ?></strong></legend>
+                            <?php foreach ($options as $i => $option) : ?>
+                                <label style="display:block">
+                                    <input type="radio" name="<?php echo esc_attr($prefix . '[variant]'); ?>" class="avpvh-address-variant" <?php checked($i, 0); ?>
+                                        data-fields="<?php echo esc_attr((string) wp_json_encode($option['fields'])); ?>">
+                                    <?php echo esc_html(AVPVH_Address_Cleanup::option_label($option)); ?>
                                 </label>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
+                            <?php endforeach; ?>
+                        </fieldset>
+                    <?php endif; ?>
+
+                    <p class="avpvh-address-cleanup-fields">
+                        <?php foreach ([
+                            'street'                => [__('Straat', 'avpvh-members'), 24],
+                            'house_number'          => [__('Huisnummer', 'avpvh-members'), 6],
+                            'house_number_addition' => [__('Toevoeging', 'avpvh-members'), 4],
+                            'postal_code'           => [__('Postcode', 'avpvh-members'), 8],
+                            'city'                  => [__('Plaats', 'avpvh-members'), 16],
+                        ] as $field => [$label, $size]) : ?>
+                            <label><?php echo esc_html($label); ?>
+                                <input type="text" name="<?php echo esc_attr($prefix . '[fields][' . $field . ']'); ?>" size="<?php echo esc_attr((string) $size); ?>" value="<?php echo esc_attr($options[0]['fields'][$field]); ?>">
+                            </label>
+                        <?php endforeach; ?>
+                    </p>
+                    <p>
+                        <label><?php esc_html_e('Eigen einddatum (optioneel, laatste periode)', 'avpvh-members'); ?>
+                            <input type="date" name="<?php echo esc_attr($prefix . '[until]'); ?>">
+                        </label>
+                        <?php if ($only_remove) : ?>
+                            <label style="margin-left:1em">
+                                <input type="checkbox" name="<?php echo esc_attr($prefix . '[drop]'); ?>" value="1">
+                                <?php esc_html_e('Niet overnemen', 'avpvh-members'); ?>
+                            </label>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            <?php endforeach; ?>
 
             <h3><?php esc_html_e('Wat er verder meegaat', 'avpvh-members'); ?></h3>
             <?php

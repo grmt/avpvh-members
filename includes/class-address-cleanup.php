@@ -66,6 +66,137 @@ class AVPVH_Address_Cleanup {
     }
 
     /**
+     * The spelling choices for one address: the stored variants (most
+     * common first, see variants()) with the official spelling of its
+     * register first, marked by source, when the register knows the
+     * address and it is recognizably this one; failing that, a Dutch
+     * postcode's single street confirms the street's spelling
+     * ('street_official'). Each option: fields, count, official (source or
+     * ''), street_official.
+     */
+    public static function spelling_options(array $variants, array $rows): array {
+        $official = null;
+        foreach ($rows as $row) {
+            $found = AVPVH_Address_Lookup::lookup($row);
+            if ($found && self::probably_same_address((object) $found['fields'], $row)) {
+                $official = $found;
+                break;
+            }
+        }
+        // No whole address in the BAG (a number that no longer exists, say):
+        // the street of a Dutch postcode still confirms the street's spelling.
+        $street = null;
+        foreach ($official ? [] : $rows as $row) {
+            $found = in_array(AVPVH_Address_Normalizer::canonical_country((string) $row->country), ['', 'Nederland'], true)
+                ? AVPVH_PDOK::street_of_postcode((string) $row->postal_code) : null;
+            $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
+            similar_text($compact((string) $row->street), $compact($found['street'] ?? ''), $percent);
+            if ($found && $percent >= 75) {
+                $street = $found;
+                break;
+            }
+        }
+        $options = array_map(fn($v) => $v + [
+            'official' => $official && $v['fields'] === $official['fields'] ? $official['source'] : '',
+            'street_official' => $street && $v['fields']['street'] === $street['street'],
+        ], $variants);
+        if ($official && !array_filter($options, fn($o) => $o['official'] !== '')) {
+            $options[] = ['fields' => $official['fields'], 'count' => 0, 'official' => $official['source'], 'street_official' => false];
+        }
+        if ($street && !array_filter($options, fn($o) => $o['street_official'])) {
+            $options[] = ['fields' => ['street' => $street['street'], 'city' => $street['city']] + $variants[0]['fields'], 'count' => 0, 'official' => '', 'street_official' => true];
+        }
+        $rank = fn(array $o): int => $o['official'] !== '' ? 2 : (int) $o['street_official'];
+        usort($options, fn($a, $b) => $rank($b) <=> $rank($a));
+        return $options;
+    }
+
+    public static function option_label(array $option): string {
+        $label = self::format($option['fields']);
+        if ($option['official'] !== '') {
+            /* translators: %s: register name */
+            return $label . ' — ' . sprintf(__('officieel (%s)', 'avpvh-members'), $option['official']);
+        }
+        return $option['street_official'] ? $label . ' — ' . __('straatnaam officieel (BAG); huisnummer niet in de BAG', 'avpvh-members') : $label;
+    }
+
+    /**
+     * One person's address history planned from $rows (of one member, or
+     * of two records being merged): grouped per address (match_key(), or
+     * recognizably the same address with a typo), each group's periods that
+     * touch or overlap folded into one (earliest start, latest end; a gap
+     * keeps them apart: moved away and back), and only the newest start
+     * left running on — the others end the day before it. Returns groups:
+     * ['id' => short stable id, 'rows', 'variants', 'results' => [['ids',
+     * 'from', 'until', 'closed' => ended by the one-open rule]]].
+     */
+    public static function plan_history(array $rows): array {
+        $groups = [];
+        foreach ($rows as $row) {
+            $home = null;
+            foreach ($groups as $i => $group) {
+                foreach ($group as $other) {
+                    $key = AVPVH_Address_Normalizer::match_key($row);
+                    if (($key !== '' && $key === AVPVH_Address_Normalizer::match_key($other)) || self::probably_same_address($row, $other)) {
+                        $home = $i;
+                        break 2;
+                    }
+                }
+            }
+            if ($home === null) {
+                $groups[] = [$row];
+            } else {
+                $groups[$home][] = $row;
+            }
+        }
+
+        $plan = [];
+        foreach ($groups as $group_rows) {
+            $results = [];
+            foreach (self::runs($group_rows) as $run) {
+                $froms = array_column($run, 'valid_from');
+                $untils = array_column($run, 'valid_until');
+                $results[] = [
+                    'ids'    => array_map(fn($r) => (int) $r->id, $run),
+                    'from'   => in_array(null, $froms, true) ? null : min($froms),
+                    'until'  => in_array(null, $untils, true) ? null : max($untils),
+                    'closed' => false,
+                ];
+            }
+            $ids = array_map(fn($r) => (int) $r->id, $group_rows);
+            sort($ids);
+            $plan[] = [
+                'id'       => substr(hash('sha256', implode(',', $ids)), 0, 10),
+                'rows'     => $group_rows,
+                'variants' => self::variants($group_rows),
+                'results'  => $results,
+            ];
+        }
+
+        // Only the newest start stays open; without one clear newest start
+        // (no date, or a tie) nothing is closed.
+        $open = [];
+        foreach ($plan as $g => $group) {
+            foreach ($group['results'] as $r => $result) {
+                if ($result['until'] === null) {
+                    $open[] = [$g, $r, $result['from']];
+                }
+            }
+        }
+        $starts = array_filter(array_column($open, 2));
+        $newest = $starts ? max($starts) : null;
+        if (count($open) > 1 && $newest !== null && count(array_keys(array_column($open, 2), $newest, true)) === 1) {
+            foreach ($open as [$g, $r, $from]) {
+                if ($from !== $newest) {
+                    $plan[$g]['results'][$r]['until'] = gmdate('Y-m-d', strtotime($newest . ' -1 day'));
+                    $plan[$g]['results'][$r]['closed'] = true;
+                }
+            }
+        }
+        return $plan;
+    }
+
+    /**
      * Members with more than one address running on to the present (no end
      * date) that are different addresses: only one may. Keyed by member id:
      * 'rows', 'keep' (id of the row with the latest start date, or null when

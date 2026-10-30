@@ -249,24 +249,9 @@ class AVPVH_Member_Merge {
             'keep'   => AVPVH_DB::get_addresses($keep_id),
             'remove' => AVPVH_DB::get_addresses($remove_id),
         ];
-        // Only one address may run on to the present: the kept member's own,
-        // otherwise the newest open one of the duplicate; others close today.
-        $keep_has_current = (bool) array_filter($addresses['keep'], fn($a) => empty($a->valid_until));
-        $open_remove = array_filter($addresses['remove'], fn($a) => empty($a->valid_until)
-            && !array_filter($addresses['keep'], fn($k) => self::address_key($k) === self::address_key($a)));
-        usort($open_remove, fn($a, $b) => strcmp((string) $b->valid_from, (string) $a->valid_from));
-        $stays_open = $keep_has_current || !$open_remove ? 0 : (int) $open_remove[0]->id;
-        $address_defaults = [];
-        $address_overlaps = [];
-        foreach ($addresses['remove'] as $address) {
-            $duplicate = (bool) array_filter($addresses['keep'], fn($a) => self::address_key($a) === self::address_key($address));
-            $closes = empty($address->valid_until) && (int) $address->id !== $stays_open;
-            $address_defaults[(int) $address->id] = $duplicate ? 'delete' : ($closes ? 'history' : 'move');
-            $address_overlaps[(int) $address->id] = array_values(array_filter(
-                $addresses['keep'],
-                fn($keep_address) => self::address_periods_overlap($keep_address, $address)
-            ));
-        }
+        // Both records' addresses as one history, planned the same way as
+        // Adressen opschonen: per address, touching periods folded, one open.
+        $address_plan = AVPVH_Address_Cleanup::plan_history(array_merge($addresses['keep'], $addresses['remove']));
 
         $participation = [];
         foreach (AVPVH_DB::get_activities_for_member($remove_id) as $row) {
@@ -316,8 +301,7 @@ class AVPVH_Member_Merge {
             'email'            => $email,
             'fields'           => $fields,
             'addresses'        => $addresses,
-            'address_defaults' => $address_defaults,
-            'address_overlaps' => $address_overlaps,
+            'address_plan'     => $address_plan,
             'participation'    => $participation,
             'fees'             => $fees,
             'counts'           => array_filter($counts),
@@ -330,8 +314,9 @@ class AVPVH_Member_Merge {
     }
 
     /**
-     * $choices: ['fields' => [field => 'keep'|'remove'], 'addresses' => [id => 'move'|'history'|'close'|'delete'],
-     * 'address_until' => [id => 'Y-m-d', for 'close'], 'email' => see resolve_email()].
+     * $choices: ['fields' => [field => 'keep'|'remove'|'custom'], 'name_custom' => [first_name, suffix, last_name],
+     * 'address_groups' => [group id => ['fields' => spelling, 'drop' => bool, 'until' => 'Y-m-d' or '']],
+     * 'email' => see resolve_email()].
      * Returns ['warnings' => post-commit problems, 'notes' => what happened to the e-mail addresses].
      */
     public static function execute(int $keep_id, int $remove_id, array $choices, string $fingerprint): array|\WP_Error {
@@ -361,33 +346,13 @@ class AVPVH_Member_Merge {
             return new \WP_Error('email_taken', sprintf(/* translators: %s: e-mail address */ __('%s is al een inlogadres van een ander lid.', 'avpvh-members'), $email['primary']));
         }
 
-        $address_until = [];
-        foreach ($preview['addresses']['remove'] as $address) {
-            $address_id = (int) $address->id;
-            if (($choices['addresses'][$address_id] ?? '') !== 'close') {
-                continue;
+        $address_choices = [];
+        foreach ($preview['address_plan'] as $group) {
+            $choice = self::address_choice($group, $choices['address_groups'][$group['id']] ?? [], $keep_id);
+            if (is_wp_error($choice)) {
+                return $choice;
             }
-            $until = (string) ($choices['address_until'][$address_id] ?? '');
-            $parsed = \DateTime::createFromFormat('!Y-m-d', $until);
-            if (!$parsed || $parsed->format('Y-m-d') !== $until) {
-                return new \WP_Error('address_until', sprintf(/* translators: %s: address */ __('Geef een geldige einddatum op voor %s.', 'avpvh-members'), self::format_address($address)));
-            }
-            if ($address->valid_from && $until < $address->valid_from) {
-                return new \WP_Error('address_until', sprintf(/* translators: %s: address */ __('De einddatum voor %s ligt vóór de begindatum.', 'avpvh-members'), self::format_address($address)));
-            }
-            $address_until[$address_id] = $until;
-        }
-
-        // Judged on what the merge adds: a kept member who already has two
-        // open addresses (old data) can still be merged.
-        $keep_open = (bool) array_filter($preview['addresses']['keep'], fn($a) => empty($a->valid_until));
-        $moved_open = 0;
-        foreach ($preview['addresses']['remove'] as $address) {
-            $action = $choices['addresses'][(int) $address->id] ?? $preview['address_defaults'][(int) $address->id];
-            $moved_open += (int) ($action === 'move' && empty($address->valid_until));
-        }
-        if ($moved_open > ($keep_open ? 0 : 1)) {
-            return new \WP_Error('open_addresses', __('Er kan maar één adres doorlopen tot heden. Kies bij de andere doorlopende adressen "afsluiten op vandaag" of "afsluiten op datum…", of neem ze niet over.', 'avpvh-members'));
+            $address_choices[$group['id']] = $choice;
         }
 
         $updates = [];
@@ -421,21 +386,8 @@ class AVPVH_Member_Merge {
                 }
             }
 
-            $today = current_time('Y-m-d');
-            foreach ($preview['addresses']['remove'] as $address) {
-                $address_id = (int) $address->id;
-                $action = $choices['addresses'][$address_id] ?? $preview['address_defaults'][$address_id];
-                if ($action === 'delete') {
-                    self::check($wpdb->delete("{$p}avm_addresses", ['id' => $address_id]), 'adres verwijderen');
-                    continue;
-                }
-                $data = ['member_id' => $keep_id];
-                if ($action === 'history' && empty($address->valid_until)) {
-                    $data['valid_until'] = $today;
-                } elseif ($action === 'close' && isset($address_until[$address_id])) {
-                    $data['valid_until'] = $address_until[$address_id];
-                }
-                self::check($wpdb->update("{$p}avm_addresses", $data, ['id' => $address_id]), 'adres overzetten');
+            foreach ($preview['address_plan'] as $group) {
+                self::apply_address_group($group, $address_choices[$group['id']], $keep_id);
             }
 
             self::merge_participation($keep_id, $remove_id);
@@ -833,10 +785,6 @@ class AVPVH_Member_Merge {
         return $value === null ? '' : (string) $value;
     }
 
-    /** Same-address key shared with the household check; '' (no street) never counts as a duplicate. */
-    private static function address_key(object $address): string {
-        return AVPVH_Address_Normalizer::match_key($address) ?: 'id:' . (int) $address->id;
-    }
 
     /**
      * A merge can change the kept account's login e-mail and deletes the
@@ -858,6 +806,75 @@ class AVPVH_Member_Merge {
             }
         }
         return false;
+    }
+
+    /**
+     * What to do with one address group of the plan: the chosen spelling
+     * (still recognizably this address), "niet overnemen" (only for a group
+     * that is the duplicate's alone) and an own end date for its latest
+     * period.
+     */
+    private static function address_choice(array $group, array $posted, int $keep_id): array|\WP_Error {
+        $label = AVPVH_Address_Cleanup::format($group['variants'][0]['fields']);
+        $only_remove = !array_filter($group['rows'], fn($r) => (int) $r->member_id === $keep_id);
+        $fields = $group['variants'][0]['fields'];
+        if (!empty($posted['fields']) && is_array($posted['fields'])) {
+            $cleaned = AVPVH_Address_Normalizer::clean(array_intersect_key($posted['fields'], array_flip(AVPVH_Address_Cleanup::FIELDS)) + ['country' => $group['rows'][0]->country]);
+            $fields = [];
+            foreach (AVPVH_Address_Cleanup::FIELDS as $field) {
+                $fields[$field] = (string) ($cleaned[$field] ?? '');
+            }
+            $same = array_filter($group['rows'], fn($row) => AVPVH_Address_Normalizer::match_key($fields) === AVPVH_Address_Normalizer::match_key($row)
+                || AVPVH_Address_Cleanup::probably_same_address((object) $fields, $row));
+            if (!$same) {
+                /* translators: %s: address */
+                return new \WP_Error('address', sprintf(__('De schrijfwijze bij %s is een ander adres geworden. Kies daar alleen de schrijfwijze.', 'avpvh-members'), $label));
+            }
+        }
+        $until = trim((string) ($posted['until'] ?? ''));
+        $latest = end($group['results']);
+        if ($until !== '') {
+            $parsed = \DateTime::createFromFormat('!Y-m-d', $until);
+            if (!$parsed || $parsed->format('Y-m-d') !== $until || ($latest['from'] !== null && $until < $latest['from'])) {
+                /* translators: %s: address */
+                return new \WP_Error('address_until', sprintf(__('Geef bij %s een geldige einddatum op, niet vóór de begindatum.', 'avpvh-members'), $label));
+            }
+        }
+        return ['drop' => $only_remove && !empty($posted['drop']), 'fields' => $fields, 'until' => $until !== '' ? $until : null];
+    }
+
+    /**
+     * Writes one planned address group: each folded period becomes one row
+     * of the kept member (preferably a row that was already theirs) in the
+     * chosen spelling, the other rows of that period go.
+     */
+    private static function apply_address_group(array $group, array $choice, int $keep_id): void {
+        global $wpdb;
+        $table = "{$wpdb->prefix}avm_addresses";
+        if ($choice['drop']) {
+            foreach ($group['rows'] as $row) {
+                self::check($wpdb->delete($table, ['id' => (int) $row->id]), 'adres verwijderen');
+            }
+            return;
+        }
+        $rows = [];
+        foreach ($group['rows'] as $row) {
+            $rows[(int) $row->id] = $row;
+        }
+        $last = count($group['results']) - 1;
+        foreach ($group['results'] as $i => $result) {
+            $ids = $result['ids'];
+            sort($ids);
+            $own = array_values(array_filter($ids, fn($id) => (int) $rows[$id]->member_id === $keep_id));
+            $target = $own ? $own[0] : $ids[0];
+            $until = $i === $last && $choice['until'] !== null ? $choice['until'] : $result['until'];
+            self::check($wpdb->update($table, $choice['fields'] + [
+                'member_id' => $keep_id, 'valid_from' => $result['from'], 'valid_until' => $until,
+            ], ['id' => $target]), 'adres overzetten');
+            foreach (array_diff($ids, [$target]) as $id) {
+                self::check($wpdb->delete($table, ['id' => $id]), 'dubbel adres verwijderen');
+            }
+        }
     }
 
     private static function format_address(object $address): string {

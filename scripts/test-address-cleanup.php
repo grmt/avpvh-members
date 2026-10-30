@@ -134,4 +134,26 @@ $conflicts = AVPVH_Address_Cleanup::find_open_conflicts();
 check('typo pair is flagged, not closed', [$conflicts[20]['same_place'], $conflicts[20]['keep'], $conflicts[20]['close']], [true, null, []]);
 check('both spellings offered', count($conflicts[20]['variants']), 2);
 
+// plan_history(): two records' rows as one history.
+$plan = AVPVH_Address_Cleanup::plan_history([
+    row(1, 7, '1992-01-01', '1993-09-30', 'Dorpsstraat', '5'),          // kept record, old address
+    row(2, 7, '1993-10-01', '2024-12-31', 'Kerkstraat', '1'),           // kept record
+    row(3, 8, '1993-10-01', '1993-12-30', 'Kerkstr', '1'),              // duplicate, same address abbreviated
+    row(4, 8, '1993-12-31', null, 'Kerkstraat', '1'),                   // duplicate, same address, still open
+    row(5, 8, '2025-01-01', null, 'Molenweg', '9'),                     // duplicate, newest address
+]);
+$by_street = [];
+foreach ($plan as $g) {
+    $by_street[$g['variants'][0]['fields']['street']] = $g;
+}
+check('three addresses, spelling variants grouped', array_keys($by_street), ['Dorpsstraat', 'Kerkstraat', 'Molenweg']);
+check('touching periods of both records fold into one', array_map(fn($r) => [$r['ids'], $r['from'], $r['until']], $by_street['Kerkstraat']['results']),
+    [[[2, 3, 4], '1993-10-01', '2024-12-31']]);
+check('only the newest start stays open; the folded open period ends the day before', [$by_street['Molenweg']['results'][0]['until'], $by_street['Kerkstraat']['results'][0]['closed']], [null, true]);
+$plan = AVPVH_Address_Cleanup::plan_history([row(1, 7, '2000-01-01', null, 'Kerkstraat', '1'), row(2, 8, '2010-01-01', null, 'Molenweg', '9')]);
+$results = array_merge(...array_column($plan, 'results'));
+check('an older open address ends the day before the newest starts', array_map(fn($r) => [$r['until'], $r['closed']], $results), [['2009-12-31', true], [null, false]]);
+$plan = AVPVH_Address_Cleanup::plan_history([row(1, 7, '1990-01-01', '1991-01-01', 'Kerkstraat', '1'), row(2, 7, '2000-01-01', null, 'Kerkstraat', '1')]);
+check('a gap keeps two periods of one address apart (moved away and back)', count($plan[0]['results']), 2);
+
 echo "Address cleanup tests: OK\n";
