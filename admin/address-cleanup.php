@@ -139,6 +139,7 @@ $next_field = fn(string $anchor): string => '<input type="hidden" name="next_anc
                                             <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('nieuwe einddatum', 'avpvh-members'); ?></span>
                                         <?php else : ?>
                                             <?php esc_html_e('heden', 'avpvh-members'); ?>
+                                            <?php echo AVPVH_Address_Cleanup::outdated_badge($row, (string) $row->status); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside ?>
                                             <?php if ($id === $conflict['keep']) : ?>
                                                 <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('blijft doorlopen', 'avpvh-members'); ?></span>
                                             <?php elseif ($conflict['same_place']) : ?>
@@ -284,6 +285,7 @@ $next_field = fn(string $anchor): string => '<input type="hidden" name="next_anc
                         <td><?php echo esc_html($format_date($row->valid_from, __('onbekend', 'avpvh-members'))); ?></td>
                         <td>
                             <?php echo esc_html($format_date($row->valid_until, __('heden', 'avpvh-members'))); ?>
+                            <?php echo AVPVH_Address_Cleanup::outdated_badge($row, (string) $row->status); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside ?>
                             <?php if ($in_run) : ?>
                                 <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('dubbel', 'avpvh-members'); ?></span>
                             <?php endif; ?>

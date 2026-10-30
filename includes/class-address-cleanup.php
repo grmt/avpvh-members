@@ -24,7 +24,7 @@ class AVPVH_Address_Cleanup {
     public static function find_groups(): array {
         global $wpdb;
         $rows = $wpdb->get_results(
-            "SELECT a.*, m.first_name, m.suffix, m.last_name
+            "SELECT a.*, m.first_name, m.suffix, m.last_name, m.status
              FROM {$wpdb->prefix}avm_addresses a
              JOIN {$wpdb->prefix}avm_members m ON m.id = a.member_id
              WHERE a.street <> ''
@@ -109,6 +109,20 @@ class AVPVH_Address_Cleanup {
         $rank = fn(array $o): int => $o['official'] !== '' ? 2 : (int) $o['street_official'];
         usort($options, fn($a, $b) => $rank($b) <=> $rank($a));
         return $options;
+    }
+
+    /**
+     * "ex-lid: adres mogelijk verouderd" for an address of an ex-member that
+     * still runs on to the present: mostly the last address an old
+     * ledenlijst gave, kept as it is because when it ended isn't known.
+     * '' for anything else.
+     */
+    public static function outdated_badge(object $address, string $status): string {
+        if ($address->valid_until !== null || $status !== 'inactive') {
+            return '';
+        }
+        return '<span class="avpvh-address-fit avpvh-address-fit--warning" title="' . esc_attr__('Ex-lid: het laatst bekende adres, waarschijnlijk uit een oude ledenlijst. Wanneer het eindigde is niet bekend.', 'avpvh-members') . '">'
+            . esc_html__('ex-lid: adres mogelijk verouderd', 'avpvh-members') . '</span>';
     }
 
     public static function option_label(array $option): string {
@@ -207,7 +221,7 @@ class AVPVH_Address_Cleanup {
     public static function find_open_conflicts(): array {
         global $wpdb;
         $rows = $wpdb->get_results(
-            "SELECT a.*, m.first_name, m.suffix, m.last_name
+            "SELECT a.*, m.first_name, m.suffix, m.last_name, m.status
              FROM {$wpdb->prefix}avm_addresses a
              JOIN {$wpdb->prefix}avm_members m ON m.id = a.member_id
              WHERE a.valid_until IS NULL

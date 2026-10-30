@@ -466,7 +466,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <input type="hidden" name="id" value="<?php echo esc_attr($a->id); ?>">
                     <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
                     <td><label class="screen-reader-text" for="avpvh-address-from-<?php echo esc_attr($a->id); ?>"><?php esc_html_e('Geldig vanaf', 'avpvh-members'); ?></label><input type="date" id="avpvh-address-from-<?php echo esc_attr($a->id); ?>" name="valid_from" value="<?php echo esc_attr($a->valid_from); ?>" style="width:9.5em"></td>
-                    <td><label class="screen-reader-text" for="avpvh-address-until-<?php echo esc_attr($a->id); ?>"><?php esc_html_e('Geldig tot', 'avpvh-members'); ?></label><input type="date" id="avpvh-address-until-<?php echo esc_attr($a->id); ?>" name="valid_until" value="<?php echo esc_attr($a->valid_until); ?>" style="width:9.5em"></td>
+                    <td><label class="screen-reader-text" for="avpvh-address-until-<?php echo esc_attr($a->id); ?>"><?php esc_html_e('Geldig tot', 'avpvh-members'); ?></label><input type="date" id="avpvh-address-until-<?php echo esc_attr($a->id); ?>" name="valid_until" value="<?php echo esc_attr($a->valid_until); ?>" style="width:9.5em">
+                        <?php echo AVPVH_Address_Cleanup::outdated_badge($a, (string) $member->status); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside ?></td>
                     <td>
                         <button type="submit" class="button button-small"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button>
                 </form>
