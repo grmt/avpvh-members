@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.28';
+    const SCHEMA_VERSION = '2.29';
 
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
@@ -854,6 +854,12 @@ class AVPVH_DB {
             // country prefix, Belgian/Luxembourg numbers out of the street.
             self::normalize_stored_addresses();
             update_option('avpvh_db_version', '2.28');
+        }
+        if (version_compare($version, '2.29', '<')) {
+            // Same pass again: clean() now also takes a number with a floor
+            // note ("Lei 19 (2e v.)") out of a Belgian street.
+            self::normalize_stored_addresses();
+            update_option('avpvh_db_version', '2.29');
         }
     }
 

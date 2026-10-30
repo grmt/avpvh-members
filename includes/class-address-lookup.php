@@ -68,10 +68,15 @@ class AVPVH_Address_Lookup {
         ], 'strlen');
         $data = self::get_json(self::FLANDERS_URL . '?' . http_build_query($query));
         $want = AVPVH_Address_Normalizer::normalize_house_number((string) $address['house_number'], $letter);
+        // A floor note ("2e v.") isn't in the register; it stays as stored.
+        $kept_addition = $letter === '' && $bus === '' ? (string) $address['house_number_addition'] : '';
         $found = [];
         foreach ($data['adresMatches'] ?? [] as $match) {
             $number = (string) ($match['huisnummer'] ?? '');
+            // The fuzzy match also offers the same number in other streets
+            // and postcodes; only this postcode counts.
             if (($match['adresStatus'] ?? '') !== 'inGebruik' || ($match['score'] ?? 0) < 80
+                || (string) ($match['postinfo']['objectId'] ?? '') !== (string) $address['postal_code']
                 || AVPVH_Address_Normalizer::normalize_house_number($number) !== $want
                 || ($bus !== '' && ($match['busnummer'] ?? '') !== '' && strcasecmp((string) $match['busnummer'], $bus) !== 0)) {
                 continue;
@@ -80,7 +85,7 @@ class AVPVH_Address_Lookup {
             $fields = [
                 'street'                => (string) ($match['straatnaam']['straatnaam']['geografischeNaam']['spelling'] ?? ''),
                 'house_number'          => $official_number,
-                'house_number_addition' => $bus !== '' ? 'BUS' . strtoupper($bus) : $official_letter,
+                'house_number_addition' => $bus !== '' ? 'BUS' . strtoupper($bus) : ($official_letter !== '' ? $official_letter : $kept_addition),
                 'postal_code'           => (string) ($match['postinfo']['objectId'] ?? ''),
                 // The register names the municipality ("Antwerpen"); the
                 // post uses the town ("Berchem"), so a stored town stays.

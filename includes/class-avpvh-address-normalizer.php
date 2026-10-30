@@ -101,11 +101,11 @@ class AVPVH_Address_Normalizer {
 
     /**
      * [street, number] from a street that still holds its number: at the
-     * end ("Kerkstraat 12", "Kerkstraat 12 bus 3") or in front, French
-     * style ("12, rue Haute"). Unchanged with no number found.
+     * end ("Kerkstraat 12", "Kerkstraat 12 bus 3", "Lei 19 (2e v.)") or in
+     * front, French style ("12, rue Haute"). Unchanged with no number found.
      */
     public static function number_from_street(string $street): array {
-        if (preg_match('/^(.*?\D)\s+(\d+\w*(?:\s*(?:bus|bte|boite|boîte)\s*\w+)?)$/iu', $street, $m)) {
+        if (preg_match('/^(.*?\D)\s+(\d+\w*(?:\s*(?:bus|bte|boite|boîte)\s*\w+)?(?:\s*\([^)]*\))?)$/iu', $street, $m)) {
             return [trim($m[1], ' ,'), $m[2]];
         }
         if (preg_match('/^(\d+\w?)\s*,?\s+(\D.*)$/u', $street, $m)) {
@@ -135,7 +135,7 @@ class AVPVH_Address_Normalizer {
      */
     public static function normalize_addition(string $addition): string {
         $folded = str_replace(' ', '', self::fold($addition));
-        $floor = '(?:hoog|hg|h|e|ste|de|etage|verdieping)?';
+        $floor = '(?:hoog|hg|h|e|ste|de|etage|verdieping|ev|everd|everdieping)?';
         $romans = ['i' => '1', 'ii' => '2', 'iii' => '3', 'iv' => '4', 'v' => '5', 'vi' => '6'];
         if (preg_match('/^0*(\d+)' . $floor . '$/', $folded, $a)) {
             return $a[1];
@@ -190,8 +190,8 @@ class AVPVH_Address_Normalizer {
 
     /**
      * Comparison key. With a Dutch postcode, "postcode|number": postcode and
-     * house number pin the address down, so street spellings ("3e
-     * Weteringdwarsstr" vs "...straat") don't matter. Otherwise
+     * house number pin the address down, so street spellings ("2e
+     * Molendwarsstr" vs "...straat") don't matter. Otherwise
      * "postcode|number|street", with spaces dropped inside the postcode and
      * street. City and country are left out in both cases: city is often
      * missing or spelled differently ("Den Bosch", "A'dam"). Returns '' when

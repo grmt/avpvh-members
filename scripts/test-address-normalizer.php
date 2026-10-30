@@ -55,7 +55,7 @@ check('plain number', $hn(' 40 '), '40');
 check('no number', $hn('ong.'), 'ong');
 
 check('Dutch postcode: street abbreviation ignored',
-    $key(addr('3e Weteringdwarsstr', '19a', '1017 AA', "A'dam")), $key(addr('3e Weteringdwarsstraat', '19 A', '1017AA', 'Amsterdam')));
+    $key(addr('2e Molendwarsstr', '7a', '1234 AB', "A'dam")), $key(addr('2e Molendwarsstraat', '7 A', '1234AB', 'Amsterdam')));
 check('Dutch postcode: floor notations match',
     $key(addr('Kerkstraat', '40-1', '1234 AB')), $key(addr('Kerkstraat', '40 1 hoog', '1234AB')));
 check('Dutch postcode: 40-1 is not 401',
@@ -109,6 +109,8 @@ check('Dutch street with digits is left alone', [$c['street'], $c['house_number'
 $c = $be(['street' => 'Kerkstraat 5', 'house_number' => '7']);
 check('number already set: street left alone', [$c['street'], $c['house_number']], ['Kerkstraat 5', '7']);
 check('bte is a bus', AVPVH_Address_Normalizer::normalize_addition('bte 4'), 'BUS4');
+$c = $be(['street' => 'Lindenlei 19 (2e v.)', 'house_number' => '']);
+check('Belgian number with a floor note', [$c['street'], $c['house_number'], $c['house_number_addition']], ['Lindenlei', '19', '2']);
 check('bus displayed Belgian style', $fmt('12', 'BUS3'), '12 bus 3');
 
 $clean = AVPVH_Address_Normalizer::clean(addr(' Kerk  straat ', '1', '1234ab') + ['country' => 'Nederland', 'valid_from' => '2026-01-01']);
