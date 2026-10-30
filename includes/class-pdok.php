@@ -88,7 +88,7 @@ class AVPVH_PDOK {
     }
 
     private static function cache_key(string $postcode, string $number): string {
-        return 'avpvh_pdok_' . md5($postcode . '|' . $number);
+        return 'avpvh_pdok_' . substr(hash('sha256', $postcode . '|' . $number), 0, 32);
     }
 
     private static function cached_docs(string $postcode, string $number): ?array {

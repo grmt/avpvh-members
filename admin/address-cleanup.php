@@ -227,7 +227,7 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
     <?php endif; ?>
 
     <?php foreach ($groups as $group) :
-        $form_id = 'avpvh-address-group-' . substr(md5($group['key']), 0, 10);
+        $form_id = 'avpvh-address-group-' . substr(hash('sha256', $group['key']), 0, 10);
         $clustered = array_merge([], ...$group['clusters']);
         $options = $with_official($group['variants'], [$group['rows'][0]]);
         ?>
