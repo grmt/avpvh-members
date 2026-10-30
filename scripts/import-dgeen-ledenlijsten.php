@@ -27,7 +27,9 @@
  * against the country's register (AVPVH_Address_Lookup); a scan or typing
  * slip that is recognizably the same address gets the official spelling.
  * Consecutive snapshots with the same address (match_key()) form one
- * period, until the day before the next snapshot with another address.
+ * period, until the day before the next snapshot with another address;
+ * the last one until the day before the first later edition the person
+ * is missing from (only someone in the newest edition stays open).
  * Two different addresses for one person in the same edition keep the
  * first and report the second. Periods are merged into the existing
  * history: a stored row of the same address around those dates is only
@@ -118,6 +120,8 @@ foreach ($avpvh_dgeen_editions as $edition) {
 }
 ksort($people);
 echo count($people) . ' personen in ' . count($avpvh_dgeen_editions) . " edities\n\n";
+$edition_dates = array_values(array_unique(array_column($avpvh_dgeen_editions, 'datum')));
+sort($edition_dates);
 
 // --- check every scanned address against its register (Dutch ones in parallel) ---
 $scanned = [];
@@ -242,6 +246,15 @@ foreach ($people as $key => $person) {
         // from/until: the period the snapshots imply; seen_*: the editions
         // that actually list this address.
         $periods[] = ['address' => $address, 'from' => $date, 'until' => null, 'seen_from' => $date, 'seen_until' => $date];
+    }
+    // Someone missing from a later edition left the list then: the last
+    // known address ends the day before that edition, it doesn't run on
+    // to the present. Only someone in the newest edition stays open.
+    if ($periods && $last_date !== null) {
+        $later = array_values(array_filter($edition_dates, fn($d) => $d > $last_date));
+        if ($later) {
+            $periods[count($periods) - 1]['until'] = $day_before($later[0]);
+        }
     }
 
     // --- merge into the member's existing history ---

@@ -111,22 +111,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.avpvh-member-combo').forEach(wireMemberCombo);
 
-    // "Afsluiten op datum…" reveals that row's date field.
-    document.querySelectorAll('.avpvh-address-merge select').forEach(function (select) {
-        var dateLabel = select.parentNode.querySelector('.avpvh-address-close-date');
-        if (!dateLabel) return;
-        var dateInput = dateLabel.querySelector('input');
-        function sync() {
-            var show = select.value === 'close';
-            dateLabel.hidden = !show;
-            // Disabled while hidden, so its min= can't block the submit
-            // and an unused date isn't posted.
-            dateInput.disabled = !show;
-            dateInput.required = show;
-        }
-        select.addEventListener('change', sync);
-        sync();
-    });
+    // Typing in the own-name fields selects "Eigen naam".
+    var nameCustom = document.querySelector('.avpvh-merge-name-custom');
+    if (nameCustom) {
+        document.querySelectorAll('.avpvh-merge-name-fields input').forEach(function (input) {
+            input.addEventListener('focus', function () { nameCustom.checked = true; });
+        });
+    }
 
     // Typing a corrected e-mail address selects that option.
     var customEmail = document.getElementById('avpvh-merge-email-custom');
@@ -136,6 +127,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+// An address field of a card: named plainly (Adressen opschonen) or under
+// the card's data-prefix (address groups on the merge page).
+function fieldInput(form, name) {
+    var prefix = form.dataset.prefix;
+    return form.querySelector('input[name="' + (prefix ? prefix + '[' + name + ']' : name) + '"]');
+}
+
 // Adressen opschonen: picking a spelling fills that address's fields,
 // which stay editable for a correction none of the variants has.
 document.addEventListener('DOMContentLoaded', function () {
@@ -144,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
             radio.addEventListener('change', function () {
                 var fields = JSON.parse(radio.dataset.fields);
                 Object.keys(fields).forEach(function (name) {
-                    var input = form.querySelector('input[name="' + name + '"]');
+                    var input = fieldInput(form, name);
                     if (input) input.value = fields[name];
                 });
                 showResult();
@@ -158,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
             results.push(document.getElementById(form.dataset.result));
         }
         function value(name) {
-            var input = form.querySelector('input[name="' + name + '"]');
+            var input = fieldInput(form, name);
             return input ? input.value.trim() : '';
         }
         function houseNumber(number, addition) {

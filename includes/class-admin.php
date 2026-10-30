@@ -1054,17 +1054,22 @@ class AVPVH_Admin {
         $choices = [
             'fields'    => array_filter(
                 array_map('sanitize_key', (array) wp_unslash($_POST['fields'] ?? [])),
-                fn($choice) => in_array($choice, ['keep', 'remove'], true)
+                fn($choice) => in_array($choice, ['keep', 'remove', 'custom'], true)
             ),
-            'addresses' => array_filter(
-                array_map('sanitize_key', (array) wp_unslash($_POST['addresses'] ?? [])),
-                fn($action) => in_array($action, ['move', 'history', 'close', 'delete'], true)
-            ),
+            'name_custom' => array_map('sanitize_text_field', array_intersect_key(
+                (array) wp_unslash($_POST['name_custom'] ?? []),
+                array_flip(['first_name', 'suffix', 'last_name'])
+            )),
+            'address_groups' => [],
         ];
-        $choices['addresses'] = array_combine(array_map('intval', array_keys($choices['addresses'])), $choices['addresses']) ?: [];
-        $choices['address_until'] = [];
-        foreach ((array) wp_unslash($_POST['address_until'] ?? []) as $address_id => $until) {
-            $choices['address_until'][(int) $address_id] = sanitize_text_field((string) $until);
+        // Per address group: chosen spelling, "niet overnemen", own end date.
+        foreach ((array) wp_unslash($_POST['address_groups'] ?? []) as $group_id => $group) {
+            $group = (array) $group;
+            $choices['address_groups'][sanitize_key((string) $group_id)] = [
+                'fields' => array_map('sanitize_text_field', array_intersect_key((array) ($group['fields'] ?? []), array_flip(AVPVH_Address_Cleanup::FIELDS))),
+                'drop'   => !empty($group['drop']),
+                'until'  => sanitize_text_field((string) ($group['until'] ?? '')),
+            ];
         }
         $email_post = (array) wp_unslash($_POST['email'] ?? []);
         $choices['email'] = [

@@ -19,50 +19,8 @@ $proposals = array_filter($conflicts, fn($c) => $c['keep'] !== null);
 // belong to another street); a stored spelling that matches it is marked.
 $same_place_rows = array_merge([], ...array_column(array_filter($conflicts, fn($c) => $c['same_place']), 'rows'));
 AVPVH_Address_Lookup::prefetch(array_merge(array_map(fn($g) => $g['rows'][0], $groups), $same_place_rows));
-$with_official = function (array $variants, array $rows): array {
-    $official = null;
-    foreach ($rows as $row) {
-        $found = AVPVH_Address_Lookup::lookup($row);
-        if ($found && AVPVH_Address_Cleanup::probably_same_address((object) $found['fields'], $row)) {
-            $official = $found;
-            break;
-        }
-    }
-    // No whole address in the BAG (a number that no longer exists, say):
-    // the street of a Dutch postcode still confirms the street's spelling.
-    $street = null;
-    foreach ($official ? [] : $rows as $row) {
-        $found = in_array(AVPVH_Address_Normalizer::canonical_country((string) $row->country), ['', 'Nederland'], true)
-            ? AVPVH_PDOK::street_of_postcode((string) $row->postal_code) : null;
-        $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
-        similar_text($compact((string) $row->street), $compact($found['street'] ?? ''), $percent);
-        if ($found && $percent >= 75) {
-            $street = $found;
-            break;
-        }
-    }
-    $options = array_map(fn($v) => $v + [
-        'official' => $official && $v['fields'] === $official['fields'] ? $official['source'] : '',
-        'street_official' => $street && $v['fields']['street'] === $street['street'],
-    ], $variants);
-    if ($official && !array_filter($options, fn($o) => $o['official'] !== '')) {
-        $options[] = ['fields' => $official['fields'], 'count' => 0, 'official' => $official['source'], 'street_official' => false];
-    }
-    if ($street && !array_filter($options, fn($o) => $o['street_official'])) {
-        $options[] = ['fields' => ['street' => $street['street'], 'city' => $street['city']] + $variants[0]['fields'], 'count' => 0, 'official' => '', 'street_official' => true];
-    }
-    $rank = fn(array $o): int => $o['official'] !== '' ? 2 : (int) $o['street_official'];
-    usort($options, fn($a, $b) => $rank($b) <=> $rank($a));
-    return $options;
-};
-$option_label = function (array $option): string {
-    $label = AVPVH_Address_Cleanup::format($option['fields']);
-    if ($option['official'] !== '') {
-        /* translators: %s: register name */
-        return $label . ' — ' . sprintf(__('officieel (%s)', 'avpvh-members'), $option['official']);
-    }
-    return $option['street_official'] ? $label . ' — ' . __('straatnaam officieel (BAG); huisnummer niet in de BAG', 'avpvh-members') : $label;
-};
+$with_official = [AVPVH_Address_Cleanup::class, 'spelling_options'];
+$option_label = [AVPVH_Address_Cleanup::class, 'option_label'];
 $detail_url = fn(int $id): string => add_query_arg(['page' => 'avpvh-member-detail', 'id' => $id], admin_url('admin.php'));
 $tab_url = fn(string $tab): string => add_query_arg(array_filter(['page' => 'avpvh-merge-members', 'tab' => $tab]), admin_url('admin.php'));
 $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M Y', strtotime($date)) : $empty;
