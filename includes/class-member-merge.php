@@ -216,12 +216,19 @@ class AVPVH_Member_Merge {
             'keep'   => AVPVH_DB::get_addresses($keep_id),
             'remove' => AVPVH_DB::get_addresses($remove_id),
         ];
+        // Only one address may run on to the present: the kept member's own,
+        // otherwise the newest open one of the duplicate; others close today.
         $keep_has_current = (bool) array_filter($addresses['keep'], fn($a) => empty($a->valid_until));
+        $open_remove = array_filter($addresses['remove'], fn($a) => empty($a->valid_until)
+            && !array_filter($addresses['keep'], fn($k) => self::address_key($k) === self::address_key($a)));
+        usort($open_remove, fn($a, $b) => strcmp((string) $b->valid_from, (string) $a->valid_from));
+        $stays_open = $keep_has_current || !$open_remove ? 0 : (int) $open_remove[0]->id;
         $address_defaults = [];
         $address_overlaps = [];
         foreach ($addresses['remove'] as $address) {
             $duplicate = (bool) array_filter($addresses['keep'], fn($a) => self::address_key($a) === self::address_key($address));
-            $address_defaults[(int) $address->id] = $duplicate ? 'delete' : ($keep_has_current && empty($address->valid_until) ? 'history' : 'move');
+            $closes = empty($address->valid_until) && (int) $address->id !== $stays_open;
+            $address_defaults[(int) $address->id] = $duplicate ? 'delete' : ($closes ? 'history' : 'move');
             $address_overlaps[(int) $address->id] = array_values(array_filter(
                 $addresses['keep'],
                 fn($keep_address) => self::address_periods_overlap($keep_address, $address)
@@ -336,6 +343,18 @@ class AVPVH_Member_Merge {
                 return new \WP_Error('address_until', sprintf(/* translators: %s: address */ __('De einddatum voor %s ligt vóór de begindatum.', 'avpvh-members'), self::format_address($address)));
             }
             $address_until[$address_id] = $until;
+        }
+
+        // Judged on what the merge adds: a kept member who already has two
+        // open addresses (old data) can still be merged.
+        $keep_open = (bool) array_filter($preview['addresses']['keep'], fn($a) => empty($a->valid_until));
+        $moved_open = 0;
+        foreach ($preview['addresses']['remove'] as $address) {
+            $action = $choices['addresses'][(int) $address->id] ?? $preview['address_defaults'][(int) $address->id];
+            $moved_open += (int) ($action === 'move' && empty($address->valid_until));
+        }
+        if ($moved_open > ($keep_open ? 0 : 1)) {
+            return new \WP_Error('open_addresses', __('Er kan maar één adres doorlopen tot heden. Kies bij de andere doorlopende adressen "afsluiten op vandaag" of "afsluiten op datum…", of neem ze niet over.', 'avpvh-members'));
         }
 
         $updates = [];

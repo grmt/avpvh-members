@@ -65,6 +65,74 @@ class AVPVH_Address_Cleanup {
         return $groups;
     }
 
+    /**
+     * Members with more than one address running on to the present (no end
+     * date) that are different addresses: only one may. Keyed by member id:
+     * 'rows', 'keep' (id of the row with the latest start date, or null when
+     * there's no single latest one), 'close' (row id => end date: the day
+     * before 'keep' started), 'fingerprint'. Several open rows of the same
+     * address are left to the duplicate folding above.
+     */
+    public static function find_open_conflicts(): array {
+        global $wpdb;
+        $rows = $wpdb->get_results(
+            "SELECT a.*, m.first_name, m.suffix, m.last_name
+             FROM {$wpdb->prefix}avm_addresses a
+             JOIN {$wpdb->prefix}avm_members m ON m.id = a.member_id
+             WHERE a.valid_until IS NULL
+             ORDER BY a.member_id, a.id"
+        ) ?: [];
+        $by_member = [];
+        foreach ($rows as $row) {
+            $by_member[(int) $row->member_id][] = $row;
+        }
+        $conflicts = [];
+        foreach ($by_member as $member_id => $member_rows) {
+            $key = fn(object $r): string => AVPVH_Address_Normalizer::match_key($r) ?: 'id:' . (int) $r->id;
+            if (count(array_unique(array_map($key, $member_rows))) < 2) {
+                continue;
+            }
+            usort($member_rows, fn($a, $b) => strcmp((string) $b->valid_from, (string) $a->valid_from) ?: (int) $b->id <=> (int) $a->id);
+            $newest = $member_rows[0];
+            $others = array_filter($member_rows, fn($r) => $key($r) !== $key($newest));
+            $tie = (string) $newest->valid_from === '' || array_filter($others, fn($r) => $r->valid_from === $newest->valid_from);
+            $until = $tie ? null : gmdate('Y-m-d', strtotime($newest->valid_from . ' -1 day'));
+            $conflicts[$member_id] = [
+                'member_id'   => $member_id,
+                'rows'        => $member_rows,
+                'keep'        => $tie ? null : (int) $newest->id,
+                'close'       => $tie ? [] : array_fill_keys(array_map(fn($r) => (int) $r->id, $others), $until),
+                'fingerprint' => self::fingerprint($member_rows),
+            ];
+        }
+        return $conflicts;
+    }
+
+    /** Ends $member_id's older open addresses as find_open_conflicts() proposes. */
+    public static function close_older(int $member_id, string $fingerprint): array|\WP_Error {
+        global $wpdb;
+        $conflict = self::find_open_conflicts()[$member_id] ?? null;
+        if (!$conflict || !hash_equals($conflict['fingerprint'], $fingerprint)) {
+            return new \WP_Error('stale', __('De adressen van dit lid zijn gewijzigd sinds je de pagina opende. Bekijk ze opnieuw.', 'avpvh-members'));
+        }
+        if ($conflict['keep'] === null) {
+            return new \WP_Error('manual', __('Niet duidelijk welk adres het nieuwste is; zet de einddatum in Ledendetail.', 'avpvh-members'));
+        }
+        $rows = array_column($conflict['rows'], null, 'id');
+        $wpdb->query('START TRANSACTION');
+        try {
+            foreach ($conflict['close'] as $id => $until) {
+                self::check($wpdb->update("{$wpdb->prefix}avm_addresses", ['valid_until' => $until], ['id' => $id]));
+                AVPVH_DB::log_member_change($member_id, 'adres', self::format(self::fields($rows[$id])) . ' (doorlopend)', sprintf(/* translators: %s: end date */ __('afgesloten op %s', 'avpvh-members'), $until));
+            }
+            $wpdb->query('COMMIT');
+        } catch (\Throwable $exception) {
+            $wpdb->query('ROLLBACK');
+            return new \WP_Error('failed', sprintf(/* translators: %s: error message */ __('Afsluiten afgebroken, er is niets gewijzigd: %s', 'avpvh-members'), $exception->getMessage()));
+        }
+        return ['closed' => count($conflict['close'])];
+    }
+
     /** Address fields of a row, as stored. */
     public static function fields(object $row): array {
         $fields = [];

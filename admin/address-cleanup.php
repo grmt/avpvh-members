@@ -10,6 +10,8 @@ if ($result) {
     delete_transient('avpvh_address_cleanup_result_' . get_current_user_id());
 }
 $groups = AVPVH_Address_Cleanup::find_groups();
+$conflicts = AVPVH_Address_Cleanup::find_open_conflicts();
+$proposals = array_filter($conflicts, fn($c) => $c['keep'] !== null);
 $detail_url = fn(int $id): string => add_query_arg(['page' => 'avpvh-member-detail', 'id' => $id], admin_url('admin.php'));
 $tab_url = fn(string $tab): string => add_query_arg(array_filter(['page' => 'avpvh-merge-members', 'tab' => $tab]), admin_url('admin.php'));
 $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M Y', strtotime($date)) : $empty;
@@ -27,6 +29,17 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
     <?php if ($result) : ?>
         <?php if (!empty($result['error'])) : ?>
             <div class="notice notice-error"><p><?php echo esc_html($result['error']); ?></p></div>
+        <?php elseif (!empty($result['open'])) : ?>
+            <div class="notice notice-success"><p>
+                <?php echo esc_html(sprintf(
+                    /* translators: 1: members, 2: addresses closed */
+                    __('Bij %1$d lid/leden %2$d oud(e) adres(sen) afgesloten.', 'avpvh-members'),
+                    $result['members'], $result['closed']
+                )); ?>
+                <?php if ($result['skipped']) : ?>
+                    <?php echo esc_html(sprintf(/* translators: %d: number of members */ __('%d lid/leden overgeslagen omdat hun adressen intussen gewijzigd waren.', 'avpvh-members'), $result['skipped'])); ?>
+                <?php endif; ?>
+            </p></div>
         <?php elseif (!empty($result['bulk'])) : ?>
             <div class="notice notice-success"><p>
                 <?php echo esc_html(sprintf(
@@ -47,6 +60,68 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                 )); ?>
             </p></div>
         <?php endif; ?>
+    <?php endif; ?>
+
+    <?php if ($conflicts) : ?>
+        <h2 id="avpvh-open-addresses"><?php esc_html_e('Meer dan één doorlopend adres', 'avpvh-members'); ?></h2>
+        <p class="description"><?php echo esc_html(sprintf(
+            /* translators: %d: number of members */
+            __('Er kan maar één adres doorlopen tot heden. %d leden hebben meerdere verschillende adressen zonder einddatum. Voorstel: het adres met de laatste begindatum blijft doorlopen, de andere eindigen de dag voordat dat adres begon.', 'avpvh-members'),
+            count($conflicts)
+        )); ?></p>
+        <?php if ($proposals) : ?>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('avpvh_address_close_older'); ?>
+                <input type="hidden" name="action" value="avpvh_address_close_older">
+                <?php foreach ($proposals as $conflict) : ?>
+                    <input type="hidden" name="fingerprints[<?php echo esc_attr((string) $conflict['member_id']); ?>]" value="<?php echo esc_attr($conflict['fingerprint']); ?>">
+                <?php endforeach; ?>
+                <p><button type="submit" class="button"><?php echo esc_html(sprintf(/* translators: %d: number of members */ __('Voorstel toepassen bij alle %d leden', 'avpvh-members'), count($proposals))); ?></button></p>
+            </form>
+        <?php endif; ?>
+        <table class="widefat striped" style="margin-bottom:2em">
+            <thead><tr>
+                <th><?php esc_html_e('Lid', 'avpvh-members'); ?></th>
+                <th><?php esc_html_e('Doorlopende adressen', 'avpvh-members'); ?></th>
+                <th></th>
+            </tr></thead>
+            <tbody>
+            <?php foreach ($conflicts as $conflict) :
+                $first = $conflict['rows'][0];
+                ?>
+                <tr>
+                    <td><a href="<?php echo esc_url($detail_url((int) $conflict['member_id'])); ?>"><?php echo esc_html(avpvh_format_name($first)); ?></a></td>
+                    <td>
+                        <?php foreach ($conflict['rows'] as $row) :
+                            $id = (int) $row->id;
+                            ?>
+                            <div>
+                                <?php echo esc_html(AVPVH_Address_Cleanup::format(AVPVH_Address_Cleanup::fields($row)) . ' — ' . sprintf(/* translators: %s: start date */ __('sinds %s', 'avpvh-members'), $format_date($row->valid_from, __('onbekend', 'avpvh-members')))); ?>
+                                <?php if ($id === $conflict['keep']) : ?>
+                                    <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('blijft doorlopen', 'avpvh-members'); ?></span>
+                                <?php elseif (isset($conflict['close'][$id])) : ?>
+                                    <span class="avpvh-address-fit avpvh-address-fit--warning"><?php echo esc_html(sprintf(/* translators: %s: end date */ __('eindigt %s', 'avpvh-members'), $format_date($conflict['close'][$id], ''))); ?></span>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </td>
+                    <td>
+                        <?php if ($conflict['keep'] === null) : ?>
+                            <span class="description"><?php esc_html_e('Niet duidelijk welk adres het nieuwste is; zet de einddatum in Ledendetail.', 'avpvh-members'); ?></span>
+                        <?php else : ?>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                <?php wp_nonce_field('avpvh_address_close_older'); ?>
+                                <input type="hidden" name="action" value="avpvh_address_close_older">
+                                <input type="hidden" name="fingerprints[<?php echo esc_attr((string) $conflict['member_id']); ?>]" value="<?php echo esc_attr($conflict['fingerprint']); ?>">
+                                <button type="submit" class="button button-small"><?php esc_html_e('Afsluiten', 'avpvh-members'); ?></button>
+                            </form>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <h2><?php esc_html_e('Zelfde adres, verschillend geschreven of dubbel', 'avpvh-members'); ?></h2>
     <?php endif; ?>
 
     <?php if (!$groups) : ?>

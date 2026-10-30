@@ -40,6 +40,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_merge_members',      [$this, 'handle_merge_members']);
         add_action('admin_post_avpvh_address_cleanup',    [$this, 'handle_address_cleanup']);
         add_action('admin_post_avpvh_address_cleanup_bulk', [$this, 'handle_address_cleanup_bulk']);
+        add_action('admin_post_avpvh_address_close_older', [$this, 'handle_address_close_older']);
         add_action('admin_post_avpvh_delete_visitor',     [$this, 'handle_delete_visitor']);
         add_action('admin_post_avpvh_save_page_permissions', [$this, 'handle_save_page_permissions']);
         add_action('admin_enqueue_scripts',               [$this, 'enqueue_admin_assets']);
@@ -815,10 +816,9 @@ class AVPVH_Admin {
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $valid_from = sanitize_text_field(wp_unslash($_POST['valid_from'] ?? '')) ?: null;
         $valid_until = sanitize_text_field(wp_unslash($_POST['valid_until'] ?? '')) ?: null;
-        if ($id && $member_id) {
-            AVPVH_DB::update_address($id, $member_id, $valid_from, $valid_until);
-        }
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'address_updated' => '1'], admin_url('admin.php')));
+        $saved = $id && $member_id && AVPVH_DB::update_address($id, $member_id, $valid_from, $valid_until);
+        $outcome = $saved ? ['address_updated' => '1'] : ['address_error' => 'open'];
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact'] + $outcome, admin_url('admin.php')));
         exit;
     }
 
@@ -977,6 +977,31 @@ class AVPVH_Admin {
         }
         set_transient('avpvh_address_cleanup_result_' . get_current_user_id(), ['bulk' => true] + $done, 10 * MINUTE_IN_SECONDS);
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members', 'tab' => 'addresses'], admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Ends older open addresses so one runs on per member: one member
+     * ("Afsluiten") or every member with a proposal, each checked against
+     * the fingerprint the page showed.
+     */
+    public function handle_address_close_older(): void {
+        check_admin_referer('avpvh_address_close_older');
+        if (!AVPVH_Roles::can_merge_members()) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        $done = ['members' => 0, 'closed' => 0, 'skipped' => 0];
+        foreach ((array) wp_unslash($_POST['fingerprints'] ?? []) as $member_id => $fingerprint) {
+            $result = AVPVH_Address_Cleanup::close_older((int) $member_id, sanitize_text_field((string) $fingerprint));
+            if (is_wp_error($result)) {
+                $done['skipped']++;
+                continue;
+            }
+            $done['members']++;
+            $done['closed'] += $result['closed'];
+        }
+        set_transient('avpvh_address_cleanup_result_' . get_current_user_id(), ['open' => true] + $done, 10 * MINUTE_IN_SECONDS);
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members', 'tab' => 'addresses'], admin_url('admin.php')) . '#avpvh-open-addresses');
         exit;
     }
 
