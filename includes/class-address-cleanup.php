@@ -11,7 +11,7 @@ defined('ABSPATH') || exit;
  */
 class AVPVH_Address_Cleanup {
 
-    const FIELDS = ['street', 'house_number', 'postal_code', 'city'];
+    const FIELDS = ['street', 'house_number', 'house_number_addition', 'postal_code', 'city'];
 
     /**
      * Groups needing attention, keyed by match key; those with spelling
@@ -75,7 +75,7 @@ class AVPVH_Address_Cleanup {
     }
 
     public static function format(array $fields): string {
-        return trim("{$fields['street']} {$fields['house_number']}, {$fields['postal_code']} {$fields['city']}", ' ,');
+        return trim(AVPVH_Address_Normalizer::format_street_line($fields) . ", {$fields['postal_code']} {$fields['city']}", ' ,');
     }
 
     /**

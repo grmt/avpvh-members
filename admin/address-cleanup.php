@@ -130,7 +130,8 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
             <p class="avpvh-address-cleanup-fields">
                 <?php foreach ([
                     'street'       => [__('Straat', 'avpvh-members'), 24],
-                    'house_number' => [__('Huisnummer', 'avpvh-members'), 8],
+                    'house_number' => [__('Huisnummer', 'avpvh-members'), 6],
+                    'house_number_addition' => [__('Toevoeging', 'avpvh-members'), 4],
                     'postal_code'  => [__('Postcode', 'avpvh-members'), 8],
                     'city'         => [__('Plaats', 'avpvh-members'), 16],
                 ] as $field => [$label, $size]) : ?>

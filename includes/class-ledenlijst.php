@@ -165,7 +165,7 @@ class AVPVH_Ledenlijst {
                         }
                     }
                     if ($lid->share_address && $lid->street) {
-                        $vcard_attrs .= ' data-vcard-adr="' . esc_attr($lid->street . ' ' . $lid->house_number . ';' . $lid->city . ';' . $lid->postal_code . ';' . $lid->country) . '"';
+                        $vcard_attrs .= ' data-vcard-adr="' . esc_attr(AVPVH_Address_Normalizer::format_street_line($lid) . ';' . $lid->city . ';' . $lid->postal_code . ';' . $lid->country) . '"';
                     }
                     ?>
                     <tr data-city="<?php echo esc_attr($lid->share_address ? $lid->city : ''); ?>"
@@ -201,7 +201,7 @@ class AVPVH_Ledenlijst {
                         </td>
                         <td class="col-adres" data-label="<?php esc_attr_e('Adres', 'avpvh-members'); ?>">
                             <?php if ($lid->share_address && $lid->street) : ?>
-                                <?php echo esc_html($lid->street . ' ' . $lid->house_number); ?><br>
+                                <?php echo esc_html(AVPVH_Address_Normalizer::format_street_line($lid)); ?><br>
                                 <?php echo esc_html($lid->postal_code . ' ' . $lid->city); ?>
                                 <?php if ($lid->country && $lid->country !== 'Nederland') : ?>
                                     <br><?php echo esc_html($lid->country); ?>

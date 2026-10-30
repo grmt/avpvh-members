@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.26';
+    const SCHEMA_VERSION = '2.27';
 
     private static function lldap(): string {
         return AVPVH_LLDAP_DB;
@@ -68,6 +68,7 @@ class AVPVH_DB {
             member_id INT UNSIGNED NOT NULL,
             street VARCHAR(150) NOT NULL DEFAULT '',
             house_number VARCHAR(20) NOT NULL DEFAULT '',
+            house_number_addition VARCHAR(20) NOT NULL DEFAULT '',
             postal_code VARCHAR(20) NOT NULL DEFAULT '',
             city VARCHAR(100) NOT NULL DEFAULT '',
             country VARCHAR(100) NOT NULL DEFAULT 'Nederland',
@@ -840,6 +841,32 @@ class AVPVH_DB {
             self::install();
             update_option('avpvh_db_version', '2.26');
         }
+        if (version_compare($version, '2.27', '<')) {
+            // House number addition in its own column ("40-1 hoog" -> 40 /
+            // 1), so it can be compared, sorted and sent on as the BAG and
+            // PostNL expect.
+            self::install();
+            self::split_house_number_additions();
+            update_option('avpvh_db_version', '2.27');
+        }
+    }
+
+    /**
+     * 2.27: moves the addition out of every house_number into
+     * house_number_addition (AVPVH_Address_Normalizer::split_house_number()).
+     * Rows without leading digits ("ong.") keep their text in house_number.
+     * Rows that already have an addition are left alone, so a rerun is safe.
+     */
+    private static function split_house_number_additions(): void {
+        global $wpdb;
+        $table = "{$wpdb->prefix}avm_addresses";
+        $rows = $wpdb->get_results("SELECT id, house_number FROM {$table} WHERE house_number <> '' AND house_number_addition = ''") ?: [];
+        foreach ($rows as $row) {
+            [$number, $addition] = AVPVH_Address_Normalizer::split_house_number((string) $row->house_number);
+            if ($number !== $row->house_number || $addition !== '') {
+                $wpdb->update($table, ['house_number' => $number, 'house_number_addition' => $addition], ['id' => (int) $row->id]);
+            }
+        }
     }
 
     // One-time migration (2026-07-25): replaces the three separate, mostly-
@@ -1550,7 +1577,7 @@ class AVPVH_DB {
             "SELECT u.email,
                     m.id, m.lldap_user_id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
                     m.birth_date, m.share_email, m.share_phone, m.share_address,
-                    a.street, a.house_number, a.postal_code, a.city, a.country
+                    a.street, a.house_number, a.house_number_addition, a.postal_code, a.city, a.country
              FROM {$identity} u
              JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
              LEFT JOIN {$wpdb->prefix}avm_addresses a ON a.id = (
@@ -1610,7 +1637,7 @@ class AVPVH_DB {
         $today   = current_time('Y-m-d');
         $address = AVPVH_Address_Normalizer::clean($address);
         $key     = AVPVH_Address_Normalizer::match_key($address);
-        $fields  = array_intersect_key($address, array_flip(['street', 'house_number', 'postal_code', 'city', 'country']));
+        $fields  = array_intersect_key($address, array_flip(['street', 'house_number', 'house_number_addition', 'postal_code', 'city', 'country']));
 
         $open = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$table}

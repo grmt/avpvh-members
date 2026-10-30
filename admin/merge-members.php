@@ -222,7 +222,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
 
             <h3><?php esc_html_e('Adressen', 'avpvh-members'); ?></h3>
             <?php
-            $format_address = fn(object $a): string => trim("{$a->street} {$a->house_number}, {$a->postal_code} {$a->city}", ' ,');
+            $format_address = fn(object $a): string => trim(AVPVH_Address_Normalizer::format_street_line($a) . ", {$a->postal_code} {$a->city}", ' ,');
             $format_address_date = fn(?string $date, string $empty): string => $date
                 ? wp_date((string) get_option('date_format'), strtotime($date))
                 : $empty;
