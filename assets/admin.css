@@ -318,6 +318,19 @@
 .avpvh-address-fit--warning {
     color: #996800;
 }
+.avpvh-open-address-periods {
+    border-collapse: collapse;
+}
+.avpvh-open-address-periods th,
+.avpvh-open-address-periods td {
+    padding: .15rem 1rem .15rem 0;
+    text-align: left;
+    vertical-align: top;
+}
+.avpvh-open-address-periods th {
+    font-weight: 400;
+    color: #646970;
+}
 .avpvh-address-overlaps {
     margin: .35rem 0 0 1.25rem;
     list-style: disc;
