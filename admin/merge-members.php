@@ -199,9 +199,9 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
             <?php if (!$preview['fields']) : ?>
                 <p><?php esc_html_e('Alle gegevens zijn gelijk.', 'avpvh-members'); ?></p>
             <?php else : ?>
-                <p class="description"><?php esc_html_e('Alleen velden die verschillen. Privacykeuzes staan standaard op de strengste van de twee. Een naam die wegvalt wordt bewaard als naamvariant.', 'avpvh-members'); ?></p>
+                <p class="description"><?php esc_html_e('Alleen velden die verschillen. Privacykeuzes staan standaard op de strengste van de twee. Bij de naam kun je ook zelf een naam invullen. Een naam die wegvalt wordt bewaard als naamvariant.', 'avpvh-members'); ?></p>
                 <table class="widefat striped" style="max-width: 900px;">
-                    <thead><tr><th><?php esc_html_e('Veld', 'avpvh-members'); ?></th><th><?php esc_html_e('Behouden', 'avpvh-members'); ?></th><th><?php esc_html_e('Opheffen', 'avpvh-members'); ?></th></tr></thead>
+                    <thead><tr><th><?php esc_html_e('Veld', 'avpvh-members'); ?></th><th><?php esc_html_e('Behouden', 'avpvh-members'); ?></th><th><?php esc_html_e('Opheffen', 'avpvh-members'); ?></th><th><?php esc_html_e('Anders', 'avpvh-members'); ?></th></tr></thead>
                     <tbody>
                     <?php foreach ($preview['fields'] as $field => $info) : ?>
                         <tr>
@@ -214,6 +214,21 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                                     </label>
                                 </td>
                             <?php endforeach; ?>
+                            <td>
+                                <?php if ($field === 'name') : ?>
+                                    <label>
+                                        <input type="radio" name="fields[name]" value="custom" class="avpvh-merge-name-custom">
+                                        <?php esc_html_e('Eigen naam:', 'avpvh-members'); ?>
+                                    </label>
+                                    <span class="avpvh-merge-name-fields">
+                                        <?php foreach (['first_name' => __('Voornaam', 'avpvh-members'), 'suffix' => __('Tussenvoegsel', 'avpvh-members'), 'last_name' => __('Achternaam', 'avpvh-members')] as $part => $label) : ?>
+                                            <input type="text" name="name_custom[<?php echo esc_attr($part); ?>]" size="<?php echo $part === 'suffix' ? 6 : 14; ?>"
+                                                placeholder="<?php echo esc_attr($label); ?>" aria-label="<?php echo esc_attr($label); ?>"
+                                                value="<?php echo esc_attr((string) $preview['keep']->$part); ?>">
+                                        <?php endforeach; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>

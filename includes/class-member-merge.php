@@ -393,6 +393,15 @@ class AVPVH_Member_Merge {
         $updates = [];
         foreach ($preview['fields'] as $field => $info) {
             $choice = $choices['fields'][$field] ?? $info['default'];
+            if ($field === 'name' && $choice === 'custom') {
+                // A name typed in, e.g. both records abbreviated differently.
+                $custom = array_map(fn($part) => trim((string) $part), $choices['name_custom'] ?? []);
+                if (($custom['first_name'] ?? '') === '' || ($custom['last_name'] ?? '') === '') {
+                    return new \WP_Error('name', __('Vul bij een eigen naam ten minste voornaam en achternaam in.', 'avpvh-members'));
+                }
+                $updates += ['first_name' => $custom['first_name'], 'suffix' => $custom['suffix'] ?? '', 'last_name' => $custom['last_name']];
+                continue;
+            }
             if ($choice !== 'remove') {
                 continue;
             }
@@ -478,6 +487,16 @@ class AVPVH_Member_Merge {
         $warnings = [];
         $notes = [];
         $remove_account = $preview['accounts']['remove'];
+
+        // The account's display name follows a changed name, as when it's
+        // edited on the profile.
+        if (array_intersect_key($updates, array_flip(['first_name', 'suffix', 'last_name'])) && $preview['accounts']['keep']['exists']) {
+            $renamed = AVPVH_Directory::update_user($preview['accounts']['keep']['uid'], ['display_name' => avpvh_format_name($final)]);
+            if (is_wp_error($renamed)) {
+                /* translators: %s: error message */
+                $warnings[] = sprintf(__('De naam van het account kon niet worden bijgewerkt: %s', 'avpvh-members'), $renamed->get_error_message());
+            }
+        }
 
         if ($remove_account['exists']) {
             $result = AVPVH_Directory::delete_user($remove_account['uid']);

@@ -128,6 +128,14 @@ document.addEventListener('DOMContentLoaded', function () {
         sync();
     });
 
+    // Typing in the own-name fields selects "Eigen naam".
+    var nameCustom = document.querySelector('.avpvh-merge-name-custom');
+    if (nameCustom) {
+        document.querySelectorAll('.avpvh-merge-name-fields input').forEach(function (input) {
+            input.addEventListener('focus', function () { nameCustom.checked = true; });
+        });
+    }
+
     // Typing a corrected e-mail address selects that option.
     var customEmail = document.getElementById('avpvh-merge-email-custom');
     var customChoice = document.getElementById('avpvh-merge-email-custom-choice');

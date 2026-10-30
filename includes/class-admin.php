@@ -1054,8 +1054,12 @@ class AVPVH_Admin {
         $choices = [
             'fields'    => array_filter(
                 array_map('sanitize_key', (array) wp_unslash($_POST['fields'] ?? [])),
-                fn($choice) => in_array($choice, ['keep', 'remove'], true)
+                fn($choice) => in_array($choice, ['keep', 'remove', 'custom'], true)
             ),
+            'name_custom' => array_map('sanitize_text_field', array_intersect_key(
+                (array) wp_unslash($_POST['name_custom'] ?? []),
+                array_flip(['first_name', 'suffix', 'last_name'])
+            )),
             'addresses' => array_filter(
                 array_map('sanitize_key', (array) wp_unslash($_POST['addresses'] ?? [])),
                 fn($action) => in_array($action, ['move', 'history', 'close', 'delete'], true)
