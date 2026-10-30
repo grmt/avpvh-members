@@ -127,6 +127,10 @@ check('same number, other street, same city is a move',
 check('same street name in another town is a move',
     $same(place('Kerkstraat', '3', '1234 AB', 'Utrecht'), place('Kerkstraat', '3', '9876 ZZ', 'Groningen')), false);
 
+check('no number on either side: same postcode, street respelled',
+    $same(place('Kerkstr', '', '1234 AB', 'Utrecht'), place('Kerkstraat', '', '1234AB', 'Utrecht')), true);
+check('no number on either side: another street is not the same',
+    $same(place('Kerkstraat', '', '1234 AB', 'Utrecht'), place('Molenweg', '', '1234AB', 'Utrecht')), false);
 check('same Dutch postcode and number, city missing',
     $same(place('Kerkstr', '3', '1234 AB', ''), place('Kerkstraat', '3', '1234AB', 'Utrecht')), true);
 

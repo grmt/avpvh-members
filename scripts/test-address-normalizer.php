@@ -105,7 +105,9 @@ check('Belgian number out of the street, with bus', [$c['street'], $c['house_num
 $c = AVPVH_Address_Normalizer::clean(['street' => '12, rue Haute', 'house_number' => '', 'country' => 'Luxembourg']);
 check('Luxembourg number in front of the street', [$c['street'], $c['house_number']], ['rue Haute', '12']);
 $c = AVPVH_Address_Normalizer::clean(['street' => 'Plein 1940', 'house_number' => '', 'country' => 'Nederland']);
-check('Dutch street with digits is left alone', [$c['street'], $c['house_number']], ['Plein 1940', '']);
+check('Dutch street ending in a year is left alone', [$c['street'], $c['house_number']], ['Plein 1940', '']);
+$c = AVPVH_Address_Normalizer::clean(['street' => 'Kast. Molenstr 17d', 'house_number' => '', 'country' => 'Nederland']);
+check('Dutch house number out of the street', [$c['street'], $c['house_number'], $c['house_number_addition']], ['Kast. Molenstr', '17', 'D']);
 $c = $be(['street' => 'Kerkstraat 5', 'house_number' => '7']);
 check('number already set: street left alone', [$c['street'], $c['house_number']], ['Kerkstraat 5', '7']);
 check('bte is a bus', AVPVH_Address_Normalizer::normalize_addition('bte 4'), 'BUS4');

@@ -266,19 +266,23 @@ class AVPVH_Address_Cleanup {
      */
     public static function probably_same_address(object $left, object $right): bool {
         $number = fn(object $a): string => AVPVH_Address_Normalizer::normalize_house_number((string) $a->house_number, (string) ($a->house_number_addition ?? ''));
-        if ($number($left) === '' || $number($left) !== $number($right)) {
-            return false;
-        }
         $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
         [$left_pc, $right_pc] = [$compact((string) $left->postal_code), $compact((string) $right->postal_code)];
-        if (preg_match('/^\d{4}[a-z]{2}$/', $left_pc) && $left_pc === $right_pc) {
-            return true;
-        }
+        $no_numbers = $number($left) === '' && $number($right) === '';
+        $same_number = $number($left) !== '' && $number($left) === $number($right);
+        $same_postcode = $left_pc !== '' && $left_pc === $right_pc;
+        $dutch_postcode = $same_postcode && preg_match('/^\d{4}[a-z]{2}$/', $left_pc);
         $postcode_slip = strlen($left_pc) === 6 && strlen($right_pc) === 6 && levenshtein($left_pc, $right_pc) === 1;
         $same_city = $compact((string) $left->city) !== '' && $compact((string) $left->city) === $compact((string) $right->city);
-        $same_postcode = $left_pc !== '' && $left_pc === $right_pc;
         similar_text($compact((string) $left->street), $compact((string) $right->street), $street_percent);
-        return ($same_city || $same_postcode || $postcode_slip) && ($street_percent >= 75 || $postcode_slip);
+        $street_alike = $street_percent >= 75;
+
+        // No number on either side: only a respelled street at the same
+        // postcode. Otherwise the same number, and the same Dutch postcode
+        // (that pins it down) or a town/postcode match with the street alike.
+        return $no_numbers
+            ? $same_postcode && $street_alike
+            : $same_number && ($dutch_postcode || (($same_city || $same_postcode || $postcode_slip) && ($street_alike || $postcode_slip)));
     }
 
     /**
