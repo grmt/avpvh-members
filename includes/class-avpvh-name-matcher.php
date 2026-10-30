@@ -67,8 +67,8 @@ class AVPVH_Name_Matcher {
      * normalize_person_name() it ignores accents ("Fülöp" = "Fulöp"),
      * punctuation, hyphens and spacing, and every tussenvoegsel or
      * abbreviation of one anywhere in either name ("v/d Berg" = "vd Berg" =
-     * "van den Berg" = "Berg, van der"), and "ij" = "y" ("van Rooij" = "van
-     * Rooy"). Too loose for automatic linking —
+     * "van den Berg" = "Berg, van der"), and "ij" = "y" ("van Dijk" = "van
+     * Dyk"). Too loose for automatic linking —
      * imports and the "Nieuw lid" check keep using normalize_person_name().
      * Returns '' when either part ends up empty.
      */
@@ -84,7 +84,7 @@ class AVPVH_Name_Matcher {
         }
         $name  = mb_strtolower($name, 'UTF-8');
         $words = preg_split('/[^\p{L}\p{N}]+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        // ij and y are the same sound and spelled either way ("Rooij"/"Rooy").
+        // ij and y are the same sound and spelled either way ("Dijk"/"Dyk").
         return str_replace('ij', 'y', implode('', array_diff($words, self::LOOSE_DROP_WORDS)));
     }
 
