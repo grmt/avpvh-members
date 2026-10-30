@@ -45,3 +45,6 @@ same('hyphen and spacing', ['Jan-Willem', 'Berg'], ['Jan Willem', 'Berg']);
 same('different surname stays apart', ['Jan', 'Berg'], ['Jan', 'Bergen'], false);
 same('different first name stays apart', ['Jan', 'Berg'], ['Jaap', 'Berg'], false);
 same('surname of only tussenvoegsels gives no key', ['Jan', 'van der'], ['Jan', 'van der'], false);
+same('ij and y', ['Anna', 'van Dijk'], ['Anna', 'van Dyk']);
+same('ij and y in the first name', ['Thijs', 'Berg'], ['Thys', 'Berg']);
+same('ij and y still keep other names apart', ['Anna', 'van Dijk'], ['Anna', 'van Dijken'], false);
