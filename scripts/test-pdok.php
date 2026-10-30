@@ -41,6 +41,13 @@ function is_wp_error(mixed $thing): bool {
 }
 function wp_remote_get(string $url, array $args = []): array {
     $GLOBALS['test_requests'][] = $url;
+    if (str_contains($url, '?q=')) {
+        // Free-text search: the same number in the right postcode, and in another town.
+        return ['body' => json_encode(['response' => ['docs' => [
+            ['straatnaam' => 'Johanna van Lindenweg', 'huisnummer' => 38, 'postcode' => '4321AW', 'woonplaatsnaam' => 'Breda'],
+            ['straatnaam' => 'Johanna van Lindenweg', 'huisnummer' => 38, 'postcode' => '9999AA', 'woonplaatsnaam' => 'Elders'],
+        ]]])];
+    }
     preg_match('/postcode:(\w+)&fq=huisnummer:(\d+)/', $url, $m);
     return ['body' => json_encode(['response' => ['docs' => $GLOBALS['test_answers'][$m[1] . '|' . $m[2]] ?? []]])];
 }
@@ -76,6 +83,12 @@ check('plain address', $lookup('9', '', '5678 CD')['street'] ?? null, 'Dorpsstra
 check('unknown address', $lookup('1', '', '9999ZZ'), null);
 check('foreign postcode is not looked up', $lookup('1', '', 'B-1000'), null);
 check('no number is not looked up', $lookup('ong.', '', '1234AB'), null);
+
+$found = AVPVH_PDOK::lookup(['street' => 'J. van Lindenweg', 'house_number' => '38', 'house_number_addition' => '', 'postal_code' => '4321 AV', 'city' => 'Breda']);
+check('mistyped postcode: found by street, number and town', $found,
+    ['street' => 'Johanna van Lindenweg', 'house_number' => '38', 'house_number_addition' => '', 'postal_code' => '4321 AW', 'city' => 'Breda']);
+check('mistyped postcode without a town: no suggestion',
+    AVPVH_PDOK::lookup(['street' => 'J. van Lindenweg', 'house_number' => '38', 'postal_code' => '4321 AV', 'city' => '']), null);
 
 $before = count($test_requests);
 $lookup('40', '1', '1234AB');

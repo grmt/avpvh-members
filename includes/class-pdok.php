@@ -24,6 +24,11 @@ class AVPVH_PDOK {
         }
         [$postcode, $number, $want] = $query;
         $docs = self::cached_docs($postcode, $number) ?? self::fetch($postcode, $number);
+        if ($docs === []) {
+            // Nothing at this postcode: perhaps the postcode itself is
+            // mistyped, so search by street, number and town instead.
+            $docs = self::search_by_street((array) $address, $number);
+        }
         $matches = array_values(array_filter(
             $docs ?? [],
             fn(array $doc) => AVPVH_Address_Normalizer::normalize_house_number((string) $doc['huisnummer'], self::addition($doc)) === $want
@@ -63,6 +68,34 @@ class AVPVH_PDOK {
                 self::store($postcode, $number, $response->body);
             }
         }
+    }
+
+    /**
+     * Addresses with this house number in the stored town, found by street
+     * name (PDOK's free-text search); [] when street or town is missing.
+     * The caller still requires exactly one match.
+     */
+    private static function search_by_street(array $address, string $number): array {
+        $street = trim((string) ($address['street'] ?? ''));
+        $city = trim((string) ($address['city'] ?? ''));
+        if ($street === '' || $city === '') {
+            return [];
+        }
+        $url = self::URL . '?q=' . rawurlencode("{$street} {$number} {$city}") . '&fq=type:adres&fq=huisnummer:' . rawurlencode($number)
+            . '&fl=straatnaam,huisnummer,huisletter,huisnummertoevoeging,postcode,woonplaatsnaam&rows=10';
+        $key = 'avpvh_pdok_q_' . substr(hash('sha256', $url), 0, 32);
+        $docs = get_transient($key);
+        if (!is_array($docs)) {
+            $response = wp_remote_get($url, ['timeout' => 5]);
+            if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+                return [];
+            }
+            $decoded = json_decode(wp_remote_retrieve_body($response), true);
+            $docs = is_array($decoded['response']['docs'] ?? null) ? $decoded['response']['docs'] : [];
+            set_transient($key, $docs, self::CACHE_TTL);
+        }
+        $town = AVPVH_Address_Normalizer::fold($city);
+        return array_values(array_filter($docs, fn(array $doc) => AVPVH_Address_Normalizer::fold((string) ($doc['woonplaatsnaam'] ?? '')) === $town));
     }
 
     /** [postcode, number, normalized number] for a Dutch address, or null. */

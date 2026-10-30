@@ -191,3 +191,26 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
+
+// Back from Toepassen/Afsluiten at the next item (#anchor): show what
+// was done right there instead of only at the top of the page.
+document.addEventListener('DOMContentLoaded', function () {
+    var notice = document.querySelector('.avpvh-cleanup-notice');
+    var target = window.location.hash ? document.getElementById(window.location.hash.slice(1)) : null;
+    if (!notice || !target || !notice.textContent.trim()) return;
+    if (target.tagName === 'TR') {
+        var row = document.createElement('tr');
+        var cell = document.createElement('td');
+        cell.colSpan = target.children.length;
+        cell.appendChild(notice);
+        row.appendChild(cell);
+        target.parentNode.insertBefore(row, target);
+        row.id = target.id;
+        target.removeAttribute('id');
+        target = row;
+    } else {
+        target.parentNode.insertBefore(notice, target);
+        target = notice;
+    }
+    target.scrollIntoView();
+});

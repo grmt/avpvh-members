@@ -335,6 +335,13 @@
     border-top: 1px solid #c3c4c7;
     padding-top: .35rem;
 }
+/* Clear of the WordPress admin bar when jumping to the next item. */
+.avpvh-address-cleanup.card,
+.avpvh-cleanup-notice,
+.avpvh-open-address-periods,
+tr[id^="avpvh-open-"] {
+    scroll-margin-top: 48px;
+}
 .avpvh-address-overlaps {
     margin: .35rem 0 0 1.25rem;
     list-style: disc;
