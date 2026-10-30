@@ -92,18 +92,34 @@ $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M 
                 <tr>
                     <td><a href="<?php echo esc_url($detail_url((int) $conflict['member_id'])); ?>"><?php echo esc_html(avpvh_format_name($first)); ?></a></td>
                     <td>
-                        <?php foreach ($conflict['rows'] as $row) :
-                            $id = (int) $row->id;
-                            ?>
-                            <div>
-                                <?php echo esc_html(AVPVH_Address_Cleanup::format(AVPVH_Address_Cleanup::fields($row)) . ' — ' . sprintf(/* translators: %s: start date */ __('sinds %s', 'avpvh-members'), $format_date($row->valid_from, __('onbekend', 'avpvh-members')))); ?>
-                                <?php if ($id === $conflict['keep']) : ?>
-                                    <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('blijft doorlopen', 'avpvh-members'); ?></span>
-                                <?php elseif (isset($conflict['close'][$id])) : ?>
-                                    <span class="avpvh-address-fit avpvh-address-fit--warning"><?php echo esc_html(sprintf(/* translators: %s: end date */ __('eindigt %s', 'avpvh-members'), $format_date($conflict['close'][$id], ''))); ?></span>
-                                <?php endif; ?>
-                            </div>
-                        <?php endforeach; ?>
+                        <table class="avpvh-open-address-periods">
+                            <thead><tr>
+                                <th><?php esc_html_e('Adres', 'avpvh-members'); ?></th>
+                                <th><?php esc_html_e('Van', 'avpvh-members'); ?></th>
+                                <th><?php esc_html_e('Tot (na voorstel)', 'avpvh-members'); ?></th>
+                            </tr></thead>
+                            <tbody>
+                            <?php foreach (array_reverse($conflict['rows']) as $row) :
+                                $id = (int) $row->id;
+                                ?>
+                                <tr>
+                                    <td><?php echo esc_html(AVPVH_Address_Cleanup::format(AVPVH_Address_Cleanup::fields($row))); ?></td>
+                                    <td><?php echo esc_html($format_date($row->valid_from, __('onbekend', 'avpvh-members'))); ?></td>
+                                    <td>
+                                        <?php if (isset($conflict['close'][$id])) : ?>
+                                            <strong><?php echo esc_html($format_date($conflict['close'][$id], '')); ?></strong>
+                                            <span class="avpvh-address-fit avpvh-address-fit--warning"><?php esc_html_e('nieuwe einddatum', 'avpvh-members'); ?></span>
+                                        <?php else : ?>
+                                            <?php esc_html_e('heden', 'avpvh-members'); ?>
+                                            <?php if ($id === $conflict['keep']) : ?>
+                                                <span class="avpvh-address-fit avpvh-address-fit--ok"><?php esc_html_e('blijft doorlopen', 'avpvh-members'); ?></span>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </td>
                     <td>
                         <?php if ($conflict['keep'] === null) : ?>
