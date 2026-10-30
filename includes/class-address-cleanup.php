@@ -116,8 +116,8 @@ class AVPVH_Address_Cleanup {
      * Two rows that differ only by a typo: same house number, and the same
      * Dutch postcode (that pins the address down), or the same city or
      * postcode or a postcode one character off, with street names mostly alike or that
-     * postcode slip ("D. van Poldersveldtweg 14, 6523 ND" vs "Dommer van
-     * Polderveldtweg 14, 6521 ND", both Nijmegen).
+     * postcode slip ("J. van Lindenweg 3, 1234 AC" vs "Johan van Lindeweg
+     * 3, 1234 AB", same town).
      */
     public static function probably_same_address(object $left, object $right): bool {
         $number = fn(object $a): string => AVPVH_Address_Normalizer::normalize_house_number((string) $a->house_number, (string) ($a->house_number_addition ?? ''));

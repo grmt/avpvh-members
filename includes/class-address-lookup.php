@@ -68,19 +68,22 @@ class AVPVH_Address_Lookup {
         ], 'strlen');
         $data = self::get_json(self::FLANDERS_URL . '?' . http_build_query($query));
         $want = AVPVH_Address_Normalizer::normalize_house_number((string) $address['house_number'], $letter);
+        // A floor note ("2e v.") isn't in the register; it stays as stored.
+        $kept_addition = $letter === '' && $bus === '' ? (string) $address['house_number_addition'] : '';
         $found = [];
         foreach ($data['adresMatches'] ?? [] as $match) {
-            $number = (string) ($match['huisnummer'] ?? '');
-            if (($match['adresStatus'] ?? '') !== 'inGebruik' || ($match['score'] ?? 0) < 80
-                || AVPVH_Address_Normalizer::normalize_house_number($number) !== $want
-                || ($bus !== '' && ($match['busnummer'] ?? '') !== '' && strcasecmp((string) $match['busnummer'], $bus) !== 0)) {
+            if (!self::flemish_match_fits($match, (string) $address['postal_code'], $want, $bus)) {
                 continue;
             }
-            [$official_number, $official_letter] = AVPVH_Address_Normalizer::split_house_number($number);
+            [$official_number, $official_letter] = AVPVH_Address_Normalizer::split_house_number((string) $match['huisnummer']);
+            $addition = $official_letter !== '' ? $official_letter : $kept_addition;
+            if ($bus !== '') {
+                $addition = 'BUS' . strtoupper($bus);
+            }
             $fields = [
                 'street'                => (string) ($match['straatnaam']['straatnaam']['geografischeNaam']['spelling'] ?? ''),
                 'house_number'          => $official_number,
-                'house_number_addition' => $bus !== '' ? 'BUS' . strtoupper($bus) : $official_letter,
+                'house_number_addition' => $addition,
                 'postal_code'           => (string) ($match['postinfo']['objectId'] ?? ''),
                 // The register names the municipality ("Antwerpen"); the
                 // post uses the town ("Berchem"), so a stored town stays.
@@ -89,6 +92,20 @@ class AVPVH_Address_Lookup {
             $found[implode("\0", $fields)] = $fields;
         }
         return count($found) === 1 && reset($found)['street'] !== '' ? reset($found) : null;
+    }
+
+    /**
+     * An address in use, scored well, with this postcode and house number
+     * (the fuzzy match also offers the same number in other streets and
+     * postcodes), and the same box number when both have one.
+     */
+    private static function flemish_match_fits(array $match, string $postcode, string $want, string $bus): bool {
+        $match_bus = (string) ($match['busnummer'] ?? '');
+        return ($match['adresStatus'] ?? '') === 'inGebruik'
+            && ($match['score'] ?? 0) >= 80
+            && (string) ($match['postinfo']['objectId'] ?? '') === $postcode
+            && AVPVH_Address_Normalizer::normalize_house_number((string) ($match['huisnummer'] ?? '')) === $want
+            && ($bus === '' || $match_bus === '' || strcasecmp($match_bus, $bus) === 0);
     }
 
     private static function luxembourg(array $address): ?array {

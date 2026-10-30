@@ -109,7 +109,7 @@ function place(string $street, string $number, string $postal, string $city): ob
 }
 $same = [AVPVH_Address_Cleanup::class, 'probably_same_address'];
 check('abbreviated and misspelled street, postcode one off',
-    $same(place('J. van Lindenweg', '14', '6523 ND', 'Utrecht'), place('Johan van Lindeweg', '14', '6521 ND', 'Utrecht')), true);
+    $same(place('J. van Lindenweg', '3', '1234 AC', 'Utrecht'), place('Johan van Lindeweg', '3', '1234 AB', 'Utrecht')), true);
 check('postcode one off, other city spelling',
     $same(place('Kerkstraat', '3', '1234 AB', 'Den Bosch'), place('Kerkstraat', '3', '1234 AC', "'s-Hertogenbosch")), true);
 check('different house number is never the same',
@@ -123,11 +123,11 @@ check('same Dutch postcode and number, city missing',
     $same(place('Kerkstr', '3', '1234 AB', ''), place('Kerkstraat', '3', '1234AB', 'Utrecht')), true);
 
 $wpdb->open = [
-    row(11, 20, '1999-06-01', null, 'J. van Lindenweg', '14'),
-    row(12, 20, '2026-01-01', null, 'Johan van Lindeweg', '14'),
+    row(11, 20, '1999-06-01', null, 'J. van Lindenweg', '3'),
+    row(12, 20, '2026-01-01', null, 'Johan van Lindeweg', '3'),
 ];
-$wpdb->open[0]->postal_code = '6523 ND';
-$wpdb->open[1]->postal_code = '6521 ND';
+$wpdb->open[0]->postal_code = '1234 AC';
+$wpdb->open[1]->postal_code = '1234 AB';
 $conflicts = AVPVH_Address_Cleanup::find_open_conflicts();
 check('typo pair is flagged, not closed', [$conflicts[20]['same_place'], $conflicts[20]['keep'], $conflicts[20]['close']], [true, null, []]);
 check('both spellings offered', count($conflicts[20]['variants']), 2);

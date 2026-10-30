@@ -44,6 +44,8 @@ function wp_remote_get(string $url, array $args = []): array {
         $answers = [
             'Grote Mrkt|1' => [flemish_match('Grote Markt', '1', '2000', 'Antwerpen', 'gehistoreerd'), flemish_match('Grote Markt', '1', '2000', 'Antwerpen')],
             'Kerkstraat|7' => [flemish_match('Kerkstraat', '7', '2600', 'Antwerpen')],
+            'Klauwstraat|38' => [flemish_match('Klauwsstraat', '38', '2600', 'Antwerpen'), flemish_match('Molenstraat', '38', '2000', 'Antwerpen', 'inGebruik', 95.0)],
+            'Lindenlei|19' => [flemish_match('Lindenlei', '19', '2018', 'Antwerpen', 'inGebruik', 100.0), flemish_match('Lindenlei', '19', '2018', 'Antwerpen', 'inGebruik', 91.0, '201')],
             'Dorpstraat|5' => [flemish_match('Dorpsstraat', '5', '9000', 'Gent'), flemish_match('Dorpsstraat', '5', '9000', 'Gent', 'inGebruik', 95.0, '1')],
         ];
         return ['body' => json_encode(['adresMatches' => $answers[$q['straatnaam'] . '|' . $q['huisnummer']] ?? []])];
@@ -89,6 +91,9 @@ check('Flanders: typo corrected, only the address in use, prefix dropped', $r,
 check('Flanders: the stored town stays (Berchem, not municipality Antwerpen)', $lookup('Kerkstraat', '7', '2600', 'Berchem', 'België')['fields']['city'] ?? null, 'Berchem');
 check('Flanders: no box stored -> street corrected, no box made up', $lookup('Dorpstraat', '5', '9000', 'Gent', 'België')['fields'] ?? null,
     ['street' => 'Dorpsstraat', 'house_number' => '5', 'house_number_addition' => '', 'postal_code' => '9000', 'city' => 'Gent']);
+check('Flanders: the same number in another postcode is ignored', $lookup('Klauwstraat', '38', '2600', 'Berchem', 'België')['fields']['street'] ?? null, 'Klauwsstraat');
+$r = $lookup('Lindenlei 19 (2e v.)', '', '2018', 'Antwerpen', 'België');
+check('Flanders: number with a floor note found, floor kept', [$r['fields']['street'] ?? null, $r['fields']['house_number'] ?? null, $r['fields']['house_number_addition'] ?? null], ['Lindenlei', '19', '2']);
 $before = count($test_requests);
 check('Brussels is not asked', $lookup('Grote Markt', '1', '1000', 'Brussel', 'België'), null);
 check('Wallonia is not asked', $lookup('Place Saint-Lambert', '1', '4000', 'Liège', 'België'), null);
