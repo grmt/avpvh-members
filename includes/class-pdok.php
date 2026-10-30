@@ -68,6 +68,65 @@ class AVPVH_PDOK {
                 self::store($postcode, $number, $response->body);
             }
         }
+
+        // Where the number isn't in the BAG, street_of_postcode() will be
+        // asked next: fetch those too, in one go.
+        $streets = [];
+        foreach ($addresses as $address) {
+            $query = self::query((array) $address);
+            if ($query && self::cached_docs($query[0], $query[1]) === [] && get_transient(self::street_key($query[0])) === false) {
+                $streets[$query[0]] = ['url' => self::street_url($query[0]), 'type' => 'GET'];
+            }
+        }
+        foreach ($streets ? \WpOrg\Requests\Requests::request_multiple($streets, ['timeout' => 5]) : [] as $postcode => $response) {
+            if ($response instanceof \WpOrg\Requests\Response && $response->status_code === 200) {
+                self::store_streets((string) $postcode, $response->body);
+            }
+        }
+    }
+
+    /**
+     * The one street (and town) of a Dutch postcode, from the addresses the
+     * BAG has there: ['street' => ..., 'city' => ...], or null when the
+     * postcode holds no or several streets. For an address whose number
+     * the BAG doesn't (or no longer) know, this still confirms the
+     * official spelling of the street.
+     */
+    public static function street_of_postcode(string $postal_code): ?array {
+        $postcode = strtoupper(str_replace(' ', '', $postal_code));
+        if (!preg_match('/^\d{4}[A-Z]{2}$/', $postcode)) {
+            return null;
+        }
+        $streets = get_transient(self::street_key($postcode));
+        if (!is_array($streets)) {
+            $response = wp_remote_get(self::street_url($postcode), ['timeout' => 5]);
+            if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+                return null;
+            }
+            $streets = self::store_streets($postcode, wp_remote_retrieve_body($response));
+        }
+        return count($streets) === 1 ? $streets[0] : null;
+    }
+
+    private static function street_key(string $postcode): string {
+        return 'avpvh_pdok_street_' . substr(hash('sha256', $postcode), 0, 32);
+    }
+
+    private static function street_url(string $postcode): string {
+        return self::URL . '?fq=type:adres&fq=postcode:' . rawurlencode($postcode) . '&fl=straatnaam,woonplaatsnaam&rows=100';
+    }
+
+    /** Distinct [street, city] pairs from a PDOK answer, cached. */
+    private static function store_streets(string $postcode, string $body): array {
+        $decoded = json_decode($body, true);
+        $streets = [];
+        foreach ($decoded['response']['docs'] ?? [] as $doc) {
+            $street = ['street' => (string) ($doc['straatnaam'] ?? ''), 'city' => (string) ($doc['woonplaatsnaam'] ?? '')];
+            $streets[implode('|', $street)] = $street;
+        }
+        $streets = array_values($streets);
+        set_transient(self::street_key($postcode), $streets, self::CACHE_TTL);
+        return $streets;
     }
 
     /**
