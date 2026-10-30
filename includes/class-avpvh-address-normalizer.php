@@ -84,12 +84,7 @@ class AVPVH_Address_Normalizer {
         }
         $country = $clean['country'] ?? '';
         if (isset($clean['street'], $clean['house_number']) && $clean['house_number'] === '') {
-            [$street, $number] = self::number_from_street($clean['street']);
-            // In the Netherlands a street can end in a year ("Plein 1940"):
-            // only a number of one to three digits is taken as the house number.
-            if ($number !== '' && (in_array($country, ['België', 'Luxemburg'], true) || preg_match('/^\d{1,3}(?!\d)/', $number))) {
-                [$clean['street'], $clean['house_number']] = [$street, $number];
-            }
+            [$clean['street'], $clean['house_number']] = self::number_out_of_street($clean['street'], $country);
         }
         if (isset($clean['house_number'])) {
             [$number, $addition] = self::split_house_number($clean['house_number'] . ' ' . ($clean['house_number_addition'] ?? ''));
@@ -104,6 +99,17 @@ class AVPVH_Address_Normalizer {
             $clean['postal_code'] = (string) preg_replace('/^[A-Za-z]{1,2}\s*-?\s*(?=\d)/', '', $clean['postal_code']);
         }
         return array_merge($address, $clean);
+    }
+
+    /**
+     * number_from_street(), except that in the Netherlands a street can end
+     * in a year ("Plein 1940"): there only a number of one to three digits
+     * is taken as the house number.
+     */
+    private static function number_out_of_street(string $street, string $country): array {
+        [$rest, $number] = self::number_from_street($street);
+        $taken = $number !== '' && (in_array($country, ['België', 'Luxemburg'], true) || preg_match('/^\d{1,3}(?!\d)/', $number));
+        return $taken ? [$rest, $number] : [$street, ''];
     }
 
     /**
