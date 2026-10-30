@@ -113,7 +113,8 @@ class AVPVH_Member_Merge {
      * tussenvoegsel ignored, see AVPVH_Name_Matcher::loose_key()), through their
      * official name or a name alias (each row's matched_via says which) —
      * suggestions only, a human decides. A pair found through both routes
-     * is listed once.
+     * is listed once. Also pairs with the same surname whose first names
+     * differ only by initials ("Anna-M." and "Anna Maria").
      */
     public static function find_duplicate_candidates(): array {
         $groups = [];
@@ -127,7 +128,39 @@ class AVPVH_Member_Merge {
                 $groups[$signature] = array_values($members);
             }
         }
+        foreach (self::abbreviated_first_name_pairs() as $pair) {
+            $ids = array_map(fn($m) => (int) $m->id, $pair);
+            sort($ids);
+            $already = array_filter(array_keys($groups), fn($signature) => !array_diff($ids, explode(',', $signature)));
+            if (!$already) {
+                $groups[implode(',', $ids)] = $pair;
+            }
+        }
         return array_values($groups);
+    }
+
+    /** Pairs of members with the same surname and first names that differ only by initials. */
+    private static function abbreviated_first_name_pairs(): array {
+        global $wpdb;
+        $by_surname = [];
+        foreach ($wpdb->get_results("SELECT id, first_name, suffix, last_name, status, birth_date, birth_year FROM {$wpdb->prefix}avm_members") ?: [] as $member) {
+            $surname = AVPVH_Name_Matcher::loose_surname((string) $member->last_name);
+            if ($surname !== '') {
+                $by_surname[$surname][] = $member;
+            }
+        }
+        $pairs = [];
+        foreach ($by_surname as $members) {
+            foreach ($members as $i => $left) {
+                foreach (array_slice($members, $i + 1) as $right) {
+                    if (AVPVH_Name_Matcher::first_names_compatible((string) $left->first_name, (string) $right->first_name)) {
+                        $note = __('voornaam afgekort', 'avpvh-members');
+                        $pairs[] = [(object) ((array) $left + ['matched_via' => '']), (object) ((array) $right + ['matched_via' => $note])];
+                    }
+                }
+            }
+        }
+        return $pairs;
     }
 
     /**

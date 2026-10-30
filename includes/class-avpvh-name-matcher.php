@@ -78,6 +78,41 @@ class AVPVH_Name_Matcher {
         return ($first === '' || $last === '') ? '' : $first . '|' . $last;
     }
 
+    /** The surname part of loose_key(): "van Rooij" = "Rooy" = "Rooij, van". */
+    public static function loose_surname(string $last_name): string {
+        return self::loose_words($last_name);
+    }
+
+    /**
+     * Whether two different first names can be the same person's, one
+     * written with initials: "Anna-M." = "Anna Maria", "J." = "Jan",
+     * "J.W." = "Jan Willem". Word by word, each pair equal or one an
+     * initial (one or two letters) that starts the other. Only for the
+     * merge page's suggestions.
+     */
+    public static function first_names_compatible(string $left, string $right): bool {
+        $words = static function (string $name): array {
+            if (function_exists('remove_accents')) {
+                $name = remove_accents($name);
+            }
+            $name = mb_strtolower($name, 'UTF-8');
+            // "J.W." is two initials, "Jw" isn't split.
+            $name = (string) preg_replace('/\b(\p{L})\.(?=\p{L})/u', '$1 ', $name);
+            return preg_split('/[^\p{L}]+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        };
+        [$a, $b] = [$words($left), $words($right)];
+        if (!$a || count($a) !== count($b) || $a === $b) {
+            return false;
+        }
+        foreach ($a as $i => $word) {
+            [$short, $long] = mb_strlen($word) <= mb_strlen($b[$i]) ? [$word, $b[$i]] : [$b[$i], $word];
+            if ($short !== $long && (mb_strlen($short) > 2 || !str_starts_with($long, $short))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static function loose_words(string $name): string {
         if (function_exists('remove_accents')) {
             $name = remove_accents($name);
