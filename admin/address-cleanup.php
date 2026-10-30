@@ -13,29 +13,30 @@ $groups = AVPVH_Address_Cleanup::find_groups();
 $conflicts = AVPVH_Address_Cleanup::find_open_conflicts();
 $proposals = array_filter($conflicts, fn($c) => $c['keep'] !== null);
 
-// Official spelling from PDOK (BAG) as the first choice, where it gives
+// Official spelling from the country's register (AVPVH_Address_Lookup:
+// BAG, geoportail.lu, Adressenregister Vlaanderen) as the first choice, where it gives
 // one clear address that is recognizably this one (a mistyped postcode can
 // belong to another street); a stored spelling that matches it is marked.
 $same_place_rows = array_merge([], ...array_column(array_filter($conflicts, fn($c) => $c['same_place']), 'rows'));
-AVPVH_PDOK::prefetch(array_merge(array_map(fn($g) => $g['rows'][0], $groups), $same_place_rows));
+AVPVH_Address_Lookup::prefetch(array_merge(array_map(fn($g) => $g['rows'][0], $groups), $same_place_rows));
 $with_official = function (array $variants, array $rows): array {
     $official = null;
     foreach ($rows as $row) {
-        $found = AVPVH_PDOK::lookup($row);
-        if ($found && AVPVH_Address_Cleanup::probably_same_address((object) $found, $row)) {
+        $found = AVPVH_Address_Lookup::lookup($row);
+        if ($found && AVPVH_Address_Cleanup::probably_same_address((object) $found['fields'], $row)) {
             $official = $found;
             break;
         }
     }
-    $options = array_map(fn($v) => $v + ['official' => $official !== null && $v['fields'] === $official], $variants);
-    if ($official && !array_filter($options, fn($o) => $o['official'])) {
-        $options[] = ['fields' => $official, 'count' => 0, 'official' => true];
+    $options = array_map(fn($v) => $v + ['official' => $official && $v['fields'] === $official['fields'] ? $official['source'] : ''], $variants);
+    if ($official && !array_filter($options, fn($o) => $o['official'] !== '')) {
+        $options[] = ['fields' => $official['fields'], 'count' => 0, 'official' => $official['source']];
     }
-    usort($options, fn($a, $b) => $b['official'] <=> $a['official']);
+    usort($options, fn($a, $b) => ($b['official'] !== '') <=> ($a['official'] !== ''));
     return $options;
 };
 $option_label = fn(array $option): string => AVPVH_Address_Cleanup::format($option['fields'])
-    . ($option['official'] ? ' — ' . __('officieel (BAG)', 'avpvh-members') : '');
+    . ($option['official'] !== '' ? ' — ' . sprintf(/* translators: %s: register name */ __('officieel (%s)', 'avpvh-members'), $option['official']) : '');
 $detail_url = fn(int $id): string => add_query_arg(['page' => 'avpvh-member-detail', 'id' => $id], admin_url('admin.php'));
 $tab_url = fn(string $tab): string => add_query_arg(array_filter(['page' => 'avpvh-merge-members', 'tab' => $tab]), admin_url('admin.php'));
 $format_date = fn(?string $date, string $empty): string => $date ? wp_date('j M Y', strtotime($date)) : $empty;

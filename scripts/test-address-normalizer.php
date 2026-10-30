@@ -88,6 +88,29 @@ check('clean normalizes the separate addition', [$cleaned['house_number'], $clea
 $cleaned = AVPVH_Address_Normalizer::clean(['house_number' => '', 'house_number_addition' => '']);
 check('clean leaves empty empty', [$cleaned['house_number'], $cleaned['house_number_addition']], ['', '']);
 
+$country = [AVPVH_Address_Normalizer::class, 'canonical_country'];
+check('country: Belgie', $country('belgie'), 'België');
+check('country: Luxembourg', $country('Luxembourg'), 'Luxemburg');
+check('country: USA', $country('USA'), 'Verenigde Staten');
+check('country: Italy', $country(' Italy '), 'Italië');
+check('country: unknown kept', $country(' Kroatië '), 'Kroatië');
+$be = fn(array $a) => AVPVH_Address_Normalizer::clean($a + ['country' => 'Belgium']);
+check('Belgian postcode prefix dropped', $be(['postal_code' => 'B-2000'])['postal_code'], '2000');
+check('Belgian postcode without dash', $be(['postal_code' => 'B2000'])['postal_code'], '2000');
+check('Luxembourg postcode prefix dropped', AVPVH_Address_Normalizer::clean(['postal_code' => 'L-1352', 'country' => 'Luxemburg'])['postal_code'], '1352');
+check('Polish postcode keeps its dash', AVPVH_Address_Normalizer::clean(['postal_code' => '00-950', 'country' => 'Polen'])['postal_code'], '00-950');
+check('US postcode untouched', AVPVH_Address_Normalizer::clean(['postal_code' => 'FL 33101', 'country' => 'USA'])['postal_code'], 'FL 33101');
+$c = $be(['street' => 'Kerkstraat 12 bus 3', 'house_number' => '']);
+check('Belgian number out of the street, with bus', [$c['street'], $c['house_number'], $c['house_number_addition']], ['Kerkstraat', '12', 'BUS3']);
+$c = AVPVH_Address_Normalizer::clean(['street' => '12, rue Haute', 'house_number' => '', 'country' => 'Luxembourg']);
+check('Luxembourg number in front of the street', [$c['street'], $c['house_number']], ['rue Haute', '12']);
+$c = AVPVH_Address_Normalizer::clean(['street' => 'Plein 1940', 'house_number' => '', 'country' => 'Nederland']);
+check('Dutch street with digits is left alone', [$c['street'], $c['house_number']], ['Plein 1940', '']);
+$c = $be(['street' => 'Kerkstraat 5', 'house_number' => '7']);
+check('number already set: street left alone', [$c['street'], $c['house_number']], ['Kerkstraat 5', '7']);
+check('bte is a bus', AVPVH_Address_Normalizer::normalize_addition('bte 4'), 'BUS4');
+check('bus displayed Belgian style', $fmt('12', 'BUS3'), '12 bus 3');
+
 $clean = AVPVH_Address_Normalizer::clean(addr(' Kerk  straat ', '1', '1234ab') + ['country' => 'Nederland', 'valid_from' => '2026-01-01']);
 check('clean tidies whitespace', $clean['street'], 'Kerk straat');
 check('clean formats Dutch postcode', $clean['postal_code'], '1234 AB');

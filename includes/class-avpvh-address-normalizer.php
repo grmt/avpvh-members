@@ -12,6 +12,33 @@ defined('ABSPATH') || exit;
  */
 class AVPVH_Address_Normalizer {
 
+    /** Folded spellings of a country => the one name stored. */
+    const COUNTRIES = [
+        'nederland' => 'Nederland', 'nl' => 'Nederland', 'netherlands' => 'Nederland', 'the netherlands' => 'Nederland', 'holland' => 'Nederland',
+        'belgie' => 'België', 'belgium' => 'België', 'belgique' => 'België', 'belgien' => 'België', 'be' => 'België',
+        'luxemburg' => 'Luxemburg', 'luxembourg' => 'Luxemburg', 'lu' => 'Luxemburg',
+        'duitsland' => 'Duitsland', 'germany' => 'Duitsland', 'deutschland' => 'Duitsland', 'de' => 'Duitsland',
+        'frankrijk' => 'Frankrijk', 'france' => 'Frankrijk', 'fr' => 'Frankrijk',
+        'italie' => 'Italië', 'italy' => 'Italië', 'italia' => 'Italië', 'it' => 'Italië',
+        'spanje' => 'Spanje', 'spain' => 'Spanje', 'espana' => 'Spanje', 'es' => 'Spanje',
+        'zweden' => 'Zweden', 'sweden' => 'Zweden', 'sverige' => 'Zweden', 'se' => 'Zweden',
+        'polen' => 'Polen', 'poland' => 'Polen', 'polska' => 'Polen', 'pl' => 'Polen',
+        'roemenie' => 'Roemenië', 'romania' => 'Roemenië', 'ro' => 'Roemenië',
+        'zwitserland' => 'Zwitserland', 'switzerland' => 'Zwitserland', 'schweiz' => 'Zwitserland', 'suisse' => 'Zwitserland', 'ch' => 'Zwitserland',
+        'oostenrijk' => 'Oostenrijk', 'austria' => 'Oostenrijk', 'osterreich' => 'Oostenrijk', 'at' => 'Oostenrijk',
+        'denemarken' => 'Denemarken', 'denmark' => 'Denemarken', 'danmark' => 'Denemarken', 'dk' => 'Denemarken',
+        'verenigd koninkrijk' => 'Verenigd Koninkrijk', 'united kingdom' => 'Verenigd Koninkrijk', 'uk' => 'Verenigd Koninkrijk', 'gb' => 'Verenigd Koninkrijk', 'engeland' => 'Verenigd Koninkrijk', 'england' => 'Verenigd Koninkrijk',
+        'verenigde staten' => 'Verenigde Staten', 'united states' => 'Verenigde Staten', 'united states of america' => 'Verenigde Staten', 'usa' => 'Verenigde Staten', 'us' => 'Verenigde Staten', 'vs' => 'Verenigde Staten',
+    ];
+
+    /** European countries whose postcodes are digits, sometimes written with a country prefix ("B-2000"). */
+    const PREFIXED_POSTCODE_COUNTRIES = ['België', 'Luxemburg', 'Duitsland', 'Frankrijk', 'Italië', 'Spanje', 'Zweden', 'Zwitserland', 'Oostenrijk', 'Denemarken'];
+
+    /** "Belgium", "belgie", "BE" -> "België"; an unknown country is only trimmed. */
+    public static function canonical_country(string $country): string {
+        return self::COUNTRIES[self::fold($country)] ?? trim($country);
+    }
+
     /** Lowercase, accent-free, punctuation as spaces, whitespace collapsed. */
     public static function fold(string $value): string {
         $value = trim((string) preg_replace('/\s+/u', ' ', $value));
@@ -37,7 +64,11 @@ class AVPVH_Address_Normalizer {
      * postcode written as "1234 AB", and the house number split into number
      * and addition (see split_house_number()): an addition typed into the
      * number field ("40-1 hoog", or a caller that only knows one field)
-     * moves to house_number_addition. Keys not given are left out.
+     * moves to house_number_addition. The country gets its one stored name;
+     * a European postcode loses its country prefix ("B-2000" -> "2000");
+     * in Belgium and Luxembourg a house number still inside the street
+     * ("Kerkstraat 12 bus 3", "12, rue Haute") moves to its own field.
+     * Keys not given are left out.
      */
     public static function clean(array $address): array {
         $clean = [];
@@ -46,6 +77,13 @@ class AVPVH_Address_Normalizer {
                 $clean[$field] = trim((string) preg_replace('/\s+/u', ' ', (string) $address[$field]));
             }
         }
+        if (isset($clean['country'])) {
+            $clean['country'] = self::canonical_country($clean['country']);
+        }
+        $country = $clean['country'] ?? '';
+        if (isset($clean['street'], $clean['house_number']) && $clean['house_number'] === '' && in_array($country, ['België', 'Luxemburg'], true)) {
+            [$clean['street'], $clean['house_number']] = self::number_from_street($clean['street']);
+        }
         if (isset($clean['house_number'])) {
             [$number, $addition] = self::split_house_number($clean['house_number'] . ' ' . ($clean['house_number_addition'] ?? ''));
             $clean['house_number'] = $number;
@@ -53,11 +91,27 @@ class AVPVH_Address_Normalizer {
         } elseif (isset($clean['house_number_addition'])) {
             $clean['house_number_addition'] = self::normalize_addition($clean['house_number_addition']);
         }
-        $dutch = self::fold($clean['country'] ?? '') === '' || self::fold($clean['country'] ?? '') === 'nederland';
-        if (isset($clean['postal_code']) && $dutch) {
+        if (isset($clean['postal_code']) && in_array($country, ['', 'Nederland'], true)) {
             $clean['postal_code'] = self::normalize_postal_code($clean['postal_code']);
+        } elseif (isset($clean['postal_code']) && in_array($country, self::PREFIXED_POSTCODE_COUNTRIES, true)) {
+            $clean['postal_code'] = (string) preg_replace('/^[A-Za-z]{1,2}\s*-?\s*(?=\d)/', '', $clean['postal_code']);
         }
         return array_merge($address, $clean);
+    }
+
+    /**
+     * [street, number] from a street that still holds its number: at the
+     * end ("Kerkstraat 12", "Kerkstraat 12 bus 3") or in front, French
+     * style ("12, rue Haute"). Unchanged with no number found.
+     */
+    public static function number_from_street(string $street): array {
+        if (preg_match('/^(.*?\D)\s+(\d+\w*(?:\s*(?:bus|bte|boite|boîte)\s*\w+)?)$/iu', $street, $m)) {
+            return [trim($m[1], ' ,'), $m[2]];
+        }
+        if (preg_match('/^(\d+\w?)\s*,?\s+(\D.*)$/u', $street, $m)) {
+            return [trim($m[2]), $m[1]];
+        }
+        return [$street, ''];
     }
 
     /**
@@ -92,13 +146,20 @@ class AVPVH_Address_Normalizer {
         if (in_array($folded, ['huis', 'hs', 'bg', 'beg', 'beganegrond', 'parterre'], true)) {
             return 'H';
         }
+        // Belgian box number: "bus 3", "bte 3", "boîte 3".
+        if (preg_match('/^(?:bus|bte|boite|box)(\w+)$/', $folded, $a)) {
+            return 'BUS' . mb_strtoupper($a[1], 'UTF-8');
+        }
         return mb_strtoupper($folded, 'UTF-8');
     }
 
-    /** "19" + "A" -> "19A"; "40" + "1" -> "40-1"; "7" + "BIS" -> "7-BIS". */
+    /** "19" + "A" -> "19A"; "40" + "1" -> "40-1"; "7" + "BIS" -> "7-BIS"; "12" + "BUS3" -> "12 bus 3". */
     public static function format_house_number(string $number, string $addition): string {
         if ($addition === '') {
             return $number;
+        }
+        if (preg_match('/^BUS(\w+)$/u', $addition, $m)) {
+            return $number . ' bus ' . $m[1];
         }
         return preg_match('/^\p{L}$/u', $addition) ? $number . $addition : $number . '-' . $addition;
     }
