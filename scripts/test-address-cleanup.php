@@ -34,7 +34,7 @@ function check(string $label, mixed $actual, mixed $expected): void {
 }
 
 function row(int $id, int $member, ?string $from, ?string $until, string $street = 'Kerkstraat', string $number = '1', string $city = 'Utrecht'): object {
-    return (object) ['id' => $id, 'member_id' => $member, 'street' => $street, 'house_number' => $number,
+    return (object) ['id' => $id, 'member_id' => $member, 'street' => $street, 'house_number' => $number, 'house_number_addition' => '',
         'postal_code' => '1234 AB', 'city' => $city, 'valid_from' => $from, 'valid_until' => $until];
 }
 
@@ -66,8 +66,8 @@ $validate = new ReflectionMethod(AVPVH_Address_Cleanup::class, 'validated_fields
 $group = ['fingerprint' => 'fp', 'rows' => [(object) ['country' => 'Nederland']]];
 $key = AVPVH_Address_Normalizer::match_key(['street' => 'Kerkstraat', 'house_number' => '40-1', 'postal_code' => '1234 AB']);
 $ok = $validate->invoke(null, $group, $key, ['city' => 'Utrecht', 'street' => 'Kerkstr', 'house_number' => '40 1 hoog', 'postal_code' => '1234ab'], 'fp');
-check('respelling accepted, cleaned, fields in fixed order', $ok,
-    ['street' => 'Kerkstr', 'house_number' => '40 1 hoog', 'postal_code' => '1234 AB', 'city' => 'Utrecht']);
+check('respelling accepted, cleaned and split, fields in fixed order', $ok,
+    ['street' => 'Kerkstr', 'house_number' => '40', 'house_number_addition' => '1', 'postal_code' => '1234 AB', 'city' => 'Utrecht']);
 check('other house number refused', $validate->invoke(null, $group, $key, ['street' => 'Kerkstraat', 'house_number' => '42', 'postal_code' => '1234 AB', 'city' => ''], 'fp')->code, 'other_address');
 check('changed group refused', $validate->invoke(null, $group, $key, $ok, 'old')->code, 'stale');
 check('vanished group refused', $validate->invoke(null, null, $key, $ok, 'fp')->code, 'gone');

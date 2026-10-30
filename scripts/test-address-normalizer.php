@@ -63,6 +63,31 @@ check('Dutch postcode: 40-1 is not 401',
 check('foreign postcode still compares street',
     $key(addr('Rue Haute', '1', 'B-1000')) === $key(addr('Rue Basse', '1', 'B-1000')), false);
 
+$split = [AVPVH_Address_Normalizer::class, 'split_house_number'];
+check('split 40-1 hoog', $split('40-1 hoog'), ['40', '1']);
+check('split 19a', $split('19a'), ['19', 'A']);
+check('split 40 - I', $split('40 - I'), ['40', '1']);
+check('split 7 bis', $split('7 bis'), ['7', 'BIS']);
+check('split 19-hs', $split('19-hs'), ['19', 'H']);
+check('split plain', $split(' 040 '), ['40', '']);
+check('split without number keeps text', $split('ong.'), ['ong.', '']);
+check('split 12/14', $split('12/14'), ['12', '14']);
+$fmt = [AVPVH_Address_Normalizer::class, 'format_house_number'];
+check('format letter glued', $fmt('19', 'A'), '19A');
+check('format floor with dash', $fmt('40', '1'), '40-1');
+check('format word with dash', $fmt('7', 'BIS'), '7-BIS');
+check('format no addition', $fmt('40', ''), '40');
+check('street line', AVPVH_Address_Normalizer::format_street_line(['street' => 'Kerkstraat', 'house_number' => '40', 'house_number_addition' => '1']), 'Kerkstraat 40-1');
+check('separate field matches combined',
+    $key(['street' => 'Kerkstraat', 'house_number' => '40', 'house_number_addition' => '1', 'postal_code' => '1234 AB']),
+    $key(addr('Kerkstraat', '40-1 hoog', '1234AB')));
+$cleaned = AVPVH_Address_Normalizer::clean(['house_number' => '40-1 hoog']);
+check('clean splits a combined number', [$cleaned['house_number'], $cleaned['house_number_addition']], ['40', '1']);
+$cleaned = AVPVH_Address_Normalizer::clean(['house_number' => '19', 'house_number_addition' => 'a']);
+check('clean normalizes the separate addition', [$cleaned['house_number'], $cleaned['house_number_addition']], ['19', 'A']);
+$cleaned = AVPVH_Address_Normalizer::clean(['house_number' => '', 'house_number_addition' => '']);
+check('clean leaves empty empty', [$cleaned['house_number'], $cleaned['house_number_addition']], ['', '']);
+
 $clean = AVPVH_Address_Normalizer::clean(addr(' Kerk  straat ', '1', '1234ab') + ['country' => 'Nederland', 'valid_from' => '2026-01-01']);
 check('clean tidies whitespace', $clean['street'], 'Kerk straat');
 check('clean formats Dutch postcode', $clean['postal_code'], '1234 AB');

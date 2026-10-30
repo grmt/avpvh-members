@@ -725,7 +725,7 @@ class AVPVH_Member_Merge {
             $a = AVPVH_DB::current_address((int) $linked->id);
             $name = avpvh_format_name($linked) . ' [lid]';
             $phone = self::str($linked->mobile) !== '' ? self::str($linked->mobile) : self::str($linked->phone);
-            $address = $a ? trim(trim("{$a->street} {$a->house_number}") . ', ' . trim("{$a->postal_code} {$a->city}"), ' ,') : '';
+            $address = $a ? trim(AVPVH_Address_Normalizer::format_street_line($a) . ', ' . trim("{$a->postal_code} {$a->city}"), ' ,') : '';
         }
         $relation = self::str($member->emergency_relation ?? '');
         $name = trim($name . ($relation !== '' ? " ($relation)" : ''));
@@ -790,7 +790,7 @@ class AVPVH_Member_Merge {
     }
 
     private static function format_address(object $address): string {
-        return trim("{$address->street} {$address->house_number}, {$address->postal_code} {$address->city}", ' ,');
+        return trim(AVPVH_Address_Normalizer::format_street_line($address) . ", {$address->postal_code} {$address->city}", ' ,');
     }
 
     /** Address dates are inclusive; an empty boundary means open-ended. */

@@ -430,7 +430,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <?php else : foreach ($addresses as $a) : ?>
             <tr>
                 <td><?php echo esc_html($a->street); ?></td>
-                <td><?php echo esc_html($a->house_number); ?></td>
+                <td><?php echo esc_html(AVPVH_Address_Normalizer::format_house_number((string) $a->house_number, (string) $a->house_number_addition)); ?></td>
                 <td><?php echo esc_html($a->postal_code); ?></td>
                 <td><?php echo esc_html($a->city); ?></td>
                 <td><?php echo esc_html($a->country); ?></td>

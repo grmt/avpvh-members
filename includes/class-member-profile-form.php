@@ -356,8 +356,15 @@ class AVPVH_Member_Profile_Form {
 
                     <div class="form-group">
                         <label for="house_number"><?php esc_html_e('Huisnummer', 'avpvh-members'); ?></label>
-                        <input type="text" id="house_number" name="house_number"
+                        <input type="text" id="house_number" name="house_number" inputmode="numeric"
                             value="<?php echo esc_attr($current_address->house_number ?? ''); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="house_number_addition"><?php esc_html_e('Toevoeging', 'avpvh-members'); ?></label>
+                        <input type="text" id="house_number_addition" name="house_number_addition" maxlength="20"
+                            placeholder="<?php esc_attr_e('bijv. A of 1 hoog', 'avpvh-members'); ?>"
+                            value="<?php echo esc_attr($current_address->house_number_addition ?? ''); ?>">
                     </div>
 
                     <div class="form-group">
@@ -1007,6 +1014,7 @@ class AVPVH_Member_Profile_Form {
                 $address_data = [
                     'street' => sanitize_text_field(wp_unslash($_POST['street'] ?? '')),
                     'house_number' => sanitize_text_field(wp_unslash($_POST['house_number'] ?? '')),
+                    'house_number_addition' => sanitize_text_field(wp_unslash($_POST['house_number_addition'] ?? '')),
                     'postal_code' => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
                     'city' => sanitize_text_field(wp_unslash($_POST['city'] ?? '')),
                     'country' => sanitize_text_field(wp_unslash($_POST['country'] ?? 'Nederland')),

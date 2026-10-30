@@ -40,7 +40,7 @@ class AVPVH_Ledenlijst_Export {
                 ['v' => $lid->share_phone ? $lid->mobile : ''],
                 ['v' => $lid->share_phone ? $lid->phone : ''],
                 ['v' => $lid->share_address ? $lid->street : ''],
-                ['v' => $lid->share_address ? $lid->house_number : ''],
+                ['v' => $lid->share_address ? AVPVH_Address_Normalizer::format_house_number((string) $lid->house_number, (string) $lid->house_number_addition) : ''],
                 ['v' => $lid->share_address ? $lid->postal_code : ''],
                 ['v' => $lid->share_address ? $lid->city : ''],
                 ['v' => $lid->share_address ? $lid->country : ''],
