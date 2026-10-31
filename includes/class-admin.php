@@ -146,6 +146,11 @@ class AVPVH_Admin {
             'avpvh-members', __('Ledendetail', 'avpvh-members'), __('Ledendetail', 'avpvh-members'), $members_cap,
             'avpvh-member-detail', [$this, 'render_member_detail']
         );
+        // Reached from an e-mail on Loginpogingen that no member has yet.
+        add_submenu_page(
+            null, __('E-mailadres koppelen', 'avpvh-members'), __('E-mailadres koppelen', 'avpvh-members'), $members_cap,
+            'avpvh-link-email', [$this, 'render_link_email']
+        );
         add_submenu_page(
             'avpvh-members', __('Nieuwe persoon', 'avpvh-members'), __('Nieuwe persoon', 'avpvh-members'), $members_cap,
             'avpvh-add-member', [$this, 'render_add_member']
@@ -244,6 +249,10 @@ class AVPVH_Admin {
 
     public function render_member_detail(): void {
         require AVPVH_PLUGIN_DIR . 'admin/member-detail.php';
+    }
+
+    public function render_link_email(): void {
+        require_once AVPVH_PLUGIN_DIR . 'admin/link-email.php';
     }
 
     public function render_add_member(): void {
