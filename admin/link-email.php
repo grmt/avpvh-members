@@ -1,7 +1,9 @@
 <?php
 defined('ABSPATH') || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- single-execution admin-page template (included once per request via AVPVH_Admin::render_link_email()), its top-level variables are effectively function-local
-if (!AVPVH_Roles::can_manage_members()) wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
+if (!AVPVH_Roles::can_manage_members()) {
+    wp_die(esc_html__('Geen toegang.', 'avpvh-members'));
+}
 
 require_once AVPVH_PLUGIN_DIR . 'admin/class-login-attempts-list-table.php';
 

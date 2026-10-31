@@ -252,7 +252,7 @@ class AVPVH_Admin {
     }
 
     public function render_link_email(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/link-email.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/link-email.php';
     }
 
     public function render_add_member(): void {
