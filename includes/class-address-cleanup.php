@@ -306,7 +306,7 @@ class AVPVH_Address_Cleanup {
         $dutch_postcode = $same_postcode && preg_match('/^\d{4}[a-z]{2}$/', $left_pc);
         $postcode_slip = strlen($left_pc) === 6 && strlen($right_pc) === 6 && levenshtein($left_pc, $right_pc) === 1;
         $same_city = $compact((string) $left->city) !== '' && $compact((string) $left->city) === $compact((string) $right->city);
-        $street_alike = self::streets_alike((string) $left->street, (string) $right->street);
+        $street_alike = AVPVH_Address_Normalizer::streets_alike((string) $left->street, (string) $right->street);
 
         // No number on either side: only a respelled street at the same
         // postcode. Otherwise the same number, and the same Dutch postcode
@@ -314,25 +314,6 @@ class AVPVH_Address_Cleanup {
         return $no_numbers
             ? $same_postcode && $street_alike
             : $same_number && ($dutch_postcode || (($same_city || $same_postcode || $postcode_slip) && ($street_alike || $postcode_slip)));
-    }
-
-    /**
-     * Street names mostly alike (75%). With a word abbreviated on either
-     * side ("B. Lindelaan", "Prof. v.d. Bergstraat") every word but
-     * the last is cut to its initial on both sides first.
-     */
-    private static function streets_alike(string $left, string $right): bool {
-        $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
-        similar_text($compact($left), $compact($right), $percent);
-        if ($percent < 75 && preg_match('/\b\p{L}{1,4}\./u', $left . ' ' . $right)) {
-            $initials = static function (string $street): string {
-                $words = explode(' ', AVPVH_Address_Normalizer::fold($street));
-                $last = array_pop($words);
-                return implode('', array_map(fn($w) => mb_substr($w, 0, 1), $words)) . $last;
-            };
-            similar_text($initials($left), $initials($right), $percent);
-        }
-        return $percent >= 75;
     }
 
     /**
