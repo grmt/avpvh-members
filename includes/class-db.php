@@ -1434,6 +1434,18 @@ class AVPVH_DB {
         );
     }
 
+    /**
+     * Whether identity $identity_id may be removed from $identities (one
+     * member's): an unverified one always, nobody can log in with it; a
+     * verified one only while another verified one remains, so nobody
+     * deletes a member down to zero working logins.
+     */
+    public static function can_delete_identity(array $identities, int $identity_id): bool {
+        $verified = array_filter($identities, fn($i) => !empty($i->verified_at));
+        $target = current(array_filter($identities, fn($i) => (int) $i->id === $identity_id));
+        return $target !== false && (empty($target->verified_at) || count($verified) > 1);
+    }
+
     public static function delete_identity_by_id(int $member_id, int $identity_id): bool {
         global $wpdb;
 

@@ -490,7 +490,7 @@ class AVPVH_Member_Profile_Form {
                         'not_you'       => __('Er ging iets mis met de verificatie — probeer het opnieuw.', 'avpvh-members'),
                         'limit'         => __('Dit adres kon niet worden toegevoegd (maximaal drie).', 'avpvh-members'),
                         'invalid_email' => __('Dat is geen geldig e-mailadres.', 'avpvh-members'),
-                        'last_identity' => __('Je hebt maar één geverifieerd inlog-e-mailadres — verifieer en voeg eerst een tweede toe voordat je iets verwijdert.', 'avpvh-members'),
+                        'last_identity' => __('Dit is je enige geverifieerde inlogadres en kan niet weg. Voeg eerst een ander adres toe en log daar één keer mee in.', 'avpvh-members'),
                     ];
                     echo esc_html($errors[sanitize_key(wp_unslash($_GET['identity_error']))] ?? __('Er ging iets mis.', 'avpvh-members'));
                     ?>
@@ -505,7 +505,6 @@ class AVPVH_Member_Profile_Form {
                 <p class="avpvh-identity-notice"><?php esc_html_e('Bevestigingslink verstuurd — check je inbox om het adres te koppelen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
 
-            <?php $verified_count = count(array_filter($identities, fn($i) => !empty($i->verified_at))); ?>
             <table class="avpvh-identities-table">
                 <thead class="screen-reader-text"><tr><th scope="col"><?php esc_html_e('E-mailadres', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Inlogmethode', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Verificatie', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Primair', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Acties', 'avpvh-members'); ?></th></tr></thead>
                 <?php foreach ($identities as $identity) :
@@ -532,7 +531,7 @@ class AVPVH_Member_Profile_Form {
                                 <button type="submit" class="button button-small"><?php esc_html_e('Maak primair', 'avpvh-members'); ?></button>
                             </form>
                             <?php endif; ?>
-                            <?php if ($verified_count > 1) :
+                            <?php if (AVPVH_DB::can_delete_identity($identities, (int) $identity->id)) :
                                 $confirm_msg = $is_current_login
                                     ? __('Let op: dit is het adres waarmee je nu bent ingelogd. Als je het verwijdert, kun je daar niet meer mee inloggen. Doorgaan?', 'avpvh-members')
                                     : __('Dit e-mailadres verwijderen?', 'avpvh-members');
@@ -1130,10 +1129,8 @@ class AVPVH_Member_Profile_Form {
         }
 
         $identities = AVPVH_DB::get_member_identities($member_id);
-        // Gated on *verified* identities, not the raw count — an admin-added,
-        // unverified extra shouldn't count as a safe fallback to remove down to.
-        $verified_count = count(array_filter($identities, fn($i) => !empty($i->verified_at)));
-        if ($verified_count <= 1) {
+        // Never the last verified login; an unverified one can always go.
+        if (!AVPVH_DB::can_delete_identity($identities, $identity_id)) {
             wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'last_identity'], wp_get_referer() ?: home_url('/member-profile/')));
             exit;
         }

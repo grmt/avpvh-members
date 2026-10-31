@@ -124,7 +124,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <?php elseif ($identity_error === 'onvolledig') : ?>
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Vul een e-mailadres in.', 'avpvh-members'); ?></p></div>
     <?php elseif ($identity_error === 'laatste') : ?>
-        <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Dit lid heeft nog maar één geverifieerd inlogadres — voeg eerst een tweede toe voordat je er een verwijdert.', 'avpvh-members'); ?></p></div>
+        <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Dit is het enige geverifieerde inlogadres van dit lid en kan niet weg. Koppel hieronder een ander adres en laat het lid daarmee één keer inloggen; daarna kan dit adres weg. Een niet-geverifieerd adres kun je altijd verwijderen.', 'avpvh-members'); ?></p></div>
     <?php elseif (($_GET['address_error'] ?? '') === 'open') : ?>
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Niet opgeslagen: er kan maar één adres doorlopen tot heden. Geef eerst het andere doorlopende adres een einddatum.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_updated'])) : ?>
@@ -280,6 +280,9 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                         <button type="submit" class="button button-small"><?php esc_html_e('Maak primair', 'avpvh-members'); ?></button>
                     </form>
                     <?php endif; ?>
+                    <?php if (!AVPVH_DB::can_delete_identity($identities, (int) $identity->id)) : ?>
+                    <span class="description" title="<?php esc_attr_e('Het enige geverifieerde inlogadres kan niet weg: koppel hieronder een ander adres en laat het lid daarmee één keer inloggen.', 'avpvh-members'); ?>"><?php esc_html_e('Enige geverifieerde', 'avpvh-members'); ?></span>
+                    <?php else : ?>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block"
                         onsubmit="return confirm('<?php echo esc_js(__('Dit e-mailadres verwijderen?', 'avpvh-members')); ?>');">
                         <?php wp_nonce_field('avpvh_delete_identity'); ?>
@@ -288,6 +291,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                         <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
                         <button type="submit" class="button button-small"><?php esc_html_e('Verwijder', 'avpvh-members'); ?></button>
                     </form>
+                    <?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; endif; ?>
