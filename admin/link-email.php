@@ -15,7 +15,8 @@ $owner_id = $email ? (AVPVH_DB::get_member_ids_by_emails([$email])[AVPVH_DB::nor
 $attempts = $email ? AVPVH_DB::query_login_attempts(['search' => $email, 'per_page' => 10]) : ['items' => [], 'total' => 0];
 $attempts['items'] = array_values(array_filter($attempts['items'], fn($a) => strcasecmp((string) $a->email, $email) === 0));
 
-// Name parts in the e-mail ("jan.de-vries84@..." -> jan, vries): members
+// Name parts in the e-mail ("voornaam.achternaam42@..." -> voornaam,
+// achternaam): members
 // matching more parts first.
 $candidates = [];
 $hits = [];
