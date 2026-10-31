@@ -134,6 +134,27 @@ check('no number on either side: another street is not the same',
 check('same Dutch postcode and number, city missing',
     $same(place('Kerkstr', '3', '1234 AB', ''), place('Kerkstraat', '3', '1234AB', 'Utrecht')), true);
 
+check('abroad: abbreviated first word in the street',
+    $same(place('B. Lindenlaan', '12', '2000', 'Antwerpen-Centrum'), place('Burgemeester Lindelaan', '12', '2000', 'Antwerpen')), true);
+check('abroad: abbreviated words on both sides',
+    $same(place('Prof. v.d. Bergstraat', '3', '2000', 'Antwerpen'), place('Professor van den Bergstraat', '3', '2000', 'Antwerpen')), true);
+check('abroad: another street at the same postcode and number is not the same',
+    $same(place('M. Kerkstraat', '8', '9000', 'Gent'), place('Molenweg', '8', '9000', 'Gent')), false);
+
+$wpdb->open = [
+    row(31, 40, '1992-01-01', '1993-12-30', 'Kapeldreef', '8', 'Gent'),
+    row(32, 40, '1993-12-31', '1997-01-26', 'Kapeldrecf', '8', 'Gent'),
+    row(33, 41, '1995-03-01', null, 'M. Kerkstraat', '8', 'Gent'),
+    row(34, 41, '1990-01-01', '1994-12-31', 'Molenweg', '8', 'Gent'),
+];
+foreach ($wpdb->open as $r) {
+    $r->postal_code = '9000';
+    $r->country = 'België';
+}
+$groups = AVPVH_Address_Cleanup::find_groups();
+check('abroad: respelled street joins one group, other streets stay apart', array_map(fn($g) => array_map(fn($r) => (int) $r->id, $g['rows']), array_values($groups)), [[31, 32]]);
+check('abroad: both spellings offered and the rows fold', [count(array_values($groups)[0]['variants']), array_values($groups)[0]['clusters']], [2, [[31, 32]]]);
+
 $wpdb->open = [
     row(11, 20, '1999-06-01', null, 'J. van Lindenweg', '3'),
     row(12, 20, '2026-01-01', null, 'Johan van Lindeweg', '3'),

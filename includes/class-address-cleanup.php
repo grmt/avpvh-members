@@ -3,7 +3,8 @@ defined('ABSPATH') || exit;
 
 /**
  * "Adressen opschonen" on the Leden samenvoegen page: address rows that are
- * the same address (AVPVH_Address_Normalizer::match_key()) but spelled
+ * the same address (AVPVH_Address_Normalizer::match_key(), or abroad the
+ * same postcode and number with the street respelled) but spelled
  * differently ("...str" vs "...straat", "40-I" vs "40 1 hoog", import OCR
  * slips), or stored more than once for one member. The admin picks one
  * spelling per address; a member's rows for that address whose periods
@@ -38,6 +39,7 @@ class AVPVH_Address_Cleanup {
                 $by_key[$key][] = $row;
             }
         }
+        $by_key = self::join_respelled($by_key);
 
         $groups = [];
         foreach ($by_key as $key => $group_rows) {
@@ -63,6 +65,36 @@ class AVPVH_Address_Cleanup {
             ?: count($b['rows']) <=> count($a['rows'])
             ?: strcmp($a['key'], $b['key']));
         return $groups;
+    }
+
+    /**
+     * Joins groups whose keys differ only by the street's spelling. Outside
+     * the Netherlands a postcode is a whole town, so match_key() keeps the
+     * street, and "B. Lindelaan 12" and "Burgemeester Lindelaan 12"
+     * at one postcode would otherwise stay two addresses.
+     */
+    private static function join_respelled(array $by_key): array {
+        $by_place = [];
+        foreach (array_keys($by_key) as $key) {
+            $parts = explode('|', (string) $key);
+            if (count($parts) === 3 && $parts[0] !== '' && $parts[1] !== '') {
+                $by_place[$parts[0] . '|' . $parts[1]][] = $key;
+            }
+        }
+        foreach (array_filter($by_place, fn($keys) => count($keys) > 1) as $keys) {
+            $targets = [];
+            foreach ($keys as $key) {
+                $target = current(array_filter($targets, fn($t) => self::probably_same_address($by_key[$t][0], $by_key[$key][0])));
+                if ($target === false) {
+                    $targets[] = $key;
+                    continue;
+                }
+                $by_key[$target] = array_merge($by_key[$target], $by_key[$key]);
+                usort($by_key[$target], fn($a, $b) => (int) $a->id <=> (int) $b->id);
+                unset($by_key[$key]);
+            }
+        }
+        return $by_key;
     }
 
     /**
@@ -274,8 +306,7 @@ class AVPVH_Address_Cleanup {
         $dutch_postcode = $same_postcode && preg_match('/^\d{4}[a-z]{2}$/', $left_pc);
         $postcode_slip = strlen($left_pc) === 6 && strlen($right_pc) === 6 && levenshtein($left_pc, $right_pc) === 1;
         $same_city = $compact((string) $left->city) !== '' && $compact((string) $left->city) === $compact((string) $right->city);
-        similar_text($compact((string) $left->street), $compact((string) $right->street), $street_percent);
-        $street_alike = $street_percent >= 75;
+        $street_alike = self::streets_alike((string) $left->street, (string) $right->street);
 
         // No number on either side: only a respelled street at the same
         // postcode. Otherwise the same number, and the same Dutch postcode
@@ -283,6 +314,25 @@ class AVPVH_Address_Cleanup {
         return $no_numbers
             ? $same_postcode && $street_alike
             : $same_number && ($dutch_postcode || (($same_city || $same_postcode || $postcode_slip) && ($street_alike || $postcode_slip)));
+    }
+
+    /**
+     * Street names mostly alike (75%). With a word abbreviated on either
+     * side ("B. Lindelaan", "Prof. v.d. Bergstraat") every word but
+     * the last is cut to its initial on both sides first.
+     */
+    private static function streets_alike(string $left, string $right): bool {
+        $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
+        similar_text($compact($left), $compact($right), $percent);
+        if ($percent < 75 && preg_match('/\b\p{L}{1,4}\./u', $left . ' ' . $right)) {
+            $initials = static function (string $street): string {
+                $words = explode(' ', AVPVH_Address_Normalizer::fold($street));
+                $last = array_pop($words);
+                return implode('', array_map(fn($w) => mb_substr($w, 0, 1), $words)) . $last;
+            };
+            similar_text($initials($left), $initials($right), $percent);
+        }
+        return $percent >= 75;
     }
 
     /**
