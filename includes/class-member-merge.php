@@ -824,8 +824,7 @@ class AVPVH_Member_Merge {
             foreach (AVPVH_Address_Cleanup::FIELDS as $field) {
                 $fields[$field] = (string) ($cleaned[$field] ?? '');
             }
-            $same = array_filter($group['rows'], fn($row) => AVPVH_Address_Normalizer::match_key($fields) === AVPVH_Address_Normalizer::match_key($row)
-                || AVPVH_Address_Cleanup::probably_same_address((object) $fields, $row));
+            $same = array_filter($group['rows'], fn($row) => AVPVH_Address_Matcher::same($fields, $row));
             if (!$same) {
                 /* translators: %s: address */
                 return new \WP_Error('address', sprintf(__('De schrijfwijze bij %s is een ander adres geworden. Kies daar alleen de schrijfwijze.', 'avpvh-members'), $label));

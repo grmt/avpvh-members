@@ -23,6 +23,7 @@ function set_transient(string $key, mixed $value, int $ttl): bool {
 }
 
 require_once dirname(__DIR__) . '/includes/class-avpvh-address-normalizer.php';
+require_once dirname(__DIR__) . '/includes/class-avpvh-address-matcher.php';
 require_once dirname(__DIR__) . '/includes/class-pdok.php';
 require_once dirname(__DIR__) . '/includes/class-address-lookup.php';
 require_once dirname(__DIR__) . '/includes/class-address-entry-check.php';

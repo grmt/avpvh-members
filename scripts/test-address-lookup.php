@@ -67,6 +67,7 @@ function wp_remote_retrieve_body(array $response): string {
 }
 
 require_once dirname(__DIR__) . '/includes/class-avpvh-address-normalizer.php';
+require_once dirname(__DIR__) . '/includes/class-avpvh-address-matcher.php';
 require_once dirname(__DIR__) . '/includes/class-pdok.php';
 require_once dirname(__DIR__) . '/includes/class-address-lookup.php';
 

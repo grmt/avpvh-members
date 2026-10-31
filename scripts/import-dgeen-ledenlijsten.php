@@ -26,7 +26,7 @@
  * Addresses: cleaned (AVPVH_Address_Normalizer::clean()) and checked
  * against the country's register (AVPVH_Address_Lookup); a scan or typing
  * slip that is recognizably the same address gets the official spelling.
- * Consecutive snapshots with the same address (match_key()) form one
+ * Consecutive snapshots with the same address (AVPVH_Address_Matcher) form one
  * period, until the day before the next snapshot with another address;
  * the last one until the day before the first later edition the person
  * is missing from (only someone in the newest edition stays open).
@@ -92,11 +92,6 @@ function avpvh_dgeen_address(array $p): ?array {
     return array_intersect_key($clean, array_flip(['street', 'house_number', 'house_number_addition', 'postal_code', 'city', 'country']));
 }
 
-/** Same address: match_key(), or the record id-free fallback of the whole cleaned text. */
-function avpvh_dgeen_key(array $address): string {
-    return AVPVH_Address_Normalizer::match_key($address) ?: 'tekst:' . AVPVH_Address_Normalizer::fold(implode(' ', $address));
-}
-
 $day_before = static fn(string $date): string => gmdate('Y-m-d', strtotime($date . ' -1 day'));
 $day_after = static fn(string $date): string => gmdate('Y-m-d', strtotime($date . ' +1 day'));
 $report = ['gekoppeld' => 0, 'via_variant' => 0, 'nieuw' => 0, 'controleren' => [], 'meerdere' => [], 'needs_review' => [],
@@ -135,7 +130,7 @@ foreach ($people as $person) {
 AVPVH_Address_Lookup::prefetch($scanned);
 $official = static function (array $address, string $who) use (&$report): array {
     $found = AVPVH_Address_Lookup::lookup($address);
-    if ($found && AVPVH_Address_Cleanup::probably_same_address((object) $found['fields'], (object) $address)) {
+    if ($found && AVPVH_Address_Matcher::probably_same((object) $found['fields'], (object) $address)) {
         $fields = $found['fields'] + ['country' => $address['country']];
         if (AVPVH_Address_Cleanup::format($fields) !== AVPVH_Address_Cleanup::format($address)) {
             $report['verbeterd'][AVPVH_Address_Cleanup::format($address)] = AVPVH_Address_Cleanup::format($fields) . " ({$found['source']})";
@@ -231,12 +226,12 @@ foreach ($people as $key => $person) {
         }
         $address = $official($address, $name);
         $open = $periods ? $periods[count($periods) - 1] : null;
-        if ($open && $date === $last_date && avpvh_dgeen_key($open['address']) !== avpvh_dgeen_key($address)) {
+        if ($open && $date === $last_date && !AVPVH_Address_Matcher::same($open['address'], $address)) {
             $report['zelfde_editie'][] = "{$name}, {$edition}: tweede adres " . AVPVH_Address_Cleanup::format($address) . ' niet gebruikt';
             continue;
         }
         $last_date = $date;
-        if ($open && avpvh_dgeen_key($open['address']) === avpvh_dgeen_key($address)) {
+        if ($open && AVPVH_Address_Matcher::same($open['address'], $address)) {
             $periods[count($periods) - 1]['seen_until'] = $date;
             continue;
         }
@@ -263,9 +258,9 @@ foreach ($people as $key => $person) {
     // A period never runs into another stored address of the same person:
     // it ends the day before a later one starts, and starts the day after
     // an earlier one (that started before it) ends.
-    $cap = static function (?string $from, ?string $until, string $key, ?object $self) use (&$rows, $day_before, $day_after): array {
+    $cap = static function (?string $from, ?string $until, array $address, ?object $self) use (&$rows, $day_before, $day_after): array {
         foreach ($rows as $row) {
-            if ($row === $self || avpvh_dgeen_key((array) $row) === $key) {
+            if ($row === $self || AVPVH_Address_Matcher::same($row, $address)) {
                 continue;
             }
             if ($row->valid_from !== null && (string) $row->valid_from > (string) $from && ($until === null || $until >= $row->valid_from)) {
@@ -279,14 +274,13 @@ foreach ($people as $key => $person) {
         return [$from, $until];
     };
     foreach ($periods as $period) {
-        $key = avpvh_dgeen_key($period['address']);
         $shown = AVPVH_Address_Cleanup::format($period['address']);
 
         // The same address already stored around these dates: widen it to
         // the editions that list it, no further.
         $same = null;
         foreach ($rows as $row) {
-            if (avpvh_dgeen_key((array) $row) === $key
+            if (AVPVH_Address_Matcher::same($row, $period['address'])
                 && ($row->valid_from ?? '0000-01-01') <= ($period['until'] === null ? '9999-12-31' : $day_after($period['until']))
                 && ($row->valid_until ?? '9999-12-31') >= $day_before($period['from'])) {
                 $same = $row;
@@ -296,7 +290,7 @@ foreach ($people as $key => $person) {
         if ($same) {
             $from = $same->valid_from === null ? null : min((string) $same->valid_from, $period['seen_from']);
             $until = $same->valid_until === null ? null : max((string) $same->valid_until, $period['seen_until']);
-            [$from, $until] = $cap($from, $until, $key, $same);
+            [$from, $until] = $cap($from, $until, $period['address'], $same);
             if (($from !== null && $until !== null && $until < $from) || ($from === $same->valid_from && $until === $same->valid_until)) {
                 continue;
             }
@@ -313,7 +307,7 @@ foreach ($people as $key => $person) {
         // ends the day before; a later stored address ends this one ($cap).
         if ($period['until'] === null) {
             foreach ($rows as $row) {
-                if ($row->valid_until === null && avpvh_dgeen_key((array) $row) !== $key
+                if ($row->valid_until === null && !AVPVH_Address_Matcher::same($row, $period['address'])
                     && ($row->valid_from === null || (string) $row->valid_from < $period['from'])) {
                     $report['afgesloten']++;
                     $row->valid_until = $day_before($period['from']);
@@ -323,7 +317,7 @@ foreach ($people as $key => $person) {
                 }
             }
         }
-        [$from, $until] = $cap($period['from'], $period['until'], $key, null);
+        [$from, $until] = $cap($period['from'], $period['until'], $period['address'], null);
         if ($until !== null && $until < $from) {
             $report['overgeslagen_periode'][] = "{$name}: {$shown} ({$period['from']} – {$period['until']}) valt binnen andere adressen";
             continue;

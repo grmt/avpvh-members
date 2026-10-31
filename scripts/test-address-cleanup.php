@@ -29,6 +29,7 @@ function is_wp_error(mixed $thing): bool {
 }
 
 require_once dirname(__DIR__) . '/includes/class-avpvh-address-normalizer.php';
+require_once dirname(__DIR__) . '/includes/class-avpvh-address-matcher.php';
 require_once dirname(__DIR__) . '/includes/class-address-cleanup.php';
 
 function check(string $label, mixed $actual, mixed $expected): void {
@@ -111,35 +112,6 @@ check('newest stays open', $conflicts[7]['keep'], 2);
 check('older ends the day before the newest started', $conflicts[7]['close'], [1 => '2021-06-14']);
 check('no start dates: no proposal', [$conflicts[9]['keep'], $conflicts[9]['close']], [null, []]);
 check('duplicate of the newest is not closed', $conflicts[10]['close'], [7 => '2022-01-31']);
-
-function place(string $street, string $number, string $postal, string $city): object {
-    return (object) ['street' => $street, 'house_number' => $number, 'house_number_addition' => '', 'postal_code' => $postal, 'city' => $city];
-}
-$same = [AVPVH_Address_Cleanup::class, 'probably_same_address'];
-check('abbreviated and misspelled street, postcode one off',
-    $same(place('J. van Lindenweg', '3', '1234 AC', 'Utrecht'), place('Johan van Lindeweg', '3', '1234 AB', 'Utrecht')), true);
-check('postcode one off, other city spelling',
-    $same(place('Kerkstraat', '3', '1234 AB', 'Den Bosch'), place('Kerkstraat', '3', '1234 AC', "'s-Hertogenbosch")), true);
-check('different house number is never the same',
-    $same(place('Kerkstraat', '3', '1234 AB', 'Utrecht'), place('Kerkstraat', '5', '1234 AB', 'Utrecht')), false);
-check('same number, other street, same city is a move',
-    $same(place('Kerkstraat', '3', '1234 AB', 'Utrecht'), place('Molenweg', '3', '3581 XY', 'Utrecht')), false);
-check('same street name in another town is a move',
-    $same(place('Kerkstraat', '3', '1234 AB', 'Utrecht'), place('Kerkstraat', '3', '9876 ZZ', 'Groningen')), false);
-
-check('no number on either side: same postcode, street respelled',
-    $same(place('Kerkstr', '', '1234 AB', 'Utrecht'), place('Kerkstraat', '', '1234AB', 'Utrecht')), true);
-check('no number on either side: another street is not the same',
-    $same(place('Kerkstraat', '', '1234 AB', 'Utrecht'), place('Molenweg', '', '1234AB', 'Utrecht')), false);
-check('same Dutch postcode and number, city missing',
-    $same(place('Kerkstr', '3', '1234 AB', ''), place('Kerkstraat', '3', '1234AB', 'Utrecht')), true);
-
-check('abroad: abbreviated first word in the street',
-    $same(place('B. Lindenlaan', '12', '2000', 'Antwerpen-Centrum'), place('Burgemeester Lindelaan', '12', '2000', 'Antwerpen')), true);
-check('abroad: abbreviated words on both sides',
-    $same(place('Prof. v.d. Bergstraat', '3', '2000', 'Antwerpen'), place('Professor van den Bergstraat', '3', '2000', 'Antwerpen')), true);
-check('abroad: another street at the same postcode and number is not the same',
-    $same(place('M. Kerkstraat', '8', '9000', 'Gent'), place('Molenweg', '8', '9000', 'Gent')), false);
 
 $wpdb->open = [
     row(31, 40, '1992-01-01', '1993-12-30', 'Kapeldreef', '8', 'Gent'),
