@@ -403,14 +403,14 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
     <?php else :
         $candidates = AVPVH_Member_Merge::find_duplicate_candidates(); ?>
         <hr>
-        <h2><?php esc_html_e('Mogelijke dubbelen', 'avpvh-members'); ?></h2>
+        <h2><?php esc_html_e('Mogelijk dubbel ingevoerde leden', 'avpvh-members'); ?></h2>
         <p class="description"><?php esc_html_e('Leden met dezelfde voornaam en achternaam (hoofdletters, accenten, leestekens en tussenvoegsels zoals v, vd, v/d, van de(n/r) genegeerd), ook via een vastgelegde naamvariant. Dit is alleen een suggestie — controleer altijd of het echt dezelfde persoon is.', 'avpvh-members'); ?></p>
         <?php if (!$candidates) : ?>
-            <p><?php esc_html_e('Geen mogelijke dubbelen gevonden.', 'avpvh-members'); ?></p>
+            <p><?php esc_html_e('Geen leden gevonden die mogelijk dubbel zijn ingevoerd.', 'avpvh-members'); ?></p>
         <?php else : ?>
             <table class="widefat striped" style="max-width: 900px;">
                 <thead><tr>
-                    <th><?php esc_html_e('Mogelijke dubbelen', 'avpvh-members'); ?></th>
+                    <th><?php esc_html_e('Leden', 'avpvh-members'); ?></th>
                     <th><span class="screen-reader-text"><?php esc_html_e('Actie', 'avpvh-members'); ?></span></th>
                 </tr></thead>
                 <tbody>

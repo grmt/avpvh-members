@@ -207,6 +207,25 @@ class AVPVH_Address_Normalizer {
     }
 
     /**
+     * Street names mostly alike (75%). With a word abbreviated on either
+     * side ("B. Lindelaan", "Prof. v.d. Bergstraat") every word but
+     * the last is cut to its initial on both sides first.
+     */
+    public static function streets_alike(string $left, string $right): bool {
+        $compact = fn(string $v): string => str_replace(' ', '', self::fold($v));
+        similar_text($compact($left), $compact($right), $percent);
+        if ($percent < 75 && preg_match('/\b\p{L}{1,4}\./u', $left . ' ' . $right)) {
+            $initials = static function (string $street): string {
+                $words = explode(' ', self::fold($street));
+                $last = array_pop($words);
+                return implode('', array_map(fn($w) => mb_substr($w, 0, 1), $words)) . $last;
+            };
+            similar_text($initials($left), $initials($right), $percent);
+        }
+        return $percent >= 75;
+    }
+
+    /**
      * Comparison key. With a Dutch postcode, "postcode|number": postcode and
      * house number pin the address down, so street spellings ("2e
      * Molendwarsstr" vs "...straat") don't matter. Otherwise
