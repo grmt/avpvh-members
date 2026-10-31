@@ -73,6 +73,7 @@ function wp_send_json_error(mixed $d = null): never { throw new JsonExit(false, 
 function wp_send_json_success(mixed $d = null): never { throw new JsonExit(true, $d); }
 
 require_once dirname(__DIR__) . '/includes/class-avpvh-address-normalizer.php';
+require_once dirname(__DIR__) . '/includes/class-avpvh-address-matcher.php';
 require_once dirname(__DIR__) . '/includes/class-member-merge.php';
 require_once dirname(__DIR__) . '/includes/class-member-profile-form.php';
 

@@ -1667,7 +1667,7 @@ class AVPVH_DB {
 
     /**
      * Records $address as the member's address from today on. If it is the
-     * same address (AVPVH_Address_Normalizer::match_key()) as one already
+     * same address (AVPVH_Address_Matcher::same()) as one already
      * current, that row is kept (spelling differences written into it) — the
      * profile form re-sends the address on every save, which used to add a
      * duplicate row each time. Otherwise the
@@ -1680,7 +1680,6 @@ class AVPVH_DB {
         $table   = "{$wpdb->prefix}avm_addresses";
         $today   = current_time('Y-m-d');
         $address = AVPVH_Address_Normalizer::clean($address);
-        $key     = AVPVH_Address_Normalizer::match_key($address);
         $fields  = array_intersect_key($address, array_flip(['street', 'house_number', 'house_number_addition', 'postal_code', 'city', 'country']));
 
         $open = $wpdb->get_results($wpdb->prepare(
@@ -1691,7 +1690,7 @@ class AVPVH_DB {
             $member_id, $today, $today
         )) ?: [];
         foreach ($open as $row) {
-            if ($key !== '' && AVPVH_Address_Normalizer::match_key($row) === $key) {
+            if (($address['street'] ?? '') !== '' && AVPVH_Address_Matcher::same($address, $row)) {
                 // Same address; a spelling fix (city, capitals) is applied in place.
                 if (array_diff_assoc($fields, array_intersect_key((array) $row, $fields))) {
                     $wpdb->update($table, $fields, ['id' => (int) $row->id]);
@@ -2287,7 +2286,7 @@ class AVPVH_DB {
             return false;
         }
 
-        return AVPVH_Address_Normalizer::match_key($addr_1) === AVPVH_Address_Normalizer::match_key($addr_2);
+        return AVPVH_Address_Matcher::same($addr_1, $addr_2);
     }
 
     public static function age(string $birth_date): int {

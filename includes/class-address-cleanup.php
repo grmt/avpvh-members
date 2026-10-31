@@ -3,8 +3,7 @@ defined('ABSPATH') || exit;
 
 /**
  * "Adressen opschonen" on the Leden samenvoegen page: address rows that are
- * the same address (AVPVH_Address_Normalizer::match_key(), or abroad the
- * same postcode and number with the street respelled) but spelled
+ * the same address (AVPVH_Address_Matcher) but spelled
  * differently ("...str" vs "...straat", "40-I" vs "40 1 hoog", import OCR
  * slips), or stored more than once for one member. The admin picks one
  * spelling per address; a member's rows for that address whose periods
@@ -32,14 +31,7 @@ class AVPVH_Address_Cleanup {
              ORDER BY a.id"
         ) ?: [];
 
-        $by_key = [];
-        foreach ($rows as $row) {
-            $key = AVPVH_Address_Normalizer::match_key($row);
-            if ($key !== '') {
-                $by_key[$key][] = $row;
-            }
-        }
-        $by_key = self::join_respelled($by_key);
+        $by_key = AVPVH_Address_Matcher::group($rows);
 
         $groups = [];
         foreach ($by_key as $key => $group_rows) {
@@ -68,36 +60,6 @@ class AVPVH_Address_Cleanup {
     }
 
     /**
-     * Joins groups whose keys differ only by the street's spelling. Outside
-     * the Netherlands a postcode is a whole town, so match_key() keeps the
-     * street, and "B. Lindelaan 12" and "Burgemeester Lindelaan 12"
-     * at one postcode would otherwise stay two addresses.
-     */
-    private static function join_respelled(array $by_key): array {
-        $by_place = [];
-        foreach (array_keys($by_key) as $key) {
-            $parts = explode('|', (string) $key);
-            if (count($parts) === 3 && $parts[0] !== '' && $parts[1] !== '') {
-                $by_place[$parts[0] . '|' . $parts[1]][] = $key;
-            }
-        }
-        foreach (array_filter($by_place, fn($keys) => count($keys) > 1) as $keys) {
-            $targets = [];
-            foreach ($keys as $key) {
-                $target = current(array_filter($targets, fn($t) => self::probably_same_address($by_key[$t][0], $by_key[$key][0])));
-                if ($target === false) {
-                    $targets[] = $key;
-                    continue;
-                }
-                $by_key[$target] = array_merge($by_key[$target], $by_key[$key]);
-                usort($by_key[$target], fn($a, $b) => (int) $a->id <=> (int) $b->id);
-                unset($by_key[$key]);
-            }
-        }
-        return $by_key;
-    }
-
-    /**
      * The spelling choices for one address: the stored variants (most
      * common first, see variants()) with the official spelling of its
      * register first, marked by source, when the register knows the
@@ -110,7 +72,7 @@ class AVPVH_Address_Cleanup {
         $official = null;
         foreach ($rows as $row) {
             $found = AVPVH_Address_Lookup::lookup($row);
-            if ($found && self::probably_same_address((object) $found['fields'], $row)) {
+            if ($found && AVPVH_Address_Matcher::probably_same((object) $found['fields'], $row)) {
                 $official = $found;
                 break;
             }
@@ -168,8 +130,7 @@ class AVPVH_Address_Cleanup {
 
     /**
      * One person's address history planned from $rows (of one member, or
-     * of two records being merged): grouped per address (match_key(), or
-     * recognizably the same address with a typo), each group's periods that
+     * of two records being merged): grouped per address (AVPVH_Address_Matcher::same()), each group's periods that
      * touch or overlap folded into one (earliest start, latest end; a gap
      * keeps them apart: moved away and back), and only the newest start
      * left running on — the others end the day before it. Returns groups:
@@ -182,8 +143,7 @@ class AVPVH_Address_Cleanup {
             $home = null;
             foreach ($groups as $i => $group) {
                 foreach ($group as $other) {
-                    $key = AVPVH_Address_Normalizer::match_key($row);
-                    if (($key !== '' && $key === AVPVH_Address_Normalizer::match_key($other)) || self::probably_same_address($row, $other)) {
+                    if (AVPVH_Address_Matcher::same($row, $other)) {
                         $home = $i;
                         break 2;
                     }
@@ -273,7 +233,7 @@ class AVPVH_Address_Cleanup {
             $newest = $member_rows[0];
             $others = array_filter($member_rows, fn($r) => $key($r) !== $key($newest));
             // A typo in street or postcode isn't a move: offer to merge.
-            $same_place = !array_filter($others, fn($r) => !self::probably_same_address($r, $newest));
+            $same_place = !array_filter($others, fn($r) => !AVPVH_Address_Matcher::probably_same($r, $newest));
             $tie = $same_place || (string) $newest->valid_from === '' || array_filter($others, fn($r) => $r->valid_from === $newest->valid_from);
             $until = $tie ? null : gmdate('Y-m-d', strtotime($newest->valid_from . ' -1 day'));
             $conflicts[$member_id] = [
@@ -290,34 +250,7 @@ class AVPVH_Address_Cleanup {
     }
 
     /**
-     * Two rows that differ only by a typo: same house number, and the same
-     * Dutch postcode (that pins the address down), or the same city or
-     * postcode or a postcode one character off, with street names mostly alike or that
-     * postcode slip ("J. van Lindenweg 3, 1234 AC" vs "Johan van Lindeweg
-     * 3, 1234 AB", same town).
-     */
-    public static function probably_same_address(object $left, object $right): bool {
-        $number = fn(object $a): string => AVPVH_Address_Normalizer::normalize_house_number((string) $a->house_number, (string) ($a->house_number_addition ?? ''));
-        $compact = fn(string $v): string => str_replace(' ', '', AVPVH_Address_Normalizer::fold($v));
-        [$left_pc, $right_pc] = [$compact((string) $left->postal_code), $compact((string) $right->postal_code)];
-        $no_numbers = $number($left) === '' && $number($right) === '';
-        $same_number = $number($left) !== '' && $number($left) === $number($right);
-        $same_postcode = $left_pc !== '' && $left_pc === $right_pc;
-        $dutch_postcode = $same_postcode && preg_match('/^\d{4}[a-z]{2}$/', $left_pc);
-        $postcode_slip = strlen($left_pc) === 6 && strlen($right_pc) === 6 && levenshtein($left_pc, $right_pc) === 1;
-        $same_city = $compact((string) $left->city) !== '' && $compact((string) $left->city) === $compact((string) $right->city);
-        $street_alike = AVPVH_Address_Normalizer::streets_alike((string) $left->street, (string) $right->street);
-
-        // No number on either side: only a respelled street at the same
-        // postcode. Otherwise the same number, and the same Dutch postcode
-        // (that pins it down) or a town/postcode match with the street alike.
-        return $no_numbers
-            ? $same_postcode && $street_alike
-            : $same_number && ($dutch_postcode || (($same_city || $same_postcode || $postcode_slip) && ($street_alike || $postcode_slip)));
-    }
-
-    /**
-     * Merges $member_id's open rows that probably_same_address() matched
+     * Merges $member_id's open rows that AVPVH_Address_Matcher::probably_same() matched
      * into one: written as $fields, from the earliest start, still open.
      * $fields must keep the same house number.
      */
@@ -528,8 +461,7 @@ class AVPVH_Address_Cleanup {
             }
             // The same address, or a typo fixed in it (a postcode one
             // character off, as the official spelling may correct).
-            $same = AVPVH_Address_Normalizer::match_key($fields) === $key
-                || self::probably_same_address((object) $fields, $group['rows'][0]);
+            $same = (bool) array_filter($group['rows'], fn($row) => AVPVH_Address_Matcher::same($fields, $row));
             $error = $same ? null
                 : new \WP_Error('other_address', __('Dat is een ander adres (postcode, huisnummer of straat wijkt af). Hier kun je alleen de schrijfwijze kiezen.', 'avpvh-members'));
         }

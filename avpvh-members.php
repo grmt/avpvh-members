@@ -51,6 +51,7 @@ if (AVPVH_Tenant_Config::current()) {
 require_once AVPVH_PLUGIN_DIR . 'includes/class-db.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-name-matcher.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-address-normalizer.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-address-matcher.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-merge.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-address-cleanup.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-pdok.php';

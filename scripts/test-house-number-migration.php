@@ -37,6 +37,7 @@ $wpdb = new class {
 
 require_once dirname(__DIR__) . '/includes/class-db.php';
 require_once dirname(__DIR__) . '/includes/class-avpvh-address-normalizer.php';
+require_once dirname(__DIR__) . '/includes/class-avpvh-address-matcher.php';
 
 function check(string $label, mixed $actual, mixed $expected): void {
     echo ($actual === $expected ? '[OK] ' : '[FAIL] ') . $label . PHP_EOL;
