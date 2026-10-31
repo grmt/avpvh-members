@@ -7,7 +7,7 @@ if (!class_exists('WP_List_Table')) {
 
 class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
 
-    private static function method_labels(): array {
+    public static function method_labels(): array {
         return [
             'proxy'          => __('Wachtwoord (Authelia)', 'avpvh-members'),
             'google'         => 'Google',
@@ -17,7 +17,7 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
         ];
     }
 
-    private static function result_labels(): array {
+    public static function result_labels(): array {
         return [
             'success'     => __('✓ Gelukt', 'avpvh-members'),
             'no_member'   => __('✗ Onbekend e-mailadres', 'avpvh-members'),
@@ -31,6 +31,9 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
         '05' => 'mei', '06' => 'jun', '07' => 'jul', '08' => 'aug',
         '09' => 'sep', '10' => 'okt', '11' => 'nov', '12' => 'dec',
     ];
+
+    /** Lowercased e-mail => member id, for the e-mails on this page (empty without Ledenbeheer). */
+    private array $members_by_email = [];
 
     public function __construct() {
         parent::__construct(['singular' => 'loginpoging', 'plural' => 'loginpogingen', 'ajax' => false]);
@@ -85,6 +88,9 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
             'page' => $this->get_pagenum(),
         ]);
         $this->items = $query['items'];
+        $this->members_by_email = AVPVH_Roles::can_manage_members()
+            ? AVPVH_DB::get_member_ids_by_emails(array_column($this->items, 'email'))
+            : [];
         $this->set_pagination_args([
             'total_items' => $query['total'],
             'per_page' => $per_page,
@@ -96,7 +102,7 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
         return match ($column_name) {
             'id' => esc_html((string) $item->id),
             'attempted_at' => esc_html(wp_date('d-m-Y H:i:s', strtotime($item->attempted_at))),
-            'email' => esc_html($item->email),
+            'email' => $this->format_email((string) $item->email),
             'method' => esc_html(self::method_labels()[$item->method] ?? $item->method),
             'result' => $this->format_result($item->result),
             'ip' => '<code>' . esc_html($item->ip) . '</code>',
@@ -155,6 +161,22 @@ class AVPVH_Login_Attempts_List_Table extends WP_List_Table {
             <input type="text" name="date_to" id="filter-date-to" value="<?php echo esc_attr($this->format_date_input($date_to)); ?>" placeholder="dd-mmm-yyyy" autocomplete="off" data-minimum-date="<?php echo esc_attr($minimum_date_to); ?>" data-maximum-date="<?php echo esc_attr($today); ?>" data-auto-submit>
         </div>
         <?php
+    }
+
+    /**
+     * With Ledenbeheer: an e-mail that belongs to a member links to the
+     * profile, any other one to "E-mailadres koppelen" to add it to one.
+     */
+    private function format_email(string $email): string {
+        if (!AVPVH_Roles::can_manage_members() || !is_email($email)) {
+            return esc_html($email);
+        }
+        $member_id = $this->members_by_email[AVPVH_DB::normalize_identity_email($email)] ?? 0;
+        [$url, $title] = $member_id
+            ? [add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id], admin_url('admin.php')), __('Naar het profiel', 'avpvh-members')]
+            : [add_query_arg(['page' => 'avpvh-link-email', 'email' => rawurlencode($email)], admin_url('admin.php')), __('Niet gekoppeld: aan een lid koppelen', 'avpvh-members')];
+        return '<a href="' . esc_url($url) . '" title="' . esc_attr($title) . '">' . esc_html($email) . '</a>'
+            . ($member_id ? '' : ' <span class="dashicons dashicons-admin-links" aria-hidden="true" style="color:#c00;font-size:16px"></span>');
     }
 
     private function format_result(string $result): string {

@@ -1206,6 +1206,41 @@ class AVPVH_DB {
         // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
     }
 
+    /**
+     * Lowercased e-mail => member id, for the $emails that belong to a
+     * member the way a login finds them: a linked e-mail (Inlogadres)
+     * first, else the directory account's own e-mail.
+     */
+    public static function get_member_ids_by_emails(array $emails): array {
+        global $wpdb;
+        $emails = array_values(array_unique(array_filter(array_map([self::class, 'normalize_identity_email'], $emails))));
+        if (!$emails) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($emails), '%s'));
+        $identity = self::identity_table();
+        // Two queries, not a UNION: the directory table has another collation.
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $in is only %s placeholders and $identity a fixed table name; the values go through prepare()
+        $rows = array_merge(
+            $wpdb->get_results($wpdb->prepare(
+                "SELECT LOWER(email) AS email, member_id FROM {$wpdb->prefix}avm_member_identities WHERE LOWER(email) IN ($in)",
+                $emails
+            )) ?: [],
+            $wpdb->get_results($wpdb->prepare(
+                "SELECT LOWER(u.lowercase_email) AS email, m.id AS member_id
+                 FROM {$identity} u JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
+                 WHERE u.lowercase_email IN ($in)",
+                $emails
+            )) ?: []
+        );
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+        $map = [];
+        foreach ($rows as $row) {
+            $map[$row->email] ??= (int) $row->member_id;
+        }
+        return $map;
+    }
+
     public static function normalize_identity_email(string $email): string {
         return strtolower(sanitize_email($email));
     }
