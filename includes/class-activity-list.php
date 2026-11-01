@@ -123,16 +123,20 @@ class AVPVH_Activity_List {
         $columns = array_values(array_intersect($columns, array_keys(self::COLUMNS))) ?: array_keys(self::COLUMNS);
         $html    = '<figure class="wp-block-table avpvh-activity-list"><table><thead><tr>';
 
+        $labels = [];
         foreach ($columns as $index => $column) {
-            $html .= '<th>' . esc_html($headings[$index] ?? __(self::COLUMNS[$column], 'avpvh-members')) . '</th>'; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- fixed column names.
+            $labels[$column] = $headings[$index] ?? __(self::COLUMNS[$column], 'avpvh-members'); // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- fixed column names.
+            $html .= '<th>' . esc_html($labels[$column]) . '</th>';
         }
 
         $html .= '</tr></thead><tbody>';
 
+        // data-label/class: on a phone each row becomes a card with the
+        // heading above each cell (assets/avpvh.css).
         foreach ($activities as $activity) {
             $html .= '<tr>';
             foreach ($columns as $column) {
-                $html .= '<td>' . self::cell($activity, $column) . '</td>';
+                $html .= '<td class="avpvh-activity-list__' . esc_attr($column) . '" data-label="' . esc_attr($labels[$column]) . '">' . self::cell($activity, $column) . '</td>';
             }
             $html .= '</tr>';
         }
