@@ -158,9 +158,42 @@ class AVPVH_Activity_List {
         }
     }
 
-    /** Rich text as entered (links, bold, line breaks), else the plain fallback. */
+    /**
+     * Rich text as entered (links, bold, line breaks), else the plain
+     * fallback. Text from the editor carries its own <br>; only plain text
+     * with newlines gets them added.
+     */
     private static function rich(string $html, string $fallback): string {
-        return '' !== trim($html) ? nl2br(wp_kses_post($html), false) : esc_html($fallback);
+        if ('' === trim($html)) {
+            return esc_html($fallback);
+        }
+
+        $html = wp_kses_post($html);
+
+        return 1 === preg_match('/<(br|p)\b/i', $html) ? $html : nl2br($html, false);
+    }
+
+    /**
+     * A small editor for Waar/Beschrijving/Details on the activity form:
+     * bold, italic and links via buttons or Ctrl+B/I/K instead of typing
+     * HTML. Enter makes a line break (<br>), as the website lists expect,
+     * not a paragraph. Posts under $field, so the save handler is unchanged.
+     */
+    public static function editor(string $field, string $value, int $rows): void {
+        wp_editor($value, 'avpvh_activity_' . $field, [
+            'textarea_name' => $field,
+            'textarea_rows' => $rows,
+            'media_buttons' => false,
+            'teeny'         => true,
+            'wpautop'       => false,
+            'quicktags'     => false,
+            'tinymce'       => [
+                'toolbar1'          => 'bold,italic,link,unlink,undo,redo',
+                'forced_root_block' => false,
+                'statusbar'         => false,
+                'resize'            => true,
+            ],
+        ]);
     }
 
     /**

@@ -222,18 +222,19 @@ $export_url = wp_nonce_url(
                         </td>
                     </tr>
                     <tr>
-                        <th><label for="location"><?php esc_html_e('Waar', 'avpvh-members'); ?></label></th>
-                        <td><textarea id="location" name="location" rows="3" class="large-text"><?php echo esc_textarea($activity->location ?? ''); ?></textarea>
-                            <p class="description"><?php esc_html_e('Plaats, adres en eventueel een link; HTML-opmaak (vet, links) mag. Leeg: "Locatie/kenmerk" wordt getoond.', 'avpvh-members'); ?></p></td>
+                        <th><label for="avpvh_activity_location"><?php esc_html_e('Waar', 'avpvh-members'); ?></label></th>
+                        <td><?php AVPVH_Activity_List::editor('location', $activity->location ?? '', 3); ?>
+                            <p class="description"><?php esc_html_e('Plaats, adres en eventueel een link. Leeg: "Locatie/kenmerk" wordt getoond.', 'avpvh-members'); ?></p></td>
                     </tr>
                     <tr>
-                        <th><label for="description"><?php esc_html_e('Beschrijving', 'avpvh-members'); ?></label></th>
-                        <td><textarea id="description" name="description" rows="3" class="large-text"><?php echo esc_textarea($activity->description ?? ''); ?></textarea>
+                        <th><label for="avpvh_activity_description"><?php esc_html_e('Beschrijving', 'avpvh-members'); ?></label></th>
+                        <td><?php AVPVH_Activity_List::editor('description', $activity->description ?? '', 3); ?>
                             <p class="description"><?php esc_html_e('Wat er gedaan werd/wordt. Leeg: de naam wordt getoond.', 'avpvh-members'); ?></p></td>
                     </tr>
                     <tr>
-                        <th><label for="details"><?php esc_html_e('Details', 'avpvh-members'); ?></label></th>
-                        <td><textarea id="details" name="details" rows="2" class="large-text"><?php echo esc_textarea($activity->details ?? ''); ?></textarea></td>
+                        <th><label for="avpvh_activity_details"><?php esc_html_e('Details', 'avpvh-members'); ?></label></th>
+                        <td><?php AVPVH_Activity_List::editor('details', $activity->details ?? '', 2); ?>
+                            <p class="description"><?php esc_html_e('Enter: nieuwe regel. Knoppen of Ctrl+B / Ctrl+I voor vet en cursief.', 'avpvh-members'); ?></p></td>
                     </tr>
                 </table>
                 <p class="submit"><button type="submit" class="button"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button></p>
