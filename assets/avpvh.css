@@ -373,3 +373,84 @@ header.wp-block-template-part .wp-block-site-title {
     cursor: pointer;
     color: inherit;
 }
+
+/* [avpvh_activiteiten] tables (Reünieweekenden, Uitjes, ...): readable rows
+   at every width, and on a phone one card per activity instead of a table
+   wider than the screen (long URLs and three columns made the whole page
+   scroll sideways). */
+.avpvh-activity-list table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.avpvh-activity-list th,
+.avpvh-activity-list td {
+    text-align: left;
+    vertical-align: top;
+    padding: .5em .6em;
+    border: 0;
+    border-bottom: 1px solid #ddd;
+    overflow-wrap: anywhere;
+}
+
+.avpvh-activity-list th {
+    border-bottom: 2px solid currentColor;
+}
+
+.avpvh-activity-list td.avpvh-activity-list__datum {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+
+@media (max-width: 640px) {
+    .avpvh-activity-list thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .avpvh-activity-list table,
+    .avpvh-activity-list tbody,
+    .avpvh-activity-list tr,
+    .avpvh-activity-list td {
+        display: block;
+    }
+
+    .avpvh-activity-list tr {
+        padding: .75em 0;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .avpvh-activity-list td {
+        padding: .15em 0;
+        border: 0;
+    }
+
+    .avpvh-activity-list td.avpvh-activity-list__datum {
+        font-weight: 600;
+    }
+
+    .avpvh-activity-list td:not(.avpvh-activity-list__datum)::before {
+        content: attr(data-label);
+        display: block;
+        font-size: .75em;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        opacity: .65;
+        margin-top: .35em;
+    }
+
+    .avpvh-activity-list td:empty {
+        display: none;
+    }
+
+    /* Long one-word page titles ("Reünieweekenden") broke off their last
+       letter; hyphenate (lang="nl-NL") and size them to the screen. */
+    .wp-block-post-title {
+        font-size: clamp(1.75rem, 9vw, 2.5rem);
+        hyphens: auto;
+        overflow-wrap: break-word;
+    }
+}
