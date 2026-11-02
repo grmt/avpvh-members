@@ -1,6 +1,11 @@
 <?php
 defined('ABSPATH') || exit;
 
+/**
+ * "Inloggen met Google/Microsoft" on the main site, and "add this account
+ * to my profile". State bound to the browser, PKCE and a verified address
+ * from the ID token: see AVPVH_OIDC.
+ */
 class AVPVH_OAuth {
 
     const PROVIDERS = [
@@ -8,15 +13,13 @@ class AVPVH_OAuth {
             'label'        => 'Google',
             'auth_url'     => 'https://accounts.google.com/o/oauth2/v2/auth',
             'token_url'    => 'https://oauth2.googleapis.com/token',
-            'userinfo_url' => 'https://www.googleapis.com/oauth2/v3/userinfo',
             'scope'        => 'openid email',
         ],
         'microsoft' => [
             'label'        => 'Microsoft',
             'auth_url'     => 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
             'token_url'    => 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
-            'userinfo_url' => 'https://graph.microsoft.com/v1.0/me',
-            'scope'        => 'openid email User.Read',
+            'scope'        => 'openid email',
         ],
     ];
 
@@ -58,7 +61,8 @@ class AVPVH_OAuth {
         }
 
         $add_member_id = (int) $request->get_param('add_member_id');
-        $state = wp_generate_password(32, false);
+        $flow = AVPVH_OIDC::begin();
+        $state_key = AVPVH_OIDC::state_key('avpvh_oauth_state_', $flow['state']);
 
         if ($add_member_id > 0) {
             if (!is_user_logged_in()) {
@@ -71,18 +75,24 @@ class AVPVH_OAuth {
             if (!$own_member || (int) $own_member->id !== $add_member_id) {
                 wp_die('Geen toegang.', 'Fout', ['response' => 403]);
             }
-            set_transient('avpvh_oauth_state_' . $state, wp_json_encode([
+            // JSON, not a serialized array: AVPVH_Visitor_Delete::tokens()
+            // finds a member's pending flows by decoding these.
+            set_transient($state_key, wp_json_encode([
                 'provider'           => $provider,
                 'mode'               => 'add',
                 'member_id'          => $add_member_id,
                 'requesting_user_id' => get_current_user_id(),
-            ]), 600);
+                'verifier'           => $flow['verifier'],
+                'nonce'              => $flow['nonce'],
+            ]), AVPVH_OIDC::STATE_TTL);
         } else {
             $redirect_to = sanitize_text_field(wp_unslash($request->get_param('redirect_to') ?? ''));
-            set_transient('avpvh_oauth_state_' . $state, wp_json_encode([
+            set_transient($state_key, wp_json_encode([
                 'provider'    => $provider,
                 'redirect_to' => $redirect_to,
-            ]), 600);
+                'verifier'    => $flow['verifier'],
+                'nonce'       => $flow['nonce'],
+            ]), AVPVH_OIDC::STATE_TTL);
         }
 
         $config = self::PROVIDERS[$provider];
@@ -91,12 +101,11 @@ class AVPVH_OAuth {
             'redirect_uri'  => $this->callback_url($provider),
             'response_type' => 'code',
             'scope'         => $config['scope'],
-            'state'         => $state,
             // Always show the provider's account picker, so a browser that
             // is signed in to someone else's Google/Microsoft account does
             // not log in as that person without asking.
             'prompt'        => 'select_account',
-        ];
+        ] + AVPVH_OIDC::authorize_params($flow);
 
         wp_safe_redirect($config['auth_url'] . '?' . http_build_query($params));
         exit;
@@ -135,38 +144,26 @@ class AVPVH_OAuth {
             exit;
         }
 
-        $stored = get_transient('avpvh_oauth_state_' . $state);
-        delete_transient('avpvh_oauth_state_' . $state);
+        $key    = AVPVH_OIDC::state_key('avpvh_oauth_state_', $state);
+        $stored = json_decode((string) get_transient($key), true);
+        delete_transient($key);
 
-        $add_request = null;
-        $redirect_to = '';
-        $valid_state = false;
-
-        if (is_string($stored) && str_starts_with($stored, '{')) {
-            $decoded = json_decode($stored, true);
-            if (is_array($decoded) && ($decoded['provider'] ?? '') === $provider) {
-                if (($decoded['mode'] ?? '') === 'add') {
-                    $add_request = $decoded;
-                    $valid_state = true;
-                } else {
-                    $redirect_to = (string) ($decoded['redirect_to'] ?? '');
-                    $valid_state = true;
-                }
-            }
-        } elseif ($stored === $provider) {
-            $valid_state = true;
-        }
-
-        if (!$valid_state) {
-            // Most commonly: the state transient (10 min TTL) expired before
-            // the user finished the provider's consent/2FA step, not an
-            // actual CSRF attempt. Send them back to try again rather than
-            // dead-ending on a wp_die() page with no way forward.
+        // The state must be one we issued (transient) AND the one this
+        // browser started with (cookie): a callback URL from a flow started
+        // in someone else's browser - say, an "add this account to my
+        // profile" link an attacker sends round - is refused.
+        // Most commonly a failure here is just an expired transient (10 min)
+        // after a slow consent/2FA step, so send them back to try again
+        // rather than dead-ending on a wp_die() page.
+        if (!AVPVH_OIDC::state_matches_browser($state) || !is_array($stored) || ($stored['provider'] ?? '') !== $provider) {
             wp_safe_redirect(home_url('/avpvh-login/?login_error=oauth_expired'));
             exit;
         }
 
-        $email = $this->fetch_email($provider, $code);
+        $add_request = ($stored['mode'] ?? '') === 'add' ? $stored : null;
+        $redirect_to = (string) ($stored['redirect_to'] ?? '');
+
+        $email = $this->fetch_email($provider, $code, (string) $stored['verifier'], (string) $stored['nonce']);
         if (!$email) {
             wp_die('Kon e-mailadres niet ophalen bij ' . esc_html(self::PROVIDERS[$provider]['label']) . '.', 'Fout', ['response' => 502]);
         }
@@ -244,9 +241,9 @@ class AVPVH_OAuth {
         // requests reached via a plain browser redirect (as this callback
         // is, from Google/Microsoft) don't carry the wp_rest nonce cookie
         // auth needs, so is_user_logged_in() can't be trusted here. The
-        // transient itself — keyed by the random `state` value we generated
-        // and only the real OAuth round-trip could echo back — is already
-        // the CSRF protection for this flow.
+        // transient - keyed by the random `state` value we generated, which
+        // must also match this browser's state cookie - is the CSRF
+        // protection for this flow.
         $requesting_user = $user_id ? get_userdata($user_id) : false;
         if (!$requesting_user) {
             wp_safe_redirect(add_query_arg($redirect_args + ['identity_error' => 'not_you'], $profile_url));
@@ -286,42 +283,34 @@ class AVPVH_OAuth {
         exit;
     }
 
-    private function fetch_email(string $provider, string $code): ?string {
-        $config = self::PROVIDERS[$provider];
+    /**
+     * The address from the ID token, only when the provider vouches for it
+     * (AVPVH_OIDC::verified_email()): an unverified Google address or a
+     * non-personal Microsoft account gives null.
+     */
+    private function fetch_email(string $provider, string $code, string $verifier, string $nonce): ?string {
+        $config    = self::PROVIDERS[$provider];
+        $client_id = (string) get_option('avpvh_oauth_' . $provider . '_client_id');
 
         $token = wp_remote_post($config['token_url'], [
-            'body' => [
-                'client_id'     => get_option('avpvh_oauth_' . $provider . '_client_id'),
+            'timeout' => 10,
+            'body'    => [
+                'client_id'     => $client_id,
                 'client_secret' => get_option('avpvh_oauth_' . $provider . '_client_secret'),
                 'code'          => $code,
+                'code_verifier' => $verifier,
                 'redirect_uri'  => $this->callback_url($provider),
                 'grant_type'    => 'authorization_code',
             ],
         ]);
 
-        if (is_wp_error($token)) {
+        if (is_wp_error($token) || (int) wp_remote_retrieve_response_code($token) !== 200) {
             return null;
         }
 
-        $data         = json_decode(wp_remote_retrieve_body($token), true);
-        $access_token = $data['access_token'] ?? null;
-        if (!$access_token) {
-            return null;
-        }
-
-        $userinfo = wp_remote_get($config['userinfo_url'], [
-            'headers' => ['Authorization' => 'Bearer ' . $access_token],
-        ]);
-
-        if (is_wp_error($userinfo)) {
-            return null;
-        }
-
-        $info = json_decode(wp_remote_retrieve_body($userinfo), true);
-
-        // Google → 'email'; Microsoft → 'mail' or 'userPrincipalName'
-        $email = $info['email'] ?? $info['mail'] ?? $info['userPrincipalName'] ?? null;
-        return $email ? strtolower(sanitize_email($email)) : null;
+        $id_token = (string) (json_decode(wp_remote_retrieve_body($token), true)['id_token'] ?? '');
+        $email    = AVPVH_OIDC::verified_email($provider, AVPVH_OIDC::claims($id_token), $client_id, $nonce);
+        return $email ? sanitize_email($email) : null;
     }
 
     private function callback_url(string $provider): string {

@@ -158,7 +158,9 @@ class AVPVH_Xlsx_Writer {
                 $bold = !empty($cell['bold']) ? 1 : 0;
                 $color = $cell['color'] ?? '';
                 $s = $style_index[$bold . '|' . $color] ?? 0;
-                $value = (string) ($cell['v'] ?? '');
+                // Control characters (say, pasted into a notes field) aren't
+                // allowed in XML 1.0 and would make the file unreadable.
+                $value = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', (string) ($cell['v'] ?? ''));
 
                 if ($value === '') {
                     $cells_xml .= '<c r="' . $ref . '" s="' . $s . '"/>';

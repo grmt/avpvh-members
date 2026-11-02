@@ -21,25 +21,24 @@ defined('ABSPATH') || exit;
 class AVPVH_Tenant_OAuth {
 
     /** The Microsoft tenant of personal accounts (hotmail.com, outlook.com, live.com). */
-    const MICROSOFT_CONSUMERS = '9188040d-6c67-4c5b-b112-36a304b66dad';
+    const MICROSOFT_CONSUMERS = AVPVH_OIDC::MICROSOFT_CONSUMERS;
 
     const PROVIDERS = [
         'google' => [
             'label'     => 'Google',
             'auth_url'  => 'https://accounts.google.com/o/oauth2/v2/auth',
             'token_url' => 'https://oauth2.googleapis.com/token',
-            'issuers'   => ['https://accounts.google.com', 'accounts.google.com'],
+            'issuers'   => AVPVH_OIDC::ISSUERS['google'],
         ],
         'microsoft' => [
             'label'     => 'Microsoft',
             'auth_url'  => 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
             'token_url' => 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
-            'issuers'   => ['https://login.microsoftonline.com/' . self::MICROSOFT_CONSUMERS . '/v2.0'],
+            'issuers'   => AVPVH_OIDC::ISSUERS['microsoft'],
         ],
     ];
 
-    const STATE_COOKIE = 'avpvh_oauth_state';
-    const STATE_TTL    = 600;
+    const STATE_TTL = AVPVH_OIDC::STATE_TTL;
 
     private AVPVH_Tenant_Config $config;
     private AVPVH_Tenant_SSO $sso;
@@ -97,55 +96,35 @@ class AVPVH_Tenant_OAuth {
         return rest_url('avpvh/v1/tenant-oauth/' . $provider . '/callback');
     }
 
-    private static function base64url(string $bytes): string {
-        return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
-    }
-
     public function start(string $name, \WP_REST_Request $request): void {
         $provider = $this->providers()[$name];
-        $state    = self::base64url(random_bytes(32));
-        $verifier = self::base64url(random_bytes(48));
-        $nonce    = self::base64url(random_bytes(24));
-        set_transient('avpvh_toauth_' . hash('sha256', $state), [
+        $flow     = AVPVH_OIDC::begin();
+        set_transient(AVPVH_OIDC::state_key('avpvh_toauth_', $flow['state']), [
             'provider'    => $name,
-            'verifier'    => $verifier,
-            'nonce'       => $nonce,
+            'verifier'    => $flow['verifier'],
+            'nonce'       => $flow['nonce'],
             'redirect_to' => $this->sso->safe_target(sanitize_text_field(wp_unslash((string) $request->get_param('redirect_to')))),
         ], self::STATE_TTL);
-        // SameSite=Lax: sent along on the provider's top-level redirect back.
-        setcookie(self::STATE_COOKIE, $state, [
-            'expires'  => time() + self::STATE_TTL,
-            'path'     => '/',
-            'secure'   => is_ssl(),
-            'httponly' => true,
-            'samesite' => 'Lax',
-        ]);
         $params = [
-            'client_id'             => $provider['client_id'],
-            'redirect_uri'          => self::callback_url($name),
-            'response_type'         => 'code',
-            'scope'                 => 'openid email profile',
-            'state'                 => $state,
-            'nonce'                 => $nonce,
-            'code_challenge'        => self::base64url(hash('sha256', $verifier, true)),
-            'code_challenge_method' => 'S256',
+            'client_id'     => $provider['client_id'],
+            'redirect_uri'  => self::callback_url($name),
+            'response_type' => 'code',
+            'scope'         => 'openid email profile',
             // Ask which account, so a browser signed in to someone else's
             // account does not log in as that person unasked.
-            'prompt'                => 'select_account',
-        ];
+            'prompt'        => 'select_account',
+        ] + AVPVH_OIDC::authorize_params($flow);
         wp_safe_redirect($provider['auth_url'] . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986));
         exit;
     }
 
     public function callback(string $name, \WP_REST_Request $request): void {
         $state  = sanitize_text_field((string) $request->get_param('state'));
-        $cookie = sanitize_text_field(wp_unslash($_COOKIE[self::STATE_COOKIE] ?? ''));
-        $key    = 'avpvh_toauth_' . hash('sha256', $state);
+        $key    = AVPVH_OIDC::state_key('avpvh_toauth_', $state);
         $stored = $state !== '' ? get_transient($key) : false;
         delete_transient($key);
-        setcookie(self::STATE_COOKIE, '', ['expires' => time() - 3600, 'path' => '/', 'secure' => is_ssl(), 'httponly' => true, 'samesite' => 'Lax']);
 
-        if (!is_array($stored) || ($stored['provider'] ?? '') !== $name || !hash_equals($state, $cookie)) {
+        if (!AVPVH_OIDC::state_matches_browser($state) || !is_array($stored) || ($stored['provider'] ?? '') !== $name) {
             $this->fail('expired', $name);
         }
         $target = (string) $stored['redirect_to'];
@@ -219,31 +198,8 @@ class AVPVH_Tenant_OAuth {
         if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
             return null;
         }
-        $token  = (string) (json_decode(wp_remote_retrieve_body($response), true)['id_token'] ?? '');
-        $claims = self::claims($token);
-        if (!$claims
-            || !in_array($claims['iss'] ?? '', $provider['issuers'], true)
-            || !in_array($provider['client_id'], (array) ($claims['aud'] ?? []), true)
-            || (int) ($claims['exp'] ?? 0) < time()
-            || !hash_equals($nonce, (string) ($claims['nonce'] ?? ''))) {
-            return null;
-        }
-        $verified = $name === 'google'
-            ? ($claims['email_verified'] ?? false) === true
-            : ($claims['tid'] ?? '') === self::MICROSOFT_CONSUMERS;
-        $email = strtolower(trim((string) ($claims['email'] ?? '')));
-        return $verified && is_email($email) ? $email : null;
-    }
-
-    /** The payload of a JWT, or null. */
-    private static function claims(string $jwt): ?array {
-        $parts = explode('.', $jwt);
-        if (count($parts) !== 3) {
-            return null;
-        }
-        $json = base64_decode(strtr($parts[1], '-_', '+/'), true);
-        $claims = $json !== false ? json_decode($json, true) : null;
-        return is_array($claims) ? $claims : null;
+        $token = (string) (json_decode(wp_remote_retrieve_body($response), true)['id_token'] ?? '');
+        return AVPVH_OIDC::verified_email($name, AVPVH_OIDC::claims($token), $provider['client_id'], $nonce, $provider['issuers']);
     }
 
     /** Back to the login choice, with a message; logged without the address. */
