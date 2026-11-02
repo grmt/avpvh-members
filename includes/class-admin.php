@@ -392,8 +392,8 @@ class AVPVH_Admin {
                     </tr>
                     <tr>
                         <th><label for="oauth_google_client_secret"><?php esc_html_e('Client Secret', 'avpvh-members'); ?></label></th>
-                        <td><input type="password" id="oauth_google_client_secret" name="oauth_google_client_secret" class="regular-text"
-                                   value="<?php echo esc_attr(get_option('avpvh_oauth_google_client_secret', '')); ?>">
+                        <td><input type="password" id="oauth_google_client_secret" name="oauth_google_client_secret" class="regular-text" autocomplete="new-password"
+                                   placeholder="<?php echo esc_attr(get_option('avpvh_oauth_google_client_secret', '') !== '' ? __('Ingesteld; leeg laten om te houden', 'avpvh-members') : ''); ?>">
                             <p class="description"><?php esc_html_e('Redirect URI voor Google Console:', 'avpvh-members'); ?> <code><?php echo esc_html(rest_url('avpvh/v1/oauth/google/callback')); ?></code></p>
                         </td>
                     </tr>
@@ -412,8 +412,8 @@ class AVPVH_Admin {
                     </tr>
                     <tr>
                         <th><label for="oauth_microsoft_client_secret"><?php esc_html_e('Client Secret', 'avpvh-members'); ?></label></th>
-                        <td><input type="password" id="oauth_microsoft_client_secret" name="oauth_microsoft_client_secret" class="regular-text"
-                                   value="<?php echo esc_attr(get_option('avpvh_oauth_microsoft_client_secret', '')); ?>">
+                        <td><input type="password" id="oauth_microsoft_client_secret" name="oauth_microsoft_client_secret" class="regular-text" autocomplete="new-password"
+                                   placeholder="<?php echo esc_attr(get_option('avpvh_oauth_microsoft_client_secret', '') !== '' ? __('Ingesteld; leeg laten om te houden', 'avpvh-members') : ''); ?>">
                             <p class="description"><?php esc_html_e('Redirect URI voor Azure:', 'avpvh-members'); ?> <code><?php echo esc_html(rest_url('avpvh/v1/oauth/microsoft/callback')); ?></code></p>
                         </td>
                     </tr>
@@ -512,9 +512,15 @@ class AVPVH_Admin {
             wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
         }
         update_option('avpvh_oauth_google_client_id',         sanitize_text_field(wp_unslash($_POST['oauth_google_client_id'] ?? '')));
-        update_option('avpvh_oauth_google_client_secret',     sanitize_text_field(wp_unslash($_POST['oauth_google_client_secret'] ?? '')));
         update_option('avpvh_oauth_microsoft_client_id',      sanitize_text_field(wp_unslash($_POST['oauth_microsoft_client_id'] ?? '')));
-        update_option('avpvh_oauth_microsoft_client_secret',  sanitize_text_field(wp_unslash($_POST['oauth_microsoft_client_secret'] ?? '')));
+        // The secrets aren't shown on the page (so not in its HTML either):
+        // an empty field keeps the stored one, a typed value replaces it.
+        foreach (['google', 'microsoft'] as $provider) {
+            $secret = sanitize_text_field(wp_unslash($_POST['oauth_' . $provider . '_client_secret'] ?? ''));
+            if ($secret !== '') {
+                update_option('avpvh_oauth_' . $provider . '_client_secret', $secret);
+            }
+        }
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-settings', 'updated' => '1'], admin_url('admin.php')));
         exit;
     }

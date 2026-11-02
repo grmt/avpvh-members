@@ -14,6 +14,8 @@ defined('ABSPATH') || exit;
 class AVPVH_Email_Identity {
 
     const TOKEN_TTL_ADD = HOUR_IN_SECONDS;
+    /** Confirmation mails a member can have sent per hour (handle_start_add()). */
+    const MAILS_PER_HOUR = 5;
 
     public function __construct() {
         add_action('rest_api_init', [$this, 'register_routes']);
@@ -68,6 +70,16 @@ class AVPVH_Email_Identity {
             wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'limit'], $profile_url));
             exit;
         }
+
+        // Each request mails an address the member typed: cap it, so an
+        // account can't be used to send our mail to anyone, endlessly.
+        $sent_key = 'avpvh_email_identity_sent_' . $member_id;
+        $sent     = (int) get_transient($sent_key);
+        if ($sent >= self::MAILS_PER_HOUR) {
+            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'too_many_mails'], $profile_url));
+            exit;
+        }
+        set_transient($sent_key, $sent + 1, HOUR_IN_SECONDS);
 
         $token = $this->store_token([
             'mode'      => 'add',

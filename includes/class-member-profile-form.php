@@ -490,6 +490,7 @@ class AVPVH_Member_Profile_Form {
                         'not_you'       => __('Er ging iets mis met de verificatie — probeer het opnieuw.', 'avpvh-members'),
                         'limit'         => __('Dit adres kon niet worden toegevoegd (maximaal drie).', 'avpvh-members'),
                         'invalid_email' => __('Dat is geen geldig e-mailadres.', 'avpvh-members'),
+                        'too_many_mails' => __('Er zijn het afgelopen uur al te veel bevestigingsmails verstuurd. Probeer het later opnieuw.', 'avpvh-members'),
                         'last_identity' => __('Dit is je enige geverifieerde inlogadres en kan niet weg. Voeg eerst een ander adres toe en log daar één keer mee in.', 'avpvh-members'),
                     ];
                     echo esc_html($errors[sanitize_key(wp_unslash($_GET['identity_error']))] ?? __('Er ging iets mis.', 'avpvh-members'));

@@ -33,6 +33,7 @@ function avpvh_asset_version(string $relative_path): string {
 }
 
 require_once AVPVH_PLUGIN_DIR . 'includes/class-i18n.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-avpvh-oidc.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-config.php';
 
 // A Rechtspreker tenant site (AVPVH_TENANT_CONFIG in wp-config.php) loads
@@ -111,9 +112,7 @@ add_action('login_init', function () {
 // click after the session ends goes through auth_redirect() to /avpvh-login/.
 remove_action('admin_enqueue_scripts', 'wp_auth_check_load');
 
-add_filter('logout_url', function (): string {
-    return rest_url('avpvh/v1/logout');
-});
+add_filter('logout_url', fn(): string => AVPVH_Nav_Auth::logout_url());
 
 
 new AVPVH_I18n();

@@ -2,6 +2,8 @@
 defined('ABSPATH') || exit;
 
 class AVPVH_Access {
+    /** Leaked-password reports accepted per IP address per 15 minutes (handle_hibp_flag()). */
+    private const HIBP_FLAGS_PER_IP = 5;
 
     /** @var int[]|null IDs of the members section, see members_section_ids() */
     private ?array $section = null;
@@ -118,9 +120,26 @@ class AVPVH_Access {
         ]);
     }
 
+    /**
+     * The Authelia reset page (assets/authelia-custom.js) reports that a
+     * member chose a leaked password. Open to anyone, so: at most
+     * HIBP_FLAGS_PER_IP per 15 minutes per address, and only an e-mail that
+     * belongs to a member is logged - anything else would let a stranger
+     * fill Loginpogingen (and make us look up DNS for made-up domains).
+     * The answer is the same either way, so it doesn't reveal who's a member.
+     */
     public function handle_hibp_flag(\WP_REST_Request $request): \WP_REST_Response {
-        $email = sanitize_email($request->get_param('email') ?? '');
-        AVPVH_DB::log_attempt($email ?: 'onbekend', 'password_reset', 'hibp_warned');
+        $key   = 'avpvh_hibp_' . hash('sha256', sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? '')));
+        $count = (int) get_transient($key);
+        if ($count >= self::HIBP_FLAGS_PER_IP) {
+            return new \WP_REST_Response(['ok' => false], 429);
+        }
+        set_transient($key, $count + 1, 15 * MINUTE_IN_SECONDS);
+
+        $email = strtolower(sanitize_email((string) ($request->get_param('email') ?? '')));
+        if ($email !== '' && AVPVH_DB::get_member_ids_by_emails([$email])) {
+            AVPVH_DB::log_attempt($email, 'password_reset', 'hibp_warned');
+        }
         return new \WP_REST_Response(['ok' => true], 200);
     }
 

@@ -80,6 +80,13 @@ class AVPVH_Media_Protection {
      * pointing at private/, where the files still are.
      */
     private function promote_to_public(string $rel, string $base_dir, \wpdb $wpdb): bool {
+        // $rel comes from a URL in page content: only a plain path inside
+        // uploads/private, never "..", "." or an absolute path.
+        if ($rel === '' || str_starts_with($rel, '/') || str_contains($rel, '\\')
+            || array_intersect(explode('/', $rel), ['', '.', '..'])) {
+            return false;
+        }
+
         $src_dir  = $base_dir . '/private/' . dirname($rel);
         $dest_dir = $base_dir . '/public/'  . dirname($rel);
         $filename = basename($rel);

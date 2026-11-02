@@ -17,10 +17,15 @@ class AVPVH_Nav_Auth {
     // rather than sending them into a second login they can't complete.
     const DOC_SEARCH_PAGE_ID = 1920;
 
+    /** Query argument of the logout link; its value is a nonce. */
+    const LOGOUT_ACTION = 'avpvh_logout';
+
     public function __construct() {
         add_action('wp_enqueue_scripts', [$this, 'enqueue']);
-        add_action('wp_footer',          [$this, 'render_logout_route']);
         add_action('rest_api_init',      [$this, 'register_logout_route']);
+        // After auto_login_from_proxy_header() (priority 1), so a session
+        // that came from Authelia is the user the nonce was made for.
+        add_action('init',               [$this, 'handle_logout'], 2);
         add_filter('allowed_redirect_hosts', [$this, 'allow_authelia_host']);
     }
 
@@ -71,7 +76,7 @@ class AVPVH_Nav_Auth {
                     'membersPageIds'     => self::MEMBERS_PAGE_IDS,
                     'hasDocSearchAccess' => $has_doc_search_access,
                     'docSearchPageId'    => self::DOC_SEARCH_PAGE_ID,
-                    'logoutUrl'          => rest_url('avpvh/v1/logout'),
+                    'logoutUrl'          => self::logout_url(),
                     'signedOutCookie'    => self::SIGNED_OUT_COOKIE,
                     'loginUrl'           => home_url('/avpvh-login/'),
                     'profileUrl'         => self::profile_url(),
@@ -117,10 +122,6 @@ class AVPVH_Nav_Auth {
         return in_array('boek', AVPVH_Directory::cached_user_groups($member->user_id), true);
     }
 
-    public function render_logout_route(): void {
-        // nothing needed here — REST endpoint handles it
-    }
-
     public function register_logout_route(): void {
         register_rest_route('avpvh/v1', '/logout', [
             'methods'             => 'GET',
@@ -160,11 +161,51 @@ class AVPVH_Nav_Auth {
         };
     }
 
-    public function rest_logout(): void {
+    /**
+     * The logout link: home with a nonce, so another site can't log a
+     * member out by embedding or linking to it (logout CSRF).
+     */
+    public static function logout_url(): string {
+        return add_query_arg(self::LOGOUT_ACTION, wp_create_nonce(self::LOGOUT_ACTION), home_url('/'));
+    }
+
+    /**
+     * ?avpvh_logout=<nonce>: ends the WordPress and the Authelia session.
+     * Without a valid nonce (a stale page, or a link from elsewhere) it asks
+     * first, as WordPress' own wp-login.php?action=logout does.
+     */
+    public function handle_logout(): void {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified right below
+        $nonce = sanitize_text_field(wp_unslash($_GET[self::LOGOUT_ACTION] ?? ''));
+        if ($nonce === '') {
+            return;
+        }
+        if (!is_user_logged_in()) {
+            wp_safe_redirect(home_url('/'));
+            exit;
+        }
+        if (!wp_verify_nonce($nonce, self::LOGOUT_ACTION)) {
+            wp_die(
+                '<p>' . esc_html__('Wil je uitloggen?', 'avpvh-members') . '</p><p><a class="button" href="' . esc_url(self::logout_url()) . '">'
+                    . esc_html__('Uitloggen', 'avpvh-members') . '</a> <a href="' . esc_url(home_url('/')) . '">' . esc_html__('Nee, terug', 'avpvh-members') . '</a></p>',
+                esc_html__('Uitloggen', 'avpvh-members'),
+                ['response' => 200]
+            );
+        }
         self::remember_signed_out_identities();
         wp_logout();
         self::invalidate_authelia_session();
         wp_safe_redirect(self::authelia_logout_url(home_url('/')));
+        exit;
+    }
+
+    /**
+     * The old logout address (/wp-json/avpvh/v1/logout), still on cached
+     * pages and bookmarks: no longer logs out by itself, but leads to the
+     * confirmation above.
+     */
+    public function rest_logout(): void {
+        wp_safe_redirect(add_query_arg(self::LOGOUT_ACTION, 'confirm', home_url('/')));
         exit;
     }
 
