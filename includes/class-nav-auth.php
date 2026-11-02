@@ -13,7 +13,7 @@ class AVPVH_Nav_Auth {
 
     // "Zoeken in documenten" — gated by Authelia (one_factor, group:boek) at
     // the nginx layer, independent of the WordPress login. A member who
-    // isn't in that LLDAP group can never open it, so the link is hidden
+    // isn't in that OpenLDAP group can never open it, so the link is hidden
     // rather than sending them into a second login they can't complete.
     const DOC_SEARCH_PAGE_ID = 1920;
 
@@ -105,10 +105,10 @@ class AVPVH_Nav_Auth {
     }
 
     // Mirrors the Authelia rule `resources: ['^/leden/zoeken-in-documenten/?$'],
-    // subject: 'group:boek'` in config/authelia-configuration.yml — LLDAP group
+    // subject: 'group:boek'` in config/authelia-configuration.yml — OpenLDAP group
     // membership is the actual authorization boundary, checked live via
-    // AVPVH_LLDAP (same call the profile page's "Groepen:" row uses), cached
-    // briefly so this doesn't add an LLDAP round-trip to every page load.
+    // AVPVH_Directory (same call the profile page's "Groepen:" row uses), cached
+    // briefly so this doesn't add a directory round-trip to every page load.
     private function has_boek_access(?object $member): bool {
         if (!$member || empty($member->user_id)) {
             return false;

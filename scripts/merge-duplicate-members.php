@@ -139,10 +139,10 @@ foreach ($config['merges'] as $index => $merge) {
         avpvh_merge_fail("$label normalized names do not match");
     }
     if (!hash_equals((string) ($merge['source_lldap_uid_sha256'] ?? ''), avpvh_merge_uid_hash($source->lldap_user_id))) {
-        avpvh_merge_fail("$label source LLDAP hash mismatch");
+        avpvh_merge_fail("$label source uid hash mismatch");
     }
     if (!hash_equals((string) ($merge['target_lldap_uid_sha256'] ?? ''), avpvh_merge_uid_hash($target->lldap_user_id))) {
-        avpvh_merge_fail("$label target LLDAP hash mismatch");
+        avpvh_merge_fail("$label target uid hash mismatch");
     }
     if ((string) $source->status !== (string) ($merge['expected_source_status'] ?? '')) {
         avpvh_merge_fail("$label source status changed");
@@ -157,12 +157,12 @@ foreach ($config['merges'] as $index => $merge) {
         avpvh_merge_fail("$label source unexpectedly has a WordPress user");
     }
 
-    $source_groups = AVPVH_LLDAP::get_user_groups((string) $source->lldap_user_id);
+    $source_groups = AVPVH_Directory::get_user_groups((string) $source->lldap_user_id);
     if (is_wp_error($source_groups)) {
-        avpvh_merge_fail("$label could not verify source LLDAP groups");
+        avpvh_merge_fail("$label could not verify source directory groups");
     }
     if ($source_groups) {
-        avpvh_merge_fail("$label source LLDAP account still has group memberships");
+        avpvh_merge_fail("$label source directory account still has group memberships");
     }
 
     $dependencies = avpvh_merge_source_dependencies($source_id);
@@ -237,7 +237,7 @@ foreach ($config['merges'] as $index => $merge) {
     );
 
     if (empty($merge['delete_source_lldap'])) {
-        avpvh_merge_fail("$label must explicitly enable source LLDAP deletion");
+        avpvh_merge_fail("$label must explicitly enable source directory account deletion (delete_source_lldap)");
     }
 
     $plans[] = [
@@ -253,7 +253,7 @@ foreach ($config['merges'] as $index => $merge) {
 }
 
 if ($dry_run) {
-    echo "DRY RUN complete; no database or LLDAP changes made\n";
+    echo "DRY RUN complete; no database or directory changes made\n";
     return;
 }
 
@@ -314,20 +314,20 @@ try {
     throw $exception;
 }
 
-$lldap_failures = [];
+$directory_failures = [];
 foreach ($plans as $plan) {
-    $result = AVPVH_LLDAP::delete_user($plan['source_uid']);
+    $result = AVPVH_Directory::delete_user($plan['source_uid']);
     if (is_wp_error($result)) {
-        $lldap_failures[] = $plan['source_id'];
+        $directory_failures[] = $plan['source_id'];
         continue;
     }
-    echo $plan['label'] . " merged; duplicate LLDAP account deleted\n";
+    echo $plan['label'] . " merged; duplicate directory account deleted\n";
 }
 
-if ($lldap_failures) {
+if ($directory_failures) {
     avpvh_merge_fail(
-        'Database merge committed, but LLDAP cleanup failed for source member IDs: '
-        . implode(',', $lldap_failures)
+        'Database merge committed, but directory cleanup failed for source member IDs: '
+        . implode(',', $directory_failures)
     );
 }
 

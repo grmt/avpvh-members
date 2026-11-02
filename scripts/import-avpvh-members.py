@@ -1,34 +1,33 @@
 #!/usr/bin/env python3
 """
-Import AVP-PvH members from the XLS ledenlijst into LLDAP + pvh_avm_* tables.
+Import AVP-PvH members from the XLS ledenlijst into OpenLDAP + pvh_avm_* tables.
 
 Usage:
     python3 import-avpvh-members.py /path/to/ledenlijst.xlsx [--dry-run]
 
-Sheet "Leden"    → status = active  → LLDAP group "leden"
-Sheet "ex-leden" → status = inactive → LLDAP group "ex-leden"
+Sheet "Leden"    → status = active  → directory group "leden"
+Sheet "ex-leden" → status = inactive → directory group "ex-leden"
 
 Idempotent on email. WP user creation is deferred to first login.
 
 To update existing members' fields (birth date, address, phone, etc.) from a
 newer spreadsheet, use reconcile-members.py instead — this script only
-inserts new members and silently skips anyone whose derived LLDAP uid
+inserts new members and silently skips anyone whose derived uid
 already has a member record.
 
 Dependencies:
-    pip install pymysql openpyxl requests
+    pip install pymysql openpyxl
 """
 
 import argparse
 from datetime import date
 
 import openpyxl
-import requests
 
 from _avpvh_import_common import (
     WP_PREFIX, GROUP_ACTIVE, GROUP_INACTIVE,
-    read_secret, get_db, lldap_login, get_group_id,
-    uid_from_email, lldap_create_user, lldap_add_to_group,
+    read_secret, get_db,
+    uid_from_email, directory_create_user, directory_add_to_group,
     sheet_headers, col, parse_date, parse_year, age_on, placeholder_child_uid,
     SECRET_FILE, imported_address_start,
 )
@@ -41,8 +40,8 @@ EX_LEDEN_COLS = ['vertrekjaar', 'achternaam', 'voornaam', 'geboortedatum',
                  'land', 'email', 'telefoon', 'mobiel']
 
 
-def import_sheet(cursor, session: requests.Session, sheet,
-                 status: str, group_id: int, dry_run: bool,
+def import_sheet(cursor, sheet,
+                 status: str, group: str, dry_run: bool,
                  positional_headers: list[str] | None = None) -> None:
 
     if positional_headers is not None:
@@ -76,12 +75,12 @@ def import_sheet(cursor, session: requests.Session, sheet,
         address_start = imported_address_start(c(row, 'adres_begindatum'))
 
         if birth_date and age_on(birth_date, date.today()) < 16:
-            uid = placeholder_child_uid(session, first_name, last_name, dry_run)
+            uid = placeholder_child_uid(first_name, last_name, dry_run)
             email = f'{uid}@avpvh.local'
         else:
             uid = uid_from_email(email)
 
-        # Skip if this LLDAP uid already has a member record (family sharing one email)
+        # Skip if this uid already has a member record (family sharing one email)
         cursor.execute(
             f"SELECT id FROM {WP_PREFIX}avm_members WHERE lldap_user_id = %s",
             (uid,)
@@ -90,9 +89,9 @@ def import_sheet(cursor, session: requests.Session, sheet,
             print(f'  skip (gezin deelt account): {last_name}, {first_name} → uid={uid}')
             continue
 
-        # 1. Create LLDAP user
-        lldap_create_user(session, uid, email, first_name, last_name, dry_run)
-        lldap_add_to_group(session, uid, group_id, dry_run)
+        # 1. Create the directory account
+        directory_create_user(uid, email, first_name, last_name, dry_run)
+        directory_add_to_group(uid, group, dry_run)
 
         if not dry_run:
             # 2. Insert pvh_avm_members
@@ -135,27 +134,20 @@ def main():
     db_password = read_secret(SECRET_FILE)
     conn = get_db(db_password)
 
-    session = requests.Session()
-    lldap_login(session)
-
     wb = openpyxl.load_workbook(args.xlsx, data_only=True)
     print(f'Sheets: {wb.sheetnames}')
 
     try:
         with conn.cursor() as cur:
-            group_active   = get_group_id(session, GROUP_ACTIVE)
-            group_inactive = get_group_id(session, GROUP_INACTIVE)
-            print(f'Groups: {GROUP_ACTIVE}={group_active}, {GROUP_INACTIVE}={group_inactive}')
-
             if 'Leden' in wb.sheetnames:
                 print('\n=== Active members (sheet "Leden") ===')
-                import_sheet(cur, session, wb['Leden'], 'active', group_active, args.dry_run)
+                import_sheet(cur, wb['Leden'], 'active', GROUP_ACTIVE, args.dry_run)
             else:
                 print('WARNING: sheet "Leden" not found')
 
             if 'ex-leden' in wb.sheetnames:
                 print('\n=== Ex-members (sheet "ex-leden") ===')
-                import_sheet(cur, session, wb['ex-leden'], 'inactive', group_inactive, args.dry_run,
+                import_sheet(cur, wb['ex-leden'], 'inactive', GROUP_INACTIVE, args.dry_run,
                              positional_headers=EX_LEDEN_COLS)
             else:
                 print('WARNING: sheet "ex-leden" not found')

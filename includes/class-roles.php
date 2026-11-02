@@ -1,20 +1,20 @@
 <?php
 defined('ABSPATH') || exit;
 
-// Club-officer roles, backed by LLDAP group membership (the same
+// Club-officer roles, backed by OpenLDAP group membership (the same
 // infrastructure already used for the "boek" document-search gate in
 // AVPVH_Nav_Auth::has_boek_access()) plus a lightweight, time-boxed
 // delegation layer for temporary handoffs (e.g. penningmeester during
-// camp) that never touches the real LLDAP group.
+// camp) that never touches the real OpenLDAP group.
 class AVPVH_Roles {
 
     // Holding any of these implies 'bestuur' too — computed here rather
-    // than requiring a second LLDAP group membership per officer.
+    // than requiring a second OpenLDAP group membership per officer.
     const OFFICER_ROLES = ['voorzitter', 'secretaris', 'penningmeester'];
     const ALL_ROLES = ['bestuur', 'voorzitter', 'secretaris', 'penningmeester'];
 
     /**
-     * Real (LLDAP-derived) roles for a member, with implied 'bestuur'
+     * Real (OpenLDAP-derived) roles for a member, with implied 'bestuur'
      * folded in. Does not include delegated roles — use member_has_role()
      * for the effective (real-or-delegated) check.
      */
@@ -233,7 +233,7 @@ class AVPVH_Roles {
         return $member && in_array('penningmeester', self::get_member_roles((int) $member->id), true);
     }
 
-    // A rolhouder may lay down their own (real, LLDAP) role; the voorzitter
+    // A rolhouder may lay down their own (real, OpenLDAP) role; the voorzitter
     // or a WP admin may do it for any rolhouder.
     public static function can_step_down(string $role, int $holder_id): bool {
         if (self::can_appoint_officers()) {
@@ -245,7 +245,7 @@ class AVPVH_Roles {
     }
 
     // Real WP admins always qualify; otherwise any one of the given club
-    // roles, via LLDAP group membership or an active delegation.
+    // roles, via OpenLDAP group membership or an active delegation.
     private static function is_admin_or_has_any_role(array $roles): bool {
         if (current_user_can('manage_options')) {
             return true;
@@ -419,7 +419,7 @@ class AVPVH_Roles {
     }
 
     /**
-     * Only a real voorzitter (LLDAP group, not a delegation) or a WP admin
+     * Only a real voorzitter (OpenLDAP group, not a delegation) or a WP admin
      * may appoint a new voorzitter, secretaris or penningmeester —
      * otherwise a temporary stand-in could make their own role permanent.
      */
@@ -445,7 +445,7 @@ class AVPVH_Roles {
     }
 
     /**
-     * Add or remove a bestuurslid (LLDAP group "bestuur"). Only members who
+     * Add or remove a bestuurslid (OpenLDAP group "bestuur"). Only members who
      * qualify via get_officer_candidates() — active, with a real login —
      * can be added; anyone can be removed. Officers stay bestuur by
      * implication even when not in the group themselves.
@@ -491,7 +491,7 @@ class AVPVH_Roles {
 
     /**
      * Lay down $role (voorzitter, secretaris or penningmeester): $member_id
-     * leaves that LLDAP group but stays an ordinary bestuurslid (added to
+     * leaves that OpenLDAP group but stays an ordinary bestuurslid (added to
      * "bestuur" first, so they're never briefly outside the bestuur). The
      * role stays vacant until someone is appointed.
      */
@@ -561,7 +561,7 @@ class AVPVH_Roles {
 
     /**
      * Appoint $to_member_id as the new $role (voorzitter, secretaris or
-     * penningmeester): adds them to that LLDAP group, removes every other
+     * penningmeester): adds them to that OpenLDAP group, removes every other
      * current holder and ends active delegations of the role, so exactly
      * one person holds it afterwards. Adding happens first, so a failure
      * never leaves the role empty.
@@ -612,7 +612,7 @@ class AVPVH_Roles {
     }
 
     /**
-     * Every member currently holding $role for real (LLDAP group), for the
+     * Every member currently holding $role for real (OpenLDAP group), for the
      * admin "who holds what" list. Uses AVPVH_Directory::get_all_group_memberships()
      * (one round-trip for every group) rather than a per-member lookup.
      */

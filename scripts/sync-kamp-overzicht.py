@@ -6,7 +6,7 @@ option as JSON, for the [avpvh_kamp_overzicht] shortcode to render.
 
 This is a snapshot, not a live view — the spreadsheet changes continuously
 as people register/cancel, so re-run this whenever the site should show
-fresher data. No LLDAP/member-account writes here, just one wp_options row.
+fresher data. No directory/member-account writes here, just one wp_options row.
 
 The source may be one .xlsx file or a directory. For a directory, the most
 recently modified .xlsx file is used, so the command can be rerun unchanged

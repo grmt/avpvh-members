@@ -3,7 +3,7 @@ defined('ABSPATH') || exit;
 
 /**
  * [avpvh_bestuur] — the public "Bestuur" page, built from the member data
- * instead of hand-edited text: the current bestuur comes from the LLDAP
+ * instead of hand-edited text: the current bestuur comes from the OpenLDAP
  * groups (bestuur plus the officer roles, see AVPVH_Roles), former
  * bestuursleden from the "oud-bestuurder" kenmerk that AVPVH_Roles sets
  * when someone leaves the bestuur. Rollen & delegatie changes show up

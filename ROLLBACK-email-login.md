@@ -158,10 +158,17 @@ After reverting code and/or schema, verify:
 
 ### 5. Re-run backfill only if needed
 
-If you keep the feature and only want to repopulate the table:
+If you keep the feature and only want to repopulate the table: the old
+`scripts/backfill-member-identities.sh` read LLDAP and was removed with it
+(PLAN-openldap.md, phase 4). Fill it from the directory cache instead:
 
-```bash
-./scripts/backfill-member-identities.sh
+```sql
+INSERT INTO pvh_avm_member_identities (member_id, provider, email, is_primary)
+SELECT m.id, 'email', u.email, 1
+FROM pvh_avm_members m
+JOIN pvh_avm_directory_users u ON u.user_id = m.lldap_user_id
+WHERE u.email <> ''
+ON DUPLICATE KEY UPDATE email = VALUES(email), is_primary = 1;
 ```
 
 ### 6. Sanity checks

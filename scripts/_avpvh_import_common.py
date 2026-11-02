@@ -8,15 +8,20 @@ account logic here is a real privacy control (members under 16 never get a
 real login — see placeholder_child_uid()), not just a style preference, and
 must behave identically wherever a new member gets created.
 
+Accounts and groups live in OpenLDAP; they are written through the plugin
+(scripts/directory-bridge.php, run with wp-cli in the wpcli-pvh container),
+so the plugin's directory cache stays in step.
+
 Dependencies:
-    pip install pymysql openpyxl requests
+    pip install pymysql openpyxl
 """
 
+import os
 import re
+import subprocess
 from datetime import date, datetime
 
 import pymysql
-import requests
 
 SECRET_FILE   = '/opt/docker/secrets/compose/wordpress_db_password.txt'
 DB_HOST       = '127.0.0.1'
@@ -25,9 +30,8 @@ DB_USER       = 'wp_user'
 DB_NAME       = 'wpdb'
 WP_PREFIX     = 'pvh_'
 
-LLDAP_URL          = 'https://leden-admin.avphilipsvanhorne.nl'
-LLDAP_ADMIN        = 'admin'
-LLDAP_SECRET_FILE  = '/opt/docker/secrets/compose/lldap_admin_password.txt'
+COMPOSE_DIR      = os.environ.get('AVPVH_COMPOSE_DIR', '/opt/docker/scripts')
+DIRECTORY_BRIDGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'directory-bridge.php')
 
 GROUP_ACTIVE   = 'leden'
 GROUP_INACTIVE = 'ex-leden'
@@ -71,41 +75,25 @@ def get_db(password: str):
 
 
 # ---------------------------------------------------------------------------
-# LLDAP GraphQL helpers
+# Directory (OpenLDAP) helpers, through the plugin
 # ---------------------------------------------------------------------------
 
-def lldap_login(session: requests.Session) -> None:
-    password = read_secret(LLDAP_SECRET_FILE)
-    r = session.post(f'{LLDAP_URL}/auth/simple/login', json={
-        'username': LLDAP_ADMIN,
-        'password': password,
-    }, timeout=10)
-    r.raise_for_status()
-    token = r.json()['token']
-    session.headers['Authorization'] = f'Bearer {token}'
-
-
-def graphql(session: requests.Session, query: str, variables: dict | None = None) -> dict:
-    r = session.post(f'{LLDAP_URL}/api/graphql',
-                     json={'query': query, 'variables': variables or {}},
-                     timeout=10)
-    r.raise_for_status()
-    body = r.json()
-    if 'errors' in body:
-        raise RuntimeError(f'GraphQL error: {body["errors"]}')
-    return body.get('data', {})
-
-
-def get_group_id(session: requests.Session, group_name: str) -> int:
-    data = graphql(session, 'query { groups { id displayName } }')
-    for g in data.get('groups', []):
-        if g['displayName'].lower() == group_name.lower():
-            return int(g['id'])
-    # Create group if missing
-    data = graphql(session,
-        'mutation CreateGroup($name: String!) { createGroup(name: $name) { id } }',
-        {'name': group_name})
-    return int(data['createGroup']['id'])
+def directory(*args: str) -> str:
+    """Run one directory-bridge.php command; returns its answer line."""
+    with open(DIRECTORY_BRIDGE, 'rb') as code:
+        r = subprocess.run(
+            ['docker', 'compose', 'run', '--rm', '-T', 'wpcli-pvh',
+             'wp', 'eval-file', '-', *args],
+            cwd=COMPOSE_DIR, stdin=code, capture_output=True, timeout=120,
+        )
+    # PHP deprecation notices from other plugins share stdout; the answer
+    # is the last line.
+    lines = [l for l in r.stdout.decode(errors='replace').splitlines() if l.strip()]
+    answer = lines[-1].strip() if lines else ''
+    if r.returncode != 0 or answer not in ('yes', 'no', 'ok'):
+        err = r.stderr.decode(errors='replace').strip().splitlines()
+        raise RuntimeError(f'directory {args[0]} failed: {err[-1] if err else answer}')
+    return answer
 
 
 def uid_from_email(email: str) -> str:
@@ -113,51 +101,27 @@ def uid_from_email(email: str) -> str:
     return re.sub(r'[^a-z0-9._-]', '.', local)
 
 
-def lldap_user_exists(session: requests.Session, uid: str) -> bool:
-    try:
-        data = graphql(session,
-            'query GetUser($id: String!) { user(userId: $id) { id } }',
-            {'id': uid})
-        return data.get('user') is not None
-    except RuntimeError:
-        return False
+def directory_user_exists(uid: str) -> bool:
+    return directory('exists', uid) == 'yes'
 
 
-def lldap_create_user(session: requests.Session, uid: str, email: str,
-                      first_name: str, last_name: str, dry_run: bool) -> bool:
-    if lldap_user_exists(session, uid):
-        print(f'    LLDAP user already exists: {uid}')
+def directory_create_user(uid: str, email: str, first_name: str,
+                          last_name: str, dry_run: bool) -> bool:
+    if directory_user_exists(uid):
+        print(f'    directory account already exists: {uid}')
         return True
     if dry_run:
-        print(f'    [dry-run] would create LLDAP user: {uid} <{email}>')
+        print(f'    [dry-run] would create directory account: {uid} <{email}>')
         return True
-    graphql(session,
-        '''mutation CreateUser($user: CreateUserInput!) {
-               createUser(user: $user) { id }
-           }''',
-        {'user': {
-            'id':          uid,
-            'email':       email,
-            'displayName': f'{first_name} {last_name}'.strip(),
-        }})
+    directory('create', uid, email, f'{first_name} {last_name}'.strip())
     return True
 
 
-def lldap_add_to_group(session: requests.Session, uid: str, group_id: int,
-                       dry_run: bool) -> None:
+def directory_add_to_group(uid: str, group: str, dry_run: bool) -> None:
+    """Adding an existing member is a no-op in AVPVH_Directory."""
     if dry_run:
         return
-    try:
-        graphql(session,
-            '''mutation Add($userId: String!, $groupId: Int!) {
-                   addUserToGroup(userId: $userId, groupId: $groupId) { ok }
-               }''',
-            {'userId': uid, 'groupId': group_id})
-    except RuntimeError as e:
-        if 'unique-memberships' in str(e) or 'Duplicate entry' in str(e):
-            pass  # already a member
-        else:
-            raise
+    directory('add-to-group', uid, group)
 
 
 # ---------------------------------------------------------------------------
@@ -224,15 +188,14 @@ def age_on(birth_date, today: date) -> int:
     return years
 
 
-def placeholder_child_uid(session: requests.Session, first_name: str, last_name: str,
-                          dry_run: bool) -> str:
+def placeholder_child_uid(first_name: str, last_name: str, dry_run: bool) -> str:
     """Members under 16 never get their own login (per policy) — generate a
     non-deliverable placeholder uid/email instead of using the row's real
     (guardian's) email, so no one can authenticate as them."""
     base = uid_from_email(f'{first_name}.{last_name}@placeholder')
     uid = base
     n = 1
-    while not dry_run and lldap_user_exists(session, uid):
+    while not dry_run and directory_user_exists(uid):
         n += 1
         uid = f'{base}{n}'
     return uid

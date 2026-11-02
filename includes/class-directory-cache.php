@@ -4,8 +4,7 @@ defined('ABSPATH') || exit;
 /**
  * Local copy of the identity fields the plugin needs in SQL (uid, e-mail,
  * display name), filled from OpenLDAP. OpenLDAP keeps its data in LMDB, so it
- * can't be JOINed like lldap.users was; this table can, with the same column
- * names, so AVPVH_DB's queries only swap the table (AVPVH_DB::identity_table()).
+ * can't be JOINed; this table can (AVPVH_DB::identity_table()).
  *
  * OpenLDAP stays the source: this table is only ever written from directory
  * data — write-through after every plugin write (AVPVH_Directory), a full sync
@@ -33,11 +32,8 @@ final class AVPVH_Directory_Cache {
     }
 
     public static function ensure_scheduled(): void {
-        $scheduled = wp_next_scheduled(self::CRON_HOOK);
-        if (AVPVH_Directory::is_openldap() && !$scheduled) {
+        if (!wp_next_scheduled(self::CRON_HOOK)) {
             wp_schedule_event(time() + 60, 'avpvh_15min', self::CRON_HOOK);
-        } elseif (!AVPVH_Directory::is_openldap() && $scheduled) {
-            wp_clear_scheduled_hook(self::CRON_HOOK);
         }
     }
 
@@ -65,9 +61,6 @@ final class AVPVH_Directory_Cache {
 
     /** Re-read one account from the directory (gone there → gone here). */
     public static function refresh_user(string $uid): void {
-        if (!AVPVH_Directory::is_openldap()) {
-            return;
-        }
         $user = AVPVH_Directory::get_user($uid);
         if ($user) {
             self::upsert($user);
@@ -85,9 +78,6 @@ final class AVPVH_Directory_Cache {
      */
     public static function full_sync(): array {
         global $wpdb;
-        if (!AVPVH_Directory::is_openldap()) {
-            return ['ok' => false, 'error' => 'Directory-backend is niet OpenLDAP.'];
-        }
         $users = AVPVH_Directory::list_users();
         if (is_wp_error($users)) {
             // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational log of a failed directory action, for the server log; not debug output

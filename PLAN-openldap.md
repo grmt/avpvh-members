@@ -1,11 +1,20 @@
 # Plan: LLDAP vervangen door OpenLDAP
 
-Status: fase 0 uitgevoerd (2026-10-03, docker-scripts PR #40): eigen
-WordPress-image met `ldap`-extensie voor `wordpress-pvh`/`wpcli-pvh`,
-serviceaccount `cn=avpvh-admin,dc=nl` met secret
-`openldap_avpvh_admin_password`, placeholder `cn=vacant,ou=avpvh,dc=nl` en
-de ACL-regel voor `ou=avpvh`; grenstest op live geslaagd. Fase 1 e.v. nog
-niet begonnen.
+Status: afgerond. Fase 0 (infra, docker-scripts PR #40) op 2026-10-03,
+fase 1–3 op 2026-10-03/04 (schakelaar sindsdien op `openldap`), fase 4
+(LLDAP opruimen) op 2026-11-02:
+
+- plugin: `class-lldap.php`, de LLDAP-adapter, de schakelaar
+  `AVPVH_DIRECTORY_BACKEND`, `AVPVH_LLDAP_DB` en de LLDAP-testknop weg;
+  DB-migratie 2.32 verwijdert de opties `avpvh_lldap_*`;
+- scripts: `deploy-lldap.sh`, `test-user.sh`,
+  `backfill-member-identities.sh` en `compare-directories.php` weg;
+  `manage-lldap-group.sh` is `manage-directory-group.sh` geworden; de
+  Python-importscripts maken accounts aan via de plugin
+  (`scripts/directory-bridge.php`, wp-cli in `wpcli-pvh`);
+- de kolom `avm_members.lldap_user_id` heet nog zo, maar bevat de OpenLDAP-uid;
+- docker-scripts: zie de PR "remove lldap" daar; de MariaDB-database
+  `lldap` en de grant voor `wp_user` worden met de hand verwijderd.
 
 ## Besluit
 

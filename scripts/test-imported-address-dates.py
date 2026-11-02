@@ -164,13 +164,13 @@ class AddressSQLTests(unittest.TestCase):
         self.assertEqual(self.cur.fetchone()[0], 0)
 
     def test_both_creation_paths_date_addresses(self):
-        with patch.object(reconcile, 'lldap_create_user'), patch.object(reconcile, 'lldap_add_to_group'):
-            reconcile.create_member(self.cur, None, sheet_row(), 1, False)
+        with patch.object(reconcile, 'directory_create_user'), patch.object(reconcile, 'directory_add_to_group'):
+            reconcile.create_member(self.cur, sheet_row(), 'leden', False)
         wb = openpyxl.Workbook()
         wb.active.append(['Roepnaam', 'Achternaam', 'email', 'straat', 'Begindatum adres'])
         wb.active.append(['Testlid2', 'Voorbeeld2', 'second@example.test', 'Fictief2', datetime(2026, 3, 4)])
-        with patch.object(initial_import, 'lldap_create_user'), patch.object(initial_import, 'lldap_add_to_group'):
-            initial_import.import_sheet(self.cur, None, wb.active, 'active', 1, False)
+        with patch.object(initial_import, 'directory_create_user'), patch.object(initial_import, 'directory_add_to_group'):
+            initial_import.import_sheet(self.cur, wb.active, 'active', 'leden', False)
         self.cur.execute('SELECT valid_from FROM pdpy_avm_addresses ORDER BY id')
         self.assertEqual(self.cur.fetchall(), ((date(2025, 1, 1),), (date(2026, 3, 4),)))
 

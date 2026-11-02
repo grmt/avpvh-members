@@ -69,8 +69,8 @@ $tab_url = fn(string $tab): string => add_query_arg(
     admin_url('admin.php')
 );
 
-// Sync-to-LLDAP action — displayName only. 'email' isn't included: $member->email
-// is always read straight from LLDAP itself (member_select()'s u.email), so
+// Sync-to-directory action — displayName only. 'email' isn't included: $member->email
+// is always read straight from OpenLDAP itself (member_select()'s u.email), so
 // sending it back would be a no-op; real changes go through the "E-mail"
 // field's own "Wijzigen" button above, or "Maak primair" on an Inlogadres.
 // Saving a name change on the profile page now syncs displayName

@@ -20,10 +20,6 @@ define('AVPVH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 if (!defined('AVPVH_DMARC_PAGE_OPTION')) {
     define('AVPVH_DMARC_PAGE_OPTION', 'avpvh_dmarc_page_id');
 }
-// LLDAP database name in the shared MariaDB instance. Override in wp-config.php if needed.
-if (!defined('AVPVH_LLDAP_DB')) {
-    define('AVPVH_LLDAP_DB', 'lldap');
-}
 
 /**
  * Cache-busting version for an asset: the file's own mtime, so every deploy
@@ -58,7 +54,6 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-pdok.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-address-lookup.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-address-entry-check.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-visitor-delete.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/class-lldap.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory-cache.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-roles.php';
