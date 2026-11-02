@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 define('ABSPATH', __DIR__ . '/');
-define('AVPVH_LLDAP_DB', 'lldap');
 
 class AVPVH_Test_WPDB {
     public string $prefix = 'pvh_';

@@ -10,7 +10,6 @@ declare(strict_types=1);
  */
 
 define('ABSPATH', __DIR__ . '/');
-define('AVPVH_LLDAP_DB', 'lldap');
 require_once dirname(__DIR__) . '/includes/class-db.php';
 
 function check(string $label, mixed $actual, mixed $expected): void {

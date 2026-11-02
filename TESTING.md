@@ -17,8 +17,7 @@ php -l admin/member-detail.php
 Shell scripts:
 
 ```bash
-bash -n scripts/backfill-member-identities.sh
-bash -n scripts/test-user.sh
+bash -n scripts/manage-directory-group.sh
 bash -n scripts/deploy.sh
 bash -n scripts/release.sh
 bash -n scripts/promote-scrubbed-main.sh

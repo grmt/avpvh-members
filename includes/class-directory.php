@@ -2,23 +2,22 @@
 defined('ABSPATH') || exit;
 
 /**
- * Identity directory (accounts + groups), independent of whether it lives in
- * LLDAP or OpenLDAP. Everything in the plugin goes through this class; the
- * backend is chosen with the AVPVH_DIRECTORY_BACKEND constant ('lldap', the
- * default for now, or 'openldap') — see PLAN-openldap.md.
+ * Identity directory (accounts + groups) in OpenLDAP. Everything in the
+ * plugin goes through this class; the backend interface stays so tests can
+ * inject a fake (set_backend()).
  *
- * Groups are identified by name (cn), never by LLDAP's numeric ids. Users are
- * plain arrays: ['uid' => ..., 'mail' => ..., 'display_name' => ...].
+ * Groups are identified by name (cn). Users are plain arrays:
+ * ['uid' => ..., 'mail' => ..., 'display_name' => ...].
  *
- * With the OpenLDAP backend every successful account write is mirrored into
- * the local cache table straight away (AVPVH_Directory_Cache), so member
- * lists and searches stay plain SQL.
+ * Every successful account write is mirrored into the local cache table
+ * straight away (AVPVH_Directory_Cache), so member lists and searches stay
+ * plain SQL.
  */
 final class AVPVH_Directory {
 
-    // The directory may hold more than avpvh's groups (LLDAP is shared by
-    // every tenant; OpenLDAP is scoped by ACL but keep the same guard). Only
-    // these are PvH's to show and hand out from this plugin.
+    // The directory may hold more than avpvh's groups (OpenLDAP is scoped by
+    // ACL, but keep the guard). Only these are PvH's to show and hand out
+    // from this plugin.
     public const PVH_GROUPS = [
         'leden', 'ex-leden', 'ere-leden', 'bestuur', 'voorzitter',
         'secretaris', 'penningmeester', 'boek', 'bloggers', 'it-beheer',
@@ -26,18 +25,9 @@ final class AVPVH_Directory {
 
     private static ?AVPVH_Directory_Backend $backend = null;
 
-    public static function backend_name(): string {
-        $name = defined('AVPVH_DIRECTORY_BACKEND') ? strtolower((string) AVPVH_DIRECTORY_BACKEND) : 'openldap';
-        return $name === 'lldap' ? 'lldap' : 'openldap';
-    }
-
-    public static function is_openldap(): bool {
-        return self::backend_name() === 'openldap';
-    }
-
     public static function backend(): AVPVH_Directory_Backend {
         if (self::$backend === null) {
-            self::$backend = self::is_openldap() ? new AVPVH_Directory_OpenLDAP() : new AVPVH_Directory_LLDAP();
+            self::$backend = new AVPVH_Directory_OpenLDAP();
         }
         return self::$backend;
     }
@@ -67,7 +57,7 @@ final class AVPVH_Directory {
 
     public static function create_user(string $uid, string $mail, string $display_name): true|\WP_Error {
         $result = self::backend()->create_user($uid, $mail, $display_name);
-        if ($result === true && self::is_openldap()) {
+        if ($result === true) {
             AVPVH_Directory_Cache::upsert(['uid' => $uid, 'mail' => $mail, 'display_name' => $display_name]);
         }
         return $result;
@@ -80,7 +70,7 @@ final class AVPVH_Directory {
             return true;
         }
         $result = self::backend()->update_user($uid, $fields);
-        if ($result === true && self::is_openldap()) {
+        if ($result === true) {
             AVPVH_Directory_Cache::refresh_user($uid);
         }
         return $result;
@@ -88,7 +78,7 @@ final class AVPVH_Directory {
 
     public static function delete_user(string $uid): true|\WP_Error {
         $result = self::backend()->delete_user($uid);
-        if ($result === true && self::is_openldap()) {
+        if ($result === true) {
             AVPVH_Directory_Cache::delete($uid);
         }
         return $result;
@@ -170,104 +160,6 @@ interface AVPVH_Directory_Backend {
     public function remove_from_group(string $uid, string $group): true|\WP_Error;
     public function list_users(): array|\WP_Error;
     public function test_connection(): true|\WP_Error;
-}
-
-/**
- * LLDAP backend: a thin adapter around the existing AVPVH_LLDAP GraphQL
- * client, translating group names to LLDAP's numeric ids. Goes away with
- * LLDAP itself (phase 4 of PLAN-openldap.md).
- */
-final class AVPVH_Directory_LLDAP implements AVPVH_Directory_Backend {
-
-    /** @var array<string, int>|null lowercase name => id, per request */
-    private ?array $group_ids = null;
-
-    private function group_id(string $group): int|\WP_Error {
-        if ($this->group_ids === null) {
-            $groups = AVPVH_LLDAP::list_groups();
-            if (is_wp_error($groups)) {
-                return $groups;
-            }
-            $this->group_ids = [];
-            foreach ($groups as $g) {
-                $this->group_ids[strtolower((string) $g['displayName'])] = (int) $g['id'];
-            }
-        }
-        return $this->group_ids[strtolower($group)] ?? new \WP_Error('avpvh_no_group', "Groep \"{$group}\" niet gevonden.");
-    }
-
-    private static function ok(array|\WP_Error $result): true|\WP_Error {
-        return is_wp_error($result) ? $result : true;
-    }
-
-    public function get_user(string $uid): ?array {
-        $user = AVPVH_LLDAP::get_user($uid);
-        return $user ? ['uid' => $user['id'], 'mail' => (string) ($user['email'] ?? ''), 'display_name' => (string) ($user['displayName'] ?? '')] : null;
-    }
-
-    public function create_user(string $uid, string $mail, string $display_name): true|\WP_Error {
-        return self::ok(AVPVH_LLDAP::create_user($uid, $mail, $display_name));
-    }
-
-    public function update_user(string $uid, array $fields): true|\WP_Error {
-        $mapped = [];
-        if (array_key_exists('mail', $fields)) {
-            $mapped['email'] = $fields['mail'];
-        }
-        if (array_key_exists('display_name', $fields)) {
-            $mapped['displayName'] = $fields['display_name'];
-        }
-        return self::ok(AVPVH_LLDAP::update_user($uid, $mapped));
-    }
-
-    public function delete_user(string $uid): true|\WP_Error {
-        return self::ok(AVPVH_LLDAP::delete_user($uid));
-    }
-
-    public function list_groups(): array|\WP_Error {
-        $groups = AVPVH_LLDAP::list_groups();
-        return is_wp_error($groups) ? $groups : array_values(array_map(static fn($g) => strtolower((string) $g['displayName']), $groups));
-    }
-
-    public function get_user_groups(string $uid): array|\WP_Error {
-        $groups = AVPVH_LLDAP::get_user_groups($uid);
-        return is_wp_error($groups) ? $groups : array_values(array_map(static fn($g) => strtolower((string) $g['displayName']), $groups));
-    }
-
-    public function get_all_group_memberships(): array|\WP_Error {
-        $map = AVPVH_LLDAP::get_all_group_memberships();
-        if (is_wp_error($map)) {
-            return $map;
-        }
-        $out = [];
-        foreach ($map as $uid => $names) {
-            $out[strtolower((string) $uid)] = array_map('strtolower', $names);
-        }
-        return $out;
-    }
-
-    public function add_to_group(string $uid, string $group): true|\WP_Error {
-        $id = $this->group_id($group);
-        return is_wp_error($id) ? $id : self::ok(AVPVH_LLDAP::add_to_group($uid, $id));
-    }
-
-    public function remove_from_group(string $uid, string $group): true|\WP_Error {
-        $id = $this->group_id($group);
-        return is_wp_error($id) ? $id : self::ok(AVPVH_LLDAP::remove_from_group($uid, $id));
-    }
-
-    public function list_users(): array|\WP_Error {
-        $users = AVPVH_LLDAP::list_users();
-        if (is_wp_error($users)) {
-            return $users;
-        }
-        return array_map(static fn($u) => ['uid' => $u['id'], 'mail' => (string) ($u['email'] ?? ''), 'display_name' => (string) ($u['displayName'] ?? '')], $users);
-    }
-
-    public function test_connection(): true|\WP_Error {
-        $groups = AVPVH_LLDAP::list_groups();
-        return is_wp_error($groups) ? $groups : true;
-    }
 }
 
 /**

@@ -341,14 +341,6 @@ class AVPVH_Admin {
         $oauth_test = isset($_GET['oauth_test']) ? sanitize_text_field(wp_unslash($_GET['oauth_test'])) : null;
         $oauth_test_provider = isset($_GET['oauth_provider']) ? sanitize_text_field(wp_unslash($_GET['oauth_provider'])) : null;
 
-        $test_result = null;
-        if (isset($_POST['test_lldap'])) {
-            check_admin_referer('avpvh_test_lldap');
-            $url      = sanitize_url(wp_unslash($_POST['lldap_url'] ?? 'http://lldap:17170'));
-            $user     = sanitize_text_field(wp_unslash($_POST['lldap_user'] ?? 'admin'));
-            $password = sanitize_text_field(wp_unslash($_POST['lldap_password'] ?? ''));
-            $test_result = AVPVH_LLDAP::test_connection_with($url, $user, $password);
-        }
         $directory_test = null;
         $directory_sync = null;
         if (isset($_POST['test_directory'])) {
@@ -362,11 +354,6 @@ class AVPVH_Admin {
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('AVP-PvH Instellingen', 'avpvh-members'); ?></h1>
-            <?php if ($test_result === true) : ?>
-                <div class="notice notice-success"><p><?php esc_html_e('LLDAP-verbinding OK.', 'avpvh-members'); ?></p></div>
-            <?php elseif (is_wp_error($test_result)) : ?>
-                <div class="notice notice-error"><p><?php echo esc_html(sprintf(/* translators: %s: error message */ __('LLDAP-fout: %s', 'avpvh-members'), $test_result->get_error_message())); ?></p></div>
-            <?php endif; ?>
             <?php if ($directory_test === true) : ?>
                 <div class="notice notice-success"><p><?php esc_html_e('Directory-verbinding OK.', 'avpvh-members'); ?></p></div>
             <?php elseif (is_wp_error($directory_test)) : ?>
@@ -501,45 +488,19 @@ class AVPVH_Admin {
             <h2><?php esc_html_e('Directory (accounts en groepen)', 'avpvh-members'); ?></h2>
             <?php global $wpdb; ?>
             <table class="form-table">
-                <tr><th><?php esc_html_e('Backend', 'avpvh-members'); ?></th><td><code><?php echo esc_html(AVPVH_Directory::backend_name()); ?></code> <span class="description"><?php esc_html_e('(instelbaar met de constante AVPVH_DIRECTORY_BACKEND in wp-config.php)', 'avpvh-members'); ?></span></td></tr>
-                <?php if (AVPVH_Directory::is_openldap()) : ?>
-                    <tr><th><?php esc_html_e('Cache', 'avpvh-members'); ?></th><td>
-                        <?php echo esc_html(sprintf(
-                            /* translators: 1: number of accounts, 2: date and time of the last full sync */ __('%1$d accounts, laatst volledig gesynchroniseerd: %2$s', 'avpvh-members'),
-                            (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . AVPVH_Directory_Cache::table()), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
-                            get_option('avpvh_directory_synced_at') ?: __('nog nooit', 'avpvh-members')
-                        )); ?>
-                    </td></tr>
-                <?php endif; ?>
+                <tr><th><?php esc_html_e('Backend', 'avpvh-members'); ?></th><td><code>openldap</code></td></tr>
+                <tr><th><?php esc_html_e('Cache', 'avpvh-members'); ?></th><td>
+                    <?php echo esc_html(sprintf(
+                        /* translators: 1: number of accounts, 2: date and time of the last full sync */ __('%1$d accounts, laatst volledig gesynchroniseerd: %2$s', 'avpvh-members'),
+                        (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . AVPVH_Directory_Cache::table()), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+                        get_option('avpvh_directory_synced_at') ?: __('nog nooit', 'avpvh-members')
+                    )); ?>
+                </td></tr>
             </table>
             <form method="post">
                 <?php wp_nonce_field('avpvh_directory_tools'); ?>
                 <?php submit_button(__('Verbinding testen', 'avpvh-members'), 'secondary', 'test_directory', false); ?>
-                <?php if (AVPVH_Directory::is_openldap()) : ?>
-                    <?php submit_button(__('Nu synchroniseren', 'avpvh-members'), 'secondary', 'sync_directory', false); ?>
-                <?php endif; ?>
-            </form>
-
-            <hr>
-            <h2><?php esc_html_e('LLDAP-verbinding testen', 'avpvh-members'); ?></h2>
-            <form method="post">
-                <?php wp_nonce_field('avpvh_test_lldap'); ?>
-                <input type="hidden" name="test_lldap" value="1">
-                <table class="form-table">
-                    <tr>
-                        <th><label for="lldap_url"><?php esc_html_e('URL', 'avpvh-members'); ?></label></th>
-                        <td><input type="url" id="lldap_url" name="lldap_url" class="regular-text" value="http://lldap:17170"></td>
-                    </tr>
-                    <tr>
-                        <th><label for="lldap_user"><?php esc_html_e('Gebruikersnaam', 'avpvh-members'); ?></label></th>
-                        <td><input type="text" id="lldap_user" name="lldap_user" class="regular-text" value="admin"></td>
-                    </tr>
-                    <tr>
-                        <th><label for="lldap_password"><?php esc_html_e('Wachtwoord', 'avpvh-members'); ?></label></th>
-                        <td><input type="password" id="lldap_password" name="lldap_password" class="regular-text" value=""></td>
-                    </tr>
-                </table>
-                <?php submit_button(__('Verbinding testen', 'avpvh-members'), 'secondary'); ?>
+                <?php submit_button(__('Nu synchroniseren', 'avpvh-members'), 'secondary', 'sync_directory', false); ?>
             </form>
         </div>
         <?php
@@ -697,7 +658,7 @@ class AVPVH_Admin {
         $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
         AVPVH_DB::set_primary_identity($member_id, $identity_id);
 
-        // The LLDAP contact e-mail (this page's "E-mail" field, used for
+        // The OpenLDAP contact e-mail (this page's "E-mail" field, used for
         // correspondence, separate from login) should follow whichever
         // identity is now primary, replacing whatever was there before.
         $member = AVPVH_DB::get_member($member_id);
@@ -828,14 +789,14 @@ class AVPVH_Admin {
         exit;
     }
 
-    // This edits the LLDAP account's own 'email' attribute directly — the
+    // This edits the OpenLDAP account's own 'email' attribute directly — the
     // "E-mail" contact field shown in Ledendetail (class-db.php's
-    // member_select() reads it straight from LLDAP via `u.email`, not from
+    // member_select() reads it straight from OpenLDAP via `u.email`, not from
     // avm_members). It's unrelated to Inlogadressen (avm_member_identities):
     // that table only reflects logins that have actually happened, while
-    // this is LLDAP's own contact record, and only this plugin's WP-admin
+    // this is OpenLDAP's own contact record, and only this plugin's WP-admin
     // side had no UI to change or clear it — the field itself always
-    // existed and was editable directly in LLDAP.
+    // existed and was editable directly in OpenLDAP.
     public function handle_update_email(): void {
         check_admin_referer('avpvh_update_email');
         if (!$this->can_manage_members()) {
@@ -857,7 +818,7 @@ class AVPVH_Admin {
 
         // Clearing the field means "remove it" — same placeholder convention
         // handle_add_member() already uses for members with no real e-mail
-        // (e.g. under-16s), rather than relying on LLDAP accepting a blank
+        // (e.g. under-16s), rather than relying on OpenLDAP accepting a blank
         // 'mail' attribute, which its schema may not allow at all.
         if ($email === '') {
             $email = $member->lldap_user_id . '@avpvh.local';
@@ -874,7 +835,7 @@ class AVPVH_Admin {
     }
 
     // manage_options only, not secretaris — unlike identities/address/flags,
-    // LLDAP groups can grant real elevated access (secretaris, bestuur, the
+    // OpenLDAP groups can grant real elevated access (secretaris, bestuur, the
     // boek-group), so letting a secretaris hand those out themselves would
     // be a privilege-escalation path. Was previously only possible via
     // scripts/manage-lldap-group.sh run on the server by hand.
@@ -1152,7 +1113,7 @@ class AVPVH_Admin {
 
     /**
      * Creates a member the same way the one-off avpvh-ops-scripts have
-     * always done it by hand: a placeholder LLDAP account under a local
+     * always done it by hand: a placeholder OpenLDAP account under a local
      * @avpvh.local address (club policy — under-16 members never get a
      * real login, and this form doesn't ask for a real email at all) plus
      * the matching avm_members row. Warns on a same-name match rather than

@@ -143,7 +143,7 @@ class AVPVH_Ledenlijst {
                         $naam = '<a href="' . esc_url(add_query_arg('member_id', $lid->id, home_url('/member-profile/'))) . '">' . $naam . '</a>';
                     }
 
-                    // A placeholder LLDAP address (members with no real
+                    // A placeholder OpenLDAP address (members with no real
                     // e-mail, e.g. under-16s — see handle_add_member()) isn't
                     // a real contact address, so it's never shown here even
                     // when share_email is on.

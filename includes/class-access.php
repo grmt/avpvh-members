@@ -414,7 +414,7 @@ class AVPVH_Access {
     }
 
     public function auto_login_from_proxy_header(): void {
-        // Authelia sends Remote-User = the LLDAP uid (e.g. "jan.jansen"), not an email.
+        // Authelia sends Remote-User = the OpenLDAP uid (e.g. "jan.jansen"), not an email.
         // nginx passes it via fastcgi_param HTTP_REMOTE_USER → $_SERVER['HTTP_REMOTE_USER'].
         $lldap_uid = sanitize_text_field(wp_unslash($_SERVER['HTTP_REMOTE_USER'] ?? ''));
         if (!$lldap_uid) {

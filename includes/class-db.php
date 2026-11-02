@@ -4,20 +4,15 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.31';
-
-    private static function lldap(): string {
-        return AVPVH_LLDAP_DB;
-    }
+    const SCHEMA_VERSION = '2.32';
 
     /**
-     * Table holding uid/email/display_name for JOINs: LLDAP's own users table
-     * (cross-DB) with the LLDAP backend, the plugin's cache of OpenLDAP with
-     * the OpenLDAP backend. Same column names in both (user_id, email,
-     * lowercase_email, display_name). See AVPVH_Directory_Cache.
+     * Table holding uid/email/display_name for JOINs: the plugin's cache of
+     * OpenLDAP (user_id, email, lowercase_email, display_name). See
+     * AVPVH_Directory_Cache.
      */
     public static function identity_table(): string {
-        return AVPVH_Directory::is_openldap() ? AVPVH_Directory_Cache::table() : self::lldap() . '.users';
+        return AVPVH_Directory_Cache::table();
     }
 
     public static function install(): void {
@@ -25,7 +20,7 @@ class AVPVH_DB {
         $charset = $wpdb->get_charset_collate();
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-        // pvh_avm_members: business data only — email lives in lldap.users
+        // pvh_avm_members: business data only — email lives in the directory (avm_directory_users)
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_members (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             lldap_user_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -254,9 +249,9 @@ class AVPVH_DB {
         ) $charset;");
 
         // Temporary role handoffs (e.g. penningmeester/voorzitter during
-        // camp) — see AVPVH_Roles. The real role lives in LLDAP group
+        // camp) — see AVPVH_Roles. The real role lives in OpenLDAP group
         // membership; this table only layers a time-boxed exception on top,
-        // so the LLDAP group itself never needs to change for a handoff.
+        // so the OpenLDAP group itself never needs to change for a handoff.
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_role_delegations (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             role VARCHAR(30) NOT NULL,
@@ -299,8 +294,7 @@ class AVPVH_DB {
         ) $charset;");
 
         // Local copy of uid/email/display_name from OpenLDAP for SQL JOINs,
-        // same columns as lldap.users — see AVPVH_Directory_Cache. Only
-        // filled and used with the OpenLDAP directory backend.
+        // see AVPVH_Directory_Cache.
         dbDelta("CREATE TABLE {$wpdb->prefix}avm_directory_users (
             user_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
             email VARCHAR(255) NOT NULL DEFAULT '',
@@ -874,6 +868,13 @@ class AVPVH_DB {
             self::normalize_stored_addresses();
             update_option('avpvh_db_version', '2.31');
         }
+        if (version_compare($version, '2.32', '<')) {
+            // LLDAP is gone: drop its connection settings (incl. password).
+            delete_option('avpvh_lldap_url');
+            delete_option('avpvh_lldap_user');
+            delete_option('avpvh_lldap_password');
+            update_option('avpvh_db_version', '2.32');
+        }
     }
 
     /**
@@ -1168,7 +1169,7 @@ class AVPVH_DB {
     }
 
     // -------------------------------------------------------------------
-    // Member lookups — all JOIN with lldap.users for email
+    // Member lookups — all JOIN with the directory cache for email
     // -------------------------------------------------------------------
 
     private static function member_select(): string {
@@ -1325,7 +1326,7 @@ class AVPVH_DB {
 
         // Prefer the identity that already has this address (e.g. the same
         // address verified via Google), then any e-mail identity whose
-        // address should follow the LLDAP one; only insert when neither exists.
+        // address should follow the OpenLDAP one; only insert when neither exists.
         $existing = $wpdb->get_row($wpdb->prepare(
             "SELECT id FROM {$wpdb->prefix}avm_member_identities
              WHERE member_id = %d AND (email = %s OR provider = 'email')
@@ -1339,7 +1340,7 @@ class AVPVH_DB {
         ));
 
         if ($existing) {
-            // Authelia/LLDAP proxy auth is a real, trusted login — same as
+            // Authelia/OpenLDAP proxy auth is a real, trusted login — same as
             // upgrading unverified → verified in ensure_identity(), never downgrade.
             $wpdb->query($wpdb->prepare(
                 "UPDATE {$wpdb->prefix}avm_member_identities
@@ -2630,7 +2631,7 @@ class AVPVH_DB {
         );
     }
 
-    /** New member with an already-created LLDAP account (see AVPVH_Admin::handle_add_member()) — mirrors the shape of the avpvh-ops-scripts one-off "create minor member" scripts, now available from the admin UI instead of a hand-run script. */
+    /** New member with an already-created OpenLDAP account (see AVPVH_Admin::handle_add_member()) — mirrors the shape of the avpvh-ops-scripts one-off "create minor member" scripts, now available from the admin UI instead of a hand-run script. */
     public static function create_member(string $lldap_user_id, string $first_name, string $suffix, string $last_name, ?string $birth_date, string $status, ?int $birth_year = null): int {
         global $wpdb;
         $wpdb->insert(

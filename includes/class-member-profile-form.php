@@ -998,13 +998,13 @@ class AVPVH_Member_Profile_Form {
                 // changed), so there's no cheap way to tell if the name
                 // specifically changed — just always re-sync displayName.
                 // It's the only place in the plugin that ever pushes a name
-                // to LLDAP, so without this, a name edit here would silently
-                // drift from LLDAP until someone remembered the manual
-                // "Sync naar LLDAP" button on Ledendetail.
+                // to OpenLDAP, so without this, a name edit here would silently
+                // drift from OpenLDAP until someone remembered the manual
+                // sync button on Ledendetail.
                 $updated_member = (object) array_merge((array) $member, $member_data);
                 $result = AVPVH_Directory::update_user($member->lldap_user_id, ['display_name' => avpvh_format_name($updated_member)]);
                 if (is_wp_error($result)) {
-                    error_log("AVPVH_Member_Profile_Form: failed to sync displayName to LLDAP for member {$member->id}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
+                    error_log("AVPVH_Member_Profile_Form: failed to sync displayName to OpenLDAP for member {$member->id}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
                 }
             }
 
@@ -1157,7 +1157,7 @@ class AVPVH_Member_Profile_Form {
     /**
      * Designate one of the member's identities as primary — self-service
      * equivalent of the admin's "Maak primair" button in Ledendetail. Also
-     * pushes that address to the LLDAP account's own contact e-mail
+     * pushes that address to the OpenLDAP account's own contact e-mail
      * (member-detail.php's "E-mail" field, used for correspondence, separate
      * from Inlogadressen/login), replacing whatever was there before — e.g.
      * an old address nobody uses for either purpose anymore.
@@ -1194,7 +1194,7 @@ class AVPVH_Member_Profile_Form {
             AVPVH_DB::set_primary_identity($member_id, $identity_id);
             $result = AVPVH_Directory::update_user($member->lldap_user_id, ['mail' => $target->email]);
             if (is_wp_error($result)) {
-                error_log("AVPVH_Member_Profile_Form: failed to sync primary identity to LLDAP for member {$member_id}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
+                error_log("AVPVH_Member_Profile_Form: failed to sync primary identity to OpenLDAP for member {$member_id}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             }
             self::notify_identity_change($member, $own_member, 'als primair adres ingesteld', $target->provider, $target->email);
         }
@@ -1246,7 +1246,7 @@ class AVPVH_Member_Profile_Form {
         // prefillResetUsername() + njs/authelia-nonce.js) — the member only
         // has to confirm the flow themselves, not first go find where to
         // start it. Authelia's users_filter matches on username OR mail, so
-        // prefilling with the e-mail address works even though LLDAP's
+        // prefilling with the e-mail address works even though OpenLDAP's
         // actual username differs from it.
         $reset_url = add_query_arg('username', rawurlencode($member->email), AVPVH_Nav_Auth::AUTHELIA_URL . '/reset-password/step1');
         $body = sprintf(

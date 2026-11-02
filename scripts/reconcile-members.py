@@ -25,7 +25,7 @@ Usage:
     python3 reconcile-members.py /path/to/ledenlijst.xlsx [--dry-run]
 
 Dependencies:
-    pip install pymysql openpyxl requests
+    pip install pymysql openpyxl
 """
 
 import argparse
@@ -34,12 +34,11 @@ import json
 from pathlib import Path
 
 import openpyxl
-import requests
 
 from _avpvh_import_common import (
     WP_PREFIX, GROUP_ACTIVE,
-    read_secret, get_db, lldap_login, get_group_id,
-    uid_from_email, lldap_create_user, lldap_add_to_group,
+    read_secret, get_db,
+    uid_from_email, directory_create_user, directory_add_to_group,
     sheet_headers, col, parse_date, age_on, placeholder_child_uid,
     normalize_name_key, first_name_contains, SECRET_FILE, imported_address_start,
 )
@@ -247,8 +246,8 @@ def apply_update(cursor, member_id: int, changes: dict, sheet_row: dict, dry_run
         )
 
 
-def create_member(cursor, session: requests.Session, sheet_row: dict,
-                  group_id: int, dry_run: bool) -> None:
+def create_member(cursor, sheet_row: dict,
+                  group: str, dry_run: bool) -> None:
     first_name = sheet_row['first_name']
     last_name = sheet_row['last_name']
     suffix = sheet_row['suffix']
@@ -260,7 +259,7 @@ def create_member(cursor, session: requests.Session, sheet_row: dict,
         return
 
     if birth_date and age_on(birth_date, date.today()) < 16:
-        uid = placeholder_child_uid(session, first_name, last_name, dry_run)
+        uid = placeholder_child_uid(first_name, last_name, dry_run)
         email = f'{uid}@avpvh.local'
     else:
         uid = uid_from_email(email)
@@ -273,12 +272,12 @@ def create_member(cursor, session: requests.Session, sheet_row: dict,
         # just generates a non-colliding uid from a name; reused here
         # regardless of age, not because they're a minor.
         old_uid = uid
-        uid = placeholder_child_uid(session, first_name, last_name, dry_run)
+        uid = placeholder_child_uid(first_name, last_name, dry_run)
         email = f'{uid}@avpvh.local'
         print(f'    (shared e-mail with uid={old_uid} — using placeholder uid={uid} instead)')
 
-    lldap_create_user(session, uid, email, first_name, last_name, dry_run)
-    lldap_add_to_group(session, uid, group_id, dry_run)
+    directory_create_user(uid, email, first_name, last_name, dry_run)
+    directory_add_to_group(uid, group, dry_run)
 
     if not dry_run:
         cursor.execute(
@@ -336,9 +335,6 @@ def main():
     args = parser.parse_args()
     dry = args.dry_run
 
-    session = requests.Session()
-    lldap_login(session)
-    group_active = get_group_id(session, GROUP_ACTIVE)
 
     conn = get_db(read_secret(SECRET_FILE))
     try:
@@ -388,7 +384,7 @@ def main():
 
             print('\n=== CREATE (in sheet, no matching DB member) ===')
             for key in sheet_only:
-                create_member(cur, session, sheet_rows[key], group_active, dry)
+                create_member(cur, sheet_rows[key], GROUP_ACTIVE, dry)
 
             print('\n=== DB members not in this sheet — listed only, not touched ===')
             for key in db_only:
