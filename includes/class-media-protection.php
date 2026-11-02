@@ -58,7 +58,10 @@ class AVPVH_Media_Protection {
         // move keeps its private URL (still served) and is retried next publish.
         $new_content = $post->post_content;
         foreach (array_unique($matches[1]) as $rel) {
-            if ($this->promote_to_public($rel, $base_dir, $wpdb)) {
+            // $rel comes from a URL in page content: only a plain path inside
+            // uploads/private, never "..", "." or an absolute path.
+            $plain_path = !str_contains($rel, '\\') && !array_intersect(explode('/', $rel), ['', '.', '..']);
+            if ($plain_path && $this->promote_to_public($rel, $base_dir, $wpdb)) {
                 $new_content = str_replace(
                     '/wp-content/uploads/private/' . $rel,
                     '/wp-content/uploads/public/' . $rel,
@@ -80,13 +83,6 @@ class AVPVH_Media_Protection {
      * pointing at private/, where the files still are.
      */
     private function promote_to_public(string $rel, string $base_dir, \wpdb $wpdb): bool {
-        // $rel comes from a URL in page content: only a plain path inside
-        // uploads/private, never "..", "." or an absolute path.
-        if ($rel === '' || str_starts_with($rel, '/') || str_contains($rel, '\\')
-            || array_intersect(explode('/', $rel), ['', '.', '..'])) {
-            return false;
-        }
-
         $src_dir  = $base_dir . '/private/' . dirname($rel);
         $dest_dir = $base_dir . '/public/'  . dirname($rel);
         $filename = basename($rel);
