@@ -467,9 +467,11 @@ check('REST listing excludes protected pages for visitors', $content->exclude_fr
 
 $items = $content->add_account_item('', (object) ['theme_location' => 'primary']);
 check('menu offers Inloggen to visitors', str_contains($items, 'Inloggen') && str_contains($items, 'auth.example.invalid'));
+check('visitors see the soft-red login badge, as on avpvh.nl', str_contains($items, '#d9534f') && !str_contains($items, '#1e8e3e'));
 $test_current = $member_id;
 $items = $content->add_account_item('', (object) ['theme_location' => 'primary']);
 check('menu offers Uitloggen when logged in', str_contains($items, 'Uitloggen'));
+check('logged in shows the green check badge, as on avpvh.nl', str_contains($items, '#1e8e3e') && !str_contains($items, '#d9534f'));
 $header_html = '<header><nav><ul class="wp-block-navigation__container"><li>x</li></ul></nav></header>';
 $header_content = (new ReflectionClass(AVPVH_Tenant_Content::class))->newInstanceWithoutConstructor();
 (new ReflectionProperty(AVPVH_Tenant_Content::class, 'config'))->setValue($header_content, tenant_config(['navigation_refs' => 'header']));
