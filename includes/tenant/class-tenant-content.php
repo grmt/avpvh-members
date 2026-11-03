@@ -206,20 +206,36 @@ class AVPVH_Tenant_Content {
         return $items . '<li class="menu-item avpvh-account-item">' . $this->account_link() . '</li>';
     }
 
-    /** The account icon is the same person silhouette on every tenant. */
-    const ACCOUNT_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" style="vertical-align:-3px;margin-right:4px"><path fill="currentColor" d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z"/></svg>';
+    /**
+     * The account item looks as on avpvh.nl (assets/nav-auth.js): the person
+     * silhouette with a badge, a green check when logged in and a soft-red
+     * "go in" arrow when not. The words stay in the tooltip and for screen
+     * readers. Styles are inline: a tenant loads no plugin stylesheet.
+     */
+    const ACCOUNT_ICON = '<path fill="currentColor" d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z"/>';
+    const BADGE_LOGGED_IN = '<circle cx="6" cy="6" r="6" fill="#1e8e3e"/><path d="M3.2 6.2l1.9 1.9 3.7-3.9" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>';
+    const BADGE_LOGGED_OUT = '<circle cx="6" cy="6" r="6" fill="#d9534f"/><path d="M3.4 6h5M6.2 3.8L8.4 6 6.2 8.2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>';
+
+    private static function account_icon(bool $logged_in, string $label): string {
+        return '<span style="position:relative;display:inline-flex;vertical-align:middle">'
+            . '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">' . self::ACCOUNT_ICON . '</svg>'
+            . '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false" style="position:absolute;right:-4px;bottom:-3px;border-radius:50%;box-shadow:0 0 0 1.5px #fff">'
+            . ($logged_in ? self::BADGE_LOGGED_IN : self::BADGE_LOGGED_OUT) . '</svg></span>'
+            . '<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">' . esc_html($label) . '</span>';
+    }
 
     private function account_link(): string {
         if (is_user_logged_in()) {
-            $user = wp_get_current_user();
-            return '<a href="' . esc_url(wp_logout_url()) . '" title="' . esc_attr(sprintf(
+            $label = sprintf(
                 /* translators: %s: display name of the logged-in user */
-                __('Ingelogd als %s', 'avpvh-members'),
-                $user->display_name
-            )) . '">' . self::ACCOUNT_ICON . esc_html__('Uitloggen', 'avpvh-members') . '</a>';
+                __('Uitloggen (ingelogd als %s)', 'avpvh-members'),
+                wp_get_current_user()->display_name
+            );
+            return '<a href="' . esc_url(wp_logout_url()) . '" title="' . esc_attr($label) . '">' . self::account_icon(true, $label) . '</a>';
         }
-        return '<a href="' . esc_url($this->sso->login_url($this->current_url())) . '">'
-            . self::ACCOUNT_ICON . esc_html__('Inloggen', 'avpvh-members') . '</a>';
+        $label = __('Inloggen', 'avpvh-members');
+        return '<a href="' . esc_url($this->sso->login_url($this->current_url())) . '" title="' . esc_attr($label) . '">'
+            . self::account_icon(false, $label) . '</a>';
     }
 
     private function current_url(): string {
