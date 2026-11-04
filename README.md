@@ -151,8 +151,8 @@ cannot be inferred correctly.
 ## Deploy
 
 ```bash
-# Plugin
-sudo rsync -a --delete ~/03-src/avpvh-members/ /opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/
+# Plugin — vanaf je werkstation; deployt `git archive HEAD` (zie DEPLOY.md)
+scripts/deploy.sh
 
 # Authelia config
 sudo cp ~/03-src/avpvh-members/config/authelia-configuration.local.yml /opt/docker/volumes/authelia/config/configuration.yml

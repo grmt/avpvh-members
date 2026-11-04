@@ -23,6 +23,25 @@ Example:
 
 ## Live Deploy
 
-- the live plugin path may require `sudo` on the server
-- test on the server clone first if `sudo` is not available non-interactively
-- do not merge or push to `main` unless explicitly requested
+Run from your workstation:
+
+```bash
+scripts/deploy.sh
+```
+
+- deploys the committed `HEAD` via `git archive`, so `.gitattributes`'
+  `export-ignore` decides what is left out (`scripts/`, `bin/`, `.github/`,
+  `*.md`, dotfiles). Everything under `wp-content/plugins/` is reachable over
+  the web: only runtime files may go there
+- refuses to run with uncommitted changes, and aborts if the archive contains
+  scripts, tests, `.md` or dotfiles
+- does **not** bump the version, commit or push -- set the version header in
+  your feature commit (see Versioning) and merge via a pull request; `main`
+  is protected and rejects direct pushes
+- deploying a feature branch before merging is allowed; merge it afterwards
+  so the live site and `main` don't drift apart
+- server login comes from `AVPVH_DEPLOY_HOST` (environment or
+  `deploy.local.env`); the target is
+  `/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/` --
+  `wp-content-pvh`, not `wp-content`
+- the script ends by printing the live version via WP-CLI (`wpcli-pvh`)
