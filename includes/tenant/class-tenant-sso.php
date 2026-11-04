@@ -313,7 +313,8 @@ class AVPVH_Tenant_SSO {
     /**
      * Store the current groups and apply the role. A role this plugin set
      * earlier follows the groups, including revocation; a role someone
-     * changed by hand is left alone.
+     * changed by hand is left alone, except administrator, which only an
+     * admin group gives.
      */
     private function sync_user(int $user_id, array $identity, string $role): void {
         update_user_meta($user_id, self::GROUPS_META, $identity['groups']);
@@ -324,9 +325,16 @@ class AVPVH_Tenant_SSO {
             return;
         }
         $provisioned = (string) get_user_meta($user_id, self::ROLE_META, true);
-        if ($provisioned !== '' && array_values($user->roles) === [$provisioned] && $provisioned !== $role) {
+        $follows_groups = $provisioned !== '' && array_values($user->roles) === [$provisioned];
+        // A linked account never stays administrator without an admin
+        // group, also when the role was set by hand or before the link.
+        $exceeds_groups = $role !== 'administrator' && in_array('administrator', $user->roles, true);
+        if (($follows_groups || $exceeds_groups) && array_values($user->roles) !== [$role]) {
             $user->set_role($role);
             update_user_meta($user_id, self::ROLE_META, $role);
+            if ($exceeds_groups) {
+                $this->log('sync', $identity['uid'] ?? '', 'admin_role_revoked');
+            }
         }
 
         $changes = [];
