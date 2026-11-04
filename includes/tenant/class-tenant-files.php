@@ -2,8 +2,9 @@
 /**
  * Access check for the private files of a tenant site, for nginx's
  * auth_request: nginx asks /avpvh-file-auth/ before it serves anything
- * under wp-content/uploads/private/, and serves the file itself, so large
- * files never pass through PHP.
+ * under wp-content/uploads/private/ (or another upload directory it puts
+ * behind this check), and serves the file itself, so large files never
+ * pass through PHP.
  *
  *   204  may read the members-only pages: a WordPress session with one of
  *        content_groups (also one started with Google or Microsoft), or
@@ -20,7 +21,8 @@ defined('ABSPATH') || exit;
 class AVPVH_Tenant_Files {
 
     const PATH         = '/avpvh-file-auth/';
-    const PRIVATE_PATH = '/wp-content/uploads/private/';
+    /** nginx may put any upload directory behind this check (kb-kennis/ on kb). */
+    const UPLOADS_PATH = '/wp-content/uploads/';
 
     private AVPVH_Tenant_Config $config;
     private AVPVH_Tenant_SSO $sso;
@@ -60,12 +62,17 @@ class AVPVH_Tenant_Files {
         return is_user_logged_in() ? 403 : 401;
     }
 
-    /** The requested file, to return to after the login; the home page otherwise. */
+    /**
+     * The requested file, to return to after the login; the home page
+     * otherwise. Only a plain path below uploads/ on this site: no query,
+     * no climbing, no second slash that could start another host.
+     */
     private function original_url(): string {
-        $uri = sanitize_text_field(wp_unslash($_SERVER['HTTP_X_ORIGINAL_URI'] ?? ''));
-        if (!str_starts_with($uri, self::PRIVATE_PATH) || str_contains($uri, '..')) {
+        $path = (string) wp_parse_url(wp_unslash($_SERVER['HTTP_X_ORIGINAL_URI'] ?? ''), PHP_URL_PATH); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated against a strict pattern below
+        if (!str_starts_with($path, self::UPLOADS_PATH) || 1 !== preg_match('#^[A-Za-z0-9._~%/-]+$#', $path)
+            || str_contains($path, '//') || str_contains($path, '..')) {
             return home_url('/');
         }
-        return home_url($uri);
+        return home_url($path);
     }
 }

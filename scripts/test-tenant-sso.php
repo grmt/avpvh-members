@@ -186,6 +186,8 @@ require_once dirname(__DIR__) . '/includes/tenant/class-tenant-identity.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-directory.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-sso.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-content.php';
+require_once dirname(__DIR__) . '/includes/tenant/class-tenant-files.php';
+require_once dirname(__DIR__) . '/includes/tenant/class-tenant-accounts.php';
 
 // --- Configuration ---------------------------------------------------------
 
@@ -363,6 +365,13 @@ $test_users[$member_id]->roles = ['editor'];
 $test_remote = member_response(['vp4042-leden']);
 callback($sso);
 check('manually changed role is left alone', $test_users[$member_id]->roles === ['editor']);
+$test_users[$member_id]->roles = ['administrator'];
+callback($sso);
+check('administrator set by hand is revoked without an admin group', $test_users[$member_id]->roles === ['subscriber'] && $test_meta[$member_id]['avpvh_provisioned_role'] === 'subscriber');
+$test_users[$member_id]->roles = ['administrator'];
+unset($test_meta[$member_id]['avpvh_provisioned_role']);
+callback($sso);
+check('account linked by hand does not stay administrator', $test_users[$member_id]->roles === ['subscriber']);
 $test_users[$member_id]->roles = ['subscriber'];
 
 // Recheck: a different Authelia user, a logged-out Authelia session, and
@@ -464,6 +473,55 @@ check('REST hides a protected page from visitors', $content->hide_from_rest_item
 check('REST hides revisions of a protected page', $content->hide_from_rest_item(null, [], new WP_REST_Request('/wp/v2/pages/10/revisions')) instanceof WP_Error);
 check('REST leaves public pages alone', $content->hide_from_rest_item(null, [], new WP_REST_Request('/wp/v2/pages/12')) === null);
 check('REST listing excludes protected pages for visitors', $content->exclude_from_rest_query([])['post__not_in'] === [10, 11]);
+
+// --- Account names are not shown to visitors ------------------------------
+
+$accounts = new AVPVH_Tenant_Accounts();
+$endpoints = ['/' => 1, '/wp/v2/pages' => 1, '/wp/v2/users' => 1, '/wp/v2/users/(?P<id>[\\d]+)' => 1, '/wp/v2/users/me' => 1, '/wp/v2/usersx' => 1];
+$test_current = 0;
+check('REST user routes are gone for visitors, the rest stays', array_keys($accounts->filter_rest_endpoints($endpoints)) === ['/', '/wp/v2/pages', '/wp/v2/usersx']);
+$test_current = $member_id;
+check('REST user routes stay when logged in', $accounts->filter_rest_endpoints($endpoints) === $endpoints);
+check('oEmbed drops the author', $accounts->hide_oembed_author(['title' => 't', 'author_name' => 'a', 'author_url' => 'u']) === ['title' => 't']);
+check('the users sitemap is dropped', $accounts->drop_user_sitemap('provider', 'users') === false && $accounts->drop_user_sitemap('provider', 'posts') === 'provider');
+
+$test_is_author = true;
+$test_status = 0;
+$test_removed = [];
+function is_author(): bool { return $GLOBALS['test_is_author']; }
+function status_header(int $code): void { $GLOBALS['test_status'] = $code; }
+function nocache_headers(): void {}
+function remove_action(string $hook, string $callback): bool { $GLOBALS['test_removed'][] = "$hook:$callback"; return true; }
+$wp_query = new class { public bool $is_404 = false; public function set_404(): void { $this->is_404 = true; } };
+$test_current = 0;
+$accounts->hide_author_archive();
+check('author archive is a 404 for visitors, without the canonical redirect', $wp_query->is_404 && $test_status === 404 && in_array('template_redirect:redirect_canonical', $test_removed, true));
+$wp_query->is_404 = false;
+$test_current = $member_id;
+$accounts->hide_author_archive();
+check('author archive stays for logged-in users', !$wp_query->is_404);
+
+// --- Back to the file after the login --------------------------------------
+
+$files = (new ReflectionClass(AVPVH_Tenant_Files::class))->newInstanceWithoutConstructor();
+$original_url = new ReflectionMethod(AVPVH_Tenant_Files::class, 'original_url');
+foreach ([
+    '/wp-content/uploads/private/notulen.pdf'          => 'https://site.example.invalid/wp-content/uploads/private/notulen.pdf',
+    '/wp-content/uploads/kb-kennis/2009_Test_Werk.pdf' => 'https://site.example.invalid/wp-content/uploads/kb-kennis/2009_Test_Werk.pdf',
+    '/wp-content/uploads/kb-kennis/a.pdf?x=1'          => 'https://site.example.invalid/wp-content/uploads/kb-kennis/a.pdf',
+    '/wp-content/uploads/../wp-config.php'             => 'https://site.example.invalid/',
+    '/wp-content/uploads//evil.example.invalid/x'      => 'https://site.example.invalid/',
+    '/wp-content/uploads/a"<b>.pdf'                    => 'https://site.example.invalid/',
+    '/leden/'                                          => 'https://site.example.invalid/',
+    'https://evil.example.invalid/wp-content/uploads/x.pdf' => 'https://site.example.invalid/wp-content/uploads/x.pdf', // stays on this site
+    ''                                                 => 'https://site.example.invalid/',
+] as $uri => $expected) {
+    $_SERVER['HTTP_X_ORIGINAL_URI'] = $uri;
+    $got = $original_url->invoke($files);
+    check("return after login: '$uri'", $got === $expected);
+}
+unset($_SERVER['HTTP_X_ORIGINAL_URI']);
+$test_current = 0;
 
 $items = $content->add_account_item('', (object) ['theme_location' => 'primary']);
 check('menu offers Inloggen to visitors', str_contains($items, 'Inloggen') && str_contains($items, 'auth.example.invalid'));
