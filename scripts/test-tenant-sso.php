@@ -224,6 +224,8 @@ check('share file may not leave delen/', in_array('shares', tenant_config(['shar
 check('share needs valid addresses', in_array('shares', tenant_config(['shares' => ['test' => ['emails' => ['geen-adres']] + $share]])->errors(), true));
 check('invalid plugin_locale is rejected', in_array('plugin_locale', tenant_config(['plugin_locale' => 'nl'])->errors(), true));
 check('unknown keys are ignored', tenant_config(['local_login' => false, 'evil' => 1])->get('evil') === null);
+check('local login is off by default', $vp->get('local_login') === false);
+check('local login can be switched on', tenant_config(['local_login' => true])->get('local_login') === true);
 $directory = ['url' => 'ldap://openldap:1389', 'bind_dn' => 'cn=tenant-reader,dc=nl', 'bind_password_file' => '/run/secrets/reader', 'base_dn' => 'dc=nl'];
 check('directory is optional', $vp->directory() === null);
 check('valid directory config', ($d = tenant_config(['directory' => $directory]))->is_valid() && $d->directory()['timeout'] === 5);
@@ -420,6 +422,23 @@ $exit = callback($sso);
 check('held provisioning lock creates no user', $exit->kind === 'die' && count($test_users) === $users_before);
 
 // --- Login and logout URLs -------------------------------------------------
+
+function local_login_exit(AVPVH_Tenant_SSO $sso, array $request): AVPVH_Test_Exit {
+    $_REQUEST = $request;
+    $_GET = $request;
+    try {
+        $sso->redirect_local_login();
+    } catch (AVPVH_Test_Exit $exit) {
+        return $exit;
+    } finally {
+        $_REQUEST = $_GET = [];
+    }
+    return new AVPVH_Test_Exit('none');
+}
+$exit = local_login_exit($sso, []);
+check('wp-login.php goes to the login choice by default', $exit->kind === 'redirect' && str_starts_with($exit->detail, 'https://auth.example.invalid/'));
+check('wp-login.php logout still works by default', local_login_exit($sso, ['action' => 'logout'])->kind === 'none');
+check('wp-login.php stays open with local_login on', local_login_exit(new AVPVH_Tenant_SSO(tenant_config(['local_login' => true])), [])->kind === 'none');
 
 $login = $sso->login_url('https://site.example.invalid/leden/');
 check('login goes to Authelia with the probe path as target', str_starts_with($login, 'https://auth.example.invalid/?rd=') && str_contains(rawurldecode($login), 'https://site.example.invalid/avpvh-sso/?redirect_to='));

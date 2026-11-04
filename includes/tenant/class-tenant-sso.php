@@ -389,8 +389,9 @@ class AVPVH_Tenant_SSO {
     }
 
     /**
-     * wp-login.php stays available for local (emergency) accounts while
-     * local_login is true; otherwise every login goes through Authelia.
+     * wp-login.php stays available for local (emergency) accounts only
+     * when local_login is true (default false); otherwise it leads to the
+     * login choice (Authelia, or Google/Microsoft for members).
      */
     public function redirect_local_login(): void {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only the action name is compared
