@@ -58,8 +58,10 @@ fictieve accounts). Fase 5 (activering op VP40-42) staat hieronder onder
   als het alleen bij Authelia is ingelogd) krijgt een downloadlink die 24
   uur geldig is. Max. 10 foute adressen per 10 minuten per IP; downloads
   worden alleen gehasht gelogd.
-- **Noodtoegang.** Zolang `local_login` true is (standaard) blijft
-  `wp-login.php` werken voor lokale accounts; die worden niet herchecked.
+- **Noodtoegang.** `local_login` staat standaard uit: `wp-login.php` gaat
+  naar de inlogkeuze, beheerders loggen in via Authelia met 2FA. Alleen
+  met `'local_login' => true` in het tenantbestand werkt `wp-login.php`
+  met een wachtwoord voor lokale accounts (die niet herchecked worden).
   Laatste redmiddel: `wp plugin deactivate avpvh-members` in de
   WP-CLI-container.
 - **Logging.** Alleen tenant-ID, stap, sha256-prefix van de uid en de

@@ -31,6 +31,9 @@
  *       // Language of the plugin's own texts when it differs from the
  *       // site's (e.g. a Dutch site whose admin language is English).
  *       'plugin_locale'           => 'nl_NL',
+ *       // true keeps wp-login.php open for password login with local
+ *       // (emergency) accounts, without Authelia's two-factor step.
+ *       'local_login'             => false,
  *       // Files shared by e-mail address; see AVPVH_Tenant_Shares.
  *       'shares'                  => [],
  *       // Optional, read-only: finds the account behind a verified e-mail
@@ -110,7 +113,7 @@ class AVPVH_Tenant_Config {
             'shares'                  => [],
             'directory'               => null,
             'oauth'                   => [],
-            'local_login'             => true,
+            'local_login'             => false,
             'recheck_seconds'         => 300,
         ];
         $values = array_merge($defaults, array_intersect_key($raw, $defaults));
