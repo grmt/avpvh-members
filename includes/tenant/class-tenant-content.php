@@ -31,11 +31,6 @@ class AVPVH_Tenant_Content {
         add_filter('rest_page_query',            [$this, 'exclude_from_rest_query']);
         add_filter('rest_request_before_callbacks', [$this, 'hide_from_rest_item'], 10, 3);
         add_filter('wp_sitemaps_posts_query_args', [$this, 'exclude_from_rest_query']);
-        // Account names are not for visitors: they are half of a login.
-        add_filter('rest_request_before_callbacks', [$this, 'hide_users_from_rest'], 10, 3);
-        add_action('template_redirect',          [$this, 'hide_author_archive'], 1);
-        add_filter('oembed_response_data',       [$this, 'hide_oembed_author']);
-        add_filter('wp_sitemaps_add_provider',   [$this, 'drop_user_sitemap'], 10, 2);
         add_action('wp_head',                    [$this, 'noindex']);
     }
 
@@ -130,44 +125,6 @@ class AVPVH_Tenant_Content {
             return new \WP_Error('rest_post_invalid_id', __('Ongeldige bericht-ID.', 'avpvh-members'), ['status' => 404]);
         }
         return $response;
-    }
-
-    /**
-     * /wp/v2/users and its sub-routes answer 401 to visitors. Logged-in
-     * users (the block editor) keep them; WordPress checks their rights.
-     *
-     * @return mixed the unchanged response, or a WP_Error
-     */
-    public function hide_users_from_rest($response, array $handler, \WP_REST_Request $request) {
-        if (is_user_logged_in() || !preg_match('#^/wp/v2/users(?:/|$)#', $request->get_route())) {
-            return $response;
-        }
-        return new \WP_Error('rest_forbidden', __('Je moet ingelogd zijn.', 'avpvh-members'), ['status' => 401]);
-    }
-
-    /**
-     * An author archive (/author/<name>/, also ?author=<id>, which
-     * WordPress would redirect to that name) is a 404 for visitors.
-     */
-    public function hide_author_archive(): void {
-        if (!is_author() || is_user_logged_in()) {
-            return;
-        }
-        global $wp_query;
-        $wp_query->set_404();
-        status_header(404);
-        nocache_headers();
-        remove_action('template_redirect', 'redirect_canonical');
-    }
-
-    public function hide_oembed_author(array $data): array {
-        unset($data['author_name'], $data['author_url']);
-        return $data;
-    }
-
-    /** @param mixed $provider */
-    public function drop_user_sitemap($provider, string $name) {
-        return $name === 'users' ? false : $provider;
     }
 
     public function filter_menu_objects(array $items): array {

@@ -187,6 +187,7 @@ require_once dirname(__DIR__) . '/includes/tenant/class-tenant-directory.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-sso.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-content.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-files.php';
+require_once dirname(__DIR__) . '/includes/tenant/class-tenant-accounts.php';
 
 // --- Configuration ---------------------------------------------------------
 
@@ -475,15 +476,14 @@ check('REST listing excludes protected pages for visitors', $content->exclude_fr
 
 // --- Account names are not shown to visitors ------------------------------
 
+$accounts = new AVPVH_Tenant_Accounts();
+$endpoints = ['/' => 1, '/wp/v2/pages' => 1, '/wp/v2/users' => 1, '/wp/v2/users/(?P<id>[\\d]+)' => 1, '/wp/v2/users/me' => 1, '/wp/v2/usersx' => 1];
 $test_current = 0;
-check('REST user list is closed to visitors', ($e = $content->hide_users_from_rest(null, [], new WP_REST_Request('/wp/v2/users'))) instanceof WP_Error && $e->get_error_code() === 'rest_forbidden');
-check('REST single user is closed to visitors', $content->hide_users_from_rest(null, [], new WP_REST_Request('/wp/v2/users/2')) instanceof WP_Error);
-check('REST pages stay open to visitors', $content->hide_users_from_rest(null, [], new WP_REST_Request('/wp/v2/pages')) === null);
-check('a route that only starts with users is left alone', $content->hide_users_from_rest(null, [], new WP_REST_Request('/wp/v2/usersx')) === null);
+check('REST user routes are gone for visitors, the rest stays', array_keys($accounts->filter_rest_endpoints($endpoints)) === ['/', '/wp/v2/pages', '/wp/v2/usersx']);
 $test_current = $member_id;
-check('REST users stay available when logged in', $content->hide_users_from_rest(null, [], new WP_REST_Request('/wp/v2/users/me')) === null);
-check('oEmbed drops the author', $content->hide_oembed_author(['title' => 't', 'author_name' => 'a', 'author_url' => 'u']) === ['title' => 't']);
-check('the users sitemap is dropped', $content->drop_user_sitemap('provider', 'users') === false && $content->drop_user_sitemap('provider', 'posts') === 'provider');
+check('REST user routes stay when logged in', $accounts->filter_rest_endpoints($endpoints) === $endpoints);
+check('oEmbed drops the author', $accounts->hide_oembed_author(['title' => 't', 'author_name' => 'a', 'author_url' => 'u']) === ['title' => 't']);
+check('the users sitemap is dropped', $accounts->drop_user_sitemap('provider', 'users') === false && $accounts->drop_user_sitemap('provider', 'posts') === 'provider');
 
 $test_is_author = true;
 $test_status = 0;
@@ -494,11 +494,11 @@ function nocache_headers(): void {}
 function remove_action(string $hook, string $callback): bool { $GLOBALS['test_removed'][] = "$hook:$callback"; return true; }
 $wp_query = new class { public bool $is_404 = false; public function set_404(): void { $this->is_404 = true; } };
 $test_current = 0;
-$content->hide_author_archive();
+$accounts->hide_author_archive();
 check('author archive is a 404 for visitors, without the canonical redirect', $wp_query->is_404 && $test_status === 404 && in_array('template_redirect:redirect_canonical', $test_removed, true));
 $wp_query->is_404 = false;
 $test_current = $member_id;
-$content->hide_author_archive();
+$accounts->hide_author_archive();
 check('author archive stays for logged-in users', !$wp_query->is_404);
 
 // --- Back to the file after the login --------------------------------------

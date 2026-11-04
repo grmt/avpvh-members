@@ -324,18 +324,7 @@ class AVPVH_Tenant_SSO {
         if (!$user) {
             return;
         }
-        $provisioned = (string) get_user_meta($user_id, self::ROLE_META, true);
-        $follows_groups = $provisioned !== '' && array_values($user->roles) === [$provisioned];
-        // A linked account never stays administrator without an admin
-        // group, also when the role was set by hand or before the link.
-        $exceeds_groups = $role !== 'administrator' && in_array('administrator', $user->roles, true);
-        if (($follows_groups || $exceeds_groups) && array_values($user->roles) !== [$role]) {
-            $user->set_role($role);
-            update_user_meta($user_id, self::ROLE_META, $role);
-            if ($exceeds_groups) {
-                $this->log('sync', $identity['uid'] ?? '', 'admin_role_revoked');
-            }
-        }
+        $this->apply_role($user, $identity, $role);
 
         $changes = [];
         if ($identity['name'] !== '' && $identity['name'] !== $user->display_name) {
@@ -349,6 +338,28 @@ class AVPVH_Tenant_SSO {
         }
         if ($changes) {
             wp_update_user(['ID' => $user_id] + $changes);
+        }
+    }
+
+    /**
+     * A role this plugin set follows the groups; a linked account never
+     * stays administrator without an admin group, also when the role was
+     * set by hand or before the link.
+     */
+    private function apply_role(\WP_User $user, array $identity, string $role): void {
+        if (array_values($user->roles) === [$role]) {
+            return;
+        }
+        $provisioned = (string) get_user_meta($user->ID, self::ROLE_META, true);
+        $follows_groups = $provisioned !== '' && array_values($user->roles) === [$provisioned];
+        $exceeds_groups = $role !== 'administrator' && in_array('administrator', $user->roles, true);
+        if (!$follows_groups && !$exceeds_groups) {
+            return;
+        }
+        $user->set_role($role);
+        update_user_meta($user->ID, self::ROLE_META, $role);
+        if ($exceeds_groups) {
+            $this->log('sync', $identity['uid'] ?? '', 'admin_role_revoked');
         }
     }
 
