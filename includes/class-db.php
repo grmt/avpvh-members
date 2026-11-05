@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.32';
+    const SCHEMA_VERSION = '2.33';
 
     /**
      * Table holding uid/email/display_name for JOINs: the plugin's cache of
@@ -70,6 +70,7 @@ class AVPVH_DB {
             country VARCHAR(100) NOT NULL DEFAULT 'Nederland',
             valid_from DATE NULL,
             valid_until DATE NULL,
+            member_entered TINYINT(1) NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
             KEY member_id (member_id)
         ) $charset;");
@@ -874,6 +875,13 @@ class AVPVH_DB {
             delete_option('avpvh_lldap_user');
             delete_option('avpvh_lldap_password');
             update_option('avpvh_db_version', '2.32');
+        }
+        if (version_compare($version, '2.33', '<')) {
+            // avm_addresses.member_entered: an address a member entered
+            // themselves gives no household rights until the board confirms
+            // it. Existing rows stay 0 (confirmed).
+            self::install();
+            update_option('avpvh_db_version', '2.33');
         }
     }
 
@@ -1723,7 +1731,7 @@ class AVPVH_DB {
      * itself only started today is a same-day correction and is overwritten
      * instead, so no row ever ends before it starts. Returns the row id.
      */
-    public static function add_member_address(int $member_id, array $address): int {
+    public static function add_member_address(int $member_id, array $address, bool $member_entered = false): int {
         global $wpdb;
         $table   = "{$wpdb->prefix}avm_addresses";
         $today   = current_time('Y-m-d');
@@ -1751,7 +1759,7 @@ class AVPVH_DB {
         $corrected = 0;
         foreach ($open as $row) {
             if ($row->valid_from === $today && !$corrected) {
-                $wpdb->update($table, $fields + ['valid_until' => null], ['id' => (int) $row->id]);
+                $wpdb->update($table, $fields + ['valid_until' => null, 'member_entered' => (int) $member_entered], ['id' => (int) $row->id]);
                 $corrected = (int) $row->id;
             } elseif ($row->valid_from === $today) {
                 $wpdb->delete($table, ['id' => (int) $row->id], ['%d']);
@@ -1763,7 +1771,7 @@ class AVPVH_DB {
             return $corrected;
         }
 
-        $wpdb->insert($table, ['member_id' => $member_id] + $fields + ['valid_from' => $today]);
+        $wpdb->insert($table, ['member_id' => $member_id] + $fields + ['valid_from' => $today, 'member_entered' => (int) $member_entered]);
         return (int) $wpdb->insert_id;
     }
 
@@ -1792,6 +1800,17 @@ class AVPVH_DB {
             ['valid_from' => $valid_from, 'valid_until' => $valid_until],
             ['id' => $id, 'member_id' => $member_id],
             ['%s', '%s'], ['%d', '%d']
+        );
+    }
+
+    /** The board confirms an address a member entered themselves. */
+    public static function confirm_address(int $id, int $member_id): bool {
+        global $wpdb;
+        return (bool) $wpdb->update(
+            "{$wpdb->prefix}avm_addresses",
+            ['member_entered' => 0],
+            ['id' => $id, 'member_id' => $member_id],
+            ['%d'], ['%d', '%d']
         );
     }
 
@@ -2269,9 +2288,13 @@ class AVPVH_DB {
         return $result !== false;
     }
 
-    public static function remove_relationship(int $relationship_id): void {
+    /** Removes the relationship only when it belongs to $member_id (either side). */
+    public static function remove_relationship(int $relationship_id, int $member_id): bool {
         global $wpdb;
-        $wpdb->delete("{$wpdb->prefix}avm_relationships", ['id' => $relationship_id], ['%d']);
+        return (bool) $wpdb->query($wpdb->prepare(
+            "DELETE FROM {$wpdb->prefix}avm_relationships WHERE id = %d AND (member_id = %d OR related_member_id = %d)",
+            $relationship_id, $member_id, $member_id
+        ));
     }
 
     // True if the two members have a (currently valid) 'ouder_kind' edge
@@ -2317,7 +2340,24 @@ class AVPVH_DB {
         if (self::is_family_member($member_id_1, $member_id_2)) {
             return true;
         }
-        return self::has_same_address($member_id_1, $member_id_2);
+        return self::addresses_grant_household(self::current_address($member_id_1), self::current_address($member_id_2));
+    }
+
+    /**
+     * Rights from a shared address: the same current address, and neither
+     * row entered by a member themselves (member_entered) and not yet
+     * confirmed by the board — otherwise anyone could copy someone else's
+     * address into their own profile. has_same_address() stays the literal
+     * check, for display.
+     */
+    public static function addresses_grant_household(?object $addr_1, ?object $addr_2): bool {
+        if (!$addr_1 || !$addr_2 || !$addr_1->street || !$addr_2->street) {
+            return false;
+        }
+        if (!empty($addr_1->member_entered) || !empty($addr_2->member_entered)) {
+            return false;
+        }
+        return AVPVH_Address_Matcher::same($addr_1, $addr_2);
     }
 
     /**

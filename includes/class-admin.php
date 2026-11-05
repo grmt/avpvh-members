@@ -30,6 +30,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_update_email',       [$this, 'handle_update_email']);
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
         add_action('admin_post_avpvh_delete_address',     [$this, 'handle_delete_address']);
+        add_action('admin_post_avpvh_confirm_address',    [$this, 'handle_confirm_address']);
         add_action('admin_post_avpvh_save_name_alias',    [$this, 'handle_save_name_alias']);
         add_action('admin_post_avpvh_delete_name_alias',  [$this, 'handle_delete_name_alias']);
         add_action('admin_post_avpvh_add_member',         [$this, 'handle_add_member']);
@@ -1068,6 +1069,21 @@ class AVPVH_Admin {
             'notes'     => $result['notes'],
         ], 10 * MINUTE_IN_SECONDS);
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-merge-members'], admin_url('admin.php')));
+        exit;
+    }
+
+    /** An address a member entered gives household rights once confirmed here. */
+    public function handle_confirm_address(): void {
+        check_admin_referer('avpvh_confirm_address');
+        if (!$this->can_manage_members()) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        $id = absint(wp_unslash($_POST['id'] ?? 0));
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        if ($id && $member_id) {
+            AVPVH_DB::confirm_address($id, $member_id);
+        }
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'address_confirmed' => '1'], admin_url('admin.php')));
         exit;
     }
 
