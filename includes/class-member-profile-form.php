@@ -645,13 +645,19 @@ class AVPVH_Member_Profile_Form {
      */
     public static function render_relationships($member): void {
         $relationships = AVPVH_DB::get_relationships((int) $member->id);
-        $labels = AVPVH_DB::get_relationship_labels();
-        $all_members = array_filter(
-            AVPVH_DB::get_members(),
-            fn($m) => (int) $m->id !== (int) $member->id
-        );
-        usort($all_members, fn($a, $b) => strcasecmp($a->last_name, $b->last_name) ?: strcasecmp($a->first_name, $b->first_name));
-        $activities = AVPVH_DB::get_activities();
+        // A relationship can give rights over another member (see
+        // AVPVH_DB::is_family_member()), so only the board adds or removes
+        // them; members see theirs. The member list is loaded for the board only.
+        $can_manage = AVPVH_Roles::can_manage_members();
+        if ($can_manage) {
+            $labels = AVPVH_DB::get_relationship_labels();
+            $all_members = array_filter(
+                AVPVH_DB::get_members(),
+                fn($m) => (int) $m->id !== (int) $member->id
+            );
+            usort($all_members, fn($a, $b) => strcasecmp($a->last_name, $b->last_name) ?: strcasecmp($a->first_name, $b->first_name));
+            $activities = AVPVH_DB::get_activities();
+        }
         ?>
         <fieldset class="avpvh-relationships">
             <legend><?php esc_html_e('Relaties', 'avpvh-members'); ?></legend>
@@ -681,6 +687,7 @@ class AVPVH_Member_Profile_Form {
                             <?php endif; ?>
                         </td>
                         <td>
+                            <?php if ($can_manage) : ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
                                 onsubmit="return confirm('<?php echo esc_js(__('Deze relatie verwijderen?', 'avpvh-members')); ?>');">
                                 <?php wp_nonce_field('avpvh_remove_relationship'); ?>
@@ -689,6 +696,7 @@ class AVPVH_Member_Profile_Form {
                                 <input type="hidden" name="relationship_id" value="<?php echo esc_attr($rel->id); ?>">
                                 <button type="submit" class="button"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
                             </form>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -697,6 +705,9 @@ class AVPVH_Member_Profile_Form {
                 <?php endif; ?>
             </table>
 
+            <?php if (!$can_manage) : ?>
+                <p class="avpvh-field-hint"><?php esc_html_e('Klopt er iets niet of mist er een relatie? Het bestuur past relaties aan.', 'avpvh-members'); ?></p>
+            <?php else : ?>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="avpvh-relationship-add">
                 <?php wp_nonce_field('avpvh_add_relationship'); ?>
                 <input type="hidden" name="action" value="avpvh_add_relationship">
@@ -781,6 +792,7 @@ class AVPVH_Member_Profile_Form {
 
                 <button type="submit" class="button"><?php esc_html_e('Relatie toevoegen', 'avpvh-members'); ?></button>
             </form>
+            <?php endif; ?>
         </fieldset>
         <?php
     }
@@ -1021,7 +1033,9 @@ class AVPVH_Member_Profile_Form {
                 ];
                 // The form always re-sends the address; an unchanged one
                 // must not add a new history row (see add_member_address()).
-                AVPVH_DB::add_member_address((int) $member->id, $address_data);
+                // A new address from a member gives no household rights
+                // until the board confirms it (AVPVH_DB::addresses_grant_household()).
+                AVPVH_DB::add_member_address((int) $member->id, $address_data, !AVPVH_Roles::can_manage_members());
             }
 
             wp_send_json_success(__('Profiel succesvol bijgewerkt!', 'avpvh-members'));
@@ -1290,8 +1304,8 @@ class AVPVH_Member_Profile_Form {
             }
         }
 
-        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-        if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
+        // Only the board: a relationship can give rights over another member.
+        if (!$member_id || !AVPVH_Roles::can_manage_members()) {
             wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
@@ -1323,16 +1337,13 @@ class AVPVH_Member_Profile_Form {
         $member_id        = absint(wp_unslash($_POST['member_id'] ?? 0));
         $relationship_id  = absint(wp_unslash($_POST['relationship_id'] ?? 0));
 
-        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
-        if (!$member_id || !$this->can_edit_member($own_member, $member_id)) {
+        if (!$member_id || !AVPVH_Roles::can_manage_members()) {
             wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
-        if ($relationship_id) {
-            AVPVH_DB::remove_relationship($relationship_id);
-        }
+        $removed = $relationship_id && AVPVH_DB::remove_relationship($relationship_id, $member_id);
 
-        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'relationship_removed' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
+        wp_safe_redirect(add_query_arg(['member_id' => $member_id, $removed ? 'relationship_removed' : 'relationship_error' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
         exit;
     }
 

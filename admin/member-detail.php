@@ -129,6 +129,8 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Niet opgeslagen: er kan maar één adres doorlopen tot heden. Geef eerst het andere doorlopende adres een einddatum.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_updated'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Adres bijgewerkt.', 'avpvh-members'); ?></p></div>
+    <?php elseif (!empty($_GET['address_confirmed'])) : ?>
+        <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Adres bevestigd.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_deleted'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Adres verwijderd.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['alias_saved'])) : ?>
@@ -451,6 +453,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-warning inline"><p><?php echo esc_html(sprintf(/* translators: %d: number of addresses */ __('Dit lid heeft %d adressen die vandaag allemaal geldig zijn. Zet bij de oude een einddatum of verwijder dubbele rijen.', 'avpvh-members'), $current_address_count)); ?></p></div>
     <?php endif; ?>
     <p class="description"><?php esc_html_e('Een nieuw adres via het profiel sluit de vorige rij af en voegt een nieuwe toe; opnieuw opslaan van hetzelfde adres voegt niets toe. Hier kun je de geldigheidsdatums van een rij corrigeren of een foutieve/dubbele rij verwijderen.', 'avpvh-members'); ?></p>
+    <p class="description"><?php esc_html_e('Een adres dat een lid zelf invoert, geeft pas huishoudrechten (gegevens van huisgenoten zien en bewerken) als je het hier bevestigt.', 'avpvh-members'); ?></p>
     <div style="overflow-x:auto">
     <table class="wp-list-table widefat striped">
         <thead><tr><th><?php esc_html_e('Straat', 'avpvh-members'); ?></th><th><?php esc_html_e('Nr', 'avpvh-members'); ?></th><th><?php esc_html_e('Postcode', 'avpvh-members'); ?></th><th><?php esc_html_e('Stad', 'avpvh-members'); ?></th><th><?php esc_html_e('Land', 'avpvh-members'); ?></th><th><?php esc_html_e('Van', 'avpvh-members'); ?></th><th><?php esc_html_e('Tot', 'avpvh-members'); ?></th><th></th></tr></thead>
@@ -475,6 +478,15 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <td>
                         <button type="submit" class="button button-small"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button>
                 </form>
+                <?php if (!empty($a->member_entered)) : ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
+                    <?php wp_nonce_field('avpvh_confirm_address'); ?>
+                    <input type="hidden" name="action" value="avpvh_confirm_address">
+                    <input type="hidden" name="id" value="<?php echo esc_attr($a->id); ?>">
+                    <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+                    <button type="submit" class="button button-small button-primary" title="<?php echo esc_attr__('Door het lid zelf ingevoerd; bevestigen geeft huishoudrechten', 'avpvh-members'); ?>"><?php esc_html_e('Bevestigen', 'avpvh-members'); ?></button>
+                </form>
+                <?php endif; ?>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
                     <?php wp_nonce_field('avpvh_delete_address'); ?>
                     <input type="hidden" name="action" value="avpvh_delete_address">
