@@ -41,8 +41,10 @@ jobs:
       #
       # plugin_header_invalid_plugin_version: the "1.0.N+<hash>" Version
       # build metadata (see WORKFLOW-version-test-deploy.md) is a deliberate
-      # project convention. plugin_updater_detected: the Update URI points
-      # at this repo, also deliberate.
+      # project convention; for the same reason stable_tag_mismatch, since
+      # readme.txt's Stable tag is the base version without the hash.
+      # plugin_updater_detected: the Update URI points at this repo, also
+      # deliberate.
       #
       # DirectDatabaseQuery.*: this plugin's whole DB layer is custom $wpdb
       # queries joining WordPress and LLDAP tables (see class-db.php's
@@ -54,6 +56,7 @@ jobs:
       # report but don't fail the job.
       ignore-codes: |
         plugin_header_invalid_plugin_version
+        stable_tag_mismatch
         plugin_updater_detected
         WordPress.DB.DirectDatabaseQuery.DirectQuery
         WordPress.DB.DirectDatabaseQuery.NoCaching
