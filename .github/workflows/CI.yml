@@ -37,3 +37,24 @@ jobs:
     with:
       slug: avpvh-members
       artifact: build-artifact
+      # No whole checks are skipped; the codes below are ignored one by one.
+      #
+      # plugin_header_invalid_plugin_version: the "1.0.N+<hash>" Version
+      # build metadata (see WORKFLOW-version-test-deploy.md) is a deliberate
+      # project convention. plugin_updater_detected: the Update URI points
+      # at this repo, also deliberate.
+      #
+      # DirectDatabaseQuery.*: this plugin's whole DB layer is custom $wpdb
+      # queries joining WordPress and LLDAP tables (see class-db.php's
+      # member_select()), with schema changes in its migrations, and the
+      # site has no persistent object cache. A deliberate architectural
+      # choice — the escaping/SQL-injection checks (PreparedSQL.*) still run.
+      #
+      # The other warnings are the remaining backlog: they show up in the
+      # report but don't fail the job.
+      ignore-codes: |
+        plugin_header_invalid_plugin_version
+        plugin_updater_detected
+        WordPress.DB.DirectDatabaseQuery.DirectQuery
+        WordPress.DB.DirectDatabaseQuery.NoCaching
+        WordPress.DB.DirectDatabaseQuery.SchemaChange

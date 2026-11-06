@@ -15,12 +15,17 @@ permissions:
   contents: write
 
 jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/CI.yml
+    permissions:
+      contents: read
+
   release:
     name: Build & Publish Plugin ZIP
     runs-on: ubuntu-latest
+    needs: ci
     steps:
-      - uses: actions/checkout@v4
-
       - name: Determine tag and version
         id: meta
         env:
@@ -39,15 +44,23 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      # CI's build is the git archive of this commit, so the ZIP holds
+      # exactly what a live deploy holds.
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: build-artifact
+          path: avpvh-members
+
       - name: Package avpvh-members.zip
         run: |
-          # git archive honours export-ignore in .gitattributes, so the ZIP
-          # holds exactly what a live deploy holds.
-          git archive --format=zip --prefix=avpvh-members/ -o "$GITHUB_WORKSPACE/avpvh-members.zip" HEAD
+          zip -r -q "$GITHUB_WORKSPACE/avpvh-members.zip" avpvh-members
+          ls -lh avpvh-members.zip
 
       - name: Create or Update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.meta.outputs.tag }}
           VERSION: ${{ steps.meta.outputs.version }}
         run: |

@@ -498,7 +498,7 @@ class AVPVH_Address_Cleanup {
     private static function check(int|false $result): void {
         if ($result === false) {
             global $wpdb;
-            throw new AVPVH_Address_Cleanup_Exception($wpdb->last_error ?: 'databasefout');
+            throw new AVPVH_Address_Cleanup_Exception(esc_html($wpdb->last_error ?: 'databasefout'));
         }
     }
 }
