@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Fictitious fixtures only. Run with the member-import Python dependencies.
 
-Optional SQL integration: AVPVH_ADDRESS_TEST_DB=address_fixture and
-AVPVH_ADDRESS_TEST_PORT pointing to a disposable local MariaDB instance.
+Optional SQL integration: AVPVH_ADDRESS_TEST_DB=address_fixture,
+AVPVH_ADDRESS_TEST_PORT and AVPVH_ADDRESS_TEST_PASSWORD (its root password)
+pointing to a disposable local MariaDB instance.
 """
 import importlib.util
 import os
@@ -94,7 +95,8 @@ class AddressSQLTests(unittest.TestCase):
     def setUp(self):
         self.db = pymysql.connect(host='127.0.0.1',
             port=int(os.getenv('AVPVH_ADDRESS_TEST_PORT', '16614')),
-            user='root', password='address-fixture-only', database='address_fixture')
+            user='root', password=os.getenv('AVPVH_ADDRESS_TEST_PASSWORD', ''),
+            database='address_fixture')
         self.cur = self.db.cursor()
         self.prefix_patch = patch.multiple(reconcile, WP_PREFIX='pdpy_')
         self.prefix_patch.start()

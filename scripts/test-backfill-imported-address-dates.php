@@ -1,5 +1,8 @@
 <?php
-/** SQL integration tests: disposable address_fixture DB and real WordPress wpdb. */
+/**
+ * SQL integration tests: disposable address_fixture DB and real WordPress wpdb.
+ * AVPVH_ADDRESS_TEST_PASSWORD holds that database's root password.
+ */
 if (getenv('AVPVH_ADDRESS_TEST_DB') !== 'address_fixture') {
     fwrite(STDERR, "Use a disposable address_fixture database.\n");
     exit(1);
@@ -40,7 +43,7 @@ class AVPVH_Address_Fixture_DB extends wpdb
         return parent::query($sql);
     }
 }
-$wpdb = new AVPVH_Address_Fixture_DB('root', 'address-fixture-only', 'address_fixture', getenv('AVPVH_ADDRESS_TEST_HOST'));
+$wpdb = new AVPVH_Address_Fixture_DB('root', (string) getenv('AVPVH_ADDRESS_TEST_PASSWORD'), 'address_fixture', getenv('AVPVH_ADDRESS_TEST_HOST'));
 $wpdb->set_prefix('pdates_');
 require __DIR__ . '/backfill-imported-address-dates.php';
 function avpvh_address_test_query($sql): void
