@@ -273,8 +273,8 @@ exception, and one less `phpcs:ignore` to carry.
   `fix/plugin-check-remaining-findings` (this branch). Push here, stop
   for review/merge.
 - Every commit that touches `avpvh-members.php` should bump the
-  `Version:` header (patch bump + current short HEAD hash), matching
-  every commit in this session's history.
+  `Version:` header (patch bump) and `Stable tag:` in `readme.txt` with
+  it. No `+<hash>` build metadata since 2026-11 (see DEPLOY.md).
 - Deploy via targeted `rsync -e ssh <file> <user>@<server>:/opt/docker/volumes/html/wp-content-pvh/plugins/avpvh-members/<path>/`,
   verify with a `diff` against the server copy, and smoke-test any
   touched query/handler via `wp eval` on the `wpcli-pvh` compose service

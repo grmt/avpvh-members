@@ -7,12 +7,16 @@
 
 ## Versioning
 
-- keep the base version aligned with the last release
-- append the feature commit hash as build metadata
+- a plain `MAJOR.MINOR.PATCH` version, no build metadata
+- every feature commit you deploy or merge bumps the patch version, and
+  `Stable tag:` in `readme.txt` gets the same version (Plugin Check fails
+  when they differ)
+- `scripts/release.sh` makes the minor/major bump when closing a branch
+- `scripts/deploy.sh` prints the branch and commit hash it deploys
 
 Example:
 
-- `1.0.2+24c5de1`
+- `1.0.116`
 
 ## Test Deploy
 

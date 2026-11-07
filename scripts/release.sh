@@ -19,9 +19,10 @@ else
 fi
 
 sed -i "s/\* Version:     $current/* Version:     $new_version/" "$MAIN_FILE"
+sed -i "s/^Stable tag: .*/Stable tag: $new_version/" "$SRC/readme.txt"
 echo "version: $current → $new_version"
 
-git -C "$SRC" add "$MAIN_FILE"
+git -C "$SRC" add "$MAIN_FILE" "$SRC/readme.txt"
 git -C "$SRC" commit -m "release: bump version to $new_version"
 git -C "$SRC" push origin
 

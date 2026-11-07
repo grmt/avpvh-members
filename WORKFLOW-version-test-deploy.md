@@ -13,14 +13,21 @@ Use the plugin header version in `avpvh-members.php`.
 
 Pattern:
 
-- base version stays aligned with the last production release
-- append the feature commit hash as build metadata
+- a plain `MAJOR.MINOR.PATCH` version, no build metadata
+- every feature commit you deploy or merge bumps the patch version, and
+  `Stable tag:` in `readme.txt` gets the same version (Plugin Check fails
+  when they differ)
+- `scripts/release.sh` makes the minor/major bump when closing a branch
+- `scripts/deploy.sh` prints the branch and commit hash it deploys
 
 Example:
 
-- `1.0.2+24c5de1`
+- `1.0.116`
 
-This makes it obvious which feature commit is deployed for test, without claiming a new release number.
+Until 2026-11 the version carried the commit hash as build metadata
+(`1.0.115+bb32e19`). Plugin Check rejects that as an invalid version, and
+`readme.txt`'s `Stable tag` can't follow it, so the hash now only shows in
+`scripts/deploy.sh`'s output.
 
 ## Test Rule
 
