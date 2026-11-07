@@ -197,7 +197,7 @@ class AVPVH_Access {
     /** A blog post within the period an ex-member may see (AVPVH_Archive_Access). */
     private function archive_allows_current_post(): bool {
         $post = get_queried_object();
-        return is_singular('post') && $post instanceof \WP_Post
+        return is_single() && $post instanceof \WP_Post && $post->post_type === 'post'
             && AVPVH_Archive_Access::current_scope() !== AVPVH_Archive_Access::NONE
             && AVPVH_Archive_Access::post_allowed($post);
     }
