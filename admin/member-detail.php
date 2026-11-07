@@ -129,6 +129,10 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Niet opgeslagen: er kan maar één adres doorlopen tot heden. Geef eerst het andere doorlopende adres een einddatum.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_updated'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Adres bijgewerkt.', 'avpvh-members'); ?></p></div>
+    <?php elseif (($_GET['archive_access'] ?? '') === 'saved') : ?>
+        <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Archieftoegang opgeslagen.', 'avpvh-members'); ?></p></div>
+    <?php elseif (($_GET['archive_access'] ?? '') === 'error') : ?>
+        <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Archieftoegang niet opgeslagen: alleen voor ex-leden.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_confirmed'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Adres bevestigd.', 'avpvh-members'); ?></p></div>
     <?php elseif (!empty($_GET['address_deleted'])) : ?>
@@ -245,6 +249,41 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
         <tr><th><?php esc_html_e('Scholier/student', 'avpvh-members'); ?></th><td><?php echo !empty($member->is_student) ? esc_html__('Ja', 'avpvh-members') : esc_html__('Nee', 'avpvh-members'); ?></td></tr>
         <tr><th><?php esc_html_e('Lid sinds', 'avpvh-members'); ?></th><td><?php echo esc_html($member->joined_year ?: '—'); ?></td></tr>
         <tr><th><?php esc_html_e('Vertrokken', 'avpvh-members'); ?></th><td><?php echo esc_html($member->left_year ?: '—'); ?></td></tr>
+        <?php if ($member->status === 'inactive' || !empty($member->archive_access)) :
+            $years_hint = AVPVH_DB::suggest_membership_years($member_id);
+            $from_value = (int) ($member->joined_year ?: ($years_hint['from'] ?? 0));
+            $to_value   = (int) ($member->left_year ?: ($years_hint['to'] ?? 0));
+        ?>
+        <tr>
+            <th><?php esc_html_e('Archieftoegang', 'avpvh-members'); ?></th>
+            <td>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:.5em;align-items:center;flex-wrap:wrap">
+                    <?php wp_nonce_field('avpvh_archive_access'); ?>
+                    <input type="hidden" name="action" value="avpvh_archive_access">
+                    <input type="hidden" name="member_id" value="<?php echo esc_attr((string) $member_id); ?>">
+                    <label><input type="checkbox" name="archive_access" value="1" <?php checked(!empty($member->archive_access)); ?>>
+                        <?php esc_html_e('Mag berichten en foto\'s zien uit de jaren', 'avpvh-members'); ?></label>
+                    <label class="screen-reader-text" for="avpvh-archive-from"><?php esc_html_e('Lid sinds', 'avpvh-members'); ?></label>
+                    <input type="number" id="avpvh-archive-from" name="from_year" min="1950" max="<?php echo esc_attr(wp_date('Y')); ?>" style="width:6em" value="<?php echo $from_value ? esc_attr((string) $from_value) : ''; ?>">
+                    <?php esc_html_e('t/m', 'avpvh-members'); ?>
+                    <label class="screen-reader-text" for="avpvh-archive-to"><?php esc_html_e('Vertrokken', 'avpvh-members'); ?></label>
+                    <input type="number" id="avpvh-archive-to" name="to_year" min="1950" max="<?php echo esc_attr(wp_date('Y')); ?>" style="width:6em" value="<?php echo $to_value ? esc_attr((string) $to_value) : ''; ?>">
+                    <button type="submit" class="button button-small"><?php esc_html_e('Opslaan', 'avpvh-members'); ?></button>
+                </form>
+                <p class="description">
+                    <?php esc_html_e('De jaren worden opgeslagen als "Lid sinds" en "Vertrokken". Zonder vinkje, of zonder beide jaren, ziet een ex-lid geen berichten en foto\'s.', 'avpvh-members'); ?>
+                    <?php if ($years_hint && (!$member->joined_year || !$member->left_year)) : ?>
+                        <?php echo esc_html(sprintf(
+                            /* translators: 1: first year, 2: last year */
+                            __('Voorstel uit contributie en activiteiten: %1$d t/m %2$d.', 'avpvh-members'),
+                            $years_hint['from'],
+                            $years_hint['to']
+                        )); ?>
+                    <?php endif; ?>
+                </p>
+            </td>
+        </tr>
+        <?php endif; ?>
     </table>
 
     <details class="avpvh-detail-section" name="avpvh-detail-section">

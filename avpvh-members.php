@@ -62,6 +62,8 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-directory-cache.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-roles.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-member-profile-form.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-access.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-archive-access.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-account-privacy.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-nav-auth.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-oauth.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-email-identity.php';
@@ -119,6 +121,8 @@ add_filter('logout_url', fn(): string => AVPVH_Nav_Auth::logout_url());
 
 new AVPVH_I18n();
 new AVPVH_Access();
+new AVPVH_Archive_Access();
+new AVPVH_Account_Privacy();
 new AVPVH_Nav_Auth();
 new AVPVH_OAuth();
 new AVPVH_Email_Identity();

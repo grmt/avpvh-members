@@ -31,6 +31,7 @@ class AVPVH_Admin {
         add_action('admin_post_avpvh_save_groups',        [$this, 'handle_save_groups']);
         add_action('admin_post_avpvh_delete_address',     [$this, 'handle_delete_address']);
         add_action('admin_post_avpvh_confirm_address',    [$this, 'handle_confirm_address']);
+        add_action('admin_post_avpvh_archive_access',     [$this, 'handle_archive_access']);
         add_action('admin_post_avpvh_save_name_alias',    [$this, 'handle_save_name_alias']);
         add_action('admin_post_avpvh_delete_name_alias',  [$this, 'handle_delete_name_alias']);
         add_action('admin_post_avpvh_add_member',         [$this, 'handle_add_member']);
@@ -1084,6 +1085,26 @@ class AVPVH_Admin {
             AVPVH_DB::confirm_address($id, $member_id);
         }
         wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'address_confirmed' => '1'], admin_url('admin.php')));
+        exit;
+    }
+
+    /** The board's permission for an ex-member: AVPVH_Archive_Access. */
+    public function handle_archive_access(): void {
+        check_admin_referer('avpvh_archive_access');
+        if (!$this->can_manage_members()) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
+        }
+        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $on   = !empty($_POST['archive_access']);
+        $from = absint(wp_unslash($_POST['from_year'] ?? 0));
+        $to   = absint(wp_unslash($_POST['to_year'] ?? 0));
+        $year_ok = static fn(int $y): bool => $y === 0 || ($y >= 1950 && $y <= (int) wp_date('Y'));
+        $member = $member_id ? AVPVH_DB::get_member($member_id) : null;
+        // Only for ex-members; switching off is always allowed.
+        $ok = $member && (!$on || $member->status === 'inactive')
+            && $year_ok($from) && $year_ok($to) && (!$from || !$to || $from <= $to)
+            && AVPVH_DB::set_archive_access($member_id, $on, $from, $to);
+        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'archive_access' => $ok ? 'saved' : 'error'], admin_url('admin.php')));
         exit;
     }
 

@@ -1,15 +1,15 @@
 <?php
 /**
- * Account names on a tenant site are not for visitors: a login name is
- * half of a login. For visitors the REST user routes do not exist, author
- * archives (also ?author=<id>) are a 404, and the users sitemap and the
- * oEmbed author fields are left out. Logged-in users (the block editor)
- * keep the REST routes; WordPress checks their rights there.
+ * Account names are not for visitors, on avpvh.nl and on a tenant site
+ * alike: a login name is half of a login. Author archives (also ?author=<id>) are a 404 for
+ * visitors, and the users sitemap and the oEmbed author fields are left
+ * out. The REST user routes exist only for those who write (edit_posts:
+ * the block editor needs them); WordPress checks their rights there.
  */
 
 defined('ABSPATH') || exit;
 
-class AVPVH_Tenant_Accounts {
+class AVPVH_Account_Privacy {
 
     public function __construct() {
         add_filter('rest_endpoints',           [$this, 'filter_rest_endpoints']);
@@ -19,7 +19,7 @@ class AVPVH_Tenant_Accounts {
     }
 
     public function filter_rest_endpoints(array $endpoints): array {
-        if (is_user_logged_in()) {
+        if (current_user_can('edit_posts')) {
             return $endpoints;
         }
         foreach (array_keys($endpoints) as $route) {
