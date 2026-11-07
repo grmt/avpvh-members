@@ -12,7 +12,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-oauth.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-content.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-shares.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-files.php';
-require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-accounts.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-account-privacy.php';
 
 $avpvh_tenant_config = AVPVH_Tenant_Config::current();
 
@@ -56,7 +56,7 @@ $avpvh_tenant_sso = new AVPVH_Tenant_SSO($avpvh_tenant_config);
 $avpvh_tenant_content = new AVPVH_Tenant_Content($avpvh_tenant_config, $avpvh_tenant_sso);
 $avpvh_tenant_shares = new AVPVH_Tenant_Shares($avpvh_tenant_config, $avpvh_tenant_content);
 $avpvh_tenant_files = new AVPVH_Tenant_Files($avpvh_tenant_config, $avpvh_tenant_sso, $avpvh_tenant_content);
-$avpvh_tenant_accounts = new AVPVH_Tenant_Accounts();
+$avpvh_tenant_accounts = new AVPVH_Account_Privacy();
 if ($avpvh_tenant_config->oauth_clients()) {
     $avpvh_tenant_oauth = new AVPVH_Tenant_OAuth($avpvh_tenant_config, $avpvh_tenant_sso);
 }

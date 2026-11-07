@@ -182,7 +182,7 @@ class AVPVH_Access {
         }
 
         // Redirect non-members away from members-only content
-        if ($this->is_members_only_request() && !$this->current_user_is_active_member()) {
+        if ($this->is_members_only_request() && !$this->current_user_is_active_member() && !$this->archive_allows_current_post()) {
             $target = home_url('/avpvh-login/');
             if (is_user_logged_in()) {
                 $target = add_query_arg('login_notice', 'members_only', $target);
@@ -192,6 +192,14 @@ class AVPVH_Access {
         }
 
         $this->redirect_dmarc_page();
+    }
+
+    /** A blog post within the period an ex-member may see (AVPVH_Archive_Access). */
+    private function archive_allows_current_post(): bool {
+        $post = get_queried_object();
+        return is_single() && $post instanceof \WP_Post && $post->post_type === 'post'
+            && AVPVH_Archive_Access::current_scope() !== AVPVH_Archive_Access::NONE
+            && AVPVH_Archive_Access::post_allowed($post);
     }
 
     // dmarc-reports.py (docker-scripts) publishes its report as a page
@@ -556,7 +564,15 @@ class AVPVH_Access {
             return false;
         }
         $member = avpvh_get_member_by_wp_user(get_current_user_id());
-        return ($member && $member->status === 'active') ? false : $required;
+        if ($member && $member->status === 'active') {
+            return false;
+        }
+        // An ex-member's own years, with the board's permission.
+        if ($post->post_type === 'post' && $member && $member->status === 'inactive'
+            && is_array(AVPVH_Archive_Access::scope_for_member($member)) && AVPVH_Archive_Access::post_allowed($post)) {
+            return false;
+        }
+        return $required;
     }
 
     public function clean_protected_title(string $format): string {

@@ -187,7 +187,7 @@ require_once dirname(__DIR__) . '/includes/tenant/class-tenant-directory.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-sso.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-content.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-files.php';
-require_once dirname(__DIR__) . '/includes/tenant/class-tenant-accounts.php';
+require_once dirname(__DIR__) . '/includes/class-account-privacy.php';
 
 // --- Configuration ---------------------------------------------------------
 
@@ -495,12 +495,15 @@ check('REST listing excludes protected pages for visitors', $content->exclude_fr
 
 // --- Account names are not shown to visitors ------------------------------
 
-$accounts = new AVPVH_Tenant_Accounts();
+$accounts = new AVPVH_Account_Privacy();
 $endpoints = ['/' => 1, '/wp/v2/pages' => 1, '/wp/v2/users' => 1, '/wp/v2/users/(?P<id>[\\d]+)' => 1, '/wp/v2/users/me' => 1, '/wp/v2/usersx' => 1];
 $test_current = 0;
 check('REST user routes are gone for visitors, the rest stays', array_keys($accounts->filter_rest_endpoints($endpoints)) === ['/', '/wp/v2/pages', '/wp/v2/usersx']);
 $test_current = $member_id;
-check('REST user routes stay when logged in', $accounts->filter_rest_endpoints($endpoints) === $endpoints);
+check('REST user routes are gone for a logged-in reader', array_keys($accounts->filter_rest_endpoints($endpoints)) === ['/', '/wp/v2/pages', '/wp/v2/usersx']);
+$test_users[9001] = (object) ['ID' => 9001, 'roles' => ['administrator']];
+$test_current = 9001;
+check('REST user routes stay for someone who writes', $accounts->filter_rest_endpoints($endpoints) === $endpoints);
 check('oEmbed drops the author', $accounts->hide_oembed_author(['title' => 't', 'author_name' => 'a', 'author_url' => 'u']) === ['title' => 't']);
 check('the users sitemap is dropped', $accounts->drop_user_sitemap('provider', 'users') === false && $accounts->drop_user_sitemap('provider', 'posts') === 'provider');
 

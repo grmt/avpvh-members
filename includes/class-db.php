@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
-    const SCHEMA_VERSION = '2.33';
+    const SCHEMA_VERSION = '2.34';
 
     /**
      * Table holding uid/email/display_name for JOINs: the plugin's cache of
@@ -45,6 +45,7 @@ class AVPVH_DB {
             status ENUM('active','inactive','visitor') NOT NULL DEFAULT 'active',
             joined_year YEAR NULL,
             left_year YEAR NULL,
+            archive_access TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'granted',
             directory_consent_at TIMESTAMP NULL,
             share_email TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
@@ -883,6 +884,12 @@ class AVPVH_DB {
             self::install();
             update_option('avpvh_db_version', '2.33');
         }
+        if (version_compare($version, '2.34', '<')) {
+            // avm_members.archive_access: the board lets an ex-member see
+            // the posts and photos of their membership years. Off for all.
+            self::install();
+            update_option('avpvh_db_version', '2.34');
+        }
     }
 
     /**
@@ -1187,7 +1194,7 @@ class AVPVH_DB {
                        m.id, m.lldap_user_id, m.wp_user_id,
                        m.first_name, m.suffix, m.last_name, m.passport_name, m.initials, m.birth_date, m.birth_year, m.death_date, m.is_student,
                        m.phone, m.mobile, m.emergency_contact, m.emergency_member_id, m.emergency_relation, m.emergency_phone, m.emergency_address, m.diet,
-                       m.status, m.joined_year, m.left_year,
+                       m.status, m.joined_year, m.left_year, m.archive_access,
                        m.directory_consent, m.directory_consent_at,
                        m.share_email, m.share_phone, m.share_address, m.share_activity_history,
                        m.created_at, m.updated_at
@@ -2457,6 +2464,77 @@ class AVPVH_DB {
     // -------------------------------------------------------------------
     // Audit trail for member data changes
     // -------------------------------------------------------------------
+
+    /**
+     * The board's permission for an ex-member to see the posts and photos
+     * of their membership years (AVPVH_Archive_Access), and those years
+     * (joined_year, left_year; 0 leaves one unchanged). Every change is
+     * logged.
+     */
+    public static function set_archive_access(int $member_id, bool $on, int $from = 0, int $to = 0): bool {
+        global $wpdb;
+        $member = self::get_member($member_id);
+        if (!$member) {
+            return false;
+        }
+        $changes = [];
+        $wanted  = ['archive_access' => $on ? 1 : 0];
+        if ($from > 0) {
+            $wanted['joined_year'] = $from;
+        }
+        if ($to > 0) {
+            $wanted['left_year'] = $to;
+        }
+        foreach ($wanted as $field => $value) {
+            if ((int) ($member->$field ?? 0) !== $value) {
+                $changes[$field] = $value;
+            }
+        }
+        if (!$changes) {
+            return true;
+        }
+        $done = false !== $wpdb->update(
+            "{$wpdb->prefix}avm_members",
+            $changes,
+            ['id' => $member_id],
+            array_fill(0, count($changes), '%d'),
+            ['%d']
+        );
+        if ($done) {
+            foreach ($changes as $field => $value) {
+                self::log_member_change($member_id, $field, $member->$field === null ? null : (string) $member->$field, (string) $value);
+            }
+        }
+        return $done;
+    }
+
+    /**
+     * The first and last year with a paid or waived fee or an activity,
+     * as a suggestion for joined_year/left_year; null without any.
+     *
+     * @return array{from:int,to:int}|null
+     */
+    public static function suggest_membership_years(int $member_id): ?array {
+        global $wpdb;
+        $p = $wpdb->prefix;
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- admin page, one member
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT MIN(y) AS from_year, MAX(y) AS to_year FROM (
+                SELECT year AS y FROM {$p}avm_fees WHERE member_id = %d AND status IN ('paid','waived')
+                UNION ALL
+                SELECT a.year FROM {$p}avm_activity_participation ap
+                    JOIN {$p}avm_activities a ON a.id = ap.activity_id
+                    WHERE ap.member_id = %d
+            ) years",
+            $member_id,
+            $member_id
+        ));
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        if (!$row || !(int) $row->from_year) {
+            return null;
+        }
+        return ['from' => (int) $row->from_year, 'to' => (int) $row->to_year];
+    }
 
     public static function log_member_change(int $member_id, string $field_name, ?string $old_value, ?string $new_value): void {
         global $wpdb;
