@@ -121,8 +121,8 @@ add_filter('logout_url', fn(): string => AVPVH_Nav_Auth::logout_url());
 
 new AVPVH_I18n();
 new AVPVH_Access();
-new AVPVH_Archive_Access();
-new AVPVH_Account_Privacy();
+$avpvh_archive_access = new AVPVH_Archive_Access();
+$avpvh_account_privacy = new AVPVH_Account_Privacy();
 new AVPVH_Nav_Auth();
 new AVPVH_OAuth();
 new AVPVH_Email_Identity();
