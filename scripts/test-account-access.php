@@ -44,6 +44,7 @@ function esc_url(string $url): string { return htmlspecialchars($url, ENT_QUOTES
 function home_url(string $path = ''): string { return 'https://example.test' . $path; }
 function rest_url(string $path): string { return home_url('/wp-json/' . $path); }
 function wp_logout_url(): string { return rest_url('avpvh/v1/logout'); }
+function wp_create_nonce(string $action): string { return 'nonce-' . $action; }
 function wp_unslash(string $text): string { return $text; }
 function sanitize_key(string $text): string { return preg_replace('/[^a-z0-9_-]/', '', strtolower($text)); }
 function sanitize_text_field(string $text): string { return strip_tags($text); }
@@ -71,7 +72,12 @@ function avpvh_asset_version(string $path): string { return 'test'; }
 function wp_enqueue_script(...$args): void { /* Not needed in this test. */ }
 function wp_json_encode($value): string { return json_encode($value); }
 
+function get_option(string $name, $default = false) { return $default; }
+function get_queried_object() { return $GLOBALS['post']; }
+function current_user_can(string $cap): bool { return false; }
+define('AVPVH_DMARC_PAGE_OPTION', 'avpvh_dmarc_page_id');
 require dirname(__DIR__) . '/includes/class-access.php';
+require dirname(__DIR__) . '/includes/class-archive-access.php';
 require dirname(__DIR__) . '/includes/class-nav-auth.php';
 
 function check_account(string $label, bool $ok): void {

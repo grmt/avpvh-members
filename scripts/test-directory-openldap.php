@@ -14,6 +14,10 @@
  *     php scripts/test-directory-openldap.php
  */
 
+if (!extension_loaded('ldap')) {
+    echo "SKIP: integration test; needs the PHP ldap extension and a throwaway OpenLDAP (see above).\n";
+    exit(0);
+}
 define('ABSPATH', __DIR__ . '/');
 define('AVPVH_LDAP_URL', getenv('AVPVH_LDAP_URL') ?: 'ldap://openldap:1389');
 define('AVPVH_LDAP_PASSWORD_FILE', getenv('AVPVH_LDAP_PASSWORD_FILE') ?: '/secret');
