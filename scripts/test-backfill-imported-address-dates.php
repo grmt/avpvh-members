@@ -3,6 +3,10 @@
  * SQL integration tests: disposable address_fixture DB and real WordPress wpdb.
  * AVPVH_ADDRESS_TEST_PASSWORD holds that database's root password.
  */
+if (getenv('AVPVH_ADDRESS_TEST_DB') === false) {
+    echo "SKIP: integration test; set AVPVH_ADDRESS_TEST_DB=address_fixture and the AVPVH_ADDRESS_TEST_* variables.\n";
+    exit(0);
+}
 if (getenv('AVPVH_ADDRESS_TEST_DB') !== 'address_fixture') {
     fwrite(STDERR, "Use a disposable address_fixture database.\n");
     exit(1);

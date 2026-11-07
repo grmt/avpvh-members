@@ -7,6 +7,10 @@ declare(strict_types=1);
  * seed.ldif). Run through that directory's run.sh; it needs the PHP ldap
  * extension and the test server.
  */
+if (!extension_loaded('ldap')) {
+    echo "SKIP: integration test; run it through scripts/tenant-e2e/directory/run.sh.\n";
+    exit(0);
+}
 define('ABSPATH', __DIR__ . '/');
 
 require_once __DIR__ . '/../includes/tenant/class-tenant-directory.php';

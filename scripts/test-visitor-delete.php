@@ -15,6 +15,9 @@ namespace Avpvh\Frontend {
     }
 }
 namespace {
+if (getenv('AVPVH_VISITOR_TEST_DB') === false) {
+    echo "SKIP: integration test; set AVPVH_VISITOR_TEST_DB=visitor_fixtures (see above).\n"; exit(0);
+}
 if (getenv('AVPVH_VISITOR_TEST_DB') !== 'visitor_fixtures') {
     fwrite(STDERR, "Use a disposable visitor_fixtures database.\n"); exit(1);
 }
