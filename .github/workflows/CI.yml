@@ -46,3 +46,42 @@ jobs:
       # don't fail the job.
       ignore-codes: |
         plugin_updater_detected
+
+  # The stand-alone test scripts (scripts/test-*.php): they stub WordPress
+  # themselves, so no WordPress install is needed. The integration tests
+  # among them print SKIP without their throwaway LDAP server or database;
+  # ldap is switched off here so the two directory tests skip too.
+  tests:
+    name: "Test scripts (PHP ${{ matrix.php }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.4", "8.5"]
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v7
+
+      - name: "Set up PHP"
+        uses: shivammathur/setup-php@2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: :ldap
+          coverage: none
+
+      - name: "Run scripts/test-*.php"
+        run: |
+          failed=()
+          for t in scripts/test-*.php; do
+            if out=$(php "$t" 2>&1); then
+              echo "pass  $t$(grep -m1 '^SKIP' <<<"$out" | sed 's/^/  (/; s/$/)/')"
+            else
+              echo "FAIL  $t"
+              echo "$out" | tail -20 | sed 's/^/      /'
+              failed+=("$t")
+            fi
+          done
+          if [ "${#failed[@]}" -gt 0 ]; then
+            echo "::error::${#failed[@]} test script(s) failed: ${failed[*]}"
+            exit 1
+          fi
