@@ -3387,3 +3387,11 @@ msgstr ""
 #, php-format
 msgid "Ja, verwijder %s definitief"
 msgstr ""
+
+#. Plugin header
+msgid "AV-PvH Members"
+msgstr ""
+
+#. Plugin header
+msgid "Member login, access control, fee tracking and admin for AV Philips van Horne."
+msgstr ""

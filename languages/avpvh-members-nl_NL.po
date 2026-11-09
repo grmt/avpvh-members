@@ -3628,3 +3628,11 @@ msgstr "Er hoort niets bij deze activiteit: geen deelnemers en niets in de boekh
 #, php-format
 msgid "Ja, verwijder %s definitief"
 msgstr "Ja, verwijder %s definitief"
+
+#. Plugin header
+msgid "AV-PvH Members"
+msgstr "AV-PvH Leden"
+
+#. Plugin header
+msgid "Member login, access control, fee tracking and admin for AV Philips van Horne."
+msgstr "Inloggen voor leden, toegangsbeheer, contributiebeheer en ledenadministratie voor AV Philips van Horne."
