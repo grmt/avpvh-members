@@ -75,6 +75,60 @@ class AVPVH_Roles {
         return self::has_active_delegation($member_id, $role);
     }
 
+    /**
+     * Effective directory groups of a WordPress user for AV-PvH File List
+     * (the avpvh_flst_user_groups filter): their OpenLDAP groups, plus
+     * implied 'bestuur' and any active club-role delegations.
+     *
+     * @param string[] $groups
+     * @return string[]
+     */
+    public static function user_filelist_groups(array $groups, int $user_id): array {
+        if ($user_id <= 0) {
+            return $groups;
+        }
+        $member = avpvh_get_member_by_wp_user($user_id);
+        if ($member && empty($member->user_id) && !empty($member->id)) {
+            $member = AVPVH_DB::get_member((int) $member->id);
+        }
+        if (!$member || empty($member->user_id)) {
+            return $groups;
+        }
+
+        $raw = AVPVH_Directory::cached_user_groups((string) $member->user_id);
+        $member_groups = method_exists('AVPVH_Directory', 'only_pvh_groups')
+            ? AVPVH_Directory::only_pvh_groups($raw)
+            : array_values(array_map('strtolower', $raw));
+
+        foreach (self::ALL_ROLES as $role) {
+            if (!in_array($role, $member_groups, true) && self::has_active_delegation((int) $member->id, $role)) {
+                $member_groups[] = $role;
+            }
+        }
+        if (array_intersect($member_groups, self::OFFICER_ROLES) && !in_array('bestuur', $member_groups, true)) {
+            $member_groups[] = 'bestuur';
+        }
+
+        return array_values(array_unique(array_merge($groups, $member_groups)));
+    }
+
+    /**
+     * Directory groups AV-PvH File List may offer when granting access
+     * (the avpvh_flst_available_groups filter).
+     *
+     * @param string[] $groups
+     * @return string[]
+     */
+    public static function available_filelist_groups(array $groups): array {
+        $pvh = defined('AVPVH_Directory::PVH_GROUPS')
+            ? AVPVH_Directory::PVH_GROUPS
+            : ['leden', 'ex-leden', 'ere-leden', 'bestuur', 'voorzitter', 'secretaris', 'penningmeester', 'boek', 'bloggers', 'it-beheer'];
+        if (function_exists('apply_filters')) {
+            $pvh = (array) apply_filters('avpvh_pvh_groups', $pvh);
+        }
+        return array_values(array_unique(array_merge($groups, array_map('strtolower', array_map('strval', $pvh)))));
+    }
+
     // -------------------------------------------------------------------
     // Page permissions
     // -------------------------------------------------------------------

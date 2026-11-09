@@ -561,6 +561,12 @@ check('footer template part is left alone', $header_content->add_account_header_
 check('header mode adds nothing to other Navigation blocks', $header_content->add_account_block_item($header_html, ['attrs' => []]) === $header_html);
 check('other menus are left alone', $content->add_account_item('<li>x</li>', (object) ['theme_location' => 'footer']) === '<li>x</li>');
 
+// --- AV-PvH File List group filters ----------------------------------------
+
+check('File List gets the member\'s confirmed tenant groups', $sso->filter_filelist_user_groups([], $member_id) === ['vp4042-leden']);
+check('File List gets nothing for an anonymous visitor', $sso->filter_filelist_user_groups([], 0) === []);
+check('File List offers the tenant\'s member and admin groups', $sso->filter_filelist_available_groups([]) === ['vp4042-leden', 'rsp-admins', 'rsp-vve-admins', 'rsp-vve-vp4042-admins']);
+
 $test_logs = file($test_log_file, FILE_IGNORE_NEW_LINES) ?: [];
 unlink($test_log_file);
 check('decisions are logged', count(preg_grep('/\[avpvh-tenant\] tenant=rsp_vve_vp4042 /', $test_logs)) > 0);

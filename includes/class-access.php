@@ -37,6 +37,9 @@ class AVPVH_Access {
         add_filter('wp_sitemaps_add_provider',     [$this, 'sitemap_remove_users'], 10, 2);
         add_filter('wp_sitemaps_post_types',       [$this, 'sitemap_remove_post_type']);
         add_filter('wp_sitemaps_taxonomies',       '__return_empty_array');
+
+        add_filter('avpvh_flst_user_groups',       ['AVPVH_Roles', 'user_filelist_groups'], 10, 2);
+        add_filter('avpvh_flst_available_groups',  ['AVPVH_Roles', 'available_filelist_groups']);
     }
 
     /**
