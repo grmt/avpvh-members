@@ -48,6 +48,8 @@ class AVPVH_Tenant_SSO {
         add_filter('login_url',       [$this, 'filter_login_url'], 10, 2);
         add_filter('allowed_redirect_hosts', [$this, 'allow_authelia_host']);
         add_filter('attach_session_information', [$this, 'attach_login_method']);
+        add_filter('avpvh_flst_user_groups', [$this, 'filter_filelist_user_groups'], 10, 2);
+        add_filter('avpvh_flst_available_groups', [$this, 'filter_filelist_available_groups']);
     }
 
     /** The local role for a set of directory groups, or null for no access. */
@@ -367,6 +369,36 @@ class AVPVH_Tenant_SSO {
     public static function user_groups(int $user_id): array {
         $groups = get_user_meta($user_id, self::GROUPS_META, true);
         return is_array($groups) ? $groups : [];
+    }
+
+    /**
+     * Supply the user's confirmed directory groups to AV-PvH File List
+     * (the avpvh_flst_user_groups filter).
+     *
+     * @param string[] $groups
+     * @return string[]
+     */
+    public function filter_filelist_user_groups(array $groups, int $user_id): array {
+        if ($user_id <= 0) {
+            return $groups;
+        }
+        return array_values(array_unique(array_merge($groups, self::user_groups($user_id))));
+    }
+
+    /**
+     * Supply this tenant's configured groups to AV-PvH File List
+     * (the avpvh_flst_available_groups filter).
+     *
+     * @param string[] $groups
+     * @return string[]
+     */
+    public function filter_filelist_available_groups(array $groups): array {
+        return array_values(array_unique(array_merge(
+            $groups,
+            [$this->config->member_group()],
+            $this->config->content_groups(),
+            $this->config->admin_groups()
+        )));
     }
 
     public function handle_logout(): void {

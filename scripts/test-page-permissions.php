@@ -124,4 +124,13 @@ check('WP-beheerder: altijd alles', AVPVH_Roles::can_manage_members() && AVPVH_R
     && AVPVH_Roles::can_view_login_attempts() && AVPVH_Roles::can_manage_page_permissions()
     && AVPVH_Roles::can_view_dmarc() && AVPVH_Roles::can_merge_members());
 
+// AV-PvH File List group filters: directory groups + implied bestuur + delegations.
+as_user(['voorzitter', 'leden']);
+check('File List-groepen: voorzitter geeft ook impliciet bestuur', AVPVH_Roles::user_filelist_groups([], 1) === ['voorzitter', 'leden', 'bestuur']);
+as_user(['leden'], false, ['secretaris']);
+check('File List-groepen: delegatie secretaris geeft ook secretaris en bestuur', AVPVH_Roles::user_filelist_groups([], 1) === ['leden', 'secretaris', 'bestuur']);
+check('File List-groepen: anonieme bezoeker blijft leeg', AVPVH_Roles::user_filelist_groups([], 0) === []);
+check('File List-groepen: beschikbare groepen bevatten leden en bestuur', in_array('leden', AVPVH_Roles::available_filelist_groups([]), true)
+    && in_array('bestuur', AVPVH_Roles::available_filelist_groups([]), true));
+
 echo "Page permission tests: OK\n";
