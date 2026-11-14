@@ -106,15 +106,14 @@ def directory_user_exists(uid: str) -> bool:
 
 
 def directory_create_user(uid: str, email: str, first_name: str,
-                          last_name: str, dry_run: bool) -> bool:
+                          last_name: str, dry_run: bool) -> None:
     if directory_user_exists(uid):
         print(f'    directory account already exists: {uid}')
-        return True
+        return
     if dry_run:
         print(f'    [dry-run] would create directory account: {uid} <{email}>')
-        return True
+        return
     directory('create', uid, email, f'{first_name} {last_name}'.strip())
-    return True
 
 
 def directory_add_to_group(uid: str, group: str, dry_run: bool) -> None:

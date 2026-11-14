@@ -246,11 +246,11 @@ class AVPVH_Admin {
     }
 
     public function render_members_list(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/members-list.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/members-list.php';
     }
 
     public function render_member_detail(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/member-detail.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/member-detail.php';
     }
 
     public function render_link_email(): void {
@@ -258,7 +258,7 @@ class AVPVH_Admin {
     }
 
     public function render_add_member(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/add-member.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/add-member.php';
     }
 
     public function render_merge_members(): void {
@@ -288,7 +288,7 @@ class AVPVH_Admin {
     }
 
     public function render_delete_visitor(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/delete-visitor.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/delete-visitor.php';
     }
 
     public function handle_delete_visitor(): void {
@@ -316,7 +316,7 @@ class AVPVH_Admin {
     }
 
     public function render_login_attempts(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/login-attempts.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/login-attempts.php';
     }
 
     public function render_dmarc(): void {
@@ -324,19 +324,19 @@ class AVPVH_Admin {
     }
 
     public function render_newsletter(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/newsletter.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/newsletter.php';
     }
 
     public function render_activity_participation_list(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/activity-participation-list.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/activity-participation-list.php';
     }
 
     public function render_activity_participation_detail(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/activity-participation-detail.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/activity-participation-detail.php';
     }
 
     public function render_roles(): void {
-        require AVPVH_PLUGIN_DIR . 'admin/roles.php';
+        require_once AVPVH_PLUGIN_DIR . 'admin/roles.php';
     }
 
     public function render_settings(): void {

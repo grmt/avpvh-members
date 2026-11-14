@@ -3,7 +3,7 @@
  * Plugin Name: AV-PvH Members
  * Plugin URI:  https://github.com/grmt/avpvh-members
  * Description: Member login, access control, fee tracking and admin for AV Philips van Horne.
- * Version:     1.0.117
+ * Version:     1.0.118
  * Author:      grmt
  * Author URI:  https://github.com/grmt/avpvh-members
  * Text Domain: avpvh-members
@@ -120,23 +120,23 @@ remove_action('admin_enqueue_scripts', 'wp_auth_check_load');
 add_filter('logout_url', fn(): string => AVPVH_Nav_Auth::logout_url());
 
 
-new AVPVH_I18n();
-new AVPVH_Access();
+$avpvh_i18n = new AVPVH_I18n();
+$avpvh_access = new AVPVH_Access();
 $avpvh_archive_access = new AVPVH_Archive_Access();
 $avpvh_account_privacy = new AVPVH_Account_Privacy();
-new AVPVH_Nav_Auth();
-new AVPVH_OAuth();
-new AVPVH_Email_Identity();
-new AVPVH_Ledenlijst();
-new AVPVH_Activity_Overview();
-new AVPVH_Activity_List();
-new AVPVH_Bestuur_Page();
+$avpvh_nav_auth = new AVPVH_Nav_Auth();
+$avpvh_oauth = new AVPVH_OAuth();
+$avpvh_email_identity = new AVPVH_Email_Identity();
+$avpvh_ledenlijst = new AVPVH_Ledenlijst();
+$avpvh_activity_overview = new AVPVH_Activity_Overview();
+$avpvh_activity_list = new AVPVH_Activity_List();
+$avpvh_bestuur_page = new AVPVH_Bestuur_Page();
 AVPVH_Directory_Cache::init();
-new AVPVH_Activity_Participation_Form();
-new AVPVH_Directory_Consent();
-new AVPVH_Newsletter_Consent();
-new AVPVH_Member_Profile_Form();
+$avpvh_activity_participation_form = new AVPVH_Activity_Participation_Form();
+$avpvh_directory_consent = new AVPVH_Directory_Consent();
+$avpvh_newsletter_consent = new AVPVH_Newsletter_Consent();
+$avpvh_member_profile_form = new AVPVH_Member_Profile_Form();
 AVPVH_Address_Entry_Check::init();
-new AVPVH_Admin();
-new AVPVH_Media_Protection();
-new AVPVH_Media_Token();
+$avpvh_admin = new AVPVH_Admin();
+$avpvh_media_protection = new AVPVH_Media_Protection();
+$avpvh_media_token = new AVPVH_Media_Token();

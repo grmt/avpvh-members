@@ -15,8 +15,11 @@
     }
 
     // --- HIBP check op reset-password/step2 ---
+    // SHA-1 is what the Pwned Passwords range API (k-anonymity) requires: only
+    // the first 5 hex chars leave the browser, and the hash is never stored or
+    // used to protect anything.
     async function sha1hex(str) {
-        const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str));
+        const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str)); // NOSONAR javascript:S4790
         return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
     }
 
