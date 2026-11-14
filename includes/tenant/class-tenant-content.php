@@ -74,6 +74,9 @@ class AVPVH_Tenant_Content {
             return;
         }
         nocache_headers();
+        if (!is_user_logged_in()) {
+            $this->sso->try_authelia_login();
+        }
         if ($this->current_user_may_read()) {
             return;
         }

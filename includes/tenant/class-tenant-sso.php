@@ -48,6 +48,7 @@ class AVPVH_Tenant_SSO {
         add_filter('login_url',       [$this, 'filter_login_url'], 10, 2);
         add_filter('allowed_redirect_hosts', [$this, 'allow_authelia_host']);
         add_filter('attach_session_information', [$this, 'attach_login_method']);
+        add_action('set_logged_in_cookie', [$this, 'on_logged_in_cookie']);
         add_filter('avpvh_flst_user_groups', [$this, 'filter_filelist_user_groups'], 10, 2);
         add_filter('avpvh_flst_available_groups', [$this, 'filter_filelist_available_groups']);
     }
@@ -140,6 +141,32 @@ class AVPVH_Tenant_SSO {
         exit;
     }
 
+    /**
+     * Start a WordPress session when the visitor already has an Authelia
+     * session with a role on this site (for example right after Authelia's
+     * own gate on wp-admin or a fully gated tenant).
+     */
+    public function try_authelia_login(): bool {
+        if (is_user_logged_in()) {
+            return true;
+        }
+        $identity = AVPVH_Tenant_Identity::probe($this->config);
+        if ($identity['status'] !== AVPVH_Tenant_Identity::OK) {
+            return false;
+        }
+        $role = self::role_for_groups($identity['groups'], $this->config);
+        if ($role === null) {
+            return false;
+        }
+        $user_id = $this->provision($identity, $role);
+        if (is_wp_error($user_id)) {
+            return false;
+        }
+        $this->log_in($user_id, self::VIA_AUTHELIA);
+        $this->log('sso', $identity['uid'], $role);
+        return true;
+    }
+
     /** A same-site target for after the login; the home page otherwise. */
     public function safe_target(string $redirect_to): string {
         $target = $redirect_to !== '' ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
@@ -170,6 +197,13 @@ class AVPVH_Tenant_SSO {
     public function attach_login_method(array $session): array {
         $session[self::LOGIN_KEY] = $this->login_method;
         return $session;
+    }
+
+    /** Make the newly set logged-in cookie available for nonces in the same request. */
+    public function on_logged_in_cookie(string $logged_in_cookie): void {
+        if (defined('LOGGED_IN_COOKIE')) {
+            $_COOKIE[LOGGED_IN_COOKIE] = $logged_in_cookie;
+        }
     }
 
     /** How the current session was started: authelia, google or microsoft. */
@@ -423,7 +457,8 @@ class AVPVH_Tenant_SSO {
     /**
      * wp-login.php stays available for local (emergency) accounts only
      * when local_login is true (default false); otherwise it leads to the
-     * login choice (Authelia, or Google/Microsoft for members).
+     * login choice (Authelia, or Google/Microsoft for members), or directly
+     * to the target when the visitor already has an Authelia session.
      */
     public function redirect_local_login(): void {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only the action name is compared
@@ -431,8 +466,12 @@ class AVPVH_Tenant_SSO {
         if ($this->config->get('local_login') || in_array($action, ['logout', 'postpass'], true)) {
             return;
         }
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- validated by login_url()'s callback
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- validated by safe_target() and login_url()
         $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
+        if ($this->try_authelia_login()) {
+            wp_safe_redirect($this->safe_target($redirect_to));
+            exit;
+        }
         wp_safe_redirect($this->login_url($redirect_to));
         exit;
     }

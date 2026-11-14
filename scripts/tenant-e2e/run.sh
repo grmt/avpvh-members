@@ -111,7 +111,8 @@ $W user meta update test.vve avpvh_directory_checked 1 >/dev/null
 ok "ended Authelia session ends the WP session" '[[ "$(code -b $A $B/wp-admin/)" == 302 ]]'
 ok "only one user per subject" '[[ "$($W user list --format=count)" == 3 ]]'
 ok "no avm tables were created" '[[ "$($W db query "SHOW TABLES" --skip-column-names | grep -c vp4042_)" -gt 0 && "$($W db query "SHOW TABLES LIKE \"%avm%\"" --skip-column-names | wc -l)" == 0 ]]'
-ok "local emergency login page still works" '[[ "$(code $B/wp-login.php)" == 200 ]]'
+ok "wp-login.php redirects to the login choice by default" '[[ "$(loc $B/wp-login.php)" == "$B/avpvh-login/" ]]'
+ok "wp-login.php with an Authelia session logs straight in" '[[ "$(loc -b test_session=vveadmin "$B/wp-login.php?redirect_to=$B/wp-admin/")" == "$B/wp-admin/" ]]'
 # --- shares (/?delen=)
 ok "unknown share is 404" '[[ "$(code "$B/?delen=bestaatniet")" == 404 ]]'
 form=$(curl -s -c $SJ "$B/?delen=testbestand")
