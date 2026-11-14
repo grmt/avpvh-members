@@ -1,0 +1,13 @@
+# Dependabot: weekly, minor and patch updates grouped into one PR per
+# ecosystem, major updates as separate PRs (see the shared CLAUDE.md, CI).
+version: 2
+updates:
+- package-ecosystem: github-actions
+  directory: "/"
+  groups:
+    actions:
+      update-types: [minor, patch]
+  schedule:
+    interval: weekly
+  assignees:
+    - grmt
