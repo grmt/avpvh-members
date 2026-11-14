@@ -4,7 +4,7 @@ Tags: membership, login, access control, members
 Requires at least: 7.1
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 1.0.117
+Stable tag: 1.0.118
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 

@@ -1070,7 +1070,9 @@ class AVPVH_DB {
         if ($domain && !checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A')) {
             return;
         }
-        $blacklist = require AVPVH_PLUGIN_DIR . 'includes/disposable-domains.php';
+        // require, not require_once: the file returns the list, and a second
+        // require_once in the same request would return true instead.
+        $blacklist = require AVPVH_PLUGIN_DIR . 'includes/disposable-domains.php'; // NOSONAR php:S2003
         if (in_array(strtolower($domain), $blacklist, true)) {
             return;
         }
