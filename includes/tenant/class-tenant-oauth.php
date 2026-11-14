@@ -234,7 +234,7 @@ class AVPVH_Tenant_OAuth {
         $target = $this->sso->safe_target(sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? '')));
         $reason = sanitize_key(wp_unslash($_GET['fout'] ?? ''));
         // phpcs:enable
-        if (is_user_logged_in() && $reason === '') {
+        if ($reason === '' && (is_user_logged_in() || $this->sso->try_authelia_login())) {
             wp_safe_redirect($target);
             exit;
         }

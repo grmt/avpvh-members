@@ -440,6 +440,11 @@ check('wp-login.php goes to the login choice by default', $exit->kind === 'redir
 check('wp-login.php logout still works by default', local_login_exit($sso, ['action' => 'logout'])->kind === 'none');
 check('wp-login.php stays open with local_login on', local_login_exit(new AVPVH_Tenant_SSO(tenant_config(['local_login' => true])), [])->kind === 'none');
 
+$test_current = 0;
+$test_remote = member_response(['rsp-vve-admins'], 'test.vve', 'vve@example.invalid');
+$exit = local_login_exit($sso, ['redirect_to' => 'https://site.example.invalid/wp-admin/admin.php?page=avbk-companies']);
+check('wp-login.php with an active Authelia session logs in and redirects straight to the target', $exit->kind === 'redirect' && $exit->detail === 'https://site.example.invalid/wp-admin/admin.php?page=avbk-companies' && $test_current === $admin_id);
+
 $login = $sso->login_url('https://site.example.invalid/leden/');
 check('login goes to Authelia with the probe path as target', str_starts_with($login, 'https://auth.example.invalid/?rd=') && str_contains(rawurldecode($login), 'https://site.example.invalid/avpvh-sso/?redirect_to='));
 $_GET = ['avpvh_tenant_logout' => 'nonce-avpvh_tenant_logout'];
