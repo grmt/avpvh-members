@@ -83,13 +83,17 @@ printf("  %d unieke bestandspaden in publieke pagina's.\n\n", count($public_path
 // public_paths contains what Gutenberg actually stored in post_content (often
 // a sized variant like photo-1024x768.jpg, not the original photo.jpg).
 function bucket_for_attachment(string $rel, ?array $meta, array $public_paths): string {
-    if (isset($public_paths[$rel])) return 'public';
+    if (isset($public_paths[$rel])) {
+        return 'public';
+    }
 
     $dir = dirname($rel);
     if (!empty($meta['sizes'])) {
         foreach ($meta['sizes'] as $size) {
             $size_rel = ($dir !== '.') ? $dir . '/' . $size['file'] : $size['file'];
-            if (isset($public_paths[$size_rel])) return 'public';
+            if (isset($public_paths[$size_rel])) {
+                return 'public';
+            }
         }
     }
     return 'private';
@@ -97,11 +101,15 @@ function bucket_for_attachment(string $rel, ?array $meta, array $public_paths): 
 
 // For non-attachment files: direct match or strip size suffix to find original
 function bucket_for(string $rel, array $public_paths): string {
-    if (isset($public_paths[$rel])) return 'public';
+    if (isset($public_paths[$rel])) {
+        return 'public';
+    }
     $without_size = preg_replace('/-\d+x\d+(\.[^.]+)$/', '$1', basename($rel));
     $dir          = dirname($rel);
     $base_nosize  = ($dir !== '.') ? $dir . '/' . $without_size : $without_size;
-    if (isset($public_paths[$base_nosize])) return 'public';
+    if (isset($public_paths[$base_nosize])) {
+        return 'public';
+    }
     return 'private';
 }
 
@@ -148,7 +156,9 @@ foreach ($attachments as $att) {
     $meta    = wp_get_attachment_metadata($att->ID);
     $to_move = [basename($rel_path)];
     if (!empty($meta['sizes'])) {
-        foreach ($meta['sizes'] as $size) $to_move[] = $size['file'];
+        foreach ($meta['sizes'] as $size) {
+            $to_move[] = $size['file'];
+        }
     }
 
     $ok = true;
@@ -183,18 +193,28 @@ $known = array_flip($wpdb->get_col("
 $known_basenames = [];
 foreach ($wpdb->get_col("SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key='_wp_attachment_metadata'") as $s) {
     $d = @unserialize($s);
-    if (!empty($d['sizes'])) foreach ($d['sizes'] as $sz) $known_basenames[$sz['file']] = true;
+    if (!empty($d['sizes'])) {
+        foreach ($d['sizes'] as $sz) {
+            $known_basenames[$sz['file']] = true;
+        }
+    }
 }
 
 $orphan_counts = ['public' => 0, 'private' => 0];
 $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base_dir, RecursiveDirectoryIterator::SKIP_DOTS));
 foreach ($iter as $file) {
-    if (!$file->isFile()) continue;
+    if (!$file->isFile()) {
+        continue;
+    }
     $abs = $file->getPathname();
     $rel = ltrim(str_replace($base_dir . '/', '', $abs), '/');
 
-    if (str_starts_with($rel, 'public/') || str_starts_with($rel, 'private/')) continue;
-    if (isset($known[$rel]) || isset($known_basenames[basename($rel)])) continue;
+    if (str_starts_with($rel, 'public/') || str_starts_with($rel, 'private/')) {
+        continue;
+    }
+    if (isset($known[$rel]) || isset($known_basenames[basename($rel)])) {
+        continue;
+    }
 
     $bucket   = bucket_for($rel, $public_paths);
     $dest_abs = $base_dir . '/'. $bucket . '/' . $rel;
@@ -220,7 +240,9 @@ foreach ($wpdb->get_results("
     $new = preg_replace_callback($pattern, $replace, $post->post_content, -1, $n);
     if ($n && $new !== $post->post_content) {
         printf("  post #%d: %d verwijzing(en)\n", $post->ID, $n);
-        if (!$dry_run) $wpdb->update($wpdb->posts, ['post_content' => $new], ['ID' => $post->ID]);
+        if (!$dry_run) {
+            $wpdb->update($wpdb->posts, ['post_content' => $new], ['ID' => $post->ID]);
+        }
         $url_updates += $n;
     }
 }
@@ -233,7 +255,9 @@ foreach ($wpdb->get_results("
     $new = preg_replace_callback($pattern, $replace, $row->meta_value, -1, $n);
     if ($n && $new !== $row->meta_value) {
         printf("  meta #%d: %d verwijzing(en)\n", $row->meta_id, $n);
-        if (!$dry_run) $wpdb->update($wpdb->postmeta, ['meta_value' => $new], ['meta_id' => $row->meta_id]);
+        if (!$dry_run) {
+            $wpdb->update($wpdb->postmeta, ['meta_value' => $new], ['meta_id' => $row->meta_id]);
+        }
         $meta_updates += $n;
     }
 }
@@ -248,4 +272,6 @@ printf("  Overgeslagen           : %d\n", $counts['skipped']);
 printf("  Fouten                 : %d\n", $counts['errors']);
 printf("  URL-updates content    : %d\n", $url_updates);
 printf("  URL-updates meta       : %d\n", $meta_updates);
-if ($dry_run) echo "\n(Dry run — geen wijzigingen. Laat --dry-run weg om te migreren.)\n";
+if ($dry_run) {
+    echo "\n(Dry run — geen wijzigingen. Laat --dry-run weg om te migreren.)\n";
+}

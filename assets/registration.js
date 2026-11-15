@@ -179,8 +179,10 @@
         function slug(text) {
             var base = 'sectie-' + text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             var id = base;
-            for (var n = 2; usedIds[id] || (document.getElementById(id) && !$sections.is('#' + id)); n++) {
+            var n = 2;
+            while (usedIds[id] || (document.getElementById(id) && !$sections.is('#' + id))) {
                 id = base + '-' + n;
+                n++;
             }
             usedIds[id] = true;
             return id;

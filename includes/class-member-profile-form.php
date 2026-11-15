@@ -14,6 +14,11 @@ class AVPVH_Member_Profile_Form {
         add_action('admin_post_avpvh_remove_relationship', [$this, 'handle_remove_relationship']);
     }
 
+    /** Where a profile form action returns to: the page it came from, else the profile page. */
+    private static function back_url(): string {
+        return wp_get_referer() ?: home_url('/member-profile/');
+    }
+
     /**
      * Render member profile form shortcode.
      * Usage: [avpvh_member_profile]
@@ -399,7 +404,7 @@ class AVPVH_Member_Profile_Form {
                                 $current_user_locale = determine_locale();
                             }
                             foreach (AVPVH_I18n::get_supported_locales() as $loc_code => $loc_name) :
-                            ?>
+                                ?>
                                 <option value="<?php echo esc_attr($loc_code); ?>" <?php selected($current_user_locale, $loc_code); ?>>
                                     <?php echo esc_html($loc_name); ?>
                                 </option>
@@ -1146,7 +1151,7 @@ class AVPVH_Member_Profile_Form {
         $identities = AVPVH_DB::get_member_identities($member_id);
         // Never the last verified login; an unverified one can always go.
         if (!AVPVH_DB::can_delete_identity($identities, $identity_id)) {
-            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'last_identity'], wp_get_referer() ?: home_url('/member-profile/')));
+            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'last_identity'], self::back_url()));
             exit;
         }
 
@@ -1165,7 +1170,7 @@ class AVPVH_Member_Profile_Form {
             self::notify_identity_change($member, $own_member, 'verwijderd', $removed_provider, $removed_email);
         }
 
-        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_removed' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
+        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_removed' => '1'], self::back_url()));
         exit;
     }
 
@@ -1214,7 +1219,7 @@ class AVPVH_Member_Profile_Form {
             self::notify_identity_change($member, $own_member, 'als primair adres ingesteld', $target->provider, $target->email);
         }
 
-        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_primary' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
+        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_primary' => '1'], self::back_url()));
         exit;
     }
 
@@ -1274,7 +1279,7 @@ class AVPVH_Member_Profile_Form {
         wp_mail($member->email, $subject, $body);
         set_transient(self::identity_request_transient_key($member_id), get_current_user_id(), 3 * DAY_IN_SECONDS);
 
-        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_requested' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
+        wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_requested' => '1'], self::back_url()));
         exit;
     }
 
@@ -1322,7 +1327,7 @@ class AVPVH_Member_Profile_Form {
         $status = $saved ? 'relationship_added' : ($duplicate ? 'relationship_duplicate' : 'relationship_error');
         wp_safe_redirect(add_query_arg(
             ['member_id' => $member_id, $status => '1'],
-            wp_get_referer() ?: home_url('/member-profile/')
+            self::back_url()
         ));
         exit;
     }
@@ -1343,7 +1348,7 @@ class AVPVH_Member_Profile_Form {
 
         $removed = $relationship_id && AVPVH_DB::remove_relationship($relationship_id, $member_id);
 
-        wp_safe_redirect(add_query_arg(['member_id' => $member_id, $removed ? 'relationship_removed' : 'relationship_error' => '1'], wp_get_referer() ?: home_url('/member-profile/')));
+        wp_safe_redirect(add_query_arg(['member_id' => $member_id, $removed ? 'relationship_removed' : 'relationship_error' => '1'], self::back_url()));
         exit;
     }
 

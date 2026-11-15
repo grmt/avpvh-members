@@ -2,6 +2,9 @@
 defined('ABSPATH') || exit;
 
 class AVPVH_Access {
+
+    /** The front-end login page. */
+    const LOGIN_PATH = '/avpvh-login/';
     /** Leaked-password reports accepted per IP address per 15 minutes (handle_hibp_flag()). */
     private const HIBP_FLAGS_PER_IP = 5;
 
@@ -159,7 +162,7 @@ class AVPVH_Access {
         $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
         $target = (!empty($redirect_to) && is_user_logged_in())
             ? wp_validate_redirect($redirect_to, home_url('/'))
-            : (is_user_logged_in() ? home_url('/') : home_url('/avpvh-login/'));
+            : (is_user_logged_in() ? home_url('/') : home_url(self::LOGIN_PATH));
 
         wp_safe_redirect($target);
         exit;
@@ -186,7 +189,7 @@ class AVPVH_Access {
 
         // Redirect non-members away from members-only content
         if ($this->is_members_only_request() && !$this->current_user_is_active_member() && !$this->archive_allows_current_post()) {
-            $target = home_url('/avpvh-login/');
+            $target = home_url(self::LOGIN_PATH);
             if (is_user_logged_in()) {
                 $target = add_query_arg('login_notice', 'members_only', $target);
             }
@@ -592,7 +595,7 @@ class AVPVH_Access {
         }
         return '<div class="avpvh-members-only">
             <p>' . esc_html__('Deze pagina is alleen beschikbaar voor leden.', 'avpvh-members') . '</p>
-            <a class="avpvh-login-btn" href="' . esc_url(home_url('/avpvh-login/')) . '">' . esc_html__('Inloggen', 'avpvh-members') . '</a>
+            <a class="avpvh-login-btn" href="' . esc_url(home_url(self::LOGIN_PATH)) . '">' . esc_html__('Inloggen', 'avpvh-members') . '</a>
         </div>';
     }
 
