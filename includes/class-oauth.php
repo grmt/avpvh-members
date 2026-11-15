@@ -8,6 +8,9 @@ defined('ABSPATH') || exit;
  */
 class AVPVH_OAuth {
 
+    /** REST namespace of the OAuth start and callback routes. */
+    const REST_NAMESPACE = 'avpvh/v1';
+
     const PROVIDERS = [
         'google' => [
             'label'        => 'Google',
@@ -41,12 +44,12 @@ class AVPVH_OAuth {
 
     public function register_routes(): void {
         foreach (array_keys(self::PROVIDERS) as $provider) {
-            register_rest_route('avpvh/v1', '/oauth/' . $provider . '/start', [
+            register_rest_route(self::REST_NAMESPACE, '/oauth/' . $provider . '/start', [
                 'methods'             => 'GET',
                 'callback'            => fn($r) => $this->start($provider, $r),
                 'permission_callback' => '__return_true',
             ]);
-            register_rest_route('avpvh/v1', '/oauth/' . $provider . '/callback', [
+            register_rest_route(self::REST_NAMESPACE, '/oauth/' . $provider . '/callback', [
                 'methods'             => 'GET',
                 'callback'            => fn($r) => $this->handle_callback($provider, $r),
                 'permission_callback' => '__return_true',
@@ -314,7 +317,7 @@ class AVPVH_OAuth {
     }
 
     private function callback_url(string $provider): string {
-        return rest_url('avpvh/v1/oauth/' . $provider . '/callback');
+        return self::route_url($provider, 'callback');
     }
 
     public static function add_identity_url(string $provider, int $member_id): string {
@@ -324,12 +327,12 @@ class AVPVH_OAuth {
         // member is clearly logged in in their browser.
         return add_query_arg(
             ['add_member_id' => $member_id, '_wpnonce' => wp_create_nonce('wp_rest')],
-            rest_url('avpvh/v1/oauth/' . $provider . '/start')
+            self::route_url($provider, 'start')
         );
     }
 
     public static function login_url(string $provider, string $redirect_to = ''): string {
-        $url = rest_url('avpvh/v1/oauth/' . $provider . '/start');
+        $url = self::route_url($provider, 'start');
         if (!empty($redirect_to)) {
             $url = add_query_arg('redirect_to', $redirect_to, $url);
         }
@@ -342,5 +345,10 @@ class AVPVH_OAuth {
             fn($key) => (bool) get_option('avpvh_oauth_' . $key . '_client_id'),
             ARRAY_FILTER_USE_KEY
         );
+    }
+
+    /** Full URL of an OAuth route: endpoint is 'start' or 'callback'. */
+    private static function route_url(string $provider, string $endpoint): string {
+        return rest_url(self::REST_NAMESPACE . '/oauth/' . $provider . '/' . $endpoint);
     }
 }
