@@ -1,5 +1,6 @@
 # Dependabot: weekly, minor and patch updates grouped into one PR per
 # ecosystem, major updates as separate PRs (see the shared CLAUDE.md, CI).
+# Security updates also come as one PR per ecosystem.
 version: 2
 updates:
 - package-ecosystem: github-actions
@@ -7,6 +8,10 @@ updates:
   groups:
     actions:
       update-types: [minor, patch]
+    # Security updates bundled into one PR, majors included.
+    actions-security:
+      applies-to: security-updates
+      patterns: ["*"]
   schedule:
     interval: weekly
   assignees:
