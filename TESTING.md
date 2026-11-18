@@ -12,6 +12,8 @@ php -l includes/class-admin.php
 php -l includes/class-member-profile-form.php
 php -l includes/class-nav-auth.php
 php -l admin/member-detail.php
+php -l admin/email-log.php
+php -l includes/class-email-log.php
 ```
 
 Shell scripts:
@@ -29,6 +31,7 @@ bash -n scripts/promote-scrubbed-main.sh
 php scripts/test-identity-helpers.php
 php scripts/test-identity-limit.php
 php scripts/test-admin-email-return.php
+php scripts/test-email-log.php
 php scripts/test-role-labels.php
 php scripts/test-address-normalizer.php
 php scripts/test-name-matcher-loose.php

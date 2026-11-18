@@ -62,6 +62,7 @@ class AVPVH_Roles {
             || self::can_send_newsletter()
             || self::can_view_login_attempts()
             || self::can_view_dmarc()
+            || self::can_view_email_log()
             || self::can_merge_members()
             || self::can_view_roles_page()
             || self::can_manage_page_permissions();
@@ -158,6 +159,7 @@ class AVPVH_Roles {
             'newsletter'     => __('Nieuwsbrief', 'avpvh-members'),
             'login_attempts' => __('Loginpogingen', 'avpvh-members'),
             'dmarc'          => __('DMARC-rapporten', 'avpvh-members'),
+            'email_log'      => __('E-mail log', 'avpvh-members'),
             'merge_members'  => __('Leden samenvoegen', 'avpvh-members'),
         ];
     }
@@ -167,7 +169,8 @@ class AVPVH_Roles {
     // and Nieuwsbrief: secretaris), plus the IT-beheerder everywhere.
     // DMARC-rapporten is mail-server plumbing: IT-beheerder only. Leden
     // samenvoegen deletes an account and can't be undone: WP admins only
-    // until the matrix grants it.
+    // until the matrix grants it. E-mail log: the penningmeester checks
+    // that payment mails went out.
     public static function get_default_page_permissions(): array {
         return [
             'members'        => ['secretaris', 'penningmeester', self::IT_ROLE],
@@ -175,6 +178,7 @@ class AVPVH_Roles {
             'newsletter'     => ['secretaris', self::IT_ROLE],
             'login_attempts' => [self::IT_ROLE],
             'dmarc'          => [self::IT_ROLE],
+            'email_log'      => ['penningmeester', self::IT_ROLE],
             'merge_members'  => [],
         ];
     }
@@ -250,6 +254,10 @@ class AVPVH_Roles {
 
     public static function can_view_dmarc(): bool {
         return self::current_user_can_access_page('dmarc');
+    }
+
+    public static function can_view_email_log(): bool {
+        return self::current_user_can_access_page('email_log');
     }
 
     public static function can_merge_members(): bool {

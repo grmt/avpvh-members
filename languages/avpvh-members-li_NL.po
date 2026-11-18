@@ -3231,3 +3231,67 @@ msgstr "Weurt es neet-geverifieerd toegevoeg; de inlogmethode steit vas zodra 't
 #: includes/class-member-profile-form.php
 msgid "beheren"
 msgstr "behere"
+
+#: admin/email-log.php
+msgid "Verzonden"
+msgstr "Verstuurd"
+
+#: admin/email-log.php
+msgid "Mislukt"
+msgstr "Mislök"
+
+#: admin/email-log.php
+msgid "E-mail log"
+msgstr "E-mail log"
+
+#: admin/email-log.php
+msgid "Alle mails die de website heeft verstuurd, alleen om te bekijken. Links die als sleutel werken (bestellingen, fotomappen, inloggen) zijn verborgen, en van mails over inloggen of een wachtwoord is de inhoud niet te zien."
+msgstr "Alle mails die de website haet verstuurd, allein óm te bekieke. Links die es sleutel wirke (bestellinge, fotomappe, inlogge) zien verborge, en van mails euver inlogge of e wachwoord is de inhoud neet te zien."
+
+#: admin/email-log.php
+msgid "Er is geen e-mail log: FluentSMTP is niet geïnstalleerd of houdt geen log bij."
+msgstr "D'r is gein e-mail log: FluentSMTP is neet geïnstalleerd of hèlt gein log bie."
+
+#: admin/email-log.php
+msgid "Terug naar het log"
+msgstr "Trök nao 't log"
+
+#: admin/email-log.php
+msgid "Deze mail staat niet (meer) in het log."
+msgstr "Dees mail steit neet (mie) in 't log."
+
+#: admin/email-log.php
+msgid "Aan"
+msgstr "Aan"
+
+#: admin/email-log.php
+msgid "Inhoud"
+msgstr "Inhoud"
+
+#: admin/email-log.php
+msgid "Deze mail gaat over inloggen of een wachtwoord. De inhoud wordt hier niet getoond, omdat wie de link erin opent als de ontvanger kan inloggen."
+msgstr "Dees mail geit euver inlogge of e wachwoord. De inhoud weurt hie neet getuind, ómdat wae de link d'rin äöpent es de óntvanger kin inlogge."
+
+#: admin/email-log.php
+msgid "Inhoud van de mail"
+msgstr "Inhoud van de mail"
+
+#: admin/email-log.php
+msgid "Zoek op onderwerp of ontvanger"
+msgstr "Zeuk op óngerwerp of óntvanger"
+
+#: admin/email-log.php
+msgid "Onderwerp of ontvanger"
+msgstr "Óngerwerp of óntvanger"
+
+#: admin/email-log.php
+msgid "Geen mails gevonden."
+msgstr "Gein mails gevónje."
+
+#: admin/email-log.php
+#. translators: %d: number of mails
+#, php-format
+msgid "%d mail"
+msgid_plural "%d mails"
+msgstr[0] "%d mail"
+msgstr[1] "%d mails"

@@ -3451,3 +3451,67 @@ msgstr ""
 #: includes/class-member-profile-form.php
 msgid "beheren"
 msgstr ""
+
+#: admin/email-log.php
+msgid "Verzonden"
+msgstr ""
+
+#: admin/email-log.php
+msgid "Mislukt"
+msgstr ""
+
+#: admin/email-log.php
+msgid "E-mail log"
+msgstr ""
+
+#: admin/email-log.php
+msgid "Alle mails die de website heeft verstuurd, alleen om te bekijken. Links die als sleutel werken (bestellingen, fotomappen, inloggen) zijn verborgen, en van mails over inloggen of een wachtwoord is de inhoud niet te zien."
+msgstr ""
+
+#: admin/email-log.php
+msgid "Er is geen e-mail log: FluentSMTP is niet geïnstalleerd of houdt geen log bij."
+msgstr ""
+
+#: admin/email-log.php
+msgid "Terug naar het log"
+msgstr ""
+
+#: admin/email-log.php
+msgid "Deze mail staat niet (meer) in het log."
+msgstr ""
+
+#: admin/email-log.php
+msgid "Aan"
+msgstr ""
+
+#: admin/email-log.php
+msgid "Inhoud"
+msgstr ""
+
+#: admin/email-log.php
+msgid "Deze mail gaat over inloggen of een wachtwoord. De inhoud wordt hier niet getoond, omdat wie de link erin opent als de ontvanger kan inloggen."
+msgstr ""
+
+#: admin/email-log.php
+msgid "Inhoud van de mail"
+msgstr ""
+
+#: admin/email-log.php
+msgid "Zoek op onderwerp of ontvanger"
+msgstr ""
+
+#: admin/email-log.php
+msgid "Onderwerp of ontvanger"
+msgstr ""
+
+#: admin/email-log.php
+msgid "Geen mails gevonden."
+msgstr ""
+
+#: admin/email-log.php
+#. translators: %d: number of mails
+#, php-format
+msgid "%d mail"
+msgid_plural "%d mails"
+msgstr[0] ""
+msgstr[1] ""

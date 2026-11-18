@@ -66,6 +66,9 @@ check('secretaris: geen Paginarechten', !AVPVH_Roles::can_manage_page_permission
 as_user(['penningmeester']);
 check('penningmeester: Ledenbeheer', AVPVH_Roles::can_manage_members());
 check('penningmeester: geen Activiteiten', !AVPVH_Roles::can_manage_activities());
+check('penningmeester: E-mail log', AVPVH_Roles::can_view_email_log());
+as_user(['secretaris']);
+check('secretaris: standaard geen E-mail log', !AVPVH_Roles::can_view_email_log());
 
 as_user(['it-beheer']);
 check('IT-beheerder: alle pagina\'s', AVPVH_Roles::can_manage_members() && AVPVH_Roles::can_manage_activities()
@@ -107,7 +110,7 @@ AVPVH_Roles::save_page_permissions([
 ]);
 check('onbekende rol/pagina niet opgeslagen', $test_option === [
     'members' => ['voorzitter'], 'activities' => [], 'newsletter' => [], 'login_attempts' => ['bestuur'], 'dmarc' => [],
-    'merge_members' => ['penningmeester'],
+    'email_log' => [], 'merge_members' => ['penningmeester'],
 ]);
 as_user(['penningmeester']);
 check('penningmeester: samenvoegen na toekennen', AVPVH_Roles::can_merge_members() && AVPVH_Roles::current_user_needs_wp_admin());

@@ -132,6 +132,7 @@ class AVPVH_Admin {
         $newsletter_cap = AVPVH_Roles::can_send_newsletter() ? 'read' : 'manage_options';
         $login_attempts_cap = AVPVH_Roles::can_view_login_attempts() ? 'read' : 'manage_options';
         $dmarc_cap = AVPVH_Roles::can_view_dmarc() ? 'read' : 'manage_options';
+        $email_log_cap = AVPVH_Roles::can_view_email_log() ? 'read' : 'manage_options';
         $merge_cap = AVPVH_Roles::can_merge_members() ? 'read' : 'manage_options';
 
         add_menu_page(
@@ -217,6 +218,10 @@ class AVPVH_Admin {
         add_submenu_page(
             'avpvh-members', __('DMARC-rapporten', 'avpvh-members'), __('DMARC-rapporten', 'avpvh-members'), $dmarc_cap,
             'avpvh-dmarc', [$this, 'render_dmarc']
+        );
+        add_submenu_page(
+            'avpvh-members', __('E-mail log', 'avpvh-members'), __('E-mail log', 'avpvh-members'), $email_log_cap,
+            'avpvh-email-log', [$this, 'render_email_log']
         );
         add_submenu_page(
             'avpvh-members', __('Nieuwsbrief', 'avpvh-members'), __('Nieuwsbrief', 'avpvh-members'), $newsletter_cap,
@@ -317,6 +322,10 @@ class AVPVH_Admin {
 
     public function render_login_attempts(): void {
         require_once AVPVH_PLUGIN_DIR . 'admin/login-attempts.php';
+    }
+
+    public function render_email_log(): void {
+        require_once AVPVH_PLUGIN_DIR . 'admin/email-log.php';
     }
 
     public function render_dmarc(): void {
