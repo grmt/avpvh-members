@@ -30,12 +30,12 @@ $paged   = max(1, absint(wp_unslash($_GET['paged'] ?? 1)));
     <?php if (!$mail) : ?>
         <div class="notice notice-error"><p><?php esc_html_e('Deze mail staat niet (meer) in het log.', 'avpvh-members'); ?></p></div>
     <?php else : ?>
-        <table class="form-table" role="presentation">
-            <tr><th><?php esc_html_e('Onderwerp', 'avpvh-members'); ?></th><td><?php echo esc_html($mail->subject); ?></td></tr>
-            <tr><th><?php esc_html_e('Aan', 'avpvh-members'); ?></th><td><?php echo esc_html(AVPVH_Email_Log::recipients($mail->to)); ?></td></tr>
-            <tr><th><?php esc_html_e('Van', 'avpvh-members'); ?></th><td><?php echo esc_html($mail->from); ?></td></tr>
-            <tr><th><?php esc_html_e('Status', 'avpvh-members'); ?></th><td><?php echo esc_html($status_labels[$mail->status] ?? $mail->status); ?></td></tr>
-            <tr><th><?php esc_html_e('Datum', 'avpvh-members'); ?></th><td><?php echo esc_html($mail->created_at); ?></td></tr>
+        <table class="form-table">
+            <tr><th scope="row"><?php esc_html_e('Onderwerp', 'avpvh-members'); ?></th><td><?php echo esc_html($mail->subject); ?></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Aan', 'avpvh-members'); ?></th><td><?php echo esc_html(AVPVH_Email_Log::recipients($mail->to)); ?></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Van', 'avpvh-members'); ?></th><td><?php echo esc_html($mail->from); ?></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Status', 'avpvh-members'); ?></th><td><?php echo esc_html($status_labels[$mail->status] ?? $mail->status); ?></td></tr>
+            <tr><th scope="row"><?php esc_html_e('Datum', 'avpvh-members'); ?></th><td><?php echo esc_html($mail->created_at); ?></td></tr>
         </table>
         <h2><?php esc_html_e('Inhoud', 'avpvh-members'); ?></h2>
         <?php if (AVPVH_Email_Log::body_hidden($mail)) : ?>

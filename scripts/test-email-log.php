@@ -13,6 +13,7 @@ declare(strict_types=1);
 define('ABSPATH', __DIR__ . '/');
 
 function is_serialized($data): bool { return is_string($data) && preg_match('/^(a|s|i|b|d|O|N):/', $data) === 1; }
+function wp_parse_url(string $url, int $component = -1): mixed { return parse_url($url, $component); }
 
 require_once dirname(__DIR__) . '/includes/class-email-log.php';
 

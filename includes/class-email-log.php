@@ -47,8 +47,9 @@ class AVPVH_Email_Log {
     public static function query(string $search, string $status, int $page): array {
         global $wpdb;
         $table = self::table();
-        $where = ['1=1'];
-        $args = [];
+        // Always one placeholder, so both queries go through prepare().
+        $where = ['id > %d'];
+        $args = [0];
         if ($status === 'sent' || $status === 'failed') {
             $where[] = 'status = %s';
             $args[] = $status;
@@ -62,10 +63,10 @@ class AVPVH_Email_Log {
         $where_sql = implode(' AND ', $where);
         $offset = max(0, $page - 1) * self::PER_PAGE;
 
-        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is the fixed prefixed table name, $where_sql only holds placeholders
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is the fixed prefixed table name, $where_sql only holds placeholders, all values are prepared
         $count_sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_sql}";
         $rows_sql = "SELECT id, `to`, subject, status, created_at FROM {$table} WHERE {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d";
-        $total = (int) $wpdb->get_var($args ? $wpdb->prepare($count_sql, ...$args) : $count_sql);
+        $total = (int) $wpdb->get_var($wpdb->prepare($count_sql, ...$args));
         $rows = $wpdb->get_results($wpdb->prepare($rows_sql, ...array_merge($args, [self::PER_PAGE, $offset])));
         // phpcs:enable
 
@@ -75,7 +76,7 @@ class AVPVH_Email_Log {
     public static function get(int $id): ?object {
         global $wpdb;
         $table = self::table();
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed prefixed table name
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- fixed prefixed table name
         $row = $wpdb->get_row($wpdb->prepare("SELECT id, `to`, `from`, subject, body, headers, status, response, created_at FROM {$table} WHERE id = %d", $id));
         return $row ?: null;
     }
@@ -104,11 +105,11 @@ class AVPVH_Email_Log {
 
     public static function is_secret_url(string $url): bool {
         $url = html_entity_decode($url, ENT_QUOTES | ENT_HTML5);
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = strtolower((string) wp_parse_url($url, PHP_URL_HOST));
         if (in_array($host, self::SECRET_HOSTS, true)) {
             return true;
         }
-        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        parse_str((string) wp_parse_url($url, PHP_URL_QUERY), $query);
         foreach (array_keys($query) as $name) {
             if (preg_match(self::SECRET_PARAM, (string) $name)) {
                 return true;
