@@ -3175,3 +3175,59 @@ msgstr "Rien n'est lié à cette activité : aucun participant et rien dans la c
 #, php-format
 msgid "Ja, verwijder %s definitief"
 msgstr "Oui, supprimer définitivement %s"
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres"
+msgstr "Adresse de contact"
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres gewijzigd."
+msgstr "Adresse de contact modifiée."
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres niet gewijzigd: geen geldig e-mailadres, of de directory gaf een fout."
+msgstr "Adresse de contact non modifiée : adresse e-mail non valide, ou l’annuaire a renvoyé une erreur."
+
+#: includes/class-member-profile-form.php
+msgid "Dit e-mailadres verwijderen? Het lid kan er dan niet meer mee inloggen."
+msgstr "Supprimer cette adresse e-mail ? Le membre ne pourra plus s’en servir pour se connecter."
+
+#: includes/class-member-profile-form.php
+msgid "Dit is je enige geverifieerde inlogadres en kan niet weg. Voeg eerst een ander adres toe en log daar één keer mee in."
+msgstr "C’est votre seule adresse de connexion vérifiée, elle ne peut pas être supprimée. Ajoutez d’abord une autre adresse et connectez-vous une fois avec celle-ci."
+
+#: includes/class-member-profile-form.php
+msgid "E-mail lid:"
+msgstr "E-mail du membre :"
+
+#: includes/class-member-profile-form.php
+msgid "Er zijn het afgelopen uur al te veel bevestigingsmails verstuurd. Probeer het later opnieuw."
+msgstr "Trop d’e-mails de confirmation ont été envoyés au cours de la dernière heure. Réessayez plus tard."
+
+#: includes/class-member-profile-form.php
+msgid "Het enige geverifieerde inlogadres kan niet weg."
+msgstr "La seule adresse de connexion vérifiée ne peut pas être supprimée."
+
+#: includes/class-member-profile-form.php
+msgid "Hier stuurt de vereniging e-mail naartoe. Het volgt het primaire inlogadres als je dat hieronder wijzigt. Leeg laten en opslaan haalt het adres weg."
+msgstr "C’est à cette adresse que l’association envoie ses e-mails. Elle suit l’adresse de connexion principale si vous la modifiez ci-dessous. La laisser vide et enregistrer supprime l’adresse."
+
+#: includes/class-member-profile-form.php
+msgid "Inlogadres koppelen"
+msgstr "Associer une adresse de connexion"
+
+#: includes/class-member-profile-form.php
+msgid "Inlogstatistieken in Ledendetail"
+msgstr "Statistiques de connexion dans le détail du membre"
+
+#: includes/class-member-profile-form.php
+msgid "Nieuw inlogadres"
+msgstr "Nouvelle adresse de connexion"
+
+#: includes/class-member-profile-form.php
+msgid "Wordt als niet-geverifieerd toegevoegd; de inlogmethode staat vast zodra het lid er zelf mee inlogt."
+msgstr "Ajoutée comme non vérifiée ; la méthode de connexion est fixée dès que le membre s’en sert lui-même pour se connecter."
+
+#: includes/class-member-profile-form.php
+msgid "beheren"
+msgstr "gérer"

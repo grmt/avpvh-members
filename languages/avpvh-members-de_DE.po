@@ -3175,3 +3175,59 @@ msgstr "Zu dieser Aktivität gehört nichts: keine Teilnehmer und nichts in der 
 #, php-format
 msgid "Ja, verwijder %s definitief"
 msgstr "Ja, %s endgültig löschen"
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres"
+msgstr "Kontaktadresse"
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres gewijzigd."
+msgstr "Kontaktadresse geändert."
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres niet gewijzigd: geen geldig e-mailadres, of de directory gaf een fout."
+msgstr "Kontaktadresse nicht geändert: keine gültige E-Mail-Adresse, oder das Verzeichnis meldete einen Fehler."
+
+#: includes/class-member-profile-form.php
+msgid "Dit e-mailadres verwijderen? Het lid kan er dan niet meer mee inloggen."
+msgstr "Diese E-Mail-Adresse entfernen? Das Mitglied kann sich dann nicht mehr damit anmelden."
+
+#: includes/class-member-profile-form.php
+msgid "Dit is je enige geverifieerde inlogadres en kan niet weg. Voeg eerst een ander adres toe en log daar één keer mee in."
+msgstr "Dies ist deine einzige verifizierte Login-Adresse und kann nicht entfernt werden. Füge zuerst eine andere Adresse hinzu und melde dich einmal damit an."
+
+#: includes/class-member-profile-form.php
+msgid "E-mail lid:"
+msgstr "E-Mail des Mitglieds:"
+
+#: includes/class-member-profile-form.php
+msgid "Er zijn het afgelopen uur al te veel bevestigingsmails verstuurd. Probeer het later opnieuw."
+msgstr "In der letzten Stunde wurden zu viele Bestätigungs-E-Mails verschickt. Bitte versuche es später erneut."
+
+#: includes/class-member-profile-form.php
+msgid "Het enige geverifieerde inlogadres kan niet weg."
+msgstr "Die einzige verifizierte Login-Adresse kann nicht entfernt werden."
+
+#: includes/class-member-profile-form.php
+msgid "Hier stuurt de vereniging e-mail naartoe. Het volgt het primaire inlogadres als je dat hieronder wijzigt. Leeg laten en opslaan haalt het adres weg."
+msgstr "Hierhin schickt der Verein E-Mails. Sie folgt der primären Login-Adresse, wenn du diese unten änderst. Leer lassen und speichern entfernt die Adresse."
+
+#: includes/class-member-profile-form.php
+msgid "Inlogadres koppelen"
+msgstr "Login-Adresse verknüpfen"
+
+#: includes/class-member-profile-form.php
+msgid "Inlogstatistieken in Ledendetail"
+msgstr "Login-Statistiken in den Mitgliedsdetails"
+
+#: includes/class-member-profile-form.php
+msgid "Nieuw inlogadres"
+msgstr "Neue Login-Adresse"
+
+#: includes/class-member-profile-form.php
+msgid "Wordt als niet-geverifieerd toegevoegd; de inlogmethode staat vast zodra het lid er zelf mee inlogt."
+msgstr "Wird als nicht verifiziert hinzugefügt; die Login-Methode steht fest, sobald sich das Mitglied selbst damit anmeldet."
+
+#: includes/class-member-profile-form.php
+msgid "beheren"
+msgstr "verwalten"

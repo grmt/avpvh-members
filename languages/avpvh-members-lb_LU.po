@@ -3175,3 +3175,59 @@ msgstr ""
 #, php-format
 msgid "Ja, verwijder %s definitief"
 msgstr ""
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres"
+msgstr "Kontaktadress"
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres gewijzigd."
+msgstr "Kontaktadress geännert."
+
+#: includes/class-member-profile-form.php
+msgid "Contactadres niet gewijzigd: geen geldig e-mailadres, of de directory gaf een fout."
+msgstr "Kontaktadress net geännert: keng gëlteg E-Mail-Adress, oder de Verzeechnes huet e Feeler gemellt."
+
+#: includes/class-member-profile-form.php
+msgid "Dit e-mailadres verwijderen? Het lid kan er dan niet meer mee inloggen."
+msgstr "Dës E-Mail-Adress ewechhuelen? De Member kann sech dann net méi domat aloggen."
+
+#: includes/class-member-profile-form.php
+msgid "Dit is je enige geverifieerde inlogadres en kan niet weg. Voeg eerst een ander adres toe en log daar één keer mee in."
+msgstr "Dëst ass deng eenzeg verifizéiert Login-Adress a kann net ewech. Setz fir d'éischt eng aner Adress derbäi a logg dech eemol domat an."
+
+#: includes/class-member-profile-form.php
+msgid "E-mail lid:"
+msgstr "E-Mail vum Member:"
+
+#: includes/class-member-profile-form.php
+msgid "Er zijn het afgelopen uur al te veel bevestigingsmails verstuurd. Probeer het later opnieuw."
+msgstr "An der leschter Stonn goufen ze vill Bestätegungs-Maile verschéckt. Probéier et méi spéit nach eng Kéier."
+
+#: includes/class-member-profile-form.php
+msgid "Het enige geverifieerde inlogadres kan niet weg."
+msgstr "Déi eenzeg verifizéiert Login-Adress kann net ewech."
+
+#: includes/class-member-profile-form.php
+msgid "Hier stuurt de vereniging e-mail naartoe. Het volgt het primaire inlogadres als je dat hieronder wijzigt. Leeg laten en opslaan haalt het adres weg."
+msgstr "Heihinner schéckt de Veräin E-Mailen. Si follegt der primärer Login-Adress, wann s de déi hei ënnen änners. Eidel loossen a späicheren hëlt d'Adress ewech."
+
+#: includes/class-member-profile-form.php
+msgid "Inlogadres koppelen"
+msgstr "Login-Adress verbannen"
+
+#: includes/class-member-profile-form.php
+msgid "Inlogstatistieken in Ledendetail"
+msgstr "Login-Statistiken an den Memberdetailer"
+
+#: includes/class-member-profile-form.php
+msgid "Nieuw inlogadres"
+msgstr "Nei Login-Adress"
+
+#: includes/class-member-profile-form.php
+msgid "Wordt als niet-geverifieerd toegevoegd; de inlogmethode staat vast zodra het lid er zelf mee inlogt."
+msgstr "Gëtt als net verifizéiert derbäigesat; d'Login-Method steet fest, soubal de Member sech selwer domat aloggt."
+
+#: includes/class-member-profile-form.php
+msgid "beheren"
+msgstr "verwalten"
