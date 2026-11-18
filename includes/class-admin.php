@@ -616,8 +616,7 @@ class AVPVH_Admin {
         $email     = sanitize_email(wp_unslash($_POST['email'] ?? ''));
 
         if ($member_id <= 0 || !$email) {
-            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_error' => 'onvolledig'], admin_url('admin.php')));
-            exit;
+            $this->redirect_after_member_action($member_id, ['identity_error' => 'onvolledig'], ['identity_error' => 'invalid_email']);
         }
 
         // Stored as a placeholder 'email' provider — an admin has no way to
@@ -626,11 +625,27 @@ class AVPVH_Admin {
         // AVPVH_DB::get_identity_by_email() upgrade this to the real
         // provider once the member does.
         if (!AVPVH_DB::ensure_identity($member_id, 'email', $email)) {
-            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_error' => 'limiet'], admin_url('admin.php')));
-            exit;
+            $this->redirect_after_member_action($member_id, ['identity_error' => 'limiet'], ['identity_error' => 'limit']);
         }
 
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'identity_ok' => '1'], admin_url('admin.php')));
+        $this->redirect_after_member_action($member_id, ['identity_ok' => '1'], ['identity_added' => '1']);
+    }
+
+    /**
+     * Ledendetail, or the member-profile page when the form was posted from
+     * there (hidden field avpvh_return=profile, the admin's e-mail block in
+     * AVPVH_Member_Profile_Form). The two pages name their notices
+     * differently, hence the two argument lists.
+     *
+     * @param array<string, string> $detail_args
+     * @param array<string, string> $profile_args
+     */
+    private function redirect_after_member_action(int $member_id, array $detail_args, array $profile_args): never {
+        if (sanitize_key(wp_unslash($_POST['avpvh_return'] ?? '')) === 'profile') {
+            wp_safe_redirect(add_query_arg(['member_id' => $member_id] + $profile_args, AVPVH_Member_Profile_Form::back_url()) . '#avpvh-admin-emails');
+        } else {
+            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id] + $detail_args, admin_url('admin.php')));
+        }
         exit;
     }
 
@@ -820,8 +835,7 @@ class AVPVH_Admin {
         }
 
         if ($email !== '' && !is_email($email)) {
-            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'email_error' => '1'], admin_url('admin.php')));
-            exit;
+            $this->redirect_after_member_action($member_id, ['tab' => 'contact', 'email_error' => '1'], ['email_error' => '1']);
         }
 
         // Clearing the field means "remove it" — same placeholder convention
@@ -834,12 +848,10 @@ class AVPVH_Admin {
 
         $result = AVPVH_Directory::update_user($member->lldap_user_id, ['mail' => $email]);
         if (is_wp_error($result)) {
-            wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'email_error' => '1'], admin_url('admin.php')));
-            exit;
+            $this->redirect_after_member_action($member_id, ['tab' => 'contact', 'email_error' => '1'], ['email_error' => '1']);
         }
 
-        wp_safe_redirect(add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id, 'tab' => 'contact', 'email_updated' => '1'], admin_url('admin.php')));
-        exit;
+        $this->redirect_after_member_action($member_id, ['tab' => 'contact', 'email_updated' => '1'], ['email_updated' => '1']);
     }
 
     // manage_options only, not secretaris — unlike identities/address/flags,

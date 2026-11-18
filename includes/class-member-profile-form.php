@@ -3,6 +3,9 @@ defined('ABSPATH') || exit;
 
 class AVPVH_Member_Profile_Form {
 
+    /** Query args that carry a one-off notice; stripped before redirecting back with a new one. */
+    const NOTICE_ARGS = ['identity_added', 'identity_error', 'identity_removed', 'identity_primary', 'identity_requested', 'identity_email_sent', 'email_updated', 'email_error'];
+
     public function __construct() {
         add_shortcode('avpvh_member_profile', [$this, 'render_shortcode']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
@@ -14,9 +17,12 @@ class AVPVH_Member_Profile_Form {
         add_action('admin_post_avpvh_remove_relationship', [$this, 'handle_remove_relationship']);
     }
 
-    /** Where a profile form action returns to: the page it came from, else the profile page. */
-    private static function back_url(): string {
-        return wp_get_referer() ?: home_url('/member-profile/');
+    /**
+     * Where a profile form action returns to: the page it came from, else the
+     * profile page, without the previous action's notice.
+     */
+    public static function back_url(): string {
+        return remove_query_arg(self::NOTICE_ARGS, wp_get_referer() ?: home_url('/member-profile/'));
     }
 
     /**
@@ -169,6 +175,15 @@ class AVPVH_Member_Profile_Form {
                         <span class="avpvh-summary-card__label"><?php esc_html_e('Ingelogd als:', 'avpvh-members'); ?></span>
                         <?php echo esc_html($user->user_email); ?>
                     </div>
+                    <?php if ($is_admin_edit) :
+                        $member_email = AVPVH_Member_Merge::real_email((string) ($member->email ?? ''));
+                    ?>
+                        <div class="avpvh-summary-card__row">
+                            <span class="avpvh-summary-card__label"><?php esc_html_e('E-mail lid:', 'avpvh-members'); ?></span>
+                            <?php echo $member_email !== '' ? esc_html($member_email) : '<em>' . esc_html__('geen', 'avpvh-members') . '</em>'; ?>
+                            (<a href="#avpvh-admin-emails"><?php esc_html_e('beheren', 'avpvh-members'); ?></a>)
+                        </div>
+                    <?php endif; ?>
                     <?php if ($lldap_groups) : ?>
                         <div class="avpvh-summary-card__row">
                             <span class="avpvh-summary-card__label"><?php esc_html_e('Groepen:', 'avpvh-members'); ?></span>
@@ -417,7 +432,9 @@ class AVPVH_Member_Profile_Form {
                 <button type="submit" class="button button-primary" disabled><?php esc_html_e('Profiel bijwerken', 'avpvh-members'); ?></button>
             </form>
 
-            <?php if (!$is_admin_edit) : ?>
+            <?php if ($is_admin_edit) : ?>
+                <?php $this->render_admin_emails($member); ?>
+            <?php else : ?>
                 <?php $this->render_identities($member, $is_household_edit); ?>
             <?php endif; ?>
 
@@ -485,31 +502,7 @@ class AVPVH_Member_Profile_Form {
                 <?php esc_html_e('Je kunt tot drie e-mailadressen koppelen om mee in te loggen, in elke combinatie van methodes. Om een adres toe te voegen moet je er daadwerkelijk mee inloggen, zodat we weten dat het echt van jou is.', 'avpvh-members'); ?>
             </p>
 
-            <?php if (!empty($_GET['identity_added'])) : ?>
-                <p class="avpvh-identity-notice"><?php esc_html_e('E-mailadres toegevoegd.', 'avpvh-members'); ?></p>
-            <?php elseif (!empty($_GET['identity_error'])) : ?>
-                <p class="avpvh-identity-notice avpvh-identity-notice--error">
-                    <?php
-                    $errors = [
-                        'in_use'        => __('Dat e-mailadres is al aan een ander lid gekoppeld.', 'avpvh-members'),
-                        'not_you'       => __('Er ging iets mis met de verificatie — probeer het opnieuw.', 'avpvh-members'),
-                        'limit'         => __('Dit adres kon niet worden toegevoegd (maximaal drie).', 'avpvh-members'),
-                        'invalid_email' => __('Dat is geen geldig e-mailadres.', 'avpvh-members'),
-                        'too_many_mails' => __('Er zijn het afgelopen uur al te veel bevestigingsmails verstuurd. Probeer het later opnieuw.', 'avpvh-members'),
-                        'last_identity' => __('Dit is je enige geverifieerde inlogadres en kan niet weg. Voeg eerst een ander adres toe en log daar één keer mee in.', 'avpvh-members'),
-                    ];
-                    echo esc_html($errors[sanitize_key(wp_unslash($_GET['identity_error']))] ?? __('Er ging iets mis.', 'avpvh-members'));
-                    ?>
-                </p>
-            <?php elseif (!empty($_GET['identity_removed'])) : ?>
-                <p class="avpvh-identity-notice"><?php esc_html_e('E-mailadres verwijderd.', 'avpvh-members'); ?></p>
-            <?php elseif (!empty($_GET['identity_primary'])) : ?>
-                <p class="avpvh-identity-notice"><?php esc_html_e('Primair e-mailadres gewijzigd.', 'avpvh-members'); ?></p>
-            <?php elseif (!empty($_GET['identity_requested'])) : ?>
-                <p class="avpvh-identity-notice"><?php printf(/* translators: %s: first name */ esc_html__('Verzoek verstuurd — %s heeft een e-mail gekregen met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?></p>
-            <?php elseif (!empty($_GET['identity_email_sent'])) : ?>
-                <p class="avpvh-identity-notice"><?php esc_html_e('Bevestigingslink verstuurd — check je inbox om het adres te koppelen.', 'avpvh-members'); ?></p>
-            <?php endif; ?>
+            <?php self::render_identity_notice($member); ?>
 
             <table class="avpvh-identities-table">
                 <thead class="screen-reader-text"><tr><th scope="col"><?php esc_html_e('E-mailadres', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Inlogmethode', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Verificatie', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Primair', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Acties', 'avpvh-members'); ?></th></tr></thead>
@@ -603,6 +596,135 @@ class AVPVH_Member_Profile_Form {
                     </div>
                 </div>
             <?php endif; ?>
+        </fieldset>
+        <?php
+    }
+
+    /** The one-off notice after an e-mail/identity action, from the query string. */
+    private static function render_identity_notice(object $member): void {
+        ?>
+            <?php if (!empty($_GET['identity_added'])) : ?>
+                <p class="avpvh-identity-notice"><?php esc_html_e('E-mailadres toegevoegd.', 'avpvh-members'); ?></p>
+            <?php elseif (!empty($_GET['identity_error'])) : ?>
+                <p class="avpvh-identity-notice avpvh-identity-notice--error">
+                    <?php
+                    $errors = [
+                        'in_use'        => __('Dat e-mailadres is al aan een ander lid gekoppeld.', 'avpvh-members'),
+                        'not_you'       => __('Er ging iets mis met de verificatie — probeer het opnieuw.', 'avpvh-members'),
+                        'limit'         => __('Dit adres kon niet worden toegevoegd (maximaal drie).', 'avpvh-members'),
+                        'invalid_email' => __('Dat is geen geldig e-mailadres.', 'avpvh-members'),
+                        'too_many_mails' => __('Er zijn het afgelopen uur al te veel bevestigingsmails verstuurd. Probeer het later opnieuw.', 'avpvh-members'),
+                        'last_identity' => __('Dit is je enige geverifieerde inlogadres en kan niet weg. Voeg eerst een ander adres toe en log daar één keer mee in.', 'avpvh-members'),
+                    ];
+                    echo esc_html($errors[sanitize_key(wp_unslash($_GET['identity_error']))] ?? __('Er ging iets mis.', 'avpvh-members'));
+                    ?>
+                </p>
+            <?php elseif (!empty($_GET['identity_removed'])) : ?>
+                <p class="avpvh-identity-notice"><?php esc_html_e('E-mailadres verwijderd.', 'avpvh-members'); ?></p>
+            <?php elseif (!empty($_GET['identity_primary'])) : ?>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Primair e-mailadres gewijzigd.', 'avpvh-members'); ?></p>
+            <?php elseif (!empty($_GET['identity_requested'])) : ?>
+                <p class="avpvh-identity-notice"><?php printf(/* translators: %s: first name */ esc_html__('Verzoek verstuurd — %s heeft een e-mail gekregen met instructies.', 'avpvh-members'), esc_html($member->first_name)); ?></p>
+            <?php elseif (!empty($_GET['identity_email_sent'])) : ?>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Bevestigingslink verstuurd — check je inbox om het adres te koppelen.', 'avpvh-members'); ?></p>
+            <?php elseif (!empty($_GET['email_updated'])) : ?>
+                <p class="avpvh-identity-notice"><?php esc_html_e('Contactadres gewijzigd.', 'avpvh-members'); ?></p>
+            <?php elseif (!empty($_GET['email_error'])) : ?>
+                <p class="avpvh-identity-notice avpvh-identity-notice--error"><?php esc_html_e('Contactadres niet gewijzigd: geen geldig e-mailadres, of de directory gaf een fout.', 'avpvh-members'); ?></p>
+            <?php endif; ?>
+
+        <?php
+    }
+
+    /**
+     * The e-mail block a member admin sees on someone else's profile
+     * (?member_id=), in place of the self-service render_identities(): the
+     * account's contact address, and the login addresses. Making one primary
+     * or removing one goes through the same handlers as self-service (they
+     * already allow member admins and e-mail the change); setting the contact
+     * address and adding an unverified login address go through Ledendetail's
+     * handlers in AVPVH_Admin, which send the admin back here.
+     */
+    private function render_admin_emails(object $member): void {
+        $identities = AVPVH_DB::get_member_identities((int) $member->id);
+        $contact = AVPVH_Member_Merge::real_email((string) ($member->email ?? ''));
+        $post_url = admin_url('admin-post.php');
+        $provider_labels = [
+            'email'     => __('E-mail (link)', 'avpvh-members'),
+            'google'    => 'Google',
+            'microsoft' => 'Microsoft',
+        ];
+        ?>
+        <fieldset class="avpvh-identities" id="avpvh-admin-emails">
+            <legend><?php esc_html_e('E-mailadressen', 'avpvh-members'); ?></legend>
+            <?php self::render_identity_notice($member); ?>
+
+            <p><strong><?php esc_html_e('Contactadres', 'avpvh-members'); ?></strong></p>
+            <form method="post" action="<?php echo esc_url($post_url); ?>"
+                onsubmit="return confirm('<?php echo esc_js(__('Contactadres van het account wijzigen?', 'avpvh-members')); ?>');">
+                <?php wp_nonce_field('avpvh_update_email'); ?>
+                <input type="hidden" name="action" value="avpvh_update_email">
+                <input type="hidden" name="avpvh_return" value="profile">
+                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                <label class="screen-reader-text" for="avpvh-admin-contact-email"><?php esc_html_e('Contactadres', 'avpvh-members'); ?></label>
+                <input type="email" id="avpvh-admin-contact-email" name="email" value="<?php echo esc_attr($contact); ?>" placeholder="naam@voorbeeld.nl">
+                <button type="submit" class="button"><?php esc_html_e('Wijzigen', 'avpvh-members'); ?></button>
+            </form>
+            <small class="avpvh-field-hint"><?php esc_html_e('Hier stuurt de vereniging e-mail naartoe. Het volgt het primaire inlogadres als je dat hieronder wijzigt. Leeg laten en opslaan haalt het adres weg.', 'avpvh-members'); ?></small>
+
+            <p><strong><?php esc_html_e('Inlogadressen', 'avpvh-members'); ?></strong></p>
+            <table class="avpvh-identities-table">
+                <thead class="screen-reader-text"><tr><th scope="col"><?php esc_html_e('E-mailadres', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Inlogmethode', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Verificatie', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Primair', 'avpvh-members'); ?></th><th scope="col"><?php esc_html_e('Acties', 'avpvh-members'); ?></th></tr></thead>
+                <?php foreach ($identities as $identity) : ?>
+                    <tr>
+                        <td><?php echo esc_html($identity->email); ?></td>
+                        <td><?php echo esc_html($provider_labels[$identity->provider] ?? $identity->provider); ?></td>
+                        <td><?php echo empty($identity->verified_at) ? '<span class="avpvh-identity-unverified">' . esc_html__('Niet geverifieerd', 'avpvh-members') . '</span>' : ''; ?></td>
+                        <td><?php echo $identity->is_primary ? esc_html__('Primair', 'avpvh-members') : ''; ?></td>
+                        <td>
+                            <?php if (!$identity->is_primary) : ?>
+                            <form method="post" action="<?php echo esc_url($post_url); ?>" style="display:inline-block">
+                                <?php wp_nonce_field('avpvh_make_primary_identity'); ?>
+                                <input type="hidden" name="action" value="avpvh_make_primary_identity">
+                                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                                <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
+                                <button type="submit" class="button button-small"><?php esc_html_e('Maak primair', 'avpvh-members'); ?></button>
+                            </form>
+                            <?php endif; ?>
+                            <?php if (AVPVH_DB::can_delete_identity($identities, (int) $identity->id)) : ?>
+                            <form method="post" action="<?php echo esc_url($post_url); ?>" style="display:inline-block"
+                                onsubmit="return confirm('<?php echo esc_js(__('Dit e-mailadres verwijderen? Het lid kan er dan niet meer mee inloggen.', 'avpvh-members')); ?>');">
+                                <?php wp_nonce_field('avpvh_remove_identity'); ?>
+                                <input type="hidden" name="action" value="avpvh_remove_identity">
+                                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                                <input type="hidden" name="identity_id" value="<?php echo esc_attr($identity->id); ?>">
+                                <button type="submit" class="button button-small"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
+                            </form>
+                            <?php else : ?>
+                            <span title="<?php esc_attr_e('Het enige geverifieerde inlogadres kan niet weg.', 'avpvh-members'); ?>">—</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$identities) : ?>
+                    <tr><td colspan="5"><em><?php esc_html_e('Nog geen e-mailadressen gekoppeld.', 'avpvh-members'); ?></em></td></tr>
+                <?php endif; ?>
+            </table>
+
+            <?php if (count($identities) < 3) : ?>
+            <form method="post" action="<?php echo esc_url($post_url); ?>" class="avpvh-identities-add">
+                <?php wp_nonce_field('avpvh_add_identity'); ?>
+                <input type="hidden" name="action" value="avpvh_add_identity">
+                <input type="hidden" name="avpvh_return" value="profile">
+                <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
+                <label class="screen-reader-text" for="avpvh-admin-new-identity"><?php esc_html_e('Nieuw inlogadres', 'avpvh-members'); ?></label>
+                <input type="email" id="avpvh-admin-new-identity" name="email" placeholder="naam@voorbeeld.nl" required>
+                <button type="submit" class="button"><?php esc_html_e('Inlogadres koppelen', 'avpvh-members'); ?></button>
+                <small class="avpvh-field-hint"><?php esc_html_e('Wordt als niet-geverifieerd toegevoegd; de inlogmethode staat vast zodra het lid er zelf mee inlogt.', 'avpvh-members'); ?></small>
+            </form>
+            <?php endif; ?>
+
+            <p><small><a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-member-detail', 'id' => (int) $member->id], admin_url('admin.php'))); ?>"><?php esc_html_e('Inlogstatistieken in Ledendetail', 'avpvh-members'); ?></a></small></p>
         </fieldset>
         <?php
     }

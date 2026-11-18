@@ -28,6 +28,7 @@ bash -n scripts/promote-scrubbed-main.sh
 ```bash
 php scripts/test-identity-helpers.php
 php scripts/test-identity-limit.php
+php scripts/test-admin-email-return.php
 php scripts/test-role-labels.php
 php scripts/test-address-normalizer.php
 php scripts/test-name-matcher-loose.php
