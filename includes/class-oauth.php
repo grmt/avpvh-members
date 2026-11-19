@@ -78,7 +78,7 @@ class AVPVH_OAuth {
             if (!$own_member || (int) $own_member->id !== $add_member_id) {
                 wp_die('Geen toegang.', 'Fout', ['response' => 403]);
             }
-            // JSON, not a serialized array: AVPVH_Visitor_Delete::tokens()
+            // JSON, not a serialized array: AVPVH_Visitor_Delete_Accounts::tokens()
             // finds a member's pending flows by decoding these.
             set_transient($state_key, wp_json_encode([
                 'provider'           => $provider,
