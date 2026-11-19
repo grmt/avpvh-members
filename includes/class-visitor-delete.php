@@ -120,6 +120,36 @@ class AVPVH_Visitor_Delete {
         }
     }
 
+    /** Children of a member's records that have no member_id of their own: [child, column, parent]. */
+    private const INDIRECT_CHILDREN = [
+        ['avm_activity_participation_days', 'participation_id', 'avm_activity_participation'],
+        ['avb_order_items', 'order_id', 'avb_orders'],
+        ['avb_dispute_events', 'dispute_id', 'avb_disputes'],
+        ['avb_payment_requests', 'fee_item_id', 'avb_fee_items'],
+        ['avb_transaction_allocations', 'fee_item_id', 'avb_fee_items'],
+    ];
+
+    /** Deleted before everything else, so foreign keys never block the removal. */
+    private const DELETE_FIRST = ['avm_activity_participation_days', 'avb_order_items', 'avb_dispute_events', 'avb_payment_requests', 'avb_transaction_allocations', 'avb_disputes', 'avb_congress_registrations', 'avb_book_orders', 'avb_orders'];
+
+    private const INT_TYPES = ['tinyint', 'smallint', 'mediumint', 'int', 'bigint'];
+
+    /** The blocker messages used in more than one place. */
+    private static function blocker(string $reason): string {
+        return match ($reason) {
+            'shared_email' => __('Een inlogadres is ook aan een andere persoon gekoppeld.', 'avpvh-members'),
+            'other_person' => __('Gekoppelde gegevens horen ook bij een andere persoon. Verwijderen is geblokkeerd.', 'avpvh-members'),
+            'payment' => __('Er zijn geboekte betalingen gekoppeld. Deze bezoeker kan niet definitief worden verwijderd.', 'avpvh-members'),
+            'fulfilled' => __('Er zijn al afgehandelde bestellingen gekoppeld. Verwijderen is geblokkeerd.', 'avpvh-members'),
+            'engine' => __('De gekoppelde gegevens ondersteunen geen veilige database-transactie.', 'avpvh-members'),
+        };
+    }
+
+    /**
+     * Everything the removal of visitor $id touches, and every reason not to.
+     * With $lock, all rows read are locked (FOR UPDATE) inside the caller's
+     * transaction. The fingerprint signs the whole plan.
+     */
     private static function snapshot(int $id, bool $lock = false): array {
         global $wpdb;
         $suffix = $lock ? ' FOR UPDATE' : '';
@@ -127,6 +157,35 @@ class AVPVH_Visitor_Delete {
         if (!$member) {
             throw new \RuntimeException(__('Deze bezoeker bestaat niet meer.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
+        $blockers = self::member_blockers($member);
+        $schema = self::schema();
+        array_push($blockers, ...self::core_engine_blockers());
+        if (!isset($schema['avm_member_identities'])) {
+            throw new \RuntimeException('identity schema incomplete');
+        }
+        [$account, $groups] = self::directory_account((string) $member['lldap_user_id'], $blockers);
+        $emails = self::emails($id, $member, $account, $schema, $lock);
+        array_push($blockers, ...self::shared_email_blockers($id, $member, $emails, $schema, $suffix));
+        $users = self::users($id, $member, $emails, $suffix, $blockers);
+        $user_ids = array_column($users, 'ID');
+        $records = self::member_records($id, $user_ids, $emails, $schema, $lock, $blockers);
+        // Fee references can belong to a different person or an unfamiliar
+        // extension. Include them before selecting order/dispute children.
+        $fee_ids = array_column($records[$wpdb->prefix . 'avb_fee_items']['rows'] ?? [], 'id');
+        $records = self::fee_records($id, $fee_ids, $records, $schema, $lock, $blockers);
+        $records = self::child_records($records, $schema, $lock, $blockers);
+        array_push($blockers, ...self::transaction_blockers($id, $fee_ids, $schema, $suffix));
+        array_push($blockers, ...self::engine_blockers($records, $schema));
+        $records = self::children_first($records);
+        $folders = self::folders($records, $users, $blockers, $lock, $schema);
+        $tokens = self::tokens($id, $user_ids, $lock);
+        $blockers = array_values(array_unique($blockers));
+        $plan = compact('member', 'account', 'groups', 'emails', 'users', 'records', 'folders', 'tokens', 'blockers');
+        $plan['fingerprint'] = hash_hmac('sha256', wp_json_encode($plan), wp_salt('nonce'));
+        return $plan;
+    }
+
+    private static function member_blockers(array $member): array {
         $blockers = [];
         if ($member['status'] !== 'visitor') {
             $blockers[] = __('Alleen bezoekers kunnen definitief worden verwijderd.', 'avpvh-members');
@@ -134,18 +193,26 @@ class AVPVH_Visitor_Delete {
         if (is_multisite()) {
             $blockers[] = __('Gedeelde accounts in een WordPress-netwerk moeten apart worden beheerd.', 'avpvh-members');
         }
-        $schema = self::schema();
+        return $blockers;
+    }
+
+    /** WordPress' own user and option tables must support the transaction too. */
+    private static function core_engine_blockers(): array {
+        global $wpdb;
+        $blockers = [];
         $core_tables = self::strings('TABLE_NAME', [$wpdb->users, $wpdb->usermeta, $wpdb->options]);
         foreach (self::rows("SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND $core_tables") as $table) {
             if ($table['ENGINE'] !== 'InnoDB') {
-                $blockers[] = __('De gekoppelde gegevens ondersteunen geen veilige database-transactie.', 'avpvh-members');
+                $blockers[] = self::blocker('engine');
             }
         }
-        if (!isset($schema['avm_member_identities'])) {
-            throw new \RuntimeException('identity schema incomplete');
-        }
-        $account = AVPVH_Directory::get_user((string) $member['lldap_user_id']);
-        $groups = AVPVH_Directory::get_user_groups((string) $member['lldap_user_id']);
+        return $blockers;
+    }
+
+    /** @return array{0: mixed, 1: list<string>} the directory account and its sorted groups */
+    private static function directory_account(string $uid, array &$blockers): array {
+        $account = AVPVH_Directory::get_user($uid);
+        $groups = AVPVH_Directory::get_user_groups($uid);
         if (is_wp_error($groups)) {
             throw new \RuntimeException('directory unavailable');
         }
@@ -153,17 +220,22 @@ class AVPVH_Visitor_Delete {
         if (array_diff($groups, ['users', 'pvh-users'])) {
             $blockers[] = __('Dit account heeft groepsrechten. Verwijder die eerst voordat je het als testbezoeker verwijdert.', 'avpvh-members');
         }
-        $emails = [];
+        return [$account, $groups];
+    }
+
+    /** Every address the visitor can log in or be mailed with, lowercase and sorted. */
+    private static function emails(int $id, array $member, $account, array $schema, bool $lock): array {
+        global $wpdb;
         $identities = self::select('avm_member_identities', $wpdb->prepare('member_id = %d', $id), $schema, $lock);
-        foreach ($identities['rows'] as $identity) {
-            $emails[] = strtolower($identity['email']);
-        }
-        if (!empty($account['mail'] ?? $account['email'] ?? '')) {
-            $emails[] = strtolower($account['mail'] ?? $account['email']);
+        $emails = array_map(static fn(array $identity): string => strtolower($identity['email']), $identities['rows']);
+        $directory_mail = $account['mail'] ?? $account['email'] ?? '';
+        if (!empty($directory_mail)) {
+            $emails[] = strtolower($directory_mail);
         }
         // Cache is a fallback for a missing remote account during a retry.
         if (isset($schema['avm_directory_users'])) {
-            foreach (self::rows($wpdb->prepare("SELECT email FROM {$wpdb->prefix}avm_directory_users WHERE user_id = %s$suffix", $member['lldap_user_id'])) as $cached) {
+            $sql = $wpdb->prepare("SELECT email FROM {$wpdb->prefix}avm_directory_users WHERE user_id = %s", $member['lldap_user_id']);
+            foreach (self::rows($sql . ($lock ? ' FOR UPDATE' : '')) as $cached) {
                 $emails[] = strtolower($cached['email']);
             }
         }
@@ -173,63 +245,86 @@ class AVPVH_Visitor_Delete {
         }
         $emails = array_values(array_unique(array_filter($emails)));
         sort($emails);
-        if ($emails) {
-            $where = self::strings('email', $emails);
-            if (self::rows($wpdb->prepare("SELECT id FROM {$wpdb->prefix}avm_member_identities WHERE ($where) AND member_id <> %d$suffix", $id))) {
-                $blockers[] = __('Een inlogadres is ook aan een andere persoon gekoppeld.', 'avpvh-members');
-            }
-            if (isset($schema['avm_directory_users'])) {
-                $where = self::strings('email', $emails);
-                if (self::rows($wpdb->prepare("SELECT user_id FROM {$wpdb->prefix}avm_directory_users WHERE ($where) AND user_id <> %s$suffix", $member['lldap_user_id']))) {
-                    $blockers[] = __('Een inlogadres is ook aan een andere persoon gekoppeld.', 'avpvh-members');
-                }
-            }
+        return $emails;
+    }
+
+    private static function shared_email_blockers(int $id, array $member, array $emails, array $schema, string $suffix): array {
+        global $wpdb;
+        if (!$emails) {
+            return [];
         }
-        $users = [];
+        $blockers = [];
+        $where = self::strings('email', $emails);
+        if (self::rows($wpdb->prepare("SELECT id FROM {$wpdb->prefix}avm_member_identities WHERE ($where) AND member_id <> %d$suffix", $id))) {
+            $blockers[] = self::blocker('shared_email');
+        }
+        if (isset($schema['avm_directory_users'])
+            && self::rows($wpdb->prepare("SELECT user_id FROM {$wpdb->prefix}avm_directory_users WHERE ($where) AND user_id <> %s$suffix", $member['lldap_user_id']))) {
+            $blockers[] = self::blocker('shared_email');
+        }
+        return $blockers;
+    }
+
+    /** The WordPress accounts linked by ID or by e-mail address, with their roles and meta. */
+    private static function users(int $id, array $member, array $emails, string $suffix, array &$blockers): array {
+        global $wpdb;
         $user_where = $wpdb->prepare('ID = %d', (int) ($member['wp_user_id'] ?? 0));
         if ($emails) {
             $user_where .= ' OR ' . self::strings('user_email', $emails);
         }
+        $users = [];
         foreach (self::rows("SELECT ID, user_login, user_email FROM {$wpdb->users} WHERE $user_where$suffix") as $user) {
             $wp_user = get_userdata((int) $user['ID']);
             $user['roles'] = $wp_user ? $wp_user->roles : [];
-            $privileged = $wp_user && (user_can($wp_user, 'manage_options') || user_can($wp_user, 'edit_users')
-                || user_can($wp_user, 'delete_users') || user_can($wp_user, 'edit_others_posts'));
-            if ((int) $user['ID'] === get_current_user_id() || $privileged || array_diff($user['roles'], ['subscriber', 'contributor'])) {
-                $blockers[] = __('Je kunt jezelf of een account met extra WordPress-rechten niet verwijderen.', 'avpvh-members');
-            }
-            $other = self::rows($wpdb->prepare("SELECT id FROM {$wpdb->prefix}avm_members WHERE wp_user_id = %d AND id <> %d$suffix", $user['ID'], $id));
-            if ($other) {
-                $blockers[] = __('Het WordPress-account is ook aan een andere persoon gekoppeld.', 'avpvh-members');
-            }
-            // Do not let wp_delete_user remove published content or comments.
-            if (self::rows($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_author = %d$suffix", $user['ID']))
-                || self::rows($wpdb->prepare("SELECT comment_ID FROM {$wpdb->comments} WHERE user_id = %d$suffix", $user['ID']))) {
-                $blockers[] = __('Dit account heeft berichten of reacties. Beheer die eerst apart.', 'avpvh-members');
-            }
+            array_push($blockers, ...self::user_blockers($user, $wp_user, $id, $suffix));
             $user['meta'] = self::rows($wpdb->prepare("SELECT meta_key, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d$suffix", $user['ID']));
             $users[] = $user;
         }
-        $user_ids = array_column($users, 'ID');
+        return $users;
+    }
+
+    private static function user_blockers(array $user, $wp_user, int $id, string $suffix): array {
+        global $wpdb;
+        $blockers = [];
+        if (self::is_protected_account($user, $wp_user)) {
+            $blockers[] = __('Je kunt jezelf of een account met extra WordPress-rechten niet verwijderen.', 'avpvh-members');
+        }
+        if (self::rows($wpdb->prepare("SELECT id FROM {$wpdb->prefix}avm_members WHERE wp_user_id = %d AND id <> %d$suffix", $user['ID'], $id))) {
+            $blockers[] = __('Het WordPress-account is ook aan een andere persoon gekoppeld.', 'avpvh-members');
+        }
+        // Do not let wp_delete_user remove published content or comments.
+        if (self::rows($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_author = %d$suffix", $user['ID']))
+            || self::rows($wpdb->prepare("SELECT comment_ID FROM {$wpdb->comments} WHERE user_id = %d$suffix", $user['ID']))) {
+            $blockers[] = __('Dit account heeft berichten of reacties. Beheer die eerst apart.', 'avpvh-members');
+        }
+        return $blockers;
+    }
+
+    /** The current user, or an account with any role or capability beyond a plain subscriber/contributor. */
+    private static function is_protected_account(array $user, $wp_user): bool {
+        if ((int) $user['ID'] === get_current_user_id() || array_diff($user['roles'], ['subscriber', 'contributor'])) {
+            return true;
+        }
+        if (!$wp_user) {
+            return false;
+        }
+        foreach (['manage_options', 'edit_users', 'delete_users', 'edit_others_posts'] as $capability) {
+            if (user_can($wp_user, $capability)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Rows in every table that point at the visitor by member ID, user ID or (for known tables) e-mail. */
+    private static function member_records(int $id, array $user_ids, array $emails, array $schema, bool $lock, array &$blockers): array {
+        global $wpdb;
         $records = [];
         foreach ($schema as $table => $columns) {
             if ($table === 'avm_members' || $table === 'avm_directory_users') {
                 continue;
             }
-            $clauses = [];
-            foreach ($columns['columns'] as $column => $type) {
-                if (!in_array($type, ['tinyint', 'smallint', 'mediumint', 'int', 'bigint'], true)) {
-                    continue;
-                }
-                if ($column === 'member_id' || str_ends_with($column, '_member_id')) {
-                    $clauses[] = $wpdb->prepare("`$column` = %d", $id);
-                } elseif (in_array($column, ['user_id', 'wp_user_id'], true) && $user_ids) {
-                    $clauses[] = self::ints($column, $user_ids);
-                }
-            }
-            if (in_array($table, self::EMAIL_TABLES, true) && $emails && isset($columns['columns']['email'])) {
-                $clauses[] = self::strings('email', $emails);
-            }
+            $clauses = self::member_clauses($table, $columns['columns'], $id, $user_ids, $emails);
             if (!$clauses) {
                 continue;
             }
@@ -239,49 +334,82 @@ class AVPVH_Visitor_Delete {
             }
             $records[$wpdb->prefix . $table] = $record;
             foreach ($record['rows'] as $row) {
-                if (isset($row['member_id']) && (int) $row['member_id'] > 0 && (int) $row['member_id'] !== $id && $table !== 'avm_relationships') {
-                    $blockers[] = __('Gekoppelde gegevens horen ook bij een andere persoon. Verwijderen is geblokkeerd.', 'avpvh-members');
-                }
-                if (($table === 'avm_fees' && ((float) $row['amount_paid'] != 0 || !empty($row['paid_date']) || $row['status'] === 'paid'))
-                    || $table === 'avb_transaction_allocations') {
-                    $blockers[] = __('Er zijn geboekte betalingen gekoppeld. Deze bezoeker kan niet definitief worden verwijderd.', 'avpvh-members');
-                }
-                if (isset($row['distribution_status']) && $row['distribution_status'] !== 'pending') {
-                    $blockers[] = __('Er zijn al afgehandelde bestellingen gekoppeld. Verwijderen is geblokkeerd.', 'avpvh-members');
-                }
+                array_push($blockers, ...self::member_row_blockers($table, $row, $id));
             }
         }
-        // Fee references can belong to a different person or an unfamiliar
-        // extension. Include them before selecting order/dispute children.
-        $fee_ids = array_column($records[$wpdb->prefix . 'avb_fee_items']['rows'] ?? [], 'id');
+        return $records;
+    }
+
+    private static function member_clauses(string $table, array $columns, int $id, array $user_ids, array $emails): array {
+        global $wpdb;
+        $clauses = [];
+        foreach ($columns as $column => $type) {
+            if (!in_array($type, self::INT_TYPES, true)) {
+                continue;
+            }
+            if ($column === 'member_id' || str_ends_with($column, '_member_id')) {
+                $clauses[] = $wpdb->prepare("`$column` = %d", $id);
+            } elseif (in_array($column, ['user_id', 'wp_user_id'], true) && $user_ids) {
+                $clauses[] = self::ints($column, $user_ids);
+            }
+        }
+        if (in_array($table, self::EMAIL_TABLES, true) && $emails && isset($columns['email'])) {
+            $clauses[] = self::strings('email', $emails);
+        }
+        return $clauses;
+    }
+
+    private static function member_row_blockers(string $table, array $row, int $id): array {
+        $blockers = [];
+        // A relationship row is the other person's link to this visitor; it goes with the visitor.
+        if ($table !== 'avm_relationships' && self::belongs_to_other($row, $id)) {
+            $blockers[] = self::blocker('other_person');
+        }
+        if (self::is_booked_payment($table, $row)) {
+            $blockers[] = self::blocker('payment');
+        }
+        if (self::is_fulfilled($row)) {
+            $blockers[] = self::blocker('fulfilled');
+        }
+        return $blockers;
+    }
+
+    /** Rows in every table with a fee_item_id that points at one of the visitor's fee items. */
+    private static function fee_records(int $id, array $fee_ids, array $records, array $schema, bool $lock, array &$blockers): array {
+        global $wpdb;
         foreach ($schema as $table => $columns) {
             if (!isset($columns['columns']['fee_item_id'])) {
                 continue;
             }
-            $where = self::ints('fee_item_id', $fee_ids);
-            $existing = $records[$wpdb->prefix . $table]['where'] ?? '';
-            $record = self::select($table, $existing ? "($existing) OR $where" : $where, $schema, $lock);
+            $record = self::extend($records, $table, self::ints('fee_item_id', $fee_ids), $schema, $lock);
             $records[$wpdb->prefix . $table] = $record;
             foreach ($record['rows'] as $row) {
-                if ($table === 'avb_transaction_allocations') {
-                    $blockers[] = __('Er zijn geboekte betalingen gekoppeld. Deze bezoeker kan niet definitief worden verwijderd.', 'avpvh-members');
-                } elseif (!isset(self::table_labels()[$table]) || (isset($row['member_id']) && (int) $row['member_id'] > 0 && (int) $row['member_id'] !== $id)) {
-                    $blockers[] = __('Gekoppelde gegevens horen ook bij een andere persoon. Verwijderen is geblokkeerd.', 'avpvh-members');
-                }
-                if (isset($row['distribution_status']) && $row['distribution_status'] !== 'pending') {
-                    $blockers[] = __('Er zijn al afgehandelde bestellingen gekoppeld. Verwijderen is geblokkeerd.', 'avpvh-members');
-                }
+                array_push($blockers, ...self::fee_row_blockers($table, $row, $id));
             }
         }
-        // Indirect children have no member_id of their own. Select them even
-        // when empty to acquire insertion range locks on the parent IDs.
-        foreach ([
-            ['avm_activity_participation_days', 'participation_id', 'avm_activity_participation'],
-            ['avb_order_items', 'order_id', 'avb_orders'],
-            ['avb_dispute_events', 'dispute_id', 'avb_disputes'],
-            ['avb_payment_requests', 'fee_item_id', 'avb_fee_items'],
-            ['avb_transaction_allocations', 'fee_item_id', 'avb_fee_items'],
-        ] as [$child, $column, $parent]) {
+        return $records;
+    }
+
+    private static function fee_row_blockers(string $table, array $row, int $id): array {
+        $blockers = [];
+        if ($table === 'avb_transaction_allocations') {
+            $blockers[] = self::blocker('payment');
+        } elseif (!isset(self::table_labels()[$table]) || self::belongs_to_other($row, $id)) {
+            $blockers[] = self::blocker('other_person');
+        }
+        if (self::is_fulfilled($row)) {
+            $blockers[] = self::blocker('fulfilled');
+        }
+        return $blockers;
+    }
+
+    /**
+     * Indirect children have no member_id of their own. Select them even
+     * when empty to acquire insertion range locks on the parent IDs.
+     */
+    private static function child_records(array $records, array $schema, bool $lock, array &$blockers): array {
+        global $wpdb;
+        foreach (self::INDIRECT_CHILDREN as [$child, $column, $parent]) {
             if (!isset($schema[$child])) {
                 if ($child === 'avb_transaction_allocations' && isset($schema[$parent])) {
                     throw new \RuntimeException('payment schema incomplete');
@@ -289,46 +417,82 @@ class AVPVH_Visitor_Delete {
                 continue;
             }
             $ids = array_column($records[$wpdb->prefix . $parent]['rows'] ?? [], 'id');
-            $where = self::ints($column, $ids);
-            $existing = $records[$wpdb->prefix . $child]['where'] ?? '';
-            $record = self::select($child, $existing ? "($existing) OR $where" : $where, $schema, $lock);
+            $record = self::extend($records, $child, self::ints($column, $ids), $schema, $lock);
             $records[$wpdb->prefix . $child] = $record;
             if ($child === 'avb_transaction_allocations' && $record['rows']) {
-                $blockers[] = __('Er zijn geboekte betalingen gekoppeld. Deze bezoeker kan niet definitief worden verwijderd.', 'avpvh-members');
+                $blockers[] = self::blocker('payment');
             }
         }
-        if (isset($schema['avb_transactions'])) {
-            foreach (self::rows("SELECT id, suggested_member_ids, draft_data FROM {$wpdb->prefix}avb_transactions WHERE suggested_member_ids <> '' OR draft_data IS NOT NULL$suffix") as $transaction) {
-                $draft = json_decode($transaction['draft_data'] ?? 'null', true);
-                if (in_array((string) $id, array_map('trim', explode(',', $transaction['suggested_member_ids'])), true) || self::mentions_member($draft, $id, $fee_ids)) {
-                    $blockers[] = __('Een banktransactie verwijst naar deze bezoeker. Laat de penningmeester die koppeling eerst controleren.', 'avpvh-members');
-                }
+        return $records;
+    }
+
+    /** $table's record selected again with $where added to what was already selected. */
+    private static function extend(array $records, string $table, string $where, array $schema, bool $lock): array {
+        global $wpdb;
+        $existing = $records[$wpdb->prefix . $table]['where'] ?? '';
+        return self::select($table, $existing ? "($existing) OR $where" : $where, $schema, $lock);
+    }
+
+    private static function transaction_blockers(int $id, array $fee_ids, array $schema, string $suffix): array {
+        global $wpdb;
+        if (!isset($schema['avb_transactions'])) {
+            return [];
+        }
+        $blockers = [];
+        foreach (self::rows("SELECT id, suggested_member_ids, draft_data FROM {$wpdb->prefix}avb_transactions WHERE suggested_member_ids <> '' OR draft_data IS NOT NULL$suffix") as $transaction) {
+            if (self::transaction_mentions($transaction, $id, $fee_ids)) {
+                $blockers[] = __('Een banktransactie verwijst naar deze bezoeker. Laat de penningmeester die koppeling eerst controleren.', 'avpvh-members');
             }
         }
+        return $blockers;
+    }
+
+    private static function transaction_mentions(array $transaction, int $id, array $fee_ids): bool {
+        $suggested = array_map('trim', explode(',', $transaction['suggested_member_ids']));
+        return in_array((string) $id, $suggested, true)
+            || self::mentions_member(json_decode($transaction['draft_data'] ?? 'null', true), $id, $fee_ids);
+    }
+
+    private static function engine_blockers(array $records, array $schema): array {
+        $blockers = [];
         foreach ($records as $record) {
             if ($record['engine'] !== 'InnoDB') {
-                $blockers[] = __('De gekoppelde gegevens ondersteunen geen veilige database-transactie.', 'avpvh-members');
+                $blockers[] = self::blocker('engine');
             }
         }
         if ($schema['avm_members']['engine'] !== 'InnoDB') {
-            $blockers[] = __('De gekoppelde gegevens ondersteunen geen veilige database-transactie.', 'avpvh-members');
+            $blockers[] = self::blocker('engine');
         }
-        // Delete children first, including installations with foreign keys.
+        return $blockers;
+    }
+
+    /** Children first, including installations with foreign keys. */
+    private static function children_first(array $records): array {
+        global $wpdb;
         $children = [];
-        foreach (['avm_activity_participation_days', 'avb_order_items', 'avb_dispute_events', 'avb_payment_requests', 'avb_transaction_allocations', 'avb_disputes', 'avb_congress_registrations', 'avb_book_orders', 'avb_orders'] as $child) {
+        foreach (self::DELETE_FIRST as $child) {
             $table = $wpdb->prefix . $child;
             if (isset($records[$table])) {
                 $children[$table] = $records[$table];
                 unset($records[$table]);
             }
         }
-        $records = $children + $records;
-        $folders = self::folders($records, $users, $blockers, $lock, $schema);
-        $tokens = self::tokens($id, $user_ids, $lock);
-        $blockers = array_values(array_unique($blockers));
-        $plan = compact('member', 'account', 'groups', 'emails', 'users', 'records', 'folders', 'tokens', 'blockers');
-        $plan['fingerprint'] = hash_hmac('sha256', wp_json_encode($plan), wp_salt('nonce'));
-        return $plan;
+        return $children + $records;
+    }
+
+    private static function belongs_to_other(array $row, int $id): bool {
+        return isset($row['member_id']) && (int) $row['member_id'] > 0 && (int) $row['member_id'] !== $id;
+    }
+
+    private static function is_booked_payment(string $table, array $row): bool {
+        if ($table === 'avb_transaction_allocations') {
+            return true;
+        }
+        return $table === 'avm_fees' && ((float) $row['amount_paid'] !== 0.0 || !empty($row['paid_date']) || $row['status'] === 'paid');
+    }
+
+    private static function is_fulfilled(array $row): bool {
+        return isset($row['distribution_status']) && $row['distribution_status'] !== 'pending';
     }
 
     private static function folders(array $records, array $users, array &$blockers, bool $lock, array $schema): array {

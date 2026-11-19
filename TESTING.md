@@ -40,6 +40,28 @@ php scripts/test-blogger-capabilities.php
 php scripts/test-page-permissions.php
 ```
 
+## Visitor deletion (integration, needs Docker)
+
+`scripts/test-visitor-delete.php` runs against a disposable MariaDB and
+WordPress' real `class-wpdb.php`; without `AVPVH_VISITOR_TEST_DB` it skips.
+
+```bash
+docker network create vdel-net
+docker run -d --rm --name vdel-db --network vdel-net -e MARIADB_ROOT_PASSWORD=fixture \
+  -e MARIADB_DATABASE=visitor_fixtures mariadb:11.4
+docker run --rm --network vdel-net -v "$PWD":/repo:ro --entrypoint php \
+  -e AVPVH_VISITOR_TEST_DB=visitor_fixtures -e AVPVH_VISITOR_TEST_PASSWORD=fixture \
+  -e AVPVH_VISITOR_TEST_HOST=vdel-db \
+  -e AVPVH_VISITOR_TEST_WPDB=/usr/src/wordpress/wp-includes/class-wpdb.php \
+  wordpress:php8.4-fpm-alpine /repo/scripts/test-visitor-delete.php
+docker stop vdel-db
+```
+
+Any image with PHP 8.4, mysqli and WordPress under `/usr/src/wordpress`
+works. To check that a refactor keeps every deletion plan the same, run it
+once with `AVPVH_VISITOR_TEST_CLASS=<old copy of the class>` and once
+without, each with `AVPVH_VISITOR_TEST_DUMP=<file>`, and compare the files.
+
 ## What These Cover
 
 - email normalization

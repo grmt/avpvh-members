@@ -4,6 +4,8 @@
  * Set AVPVH_VISITOR_TEST_DB=visitor_fixtures and AVPVH_VISITOR_TEST_WPDB to a
  * WordPress class-wpdb.php copy. All tables in that database are fixture-owned.
  * Directory/Drive/WP account APIs are fakes; SQL is the real WordPress adapter.
+ * AVPVH_VISITOR_TEST_DUMP=<file> appends every previewed plan as JSON, to
+ * compare two versions of the class (AVPVH_VISITOR_TEST_CLASS) exactly.
  */
 namespace Avpvh {
     class Options { public static $share_folder; }
@@ -193,7 +195,11 @@ function reset_fixture() {
     \Avpvh\Options::$share_folder = new class { public function get() { return 'fixture-selection-root'; } };
 }
 function check($ok, $message) { if (!$ok) { throw new \RuntimeException('FAIL: ' . $message); } echo 'PASS: ' . $message . "\n"; }
-function plan() { $p = AVPVH_Visitor_Delete::preview(10); check(is_array($p), 'preview succeeds'); return $p; }
+function plan() {
+    $p = AVPVH_Visitor_Delete::preview(10); check(is_array($p), 'preview succeeds');
+    if (getenv('AVPVH_VISITOR_TEST_DUMP')) { file_put_contents(getenv('AVPVH_VISITOR_TEST_DUMP'), json_encode($p) . "\n", FILE_APPEND); }
+    return $p;
+}
 function blocked($setup, $message) {
     reset_fixture(); $setup(); $p = plan();
     check(count($p['blockers']) > 0, $message . ' preview');
@@ -228,6 +234,10 @@ try {
     blocked(fn() => sql("INSERT INTO vdel_avb_orders VALUES(1,10,NULL,'test-visitor@example.test','distributed')"), 'fulfilled order protected');
     blocked(function() { sql('CREATE TABLE vdel_extra_data(id INT, member_id INT) ENGINE=InnoDB'); sql('INSERT INTO vdel_extra_data VALUES(1,10)'); }, 'unknown dependants protected');
     blocked(fn() => sql("INSERT INTO vdel_avm_member_identities VALUES(3,20,'test-visitor@example.test')"), 'shared email protected');
+    blocked(fn() => sql("INSERT INTO vdel_avm_directory_users VALUES('other.account','test-visitor@example.test')"), 'email shared with another directory account protected');
+    blocked(fn() => sql('INSERT INTO vdel_comments VALUES(1,101)'), 'authored comments protected');
+    blocked(fn() => sql('ALTER TABLE vdel_avm_addresses ENGINE=MyISAM'), 'non-transactional linked table protected');
+    blocked(function() { sql('INSERT INTO vdel_avb_fee_items VALUES(30,10,35.00)'); sql("INSERT INTO vdel_avb_orders VALUES(1,NULL,30,'other@example.test','distributed')"); }, 'fulfilled order sharing a fee protected');
     blocked(fn() => sql("INSERT INTO vdel_avb_photo_shares VALUES(1,10,101,'test-visitor@example.test','fixture-upload-root')"), 'Drive root protected');
     blocked(fn() => sql("INSERT INTO vdel_usermeta VALUES(3,101,'photo_share_folder_id','manually-linked-folder')"), 'unproven Drive folder protected');
     blocked(function() {
