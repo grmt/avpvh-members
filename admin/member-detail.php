@@ -633,6 +633,6 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     </div>
 
     <?php elseif ($active_tab === 'relationships') : ?>
-    <?php AVPVH_Member_Profile_Form::render_relationships($member); ?>
+    <?php AVPVH_Member_Profile_Sections::render_relationships($member); ?>
     <?php endif; ?>
 </div>
