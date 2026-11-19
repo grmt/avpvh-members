@@ -184,7 +184,7 @@ class AVPVH_Member_Profile_Form {
             return true;
         }
         $household = $own_member ? AVPVH_DB::get_manageable_members((int) $own_member->id) : [];
-        return in_array($target_member_id, array_map('intval', wp_list_pluck($household, 'id')), true);
+        return in_array($target_member_id, array_map('intval', array_column($household, 'id')), true);
     }
 
     /**
