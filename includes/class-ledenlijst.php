@@ -39,34 +39,49 @@ class AVPVH_Ledenlijst {
         if (!$leden) {
             return '<p>' . esc_html__('Geen leden gevonden.', 'avpvh-members') . '</p>';
         }
-
-        // A name is only a link to the (edit) profile page for members you're
-        // actually allowed to edit there — own profile, household, or admin —
-        // otherwise it's a dead end (member-profile silently falls back to
-        // your own profile for an unauthorized member_id).
-        $editable_ids = $is_admin
-            ? null // null = everyone
-            // wpdb returns column values as strings, so these must be cast to
-            // int explicitly — the strict in_array() check below would
-            // otherwise never match (97 !== "97").
-            : array_map('intval', array_column(AVPVH_DB::get_manageable_members((int) $own_member->id), 'id'));
-
-        $cities = [];
-        $groups = [];
-        foreach ($leden as $lid) {
-            if ($lid->share_address && $lid->city) {
-                $cities[$lid->city] = true;
-            }
-            foreach ($group_map[$lid->lldap_user_id] ?? [] as $g) {
-                $groups[$g] = true;
-            }
-        }
-        ksort($cities, SORT_NATURAL | SORT_FLAG_CASE);
-        ksort($groups, SORT_NATURAL | SORT_FLAG_CASE);
+        $editable_ids = self::editable_ids($own_member, $is_admin);
 
         ob_start();
         ?>
         <div class="avpvh-ledenlijst">
+            <?php self::render_intro(); ?>
+
+            <?php self::render_controls($leden, $group_map); ?>
+
+            <div class="avpvh-ledenlijst-tabel-scroll">
+            <table class="avpvh-ledenlijst-tabel" id="avpvh-ledenlijst-tabel">
+                <?php self::render_table_head(); ?>
+                <tbody>
+                <?php foreach ($leden as $lid) {
+                    self::render_row($lid, $group_map[$lid->lldap_user_id] ?? [], $editable_ids === null || in_array((int) $lid->id, $editable_ids, true));
+                } ?>
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * IDs whose name links to the (edit) profile page, or null for everyone.
+     * A name is only a link for members you're actually allowed to edit there
+     * — own profile, household, or admin — otherwise it's a dead end
+     * (member-profile silently falls back to your own profile for an
+     * unauthorized member_id).
+     */
+    private static function editable_ids(object $own_member, bool $is_admin): ?array {
+        if ($is_admin) {
+            return null;
+        }
+        // wpdb returns column values as strings, so these must be cast to int
+        // explicitly — the strict in_array() check would otherwise never
+        // match (97 !== "97").
+        return array_map('intval', array_column(AVPVH_DB::get_manageable_members((int) $own_member->id), 'id'));
+    }
+
+    private static function render_intro(): void {
+        ?>
             <?php if (!empty($_GET['consent_saved'])) : ?>
                 <p class="avpvh-ledenlijst-melding"><?php esc_html_e('Je voorkeuren zijn opgeslagen.', 'avpvh-members'); ?></p>
             <?php endif; ?>
@@ -80,7 +95,29 @@ class AVPVH_Ledenlijst {
                 ), ['a' => ['href' => [], 'target' => [], 'rel' => []]]);
                 ?>
             </p>
+        <?php
+    }
 
+    /** Sorted filter values: the cities members share, and every group shown. */
+    private static function filter_options(array $leden, array $group_map): array {
+        $cities = [];
+        $groups = [];
+        foreach ($leden as $lid) {
+            if ($lid->share_address && $lid->city) {
+                $cities[$lid->city] = true;
+            }
+            foreach ($group_map[$lid->lldap_user_id] ?? [] as $g) {
+                $groups[$g] = true;
+            }
+        }
+        ksort($cities, SORT_NATURAL | SORT_FLAG_CASE);
+        ksort($groups, SORT_NATURAL | SORT_FLAG_CASE);
+        return [array_keys($cities), array_keys($groups)];
+    }
+
+    private static function render_controls(array $leden, array $group_map): void {
+        [$cities, $groups] = self::filter_options($leden, $group_map);
+        ?>
             <div class="avpvh-ledenlijst-controls">
                 <label class="screen-reader-text" for="avpvh-ledenlijst-zoek"><?php esc_html_e('Zoeken in de ledenlijst', 'avpvh-members'); ?></label>
                 <input type="search" id="avpvh-ledenlijst-zoek" placeholder="<?php esc_attr_e('Zoeken…', 'avpvh-members'); ?>" class="avpvh-ledenlijst-zoek">
@@ -88,7 +125,7 @@ class AVPVH_Ledenlijst {
                 <div class="avpvh-ledenlijst-dropdown" data-dropdown="plaats">
                     <button type="button" class="avpvh-ledenlijst-dropdown-toggle" aria-expanded="false"><?php esc_html_e('Plaats', 'avpvh-members'); ?> ▾</button>
                     <div class="avpvh-ledenlijst-dropdown-menu" hidden>
-                        <?php foreach (array_keys($cities) as $city) : ?>
+                        <?php foreach ($cities as $city) : ?>
                             <label><input type="checkbox" value="<?php echo esc_attr($city); ?>"> <?php echo esc_html($city); ?></label>
                         <?php endforeach; ?>
                     </div>
@@ -97,7 +134,7 @@ class AVPVH_Ledenlijst {
                 <div class="avpvh-ledenlijst-dropdown" data-dropdown="groep">
                     <button type="button" class="avpvh-ledenlijst-dropdown-toggle" aria-expanded="false"><?php esc_html_e('Groep', 'avpvh-members'); ?> ▾</button>
                     <div class="avpvh-ledenlijst-dropdown-menu" hidden>
-                        <?php foreach (array_keys($groups) as $group) : ?>
+                        <?php foreach ($groups as $group) : ?>
                             <label><input type="checkbox" value="<?php echo esc_attr($group); ?>"> <?php echo esc_html(ucfirst($group)); ?></label>
                         <?php endforeach; ?>
                     </div>
@@ -119,9 +156,11 @@ class AVPVH_Ledenlijst {
                     </div>
                 </div>
             </div>
+        <?php
+    }
 
-            <div class="avpvh-ledenlijst-tabel-scroll">
-            <table class="avpvh-ledenlijst-tabel" id="avpvh-ledenlijst-tabel">
+    private static function render_table_head(): void {
+        ?>
                 <thead>
                     <tr>
                         <th class="col-naam is-sortable" data-sort-key="naam"><?php esc_html_e('Naam', 'avpvh-members'); ?></th>
@@ -133,42 +172,50 @@ class AVPVH_Ledenlijst {
                         <th class="col-groepen avpvh-col-hidden is-sortable" data-sort-key="groepen"><?php esc_html_e('Groepen', 'avpvh-members'); ?></th>
                     </tr>
                 </thead>
-                <tbody>
-                <?php foreach ($leden as $lid) :
-                    $lid_groups = $group_map[$lid->lldap_user_id] ?? [];
-                    $can_edit = $is_admin || ($editable_ids !== null && in_array((int) $lid->id, $editable_ids, true));
-                    $naam_text = avpvh_format_name($lid);
-                    $naam = esc_html($naam_text);
-                    if ($can_edit) {
-                        $naam = '<a href="' . esc_url(add_query_arg('member_id', $lid->id, home_url('/member-profile/'))) . '">' . $naam . '</a>';
-                    }
+        <?php
+    }
 
-                    // A placeholder OpenLDAP address (members with no real
-                    // e-mail, e.g. under-16s — see handle_add_member()) isn't
-                    // a real contact address, so it's never shown here even
-                    // when share_email is on.
-                    $show_email = $lid->share_email && !str_ends_with(strtolower($lid->email ?? ''), '@avpvh.local');
+    /**
+     * A placeholder OpenLDAP address (members with no real e-mail, e.g.
+     * under-16s — see handle_add_member()) isn't a real contact address, so
+     * it's never shown here even when share_email is on.
+     */
+    private static function shows_email(object $lid): bool {
+        return $lid->share_email && !str_ends_with(strtolower($lid->email ?? ''), '@avpvh.local');
+    }
 
-                    // vCard download is generated client-side from these data
-                    // attributes — only ever the fields already shown here,
-                    // so it can never leak more than the visible row does.
-                    $vcard_attrs = ' data-vcard-name="' . esc_attr($naam_text) . '"';
-                    if ($show_email) {
-                        $vcard_attrs .= ' data-vcard-email="' . esc_attr($lid->email) . '"';
-                    }
-                    if ($lid->share_phone) {
-                        if ($lid->mobile) {
-                            $vcard_attrs .= ' data-vcard-cell="' . esc_attr($lid->mobile) . '"';
-                        }
-                        if ($lid->phone) {
-                            $vcard_attrs .= ' data-vcard-tel="' . esc_attr($lid->phone) . '"';
-                        }
-                    }
-                    if ($lid->share_address && $lid->street) {
-                        $vcard_attrs .= ' data-vcard-adr="' . esc_attr(AVPVH_Address_Normalizer::format_street_line($lid) . ';' . $lid->city . ';' . $lid->postal_code . ';' . $lid->country) . '"';
-                    }
-                    ?>
-                    <tr data-city="<?php echo esc_attr($lid->share_address ? $lid->city : ''); ?>"
+    /**
+     * vCard download is generated client-side from these data attributes —
+     * only ever the fields already shown in the row, so it can never leak more
+     * than the visible row does. Every value is esc_attr()'d.
+     */
+    private static function vcard_attrs(object $lid, string $name): string {
+        $attrs = ['name' => $name];
+        if (self::shows_email($lid)) {
+            $attrs['email'] = $lid->email;
+        }
+        if ($lid->share_phone) {
+            $attrs += array_filter(['cell' => $lid->mobile, 'tel' => $lid->phone]);
+        }
+        if ($lid->share_address && $lid->street) {
+            $attrs['adr'] = AVPVH_Address_Normalizer::format_street_line($lid) . ';' . $lid->city . ';' . $lid->postal_code . ';' . $lid->country;
+        }
+        $html = '';
+        foreach ($attrs as $key => $value) {
+            $html .= ' data-vcard-' . $key . '="' . esc_attr($value) . '"';
+        }
+        return $html;
+    }
+
+    private static function render_row(object $lid, array $lid_groups, bool $can_edit): void {
+        $naam_text = avpvh_format_name($lid);
+        $naam = esc_html($naam_text);
+        if ($can_edit) {
+            $naam = '<a href="' . esc_url(add_query_arg('member_id', $lid->id, home_url('/member-profile/'))) . '">' . $naam . '</a>';
+        }
+        $address = $lid->share_address;
+        ?>
+                    <tr data-city="<?php echo esc_attr($address ? $lid->city : ''); ?>"
                         data-groups="<?php echo esc_attr(implode(',', $lid_groups)); ?>">
                         <td class="col-naam" data-label="<?php esc_attr_e('Naam', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr(strtolower(avpvh_format_name($lid, 'list'))); ?>">
                             <?php
@@ -176,10 +223,29 @@ class AVPVH_Ledenlijst {
                             echo $naam;
                             ?>
                             <button type="button" class="avpvh-vcard-btn" title="<?php esc_attr_e('Downloaden als contact (vCard)', 'avpvh-members'); ?>"<?php
-                                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute value above is already esc_attr()'d
-                                echo $vcard_attrs;
+                                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute value is esc_attr()'d in vcard_attrs()
+                                echo self::vcard_attrs($lid, $naam_text);
                             ?>>📇</button>
                         </td>
+                        <?php self::render_email_cell($lid); ?>
+                        <?php self::render_phone_cell($lid); ?>
+                        <?php self::render_address_cell($lid); ?>
+                        <td class="col-postcode avpvh-col-hidden" data-label="<?php esc_attr_e('Postcode', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($address ? strtolower($lid->postal_code) : ''); ?>">
+                            <?php echo esc_html($address && $lid->postal_code ? $lid->postal_code : '—'); ?>
+                        </td>
+                        <td class="col-plaats avpvh-col-hidden" data-label="<?php esc_attr_e('Plaats', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($address ? strtolower($lid->city) : ''); ?>">
+                            <?php echo esc_html($address && $lid->city ? $lid->city : '—'); ?>
+                        </td>
+                        <td class="col-groepen avpvh-col-hidden" data-label="<?php esc_attr_e('Groepen', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr(strtolower(implode(', ', $lid_groups))); ?>">
+                            <?php echo esc_html($lid_groups ? implode(', ', array_map('ucfirst', $lid_groups)) : '—'); ?>
+                        </td>
+                    </tr>
+        <?php
+    }
+
+    private static function render_email_cell(object $lid): void {
+        $show_email = self::shows_email($lid);
+        ?>
                         <td class="col-email" data-label="<?php esc_attr_e('E-mail', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($show_email ? strtolower($lid->email) : ''); ?>">
                             <?php if ($show_email) : ?>
                                 <a href="mailto:<?php echo esc_attr($lid->email); ?>"><?php echo esc_html($lid->email); ?></a>
@@ -187,7 +253,13 @@ class AVPVH_Ledenlijst {
                                 —
                             <?php endif; ?>
                         </td>
-                        <td class="col-telefoon" data-label="<?php esc_attr_e('Telefoon', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($lid->share_phone ? ($lid->mobile ?: $lid->phone) : ''); ?>">
+        <?php
+    }
+
+    private static function render_phone_cell(object $lid): void {
+        $sort = $lid->mobile ?: $lid->phone;
+        ?>
+                        <td class="col-telefoon" data-label="<?php esc_attr_e('Telefoon', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($lid->share_phone ? $sort : ''); ?>">
                             <?php if ($lid->share_phone) : ?>
                                 <?php if ($lid->mobile) : ?>
                                     <a href="<?php echo esc_attr(self::tel_href($lid->mobile)); ?>"><?php echo esc_html($lid->mobile); ?></a><br>
@@ -199,6 +271,11 @@ class AVPVH_Ledenlijst {
                                 —
                             <?php endif; ?>
                         </td>
+        <?php
+    }
+
+    private static function render_address_cell(object $lid): void {
+        ?>
                         <td class="col-adres" data-label="<?php esc_attr_e('Adres', 'avpvh-members'); ?>">
                             <?php if ($lid->share_address && $lid->street) : ?>
                                 <?php echo esc_html(AVPVH_Address_Normalizer::format_street_line($lid)); ?><br>
@@ -210,23 +287,7 @@ class AVPVH_Ledenlijst {
                                 —
                             <?php endif; ?>
                         </td>
-                        <td class="col-postcode avpvh-col-hidden" data-label="<?php esc_attr_e('Postcode', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($lid->share_address ? strtolower($lid->postal_code) : ''); ?>">
-                            <?php echo esc_html($lid->share_address ? ($lid->postal_code ?: '—') : '—'); ?>
-                        </td>
-                        <td class="col-plaats avpvh-col-hidden" data-label="<?php esc_attr_e('Plaats', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr($lid->share_address ? strtolower($lid->city) : ''); ?>">
-                            <?php echo esc_html($lid->share_address ? ($lid->city ?: '—') : '—'); ?>
-                        </td>
-                        <td class="col-groepen avpvh-col-hidden" data-label="<?php esc_attr_e('Groepen', 'avpvh-members'); ?>" data-sort-value="<?php echo esc_attr(strtolower(implode(', ', $lid_groups))); ?>">
-                            <?php echo esc_html($lid_groups ? implode(', ', array_map('ucfirst', $lid_groups)) : '—'); ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-            </div>
-        </div>
         <?php
-        return ob_get_clean();
     }
 
     // Shared by render() and handle_export() so the exported .xlsx can never
