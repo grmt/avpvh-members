@@ -6,6 +6,11 @@ defined('ABSPATH') || exit;
  * identifier comes from the schema or fixed names, never from a request.
  */
 class AVPVH_Visitor_Delete_Db {
+    /** The suffix that locks the rows a SELECT reads, inside the deletion transaction. */
+    public static function lock(bool $lock): string {
+        return $lock ? ' FOR UPDATE' : '';
+    }
+
     /** The member-linked tables this page knows, with their translated labels. */
     public static function table_labels(): array {
         return [
@@ -57,8 +62,8 @@ class AVPVH_Visitor_Delete_Db {
         $sql = $wpdb->prepare("SELECT c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE, t.ENGINE FROM information_schema.COLUMNS c JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME WHERE c.TABLE_SCHEMA = DATABASE() AND c.TABLE_NAME LIKE %s ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION", $wpdb->esc_like($wpdb->prefix) . '%');
         foreach (self::rows($sql) as $column) {
             $table = substr($column['TABLE_NAME'], strlen($wpdb->prefix));
-            if (!preg_match('/^[a-zA-Z0-9_]+$/', $column['TABLE_NAME']) || !preg_match('/^[a-zA-Z0-9_]+$/', $column['COLUMN_NAME'])) {
-                throw new \RuntimeException('invalid identifier');
+            if (!preg_match('/^\w+$/', $column['TABLE_NAME']) || !preg_match('/^\w+$/', $column['COLUMN_NAME'])) {
+                throw new AVPVH_Visitor_Delete_Exception('invalid identifier');
             }
             // WordPress core user tables are handled via its account API.
             if (in_array($column['TABLE_NAME'], [$wpdb->users, $wpdb->usermeta, $wpdb->comments], true)) {
@@ -75,7 +80,7 @@ class AVPVH_Visitor_Delete_Db {
         if (!isset($schema[$table])) {
             return ['rows' => [], 'where' => $where, 'engine' => 'InnoDB', 'label' => self::table_label($table)];
         }
-        return ['rows' => self::rows("SELECT * FROM `{$wpdb->prefix}$table` WHERE $where" . ($lock ? ' FOR UPDATE' : '')),
+        return ['rows' => self::rows("SELECT * FROM `{$wpdb->prefix}$table` WHERE $where" . self::lock($lock)),
             'where' => $where, 'engine' => $schema[$table]['engine'], 'label' => self::table_label($table)];
     }
 
@@ -83,7 +88,7 @@ class AVPVH_Visitor_Delete_Db {
         global $wpdb;
         $rows = $wpdb->get_results($sql, ARRAY_A); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- built in select() from fixed table names and prepared conditions
         if ($wpdb->last_error !== '' || !is_array($rows)) {
-            throw new \RuntimeException(__('De databasecontrole is mislukt.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
+            throw new AVPVH_Visitor_Delete_Exception(__('De databasecontrole is mislukt.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
         usort($rows, static fn($a, $b) => strcmp(wp_json_encode($a), wp_json_encode($b)));
         return $rows;
@@ -100,7 +105,7 @@ class AVPVH_Visitor_Delete_Db {
 
     public static function check($result): void {
         if ($result === false) {
-            throw new \RuntimeException(__('De databasewijziging is mislukt.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
+            throw new AVPVH_Visitor_Delete_Exception(__('De databasewijziging is mislukt.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
     }
 }

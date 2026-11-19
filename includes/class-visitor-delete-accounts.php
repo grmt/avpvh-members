@@ -23,7 +23,7 @@ class AVPVH_Visitor_Delete_Accounts {
         $account = AVPVH_Directory::get_user($uid);
         $groups = AVPVH_Directory::get_user_groups($uid);
         if (is_wp_error($groups)) {
-            throw new \RuntimeException('directory unavailable');
+            throw new AVPVH_Visitor_Delete_Exception('directory unavailable');
         }
         sort($groups);
         if (array_diff($groups, ['users', 'pvh-users'])) {
@@ -44,7 +44,7 @@ class AVPVH_Visitor_Delete_Accounts {
         // Cache is a fallback for a missing remote account during a retry.
         if (isset($schema['avm_directory_users'])) {
             $sql = $wpdb->prepare("SELECT email FROM {$wpdb->prefix}avm_directory_users WHERE user_id = %s", $member['lldap_user_id']);
-            foreach (AVPVH_Visitor_Delete_Db::rows($sql . ($lock ? ' FOR UPDATE' : '')) as $cached) {
+            foreach (AVPVH_Visitor_Delete_Db::rows($sql . (AVPVH_Visitor_Delete_Db::lock($lock))) as $cached) {
                 $emails[] = strtolower($cached['email']);
             }
         }
@@ -117,62 +117,18 @@ class AVPVH_Visitor_Delete_Accounts {
             || ($wp_user && array_filter(['manage_options', 'edit_users', 'delete_users', 'edit_others_posts'], $elevated));
     }
 
+    private const SHARE_TABLES = ['avb_photo_shares', 'agallery_photo_shares'];
+
+    /** The visitor's personal Drive share folders, each with the root it must sit in. */
     public static function folders(array $records, array $users, array &$blockers, bool $lock, array $schema): array {
         global $wpdb;
-        $suffix = $lock ? ' FOR UPDATE' : '';
         $folders = [];
-        foreach (['avb_photo_shares', 'agallery_photo_shares'] as $table) {
-            $parent = $table === 'avb_photo_shares'
-                ? (class_exists('AVBK_Photo_Share') ? AVBK_Photo_Share::ROOT_FOLDER_ID : '')
-                : (class_exists('Avpvh\\Options') ? trim((string) \Avpvh\Options::$share_folder->get()) : '');
-            foreach ($records[$wpdb->prefix . $table]['rows'] ?? [] as $row) {
-                $folder_id = (string) ($row['drive_folder_id'] ?? '');
-                if ($folder_id === '' || str_starts_with($folder_id, 'share-')) {
-                    continue; // Legacy fake IDs are local records, not real folders.
-                }
-                if ($parent === '' || $folder_id === $parent) {
-                    $blockers[] = __('Een gekoppelde Drive-map kan niet veilig als persoonlijke share worden vastgesteld.', 'avpvh-members');
-                    continue;
-                }
-                foreach (['avb_photo_shares', 'agallery_photo_shares'] as $other_table) {
-                    if (!isset($schema[$other_table])) {
-                        continue;
-                    }
-                    $except = $other_table === $table ? $wpdb->prepare(' AND id <> %d', $row['id']) : '';
-                    $shared = AVPVH_Visitor_Delete_Db::rows($wpdb->prepare("SELECT id FROM {$wpdb->prefix}$other_table WHERE drive_folder_id = %s$except$suffix", $folder_id));
-                    if ($shared) {
-                        $blockers[] = __('Een Drive-map is aan meerdere shares gekoppeld. Controleer die eerst apart.', 'avpvh-members');
-                    }
-                }
-                $folders[$folder_id] = ['id' => $folder_id, 'parent' => $parent];
-            }
+        foreach (self::SHARE_TABLES as $table) {
+            $rows = $records[$wpdb->prefix . $table]['rows'] ?? [];
+            $folders = array_replace($folders, self::share_table_folders($table, $rows, $schema, $lock, $blockers));
         }
-        foreach ($users as $user) {
-            foreach ($user['meta'] as $meta) {
-                if ($meta['meta_key'] === 'photo_share_folder_id') {
-                    $id = $meta['meta_value'];
-                } elseif ($meta['meta_key'] === 'photo_share_url' && preg_match('~/folders/([\w-]+)~', $meta['meta_value'], $matches)) {
-                    $id = $matches[1];
-                } else {
-                    continue;
-                }
-                if ($id !== '' && !str_starts_with($id, 'share-') && !isset($folders[$id])) {
-                    $blockers[] = __('Er is een handmatig gekoppelde Drive-map. Beheer die eerst apart.', 'avpvh-members');
-                }
-            }
-        }
-        if ($folders) {
-            $where = AVPVH_Visitor_Delete_Db::ints('user_id', array_column($users, 'ID'));
-            foreach (AVPVH_Visitor_Delete_Db::rows("SELECT meta_key, meta_value FROM {$wpdb->usermeta} WHERE meta_key IN ('photo_share_url', 'photo_share_folder_id') AND NOT ($where)$suffix") as $meta) {
-                $id = $meta['meta_value'];
-                if ($meta['meta_key'] === 'photo_share_url') {
-                    $id = preg_match('~/folders/([\w-]+)~', $id, $matches) ? $matches[1] : '';
-                }
-                if (isset($folders[$id])) {
-                    $blockers[] = __('Een Drive-map is ook aan een ander account gekoppeld. Controleer die eerst apart.', 'avpvh-members');
-                }
-            }
-        }
+        array_push($blockers, ...self::manual_folder_blockers($users, $folders));
+        array_push($blockers, ...self::foreign_folder_blockers($users, $folders, $lock));
         if ($folders && !class_exists('Avpvh\\Frontend\\Share_Drive')) {
             $blockers[] = __('De Drive-integratie is niet beschikbaar om de fotoshares te verwijderen.', 'avpvh-members');
         }
@@ -180,11 +136,98 @@ class AVPVH_Visitor_Delete_Accounts {
         return array_values($folders);
     }
 
+    private static function share_table_folders(string $table, array $rows, array $schema, bool $lock, array &$blockers): array {
+        $parent = self::share_root($table);
+        $folders = [];
+        foreach ($rows as $row) {
+            $folder_id = (string) ($row['drive_folder_id'] ?? '');
+            if (!self::is_real_folder($folder_id)) {
+                continue;
+            }
+            if ($parent === '' || $folder_id === $parent) {
+                $blockers[] = __('Een gekoppelde Drive-map kan niet veilig als persoonlijke share worden vastgesteld.', 'avpvh-members');
+                continue;
+            }
+            array_push($blockers, ...self::shared_folder_blockers($table, (int) $row['id'], $folder_id, $schema, $lock));
+            $folders[$folder_id] = ['id' => $folder_id, 'parent' => $parent];
+        }
+        return $folders;
+    }
+
+    /** The Drive folder that holds the personal folders of $table's shares; '' when unknown. */
+    private static function share_root(string $table): string {
+        if ($table === 'avb_photo_shares') {
+            return class_exists('AVBK_Photo_Share') ? AVBK_Photo_Share::ROOT_FOLDER_ID : '';
+        }
+        return class_exists('Avpvh\\Options') ? trim((string) \Avpvh\Options::$share_folder->get()) : '';
+    }
+
+    /** Legacy fake IDs ("share-…") are local records, not real folders. */
+    private static function is_real_folder(string $folder_id): bool {
+        return $folder_id !== '' && !str_starts_with($folder_id, 'share-');
+    }
+
+    /** Another share row pointing at the same folder. */
+    private static function shared_folder_blockers(string $table, int $row_id, string $folder_id, array $schema, bool $lock): array {
+        global $wpdb;
+        $blockers = [];
+        foreach (self::SHARE_TABLES as $other_table) {
+            if (!isset($schema[$other_table])) {
+                continue;
+            }
+            $except = $other_table === $table ? $wpdb->prepare(' AND id <> %d', $row_id) : '';
+            $sql = $wpdb->prepare("SELECT id FROM {$wpdb->prefix}$other_table WHERE drive_folder_id = %s$except", $folder_id);
+            if (AVPVH_Visitor_Delete_Db::rows($sql . AVPVH_Visitor_Delete_Db::lock($lock))) {
+                $blockers[] = __('Een Drive-map is aan meerdere shares gekoppeld. Controleer die eerst apart.', 'avpvh-members');
+            }
+        }
+        return $blockers;
+    }
+
+    /** The folder ID in a photo_share_folder_id or photo_share_url user meta row; '' for anything else. */
+    private static function meta_folder_id(array $meta): string {
+        if ($meta['meta_key'] === 'photo_share_url') {
+            return preg_match('~/folders/([\w-]+)~', (string) $meta['meta_value'], $matches) ? $matches[1] : '';
+        }
+        return $meta['meta_key'] === 'photo_share_folder_id' ? (string) $meta['meta_value'] : '';
+    }
+
+    /** A folder in the visitor's own user meta that no share record proves to be personal. */
+    private static function manual_folder_blockers(array $users, array $folders): array {
+        $blockers = [];
+        foreach ($users as $user) {
+            foreach ($user['meta'] as $meta) {
+                $id = self::meta_folder_id($meta);
+                if (self::is_real_folder($id) && !isset($folders[$id])) {
+                    $blockers[] = __('Er is een handmatig gekoppelde Drive-map. Beheer die eerst apart.', 'avpvh-members');
+                }
+            }
+        }
+        return $blockers;
+    }
+
+    /** One of the folders also linked in another account's user meta. */
+    private static function foreign_folder_blockers(array $users, array $folders, bool $lock): array {
+        global $wpdb;
+        if (!$folders) {
+            return [];
+        }
+        $blockers = [];
+        $where = AVPVH_Visitor_Delete_Db::ints('user_id', array_column($users, 'ID'));
+        $sql = "SELECT meta_key, meta_value FROM {$wpdb->usermeta} WHERE meta_key IN ('photo_share_url', 'photo_share_folder_id') AND NOT ($where)";
+        foreach (AVPVH_Visitor_Delete_Db::rows($sql . AVPVH_Visitor_Delete_Db::lock($lock)) as $meta) {
+            if (isset($folders[self::meta_folder_id($meta)])) {
+                $blockers[] = __('Een Drive-map is ook aan een ander account gekoppeld. Controleer die eerst apart.', 'avpvh-members');
+            }
+        }
+        return $blockers;
+    }
+
     public static function tokens(int $id, array $users, bool $lock): array {
         global $wpdb;
         $tokens = [];
         $where = $wpdb->prepare('option_name LIKE %s OR option_name LIKE %s', $wpdb->esc_like('_transient_avpvh_email_identity_') . '%', $wpdb->esc_like('_transient_avpvh_oauth_state_') . '%');
-        foreach (AVPVH_Visitor_Delete_Db::rows("SELECT option_name, option_value FROM {$wpdb->options} WHERE $where" . ($lock ? ' FOR UPDATE' : '')) as $row) {
+        foreach (AVPVH_Visitor_Delete_Db::rows("SELECT option_name, option_value FROM {$wpdb->options} WHERE $where" . (AVPVH_Visitor_Delete_Db::lock($lock))) as $row) {
             $payload = json_decode($row['option_value'], true);
             if (is_array($payload) && ((int) ($payload['member_id'] ?? 0) === $id || in_array((int) ($payload['requesting_user_id'] ?? 0), array_map('intval', $users), true))) {
                 $tokens[substr($row['option_name'], strlen('_transient_'))] = $row['option_value'];

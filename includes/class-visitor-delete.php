@@ -1,6 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 
+require_once __DIR__ . '/class-visitor-delete-exception.php';
 require_once __DIR__ . '/class-visitor-delete-db.php';
 require_once __DIR__ . '/class-visitor-delete-accounts.php';
 require_once __DIR__ . '/class-visitor-delete-records.php';
@@ -42,10 +43,10 @@ class AVPVH_Visitor_Delete {
             AVPVH_Visitor_Delete_Db::check($wpdb->query('START TRANSACTION'));
             $plan = self::snapshot($id, true);
             if ($plan['blockers']) {
-                throw new \RuntimeException(implode(' ', $plan['blockers']));
+                throw new AVPVH_Visitor_Delete_Exception(implode(' ', $plan['blockers']));
             }
             if (!hash_equals($plan['fingerprint'], $fingerprint)) {
-                throw new \RuntimeException(__('De gegevens zijn gewijzigd. Bekijk het overzicht opnieuw voordat je verwijdert.', 'avpvh-members'));
+                throw new AVPVH_Visitor_Delete_Exception(__('De gegevens zijn gewijzigd. Bekijk het overzicht opnieuw voordat je verwijdert.', 'avpvh-members'));
             }
 
             // Mark as started before calling external services: even a failing
@@ -56,7 +57,7 @@ class AVPVH_Visitor_Delete {
             }
             $result = AVPVH_Directory::delete_user((string) $plan['member']['lldap_user_id']);
             if (is_wp_error($result)) {
-                throw new \RuntimeException(__('Het OpenLDAP-account kon niet worden verwijderd.', 'avpvh-members'));
+                throw new AVPVH_Visitor_Delete_Exception(__('Het OpenLDAP-account kon niet worden verwijderd.', 'avpvh-members'));
             }
             foreach ($plan['records'] as $table => $record) {
                 // All identifiers and conditions were built from schema/fixed
@@ -71,11 +72,11 @@ class AVPVH_Visitor_Delete {
                     require_once ABSPATH . 'wp-admin/includes/user.php';
                 }
                 if (!wp_delete_user((int) $user['ID'])) {
-                    throw new \RuntimeException(__('Het WordPress-account kon niet worden verwijderd.', 'avpvh-members'));
+                    throw new AVPVH_Visitor_Delete_Exception(__('Het WordPress-account kon niet worden verwijderd.', 'avpvh-members'));
                 }
             }
             if ($wpdb->delete($wpdb->prefix . 'avm_members', ['id' => $id], ['%d']) !== 1) {
-                throw new \RuntimeException(__('Het bezoekersrecord kon niet worden verwijderd.', 'avpvh-members'));
+                throw new AVPVH_Visitor_Delete_Exception(__('Het bezoekersrecord kon niet worden verwijderd.', 'avpvh-members'));
             }
             AVPVH_Visitor_Delete_Db::check($wpdb->query('COMMIT'));
             AVPVH_Directory::forget_groups((string) $plan['member']['lldap_user_id']);
@@ -99,16 +100,16 @@ class AVPVH_Visitor_Delete {
      */
     private static function snapshot(int $id, bool $lock = false): array {
         global $wpdb;
-        $suffix = $lock ? ' FOR UPDATE' : '';
+        $suffix = AVPVH_Visitor_Delete_Db::lock($lock);
         $member = AVPVH_Visitor_Delete_Db::rows($wpdb->prepare("SELECT * FROM {$wpdb->prefix}avm_members WHERE id = %d$suffix", $id))[0] ?? null;
         if (!$member) {
-            throw new \RuntimeException(__('Deze bezoeker bestaat niet meer.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
+            throw new AVPVH_Visitor_Delete_Exception(__('Deze bezoeker bestaat niet meer.', 'avpvh-members')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is escaped where it is shown
         }
         $blockers = AVPVH_Visitor_Delete_Accounts::member_blockers($member);
         $schema = AVPVH_Visitor_Delete_Db::schema();
         array_push($blockers, ...AVPVH_Visitor_Delete_Records::core_engine_blockers());
         if (!isset($schema['avm_member_identities'])) {
-            throw new \RuntimeException('identity schema incomplete');
+            throw new AVPVH_Visitor_Delete_Exception('identity schema incomplete');
         }
         [$account, $groups] = AVPVH_Visitor_Delete_Accounts::directory_account((string) $member['lldap_user_id'], $blockers);
         $emails = AVPVH_Visitor_Delete_Accounts::emails($id, $member, $account, $schema, $lock);
@@ -141,11 +142,11 @@ class AVPVH_Visitor_Delete {
             if ((int) $e->getCode() === 404) {
                 return; // Idempotent retry after a partially completed removal.
             }
-            throw new \RuntimeException('Drive lookup failed');
+            throw new AVPVH_Visitor_Delete_Exception('Drive lookup failed');
         }
         if ($id === $parent || $folder->getMimeType() !== 'application/vnd.google-apps.folder'
             || !in_array($parent, $folder->getParents() ?? [], true)) {
-            throw new \RuntimeException('Drive folder is not a personal child folder');
+            throw new AVPVH_Visitor_Delete_Exception('Drive folder is not a personal child folder');
         }
         $drive->files->delete($id, ['supportsAllDrives' => true]);
     }

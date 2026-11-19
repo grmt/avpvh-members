@@ -132,7 +132,7 @@ class AVPVH_Visitor_Delete_Records {
         foreach (self::INDIRECT_CHILDREN as [$child, $column, $parent]) {
             if (!isset($schema[$child])) {
                 if ($child === 'avb_transaction_allocations' && isset($schema[$parent])) {
-                    throw new \RuntimeException('payment schema incomplete');
+                    throw new AVPVH_Visitor_Delete_Exception('payment schema incomplete');
                 }
                 continue;
             }
@@ -215,19 +215,25 @@ class AVPVH_Visitor_Delete_Records {
         return isset($row['distribution_status']) && $row['distribution_status'] !== 'pending';
     }
 
+    /** True when a decoded bank draft refers to visitor $id or one of their fee items, at any depth. */
     private static function mentions_member($value, int $id, array $fee_ids): bool {
         if (!is_array($value)) {
             return false;
         }
         foreach ($value as $key => $entry) {
-            if (is_scalar($entry) && (($key === 'member_id' || str_ends_with((string) $key, '_member_id')) && (int) $entry === $id
-                || ($key === 'fee_item_id' && in_array((int) $entry, array_map('intval', $fee_ids), true)))) {
-                return true;
-            }
-            if (is_array($entry) && self::mentions_member($entry, $id, $fee_ids)) {
+            if (is_array($entry) ? self::mentions_member($entry, $id, $fee_ids) : self::mentions_key((string) $key, $entry, $id, $fee_ids)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static function mentions_key(string $key, $entry, int $id, array $fee_ids): bool {
+        if (!is_scalar($entry)) {
+            return false;
+        }
+        $member_key = $key === 'member_id' || str_ends_with($key, '_member_id');
+        return ($member_key && (int) $entry === $id)
+            || ($key === 'fee_item_id' && in_array((int) $entry, array_map('intval', $fee_ids), true));
     }
 }
