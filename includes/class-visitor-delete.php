@@ -302,18 +302,10 @@ class AVPVH_Visitor_Delete {
 
     /** The current user, or an account with any role or capability beyond a plain subscriber/contributor. */
     private static function is_protected_account(array $user, $wp_user): bool {
-        if ((int) $user['ID'] === get_current_user_id() || array_diff($user['roles'], ['subscriber', 'contributor'])) {
-            return true;
-        }
-        if (!$wp_user) {
-            return false;
-        }
-        foreach (['manage_options', 'edit_users', 'delete_users', 'edit_others_posts'] as $capability) {
-            if (user_can($wp_user, $capability)) {
-                return true;
-            }
-        }
-        return false;
+        $elevated = static fn(string $capability): bool => user_can($wp_user, $capability);
+        return (int) $user['ID'] === get_current_user_id()
+            || array_diff($user['roles'], ['subscriber', 'contributor'])
+            || ($wp_user && array_filter(['manage_options', 'edit_users', 'delete_users', 'edit_others_posts'], $elevated));
     }
 
     /** Rows in every table that point at the visitor by member ID, user ID or (for known tables) e-mail. */
