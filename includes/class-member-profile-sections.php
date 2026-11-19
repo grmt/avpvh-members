@@ -21,7 +21,7 @@ class AVPVH_Member_Profile_Sections {
             self::render_newsletter_consent($member);
         }
         if ($view === 'own' && AVPVH_Roles::member_is_blogger((int) $member->id)) {
-            self::render_blogging($member);
+            self::render_blogging();
         }
         echo "\n<!-- Audit Trail -->\n";
         self::render_audit_trail($member);
@@ -606,7 +606,7 @@ class AVPVH_Member_Profile_Sections {
         <?php
     }
 
-    private static function render_blogging(object $member): void {
+    private static function render_blogging(): void {
         ?>
         <fieldset class="avpvh-blogging">
             <legend><?php esc_html_e('Bloggen', 'avpvh-members'); ?></legend>

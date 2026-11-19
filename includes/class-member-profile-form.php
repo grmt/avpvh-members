@@ -183,15 +183,8 @@ class AVPVH_Member_Profile_Form {
         if (AVPVH_Roles::can_manage_members()) {
             return true;
         }
-        if (!$own_member) {
-            return false;
-        }
-        foreach (AVPVH_DB::get_manageable_members((int) $own_member->id) as $m) {
-            if ((int) $m->id === $target_member_id) {
-                return true;
-            }
-        }
-        return false;
+        $household = $own_member ? AVPVH_DB::get_manageable_members((int) $own_member->id) : [];
+        return in_array($target_member_id, array_map('intval', wp_list_pluck($household, 'id')), true);
     }
 
     /**
