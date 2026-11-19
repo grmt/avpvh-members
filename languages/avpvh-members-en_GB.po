@@ -3231,3 +3231,67 @@ msgstr "Added as unverified; the login method is set once the member logs in wit
 #: includes/class-member-profile-form.php
 msgid "beheren"
 msgstr "manage"
+
+#: admin/email-log.php
+msgid "Verzonden"
+msgstr "Sent"
+
+#: admin/email-log.php
+msgid "Mislukt"
+msgstr "Failed"
+
+#: admin/email-log.php
+msgid "E-mail log"
+msgstr "Email log"
+
+#: admin/email-log.php
+msgid "Alle mails die de website heeft verstuurd, alleen om te bekijken. Links die als sleutel werken (bestellingen, fotomappen, inloggen) zijn verborgen, en van mails over inloggen of een wachtwoord is de inhoud niet te zien."
+msgstr "All emails the website has sent, for viewing only. Links that work as a key (orders, photo folders, logging in) are hidden, and the content of emails about logging in or a password is not shown."
+
+#: admin/email-log.php
+msgid "Er is geen e-mail log: FluentSMTP is niet geïnstalleerd of houdt geen log bij."
+msgstr "There is no email log: FluentSMTP is not installed or does not keep a log."
+
+#: admin/email-log.php
+msgid "Terug naar het log"
+msgstr "Back to the log"
+
+#: admin/email-log.php
+msgid "Deze mail staat niet (meer) in het log."
+msgstr "This email is not (or no longer) in the log."
+
+#: admin/email-log.php
+msgid "Aan"
+msgstr "To"
+
+#: admin/email-log.php
+msgid "Inhoud"
+msgstr "Content"
+
+#: admin/email-log.php
+msgid "Deze mail gaat over inloggen of een wachtwoord. De inhoud wordt hier niet getoond, omdat wie de link erin opent als de ontvanger kan inloggen."
+msgstr "This email is about logging in or a password. Its content is not shown here, because whoever opens the link in it can log in as the recipient."
+
+#: admin/email-log.php
+msgid "Inhoud van de mail"
+msgstr "Content of the email"
+
+#: admin/email-log.php
+msgid "Zoek op onderwerp of ontvanger"
+msgstr "Search by subject or recipient"
+
+#: admin/email-log.php
+msgid "Onderwerp of ontvanger"
+msgstr "Subject or recipient"
+
+#: admin/email-log.php
+msgid "Geen mails gevonden."
+msgstr "No emails found."
+
+#: admin/email-log.php
+#. translators: %d: number of mails
+#, php-format
+msgid "%d mail"
+msgid_plural "%d mails"
+msgstr[0] "%d email"
+msgstr[1] "%d emails"

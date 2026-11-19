@@ -3692,3 +3692,67 @@ msgstr "Wordt als niet-geverifieerd toegevoegd; de inlogmethode staat vast zodra
 #: includes/class-member-profile-form.php
 msgid "beheren"
 msgstr "beheren"
+
+#: admin/email-log.php
+msgid "Verzonden"
+msgstr "Verzonden"
+
+#: admin/email-log.php
+msgid "Mislukt"
+msgstr "Mislukt"
+
+#: admin/email-log.php
+msgid "E-mail log"
+msgstr "E-mail log"
+
+#: admin/email-log.php
+msgid "Alle mails die de website heeft verstuurd, alleen om te bekijken. Links die als sleutel werken (bestellingen, fotomappen, inloggen) zijn verborgen, en van mails over inloggen of een wachtwoord is de inhoud niet te zien."
+msgstr "Alle mails die de website heeft verstuurd, alleen om te bekijken. Links die als sleutel werken (bestellingen, fotomappen, inloggen) zijn verborgen, en van mails over inloggen of een wachtwoord is de inhoud niet te zien."
+
+#: admin/email-log.php
+msgid "Er is geen e-mail log: FluentSMTP is niet geïnstalleerd of houdt geen log bij."
+msgstr "Er is geen e-mail log: FluentSMTP is niet geïnstalleerd of houdt geen log bij."
+
+#: admin/email-log.php
+msgid "Terug naar het log"
+msgstr "Terug naar het log"
+
+#: admin/email-log.php
+msgid "Deze mail staat niet (meer) in het log."
+msgstr "Deze mail staat niet (meer) in het log."
+
+#: admin/email-log.php
+msgid "Aan"
+msgstr "Aan"
+
+#: admin/email-log.php
+msgid "Inhoud"
+msgstr "Inhoud"
+
+#: admin/email-log.php
+msgid "Deze mail gaat over inloggen of een wachtwoord. De inhoud wordt hier niet getoond, omdat wie de link erin opent als de ontvanger kan inloggen."
+msgstr "Deze mail gaat over inloggen of een wachtwoord. De inhoud wordt hier niet getoond, omdat wie de link erin opent als de ontvanger kan inloggen."
+
+#: admin/email-log.php
+msgid "Inhoud van de mail"
+msgstr "Inhoud van de mail"
+
+#: admin/email-log.php
+msgid "Zoek op onderwerp of ontvanger"
+msgstr "Zoek op onderwerp of ontvanger"
+
+#: admin/email-log.php
+msgid "Onderwerp of ontvanger"
+msgstr "Onderwerp of ontvanger"
+
+#: admin/email-log.php
+msgid "Geen mails gevonden."
+msgstr "Geen mails gevonden."
+
+#: admin/email-log.php
+#. translators: %d: number of mails
+#, php-format
+msgid "%d mail"
+msgid_plural "%d mails"
+msgstr[0] "%d mail"
+msgstr[1] "%d mails"
