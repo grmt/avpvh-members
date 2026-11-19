@@ -142,7 +142,7 @@ if (!getenv('AVPVH_PROFILE_TEST_CLASS')) {
 }
 
 AVPVH_DB::$members = [
-    1 => member(1, 'Anna', 'Voorbeeld', ['wp_user_id' => 101, 'user_id' => 'anna', 'email' => 'anna@example.test', 'emergency_member_id' => 3, 'birth_year' => 1980, 'is_student' => 1]),
+    1 => member(1, 'Alfa', 'Voorbeeld', ['wp_user_id' => 101, 'user_id' => 'alfa', 'email' => 'alfa@example.test', 'emergency_member_id' => 3, 'birth_year' => 1980, 'is_student' => 1]),
     2 => member(2, 'Bram', 'Voorbeeld', ['suffix' => 'van', 'wp_user_id' => 102]),
     3 => member(3, 'Cor', 'Voorbeeld', ['birth_date' => '1950-02-03', 'email' => 'cor@avpvh.local', 'emergency_member_id' => 2, 'directory_consent' => 'declined']),
     4 => member(4, 'Dina', 'Elders', ['wp_user_id' => 104]),
@@ -204,14 +204,14 @@ $h = render([], ['member_id' => '4']);
 check('extended family: request-only page', $has($h, 'Je kunt hier een verzoek sturen aan', 'Inlog-e-mailadres verifiëren') && $lacks($h, 'avpvh-profile-form"', 'avpvh-summary-card'));
 
 $h = render([], ['member_id' => '5']);
-check('unrelated member: own profile instead', $has($h, 'Anna') && $lacks($h, 'Je bewerkt het profiel van'));
+check('unrelated member: own profile instead', $has($h, 'Alfa') && $lacks($h, 'Je bewerkt het profiel van'));
 
 $h = render(['user' => 900, 'admin' => true], ['member_id' => '3']);
 check('admin edit: note, member e-mail "geen", birth date, admin e-mail block, relationship form', $has($h, 'Beheerder bewerkt', 'E-mail lid:', 'geen', 'name="birth_date"', 'value="1950-02-03"', 'avpvh-admin-emails', 'Relatie toevoegen'));
 check('admin edit: no self-service sections', $lacks($h, 'Zichtbaarheid in ledenlijst', 'Nieuwsbrief', 'Bloggen', 'Lidmaatschap aanvragen'));
 
 $h = render(['user' => 900, 'admin' => true], ['member_id' => '1']);
-check('admin edit: birth year when no date', $has($h, 'value="1980"', 'anna@example.test'));
+check('admin edit: birth year when no date', $has($h, 'value="1980"', 'alfa@example.test'));
 
 $h = render(['user' => 105]);
 check('visitor: membership request, Bezoeker badge, three identities so no add', $has($h, 'Lidmaatschap aanvragen', 'Bezoeker', 'Gebruiker') && $lacks($h, 'Voeg een e-mailadres toe en verifieer het'));
