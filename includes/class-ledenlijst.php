@@ -50,7 +50,17 @@ class AVPVH_Ledenlijst {
 
             <div class="avpvh-ledenlijst-tabel-scroll">
             <table class="avpvh-ledenlijst-tabel" id="avpvh-ledenlijst-tabel">
-                <?php self::render_table_head(); ?>
+                <thead>
+                    <tr>
+                        <th scope="col" class="col-naam is-sortable" data-sort-key="naam"><?php esc_html_e('Naam', 'avpvh-members'); ?></th>
+                        <th scope="col" class="col-email is-sortable" data-sort-key="email"><?php esc_html_e('E-mail', 'avpvh-members'); ?></th>
+                        <th scope="col" class="col-telefoon is-sortable" data-sort-key="telefoon"><?php esc_html_e('Telefoon', 'avpvh-members'); ?></th>
+                        <th scope="col" class="col-adres"><?php esc_html_e('Adres', 'avpvh-members'); ?></th>
+                        <th scope="col" class="col-postcode avpvh-col-hidden is-sortable" data-sort-key="postcode"><?php esc_html_e('Postcode', 'avpvh-members'); ?></th>
+                        <th scope="col" class="col-plaats avpvh-col-hidden is-sortable" data-sort-key="plaats"><?php esc_html_e('Plaats', 'avpvh-members'); ?></th>
+                        <th scope="col" class="col-groepen avpvh-col-hidden is-sortable" data-sort-key="groepen"><?php esc_html_e('Groepen', 'avpvh-members'); ?></th>
+                    </tr>
+                </thead>
                 <tbody>
                 <?php foreach ($leden as $lid) {
                     self::render_row($lid, $group_map[$lid->lldap_user_id] ?? [], $editable_ids === null || in_array((int) $lid->id, $editable_ids, true));
@@ -156,22 +166,6 @@ class AVPVH_Ledenlijst {
                     </div>
                 </div>
             </div>
-        <?php
-    }
-
-    private static function render_table_head(): void {
-        ?>
-                <thead>
-                    <tr>
-                        <th class="col-naam is-sortable" data-sort-key="naam"><?php esc_html_e('Naam', 'avpvh-members'); ?></th>
-                        <th class="col-email is-sortable" data-sort-key="email"><?php esc_html_e('E-mail', 'avpvh-members'); ?></th>
-                        <th class="col-telefoon is-sortable" data-sort-key="telefoon"><?php esc_html_e('Telefoon', 'avpvh-members'); ?></th>
-                        <th class="col-adres"><?php esc_html_e('Adres', 'avpvh-members'); ?></th>
-                        <th class="col-postcode avpvh-col-hidden is-sortable" data-sort-key="postcode"><?php esc_html_e('Postcode', 'avpvh-members'); ?></th>
-                        <th class="col-plaats avpvh-col-hidden is-sortable" data-sort-key="plaats"><?php esc_html_e('Plaats', 'avpvh-members'); ?></th>
-                        <th class="col-groepen avpvh-col-hidden is-sortable" data-sort-key="groepen"><?php esc_html_e('Groepen', 'avpvh-members'); ?></th>
-                    </tr>
-                </thead>
         <?php
     }
 

@@ -17,7 +17,7 @@ if (!$member) {
             <input type="hidden" name="page" value="avpvh-member-detail">
             <p class="search-box">
                 <label class="screen-reader-text" for="avpvh-member-search"><?php esc_html_e('Naam of e-mail', 'avpvh-members'); ?></label>
-                <input type="search" id="avpvh-member-search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="<?php echo esc_attr__('Naam of e-mail', 'avpvh-members'); ?>" autofocus>
+                <input type="search" id="avpvh-member-search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="<?php echo esc_attr__('Naam of e-mail', 'avpvh-members'); ?>">
                 <button type="submit" class="button"><?php esc_html_e('Zoeken', 'avpvh-members'); ?></button>
             </p>
         </form>
