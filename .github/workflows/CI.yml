@@ -47,10 +47,12 @@ jobs:
       ignore-codes: |
         plugin_updater_detected
 
-  # SonarQube Cloud, CI-based (shared with the other own plugins). No PHPUnit
-  # here: the tests are the scripts below. quality.yml adds
-  # .sonarcloud.properties (test inclusions, rule exceptions) to the settings.
-  # Needs Automatic Analysis turned off in SonarQube Cloud.
+  # PHPUnit on 8.4 and 8.5 with coverage, and SonarQube Cloud (shared with the
+  # other own plugins). The tests are the stand-alone scripts/test-*.php: each
+  # runs as its own PHP process through tests/scripts/*.phpt, so its WordPress
+  # stand-ins stay its own. The integration tests among them print SKIP without
+  # their throwaway database or directory. quality.yml adds
+  # .sonarcloud.properties (test paths, rule exceptions) to the settings.
   quality:
     name: "Quality"
     uses: grmt/wp-plugin-ci/.github/workflows/quality.yml@main
@@ -58,44 +60,3 @@ jobs:
       contents: read
       id-token: write
     secrets: inherit
-    with:
-      phpunit: false
-
-  # The stand-alone test scripts (scripts/test-*.php): they stub WordPress
-  # themselves, so no WordPress install is needed. The integration tests
-  # among them print SKIP without their throwaway LDAP server or database;
-  # ldap is switched off here so the two directory tests skip too.
-  tests:
-    name: "Test scripts (PHP ${{ matrix.php }})"
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        php: ["8.4", "8.5"]
-    steps:
-      - name: "Checkout"
-        uses: actions/checkout@v7
-
-      - name: "Set up PHP"
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
-        with:
-          php-version: ${{ matrix.php }}
-          extensions: :ldap
-          coverage: none
-
-      - name: "Run scripts/test-*.php"
-        run: |
-          failed=()
-          for t in scripts/test-*.php; do
-            if out=$(php "$t" 2>&1); then
-              echo "pass  $t$(grep -m1 '^SKIP' <<<"$out" | sed 's/^/  (/; s/$/)/')"
-            else
-              echo "FAIL  $t"
-              echo "$out" | tail -20 | sed 's/^/      /'
-              failed+=("$t")
-            fi
-          done
-          if [ "${#failed[@]}" -gt 0 ]; then
-            echo "::error::${#failed[@]} test script(s) failed: ${failed[*]}"
-            exit 1
-          fi

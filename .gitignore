@@ -5,3 +5,8 @@ __pycache__/
 # Operator-specific member IDs, hashes, reconciliation overrides and local
 # config (e.g. config/authelia-configuration.local.yml).
 *.local.*
+
+# PHPUnit (composer install, see TESTING.md)
+/vendor/
+/.phpunit.cache/
+/coverage.xml

@@ -75,7 +75,6 @@ check('invalid lifetime is rejected', AVPVH_Media_Token::build_token(42, $expire
 
 $validator = new AVPVH_Media_Token();
 $token_expiration = new ReflectionMethod(AVPVH_Media_Token::class, 'token_expiration');
-$token_expiration->setAccessible(true);
 $now = time();
 $live_token = AVPVH_Media_Token::build_token(42, $now, $now + 60);
 $expired_token = AVPVH_Media_Token::build_token(42, $now - 120, $now - 60);

@@ -25,6 +25,33 @@ bash -n scripts/release.sh
 bash -n scripts/promote-scrubbed-main.sh
 ```
 
+## PHPUnit and coverage
+
+CI runs every `scripts/test-*.php` through PHPUnit (`grmt/wp-plugin-ci`
+`quality.yml`), on PHP 8.4 and 8.5, with coverage on 8.4 for SonarQube Cloud.
+Each script runs as its own PHP process through `tests/scripts/<name>.phpt`;
+a run fails when its output has `[FAIL]`, `FAIL`, a PHP error, warning,
+notice or deprecation. A new script needs its `.phpt`:
+
+```bash
+bin/make-script-tests        # writes the missing tests/scripts/*.phpt
+```
+
+`tests/ScriptTestsTest.php` fails while one is missing. SonarQube Cloud's
+quality gate asks for 80% coverage of new code, so new or changed code in
+`includes/` and `admin/` needs a script that runs it.
+
+Locally (needs PHP 8.4+ with dom, xml and mbstring, and pcov for coverage),
+for example in a container:
+
+```bash
+composer install
+vendor/bin/phpunit
+vendor/bin/phpunit --coverage-text   # with pcov or xdebug
+```
+
+The scripts also still run on their own: `php scripts/test-<name>.php`.
+
 ## Saved Ad-hoc Tests
 
 ```bash

@@ -16,3 +16,15 @@ updates:
     interval: weekly
   assignees:
     - grmt
+- package-ecosystem: composer
+  directory: "/"
+  groups:
+    composer:
+      update-types: [minor, patch]
+    composer-security:
+      applies-to: security-updates
+      patterns: ["*"]
+  schedule:
+    interval: weekly
+  assignees:
+    - grmt
