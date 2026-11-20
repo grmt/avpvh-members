@@ -176,7 +176,10 @@ class AVPVH_Member_Profile_Form {
         $own_member = AVPVH_DB::get_member_by_wp_user($wp_user->ID);
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
-        if ($member_id > 0 && self::can_edit_member($own_member, $member_id)) {
+        if (isset($_POST['member_id'])) {
+            if ($member_id <= 0 || !self::can_edit_member($own_member, $member_id)) {
+                wp_send_json_error(__('Geen toegang tot dit ledenprofiel.', 'avpvh-members'), 403);
+            }
             return AVPVH_DB::get_member($member_id);
         }
 

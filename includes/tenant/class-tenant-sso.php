@@ -34,6 +34,9 @@ class AVPVH_Tenant_SSO {
     /** How the session about to be created was started. */
     private string $login_method = self::VIA_AUTHELIA;
 
+    /** @var array<string, bool> Admin authorization for this request's browser session only. */
+    private array $session_admin_access = [];
+
     private AVPVH_Tenant_Config $config;
 
     public function __construct(AVPVH_Tenant_Config $config) {
@@ -48,6 +51,7 @@ class AVPVH_Tenant_SSO {
         add_filter('login_url',       [$this, 'filter_login_url'], 10, 2);
         add_filter('allowed_redirect_hosts', [$this, 'allow_authelia_host']);
         add_filter('attach_session_information', [$this, 'attach_login_method']);
+        add_filter('user_has_cap', [$this, 'filter_session_capabilities'], 20, 4);
         add_action('set_logged_in_cookie', [$this, 'on_logged_in_cookie']);
         add_filter('avpvh_flst_user_groups', [$this, 'filter_filelist_user_groups'], 10, 2);
         add_filter('avpvh_flst_available_groups', [$this, 'filter_filelist_available_groups']);
@@ -242,7 +246,53 @@ class AVPVH_Tenant_SSO {
 
     public function attach_login_method(array $session): array {
         $session[self::LOGIN_KEY] = $this->login_method;
+        $session['avpvh_checked'] = time();
         return $session;
+    }
+
+    /**
+     * WP roles belong to the account, while 2FA belongs to the browser.
+     * Recheck the current browser before using any capability beyond reading,
+     * including REST, AJAX and admin-post requests during the recheck interval.
+     * Local emergency accounts and checks about other users are left alone.
+     */
+    public function filter_session_capabilities(array $allcaps, array $caps, array $args, \WP_User $user): array { // NOSONAR -- $args: WordPress passes it before $user
+        $reader_caps = ['read', 'level_0', 'exist'];
+        if ($user->ID !== get_current_user_id() || !array_diff($caps, $reader_caps)) {
+            return $allcaps;
+        }
+        $subject = (string) get_user_meta($user->ID, self::SUBJECT_META, true);
+        if ($subject === '' || $this->session_allows_elevated_capabilities($user, $subject)) {
+            return $allcaps;
+        }
+        foreach (array_keys($allcaps) as $cap) {
+            if (!in_array($cap, $reader_caps, true)) {
+                $allcaps[$cap] = false;
+            }
+        }
+        return $allcaps;
+    }
+
+    private function session_allows_elevated_capabilities(\WP_User $user, string $subject): bool {
+        if ($this->session_login() !== self::VIA_AUTHELIA) {
+            return false;
+        }
+        $requires_admin_group = in_array('administrator', $user->roles, true);
+        $cookie = (string) ($_COOKIE[(string) $this->config->get('authelia_session_cookie')] ?? '');
+        $key = hash('sha256', $subject . ':' . wp_get_session_token() . ':' . $cookie . ':' . (int) $requires_admin_group);
+        if (!array_key_exists($key, $this->session_admin_access)) {
+            // Deny any recursive capability check while the probe is running.
+            $this->session_admin_access[$key] = false;
+            $identity = AVPVH_Tenant_Identity::probe_admin_2fa($this->config);
+            $directory_role = self::role_for_groups($identity['groups'] ?? [], $this->config);
+            // Preserve manually assigned roles such as editor after 2FA, but
+            // administrator always requires an actual directory admin group.
+            $this->session_admin_access[$key] = $identity['status'] === AVPVH_Tenant_Identity::OK
+                && $subject === $this->config->tenant_id() . '/' . ($identity['uid'] ?? '')
+                && $directory_role !== null
+                && (!$requires_admin_group || $directory_role === 'administrator');
+        }
+        return $this->session_admin_access[$key];
     }
 
     /** Make the newly set logged-in cookie available for nonces in the same request. */

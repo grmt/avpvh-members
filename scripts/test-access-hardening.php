@@ -158,6 +158,10 @@ function wp_doing_ajax(): bool { return false; }
 function wp_doing_cron(): bool { return false; }
 function is_user_logged_in(): bool { return $GLOBALS['test_logged_in']; }
 function get_current_user_id(): int { return $GLOBALS['test_user_id']; }
+function wp_get_current_user(): WP_User { return $GLOBALS['test_users'][get_current_user_id()]; }
+function absint(mixed $v): int { return abs((int) $v); }
+function check_ajax_referer(string $action, string $key): void {}
+function wp_send_json_error(mixed $data, ?int $status = null): void { throw new Test_Exit('json_error', $status ?? 200, (string) $data); }
 function wp_get_session_token(): string { return 'tok-1'; }
 function get_userdata(int $id): WP_User|false { return $GLOBALS['test_users'][$id] ?? false; }
 function get_user_by(string $f, mixed $v): WP_User|false { return $f === 'id' ? ($GLOBALS['test_users'][(int) $v] ?? false) : false; }
@@ -189,6 +193,7 @@ function do_action(string $h, mixed ...$a): void {}
 function wp_safe_redirect(string $url): void { throw new Test_Exit('redirect', 302, $url); }
 function wp_die(string $msg, string $title = '', array $args = []): void { throw new Test_Exit('die', (int) ($args['response'] ?? 500), $msg); }
 function wp_remote_get(string $url, array $args): mixed {
+    $GLOBALS['test_remote_calls'] = ($GLOBALS['test_remote_calls'] ?? 0) + 1;
     return ($GLOBALS['test_remote_handler'])($url, $args);
 }
 function wp_remote_retrieve_response_code(array $r): int { return $r['code']; }
@@ -231,6 +236,8 @@ require_once dirname(__DIR__) . '/includes/class-db.php';
 require_once dirname(__DIR__) . '/includes/class-roles.php';
 require_once dirname(__DIR__) . '/includes/class-nav-auth.php';
 require_once dirname(__DIR__) . '/includes/class-access.php';
+require_once dirname(__DIR__) . '/includes/class-member-profile-form.php';
+require_once dirname(__DIR__) . '/includes/class-member-profile-page.php';
 require_once dirname(__DIR__) . '/includes/class-media-protection.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-config.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-identity.php';
@@ -321,6 +328,35 @@ wp_set_current_user(6); // inactive member
 check('inactive member has no it-beheer access', AVPVH_Roles::current_user_is_it_admin() === false);
 check('inactive member has no blogger access', AVPVH_Roles::current_user_is_blogger() === false);
 check('inactive member has no secretaris role', AVPVH_Roles::current_user_has_role('secretaris') === false);
+
+// A denied explicit target must stop the save, never select the actor instead.
+wp_set_current_user(3);
+$GLOBALS['test_groups']['voorz.test'][] = 'secretaris';
+$GLOBALS['test_session_data'] = ['avpvh_auth_method' => 'proxy', 'avpvh_2fa' => true];
+$_POST = ['member_id' => 10, 'first_name' => 'Fictieve doelnaam', 'street' => 'Voorbeeldstraat'];
+$profile_form = new AVPVH_Member_Profile_Form();
+$save_error = null;
+try { $profile_form->handle_save_profile(); } catch (Test_Exit $e) { $save_error = $e; }
+check('elevated target save stops with 403 before any writes', $save_error instanceof Test_Exit && $save_error->kind === 'json_error' && $save_error->status === 403);
+[$profile_target, $profile_view] = AVPVH_Member_Profile_Page::resolve($GLOBALS['test_members'][30], 10);
+check('officer does not get an elevated target edit form', $profile_target->id === 30 && $profile_view === 'own');
+$resolve_save = new ReflectionMethod($profile_form, 'get_target_member_for_save');
+$_POST = [];
+check('omitted save target still selects own profile', $resolve_save->invoke($profile_form)->id === 30);
+$_POST = ['member_id' => 0];
+$save_error = null;
+try { $profile_form->handle_save_profile(); } catch (Test_Exit $e) { $save_error = $e; }
+check('invalid explicit save target stops with 403', $save_error instanceof Test_Exit && $save_error->status === 403);
+$_POST = ['member_id' => 20];
+check('2FA officer can still select an ordinary target', $resolve_save->invoke($profile_form)->id === 20);
+$GLOBALS['test_session_data']['avpvh_2fa'] = false;
+$save_error = null;
+try { $profile_form->handle_save_profile(); } catch (Test_Exit $e) { $save_error = $e; }
+check('1FA officer cannot redirect another member save to own record', $save_error instanceof Test_Exit && $save_error->status === 403);
+[$profile_target, $profile_view] = AVPVH_Member_Profile_Page::resolve($GLOBALS['test_members'][30], 20);
+check('1FA officer does not get another member admin edit form', $profile_target->id === 30 && $profile_view === 'own');
+$_POST = [];
+array_pop($GLOBALS['test_groups']['voorz.test']);
 
 // --- Safe WP user linking ---------------------------------------------------
 check('refuses linking WP administrator', AVPVH_DB::can_safely_link_wp_user($GLOBALS['test_users'][1], 99) === false);
@@ -458,8 +494,55 @@ $_GET = [];
 try { $t_sso->handle_sso_callback(); } catch (Test_Exit $e) {}
 check('tenant 1FA admin+member gets subscriber role until 2FA', $GLOBALS['test_users'][$GLOBALS['test_user_id']]->roles === ['subscriber']);
 
+// A second browser's 2FA login changes the account role, not the first browser's proof.
+$tenant_user_id = get_current_user_id();
+$GLOBALS['test_users'][$tenant_user_id]->set_role('administrator');
+$GLOBALS['test_meta'][$tenant_user_id][AVPVH_Tenant_SSO::CHECKED_META] = time();
+$GLOBALS['test_session_data'] = ['avpvh_login' => 'authelia', 'avpvh_checked' => time()];
+$_SERVER['REQUEST_URI'] = '/wp-admin/admin-ajax.php';
+$t_sso->recheck_session(); // cached membership check must not authorize elevated capabilities
+$admin_caps = ['read' => true, 'level_0' => true, 'manage_options' => true, 'edit_users' => true, 'edit_posts' => true, 'custom_admin_action' => true];
+$GLOBALS['test_remote_calls'] = 0;
+$low_caps = $t_sso->filter_session_capabilities($admin_caps, ['manage_options'], [], $GLOBALS['test_users'][$tenant_user_id]);
+check('tenant 1FA browser cannot inherit another browser admin role', !$low_caps['manage_options'] && !$low_caps['edit_users'] && !$low_caps['edit_posts'] && !$low_caps['custom_admin_action']);
+check('tenant 1FA browser retains read access', $low_caps['read'] && $low_caps['level_0']);
+$t_sso->filter_session_capabilities($admin_caps, ['edit_posts'], [], $GLOBALS['test_users'][$tenant_user_id]);
+check('tenant privileged checks share one probe within the request', $GLOBALS['test_remote_calls'] === 1);
+check('tenant session starts its own recheck clock', isset($t_sso->attach_login_method([])['avpvh_checked']));
+
+$_COOKIE['test_session'] = 'two-factor-browser';
+$GLOBALS['test_remote_handler'] = static fn(string $url, array $args): array => ['code' => 200, 'headers' => [
+    'remote-user' => 'admin.member', 'remote-groups' => 'rsp-admins,vp4042-leden',
+    'remote-email' => 'am@example.invalid', 'remote-name' => 'Admin Member',
+]];
+check('tenant 2FA browser keeps administrator capabilities', $t_sso->filter_session_capabilities($admin_caps, ['manage_options'], [], $GLOBALS['test_users'][$tenant_user_id]) === $admin_caps);
+$GLOBALS['test_session_data']['avpvh_login'] = 'google';
+$oauth_caps = $t_sso->filter_session_capabilities($admin_caps, ['manage_options'], [], $GLOBALS['test_users'][$tenant_user_id]);
+check('tenant OAuth session stays read-only even with a 2FA Authelia cookie', !$oauth_caps['manage_options'] && !$oauth_caps['custom_admin_action']);
+$GLOBALS['test_session_data']['avpvh_login'] = 'authelia';
+$_COOKIE['test_session'] = 'manual-editor-browser';
+$GLOBALS['test_users'][$tenant_user_id]->set_role('editor');
+$GLOBALS['test_remote_handler'] = static fn(string $url, array $args): array => ['code' => 200, 'headers' => [
+    'remote-user' => 'admin.member', 'remote-groups' => 'vp4042-leden',
+]];
+$editor_caps = ['read' => true, 'edit_posts' => true, 'manage_options' => false];
+check('tenant manually assigned editor keeps writing rights after 2FA', $t_sso->filter_session_capabilities($editor_caps, ['edit_posts'], [], $GLOBALS['test_users'][$tenant_user_id]) === $editor_caps);
+$GLOBALS['test_users'][$tenant_user_id]->set_role('administrator');
+check('tenant administrator still needs an actual admin group after 2FA', !$t_sso->filter_session_capabilities($admin_caps, ['manage_options'], [], $GLOBALS['test_users'][$tenant_user_id])['manage_options']);
+$_COOKIE['test_session'] = 'wrong-identity-browser';
+$GLOBALS['test_remote_handler'] = static fn(string $url, array $args): array => ['code' => 200, 'headers' => [
+    'remote-user' => 'other.admin', 'remote-groups' => 'rsp-admins',
+]];
+check('tenant 2FA for a different identity grants no admin capability', !$t_sso->filter_session_capabilities($admin_caps, ['manage_options'], [], $GLOBALS['test_users'][$tenant_user_id])['manage_options']);
+$_COOKIE['test_session'] = 'unreachable-browser';
+$GLOBALS['test_remote_handler'] = static fn(string $url, array $args): array => ['code' => 503, 'headers' => []];
+check('tenant capability check fails closed when Authelia is unavailable', !$t_sso->filter_session_capabilities($admin_caps, ['manage_options'], [], $GLOBALS['test_users'][$tenant_user_id])['manage_options']);
+wp_set_current_user(1);
+check('local emergency admin retains capabilities without Authelia', $t_sso->filter_session_capabilities($admin_caps, ['manage_options'], [], $GLOBALS['test_users'][1]) === $admin_caps);
+
 // 1FA admin-only (not in member_group) -> redirected to Authelia for /wp-admin/ 2FA.
 wp_logout();
+$_SERVER['REQUEST_URI'] = '/avpvh-sso/';
 $GLOBALS['test_remote_handler'] = static function (string $url, array $args): array {
     $orig = $args['headers']['X-Original-URL'] ?? '';
     if (str_ends_with($orig, '/wp-admin/')) {

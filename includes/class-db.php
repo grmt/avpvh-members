@@ -2057,7 +2057,7 @@ class AVPVH_DB {
                AND (r.valid_from IS NULL OR r.valid_from <= %s)
                AND (r.valid_until IS NULL OR r.valid_until >= %s)
              LIMIT 1",
-            $parent_id, $child_id, $child_id, $parent_id, $today, $today
+            $child_id, $parent_id, $parent_id, $child_id, $today, $today
         ));
         return (bool) $result;
     }

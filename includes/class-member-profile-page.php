@@ -21,9 +21,10 @@ class AVPVH_Member_Profile_Page {
      */
     public static function resolve(?object $own_member, int $requested_id): array {
         $view = 'own';
-        if ($requested_id > 0 && AVPVH_Roles::can_manage_members()) {
+        $may_edit = $requested_id > 0 && AVPVH_Member_Profile_Form::can_edit_member($own_member, $requested_id);
+        if ($may_edit && AVPVH_Roles::can_manage_members()) {
             $view = 'admin';
-        } elseif ($requested_id > 0 && $own_member && AVPVH_Member_Profile_Form::can_edit_member($own_member, $requested_id)) {
+        } elseif ($may_edit && $own_member) {
             $view = 'edit';
         } elseif ($requested_id > 0 && $own_member && AVPVH_Member_Profile_Form::can_request_identity_only($own_member, $requested_id)) {
             $view = 'request_only';
