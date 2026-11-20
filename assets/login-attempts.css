@@ -173,47 +173,94 @@
     color: #a7aaad;
 }
 
+/*
+ * Phones: one card per attempt, label left and value right, instead of six
+ * squeezed columns. The header stays as a row of sort links.
+ */
 @media screen and (max-width: 782px) {
-    .avpvh-login-attempts-form .wp-list-table {
-        table-layout: fixed;
-        width: 100%;
-    }
-
-    .avpvh-login-attempts-form .wp-list-table tr {
-        display: table-row;
-    }
-
-    .avpvh-login-attempts-form .wp-list-table th:not(.hidden),
-    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td:not(.hidden) {
-        display: table-cell !important;
-    }
-
-    .avpvh-login-attempts-form .wp-list-table tr td:nth-child(n+3) {
-        flex: none;
-    }
-
-    .avpvh-login-attempts-form .wp-list-table td.column-primary,
-    .avpvh-login-attempts-form .wp-list-table tbody th.column-primary,
-    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td.column-primary ~ td:not(.check-column) {
-        padding: 8px 10px;
-    }
-
-    .avpvh-login-attempts-form .wp-list-table tr:not(.inline-edit-row):not(.no-items) td:not(.check-column)::before,
-    .avpvh-login-attempts-form .wp-list-table .toggle-row {
-        display: none !important;
-    }
-
-    .avpvh-login-attempts-form .wp-list-table .column-attempted_at,
-    .avpvh-login-attempts-form .wp-list-table .column-ip {
-        white-space: normal;
-    }
-
-    .avpvh-login-filters {
+    /* Core hides .tablenav .actions on phones; here they are the only filters. */
+    .avpvh-login-attempts-form .tablenav.top .avpvh-login-filters {
+        display: flex;
         float: none;
+        margin: 0 0 12px;
+    }
+
+    .avpvh-login-filters input[type="text"] {
+        flex: 1 1 8em;
+        min-width: 0;
     }
 
     .avpvh-checkbox-filter,
     .avpvh-checkbox-filter > summary {
         width: 100%;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table {
+        table-layout: auto;
+        width: 100%;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tfoot {
+        display: none;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table thead tr {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table thead th:not(.hidden) {
+        border: 0;
+        display: block !important;
+        padding: 4px 6px;
+        width: auto !important;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table thead th a {
+        padding: 4px;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tbody tr:not(.no-items) {
+        border-bottom: 1px solid #c3c4c7;
+        display: flex;
+        flex-direction: column;
+        padding: 6px 0;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tbody tr:not(.no-items) td:not(.hidden) {
+        box-sizing: border-box;
+        display: block !important;
+        overflow-wrap: anywhere;
+        padding: 3px 10px 3px 38% !important;
+        position: relative;
+        white-space: normal;
+        width: 100% !important;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tbody tr:not(.no-items) td:not(.hidden)::before {
+        color: #50575e;
+        content: attr(data-colname);
+        display: block !important;
+        left: 10px;
+        overflow: hidden;
+        position: absolute;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 33%;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tbody tr:not(.no-items) td.column-primary {
+        font-weight: 600;
+        order: -1;
+        padding-left: 10px !important;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tbody tr:not(.no-items) td.column-primary::before,
+    .avpvh-login-attempts-form .wp-list-table .toggle-row {
+        display: none !important;
+    }
+
+    .avpvh-login-attempts-form .wp-list-table tbody td.column-id {
+        order: 1;
     }
 }
