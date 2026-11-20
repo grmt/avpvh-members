@@ -33,6 +33,7 @@ php scripts/test-identity-limit.php
 php scripts/test-admin-email-return.php
 php scripts/test-email-log.php
 php scripts/test-profile-form-render.php
+php scripts/test-ledenlijst-render.php
 php scripts/test-role-labels.php
 php scripts/test-address-normalizer.php
 php scripts/test-name-matcher-loose.php
