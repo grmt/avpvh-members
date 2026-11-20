@@ -18,8 +18,11 @@ jobs:
   ci:
     name: CI
     uses: ./.github/workflows/CI.yml
+    # id-token: CI's quality job asks for it, and GitHub checks a called
+    # workflow's permissions when the run starts.
     permissions:
       contents: read
+      id-token: write
 
   release:
     name: Build & Publish Plugin ZIP

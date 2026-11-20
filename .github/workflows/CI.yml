@@ -47,6 +47,20 @@ jobs:
       ignore-codes: |
         plugin_updater_detected
 
+  # SonarQube Cloud, CI-based (shared with the other own plugins). No PHPUnit
+  # here: the tests are the scripts below. quality.yml adds
+  # .sonarcloud.properties (test inclusions, rule exceptions) to the settings.
+  # Needs Automatic Analysis turned off in SonarQube Cloud.
+  quality:
+    name: "Quality"
+    uses: grmt/wp-plugin-ci/.github/workflows/quality.yml@main
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit
+    with:
+      phpunit: false
+
   # The stand-alone test scripts (scripts/test-*.php): they stub WordPress
   # themselves, so no WordPress install is needed. The integration tests
   # among them print SKIP without their throwaway LDAP server or database;
