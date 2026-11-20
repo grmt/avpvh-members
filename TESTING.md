@@ -64,6 +64,10 @@ php scripts/test-participation-form-flow.php
 php scripts/test-profile-submission-flow.php
 php scripts/test-member-account-flow.php
 php scripts/test-tenant-invalid-config.php
+php scripts/test-directory-consent.php
+php scripts/test-newsletter-consent.php
+php scripts/test-ledenlijst-export.php
+php scripts/test-participation-export.php
 php scripts/test-xlsx-writer.php
 php scripts/test-profile-form-render.php
 php scripts/test-ledenlijst-render.php
@@ -104,6 +108,12 @@ without, each with `AVPVH_VISITOR_TEST_DUMP=<file>`, and compare the files.
 - email normalization
 - identity limit logic
 - Workspace group label mapping
+- directory and newsletter consent handlers: nonce/session checks, own and
+  household targets, delegation limited to confirmed minors under 16, audited
+  sharing choices, subscription changes and redirects
+- real XLSX exports: all combinations of directory sharing flags, placeholder
+  email suppression, attendance dates/status colors, empty activities and
+  literal formula-looking notes
 
 ## Notes
 
@@ -112,9 +122,12 @@ without, each with `AVPVH_VISITOR_TEST_DUMP=<file>`, and compare the files.
 - The workflow scripts call the production handlers with fictional records and
   in-memory WordPress, database and directory boundaries. They check submitted
   data, rejected requests and resulting writes without contacting live services.
-- The XLSX test also opens a generated archive and validates its XML when
-  `ext-zip` is available; that archive check skips otherwise. Use PHP with
-  `ext-zip` and PCOV/Xdebug to measure the full workbook-generation path.
+- The XLSX writer and export tests open generated archives and validate their
+  XML when `ext-zip` is available; those archive checks skip otherwise. Use PHP
+  with `ext-zip` and PCOV/Xdebug to measure the full workbook-generation path.
+- Consent tests invoke the production handlers; their shared WordPress/database
+  stand-ins live in `tests/fixtures/consent.php`. They record writes and intercept
+  redirects/errors, so rejected requests can be checked for side effects.
 - These tests complement the integration tests, which require their documented
   disposable services.
 - Keep ad-hoc scripts in the repo so they can be rerun later.
