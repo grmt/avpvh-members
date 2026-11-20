@@ -477,7 +477,7 @@ class AVPVH_DB {
         $install = self::install(...);
         $run = static fn(string $version): \Closure => static fn() => AVPVH_DB_Migrations::run($version);
         $add_column = static fn(string $version): \Closure => static fn() => AVPVH_DB_Migrations::add_missing_column($version);
-        $normalize_addresses = self::normalize_stored_addresses(...);
+        $normalize_addresses = static fn() => self::normalize_stored_addresses();
         return [
             '1.2' => $install,
             '1.3' => $run('1.3'),
@@ -492,14 +492,14 @@ class AVPVH_DB {
             '2.2' => $run('2.2'),
             '2.3' => AVPVH_DB_Migrations::create_participation_days(...),
             '2.4' => $run('2.4'),
-            '2.5' => self::migrate_to_relationships_table(...),
+            '2.5' => static fn() => self::migrate_to_relationships_table(),
             // Broadens avm_camps beyond just the annual dig — a "kamp" row's
             // real dates are also the natural period for a temporary voogd
             // assignment (see the relationships add-form's activity picker),
             // and covers weekends/outings too now, not just kampen. Types
             // live in their own table (avm_activity_types) rather than a
             // fixed ENUM, so club admins can rename or add types later.
-            '2.6' => self::migrate_to_activity_types_table(...),
+            '2.6' => static fn() => self::migrate_to_activity_types_table(),
             '2.7' => AVPVH_DB_Migrations::fold_baptism_name(...),
             '2.8' => AVPVH_DB_Migrations::strip_passport_brackets(...),
             '2.9' => AVPVH_DB_Migrations::create_role_delegations(...),
