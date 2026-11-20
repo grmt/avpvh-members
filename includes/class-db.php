@@ -1,6 +1,8 @@
 <?php
 defined('ABSPATH') || exit;
 
+require_once __DIR__ . '/class-db-migrations.php';
+
 class AVPVH_DB {
 
     /** The schema install() creates; maybe_upgrade() ends at this version. */
@@ -452,444 +454,131 @@ class AVPVH_DB {
     }
 
     public static function maybe_upgrade(): void {
-        global $wpdb;
         if (self::is_fresh()) {
             self::install_fresh();
             return;
         }
         $version = get_option('avpvh_db_version', '0');
-        if (version_compare($version, '1.2', '<')) {
-            self::install();
-            update_option('avpvh_db_version', '1.2');
+        foreach (self::upgrade_steps() as $target => $step) {
+            if (version_compare($version, (string) $target, '<')) {
+                $step();
+                update_option('avpvh_db_version', (string) $target);
+            }
         }
-        if (version_compare($version, '1.3', '<')) {
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_login_attempts
-                MODIFY method ENUM('proxy','google','microsoft','password_reset') NOT NULL,
-                MODIFY result ENUM('success','no_member','hibp_warned') NOT NULL");
-            update_option('avpvh_db_version', '1.3');
-        }
-        if (version_compare($version, '1.4', '<')) {
-            self::install();
-            update_option('avpvh_db_version', '1.4');
-        }
-        if (version_compare($version, '1.5', '<')) {
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
-                ADD COLUMN suffix VARCHAR(50) NOT NULL DEFAULT '' AFTER first_name");
-            update_option('avpvh_db_version', '1.5');
-        }
-        if (version_compare($version, '1.6', '<')) {
-            self::install();
-            update_option('avpvh_db_version', '1.6');
-        }
-        if (version_compare($version, '1.7', '<')) {
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
-                ADD COLUMN directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'pending' AFTER emergency_contact,
-                ADD COLUMN directory_consent_at TIMESTAMP NULL AFTER directory_consent,
-                ADD COLUMN share_email TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER directory_consent_at,
-                ADD COLUMN share_phone TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER share_email,
-                ADD COLUMN share_address TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER share_phone,
-                ADD COLUMN share_camp_history TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 AFTER share_address");
-            update_option('avpvh_db_version', '1.7');
-        }
-        if (version_compare($version, '1.8', '<')) {
-            // The published privacy statement already establishes that the member
-            // directory is shared with all members — flip from opt-in to opt-out.
-            // One-time backfill: undecided members become shared; real declines stand.
-            $wpdb->query("UPDATE {$wpdb->prefix}avm_members
-                SET directory_consent = 'granted' WHERE directory_consent = 'pending'");
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
-                MODIFY directory_consent ENUM('pending','granted','declined') NOT NULL DEFAULT 'granted'");
-            update_option('avpvh_db_version', '1.8');
-        }
-        if (version_compare($version, '1.9', '<')) {
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
-                ADD COLUMN passport_name VARCHAR(200) NOT NULL DEFAULT '' AFTER baptism_name,
-                ADD COLUMN family_relation_member_id INT UNSIGNED NULL AFTER emergency_contact,
-                ADD COLUMN diet VARCHAR(255) NOT NULL DEFAULT '' AFTER family_relation_member_id,
-                ADD KEY family_relation_member_id (family_relation_member_id)");
-            update_option('avpvh_db_version', '1.9');
-        }
-        if (version_compare($version, '2.0', '<')) {
-            // Members may now have up to 3 identities in total regardless of
-            // provider (e.g. two Google-verified addresses), rather than
-            // exactly one per provider — drop the per-provider slot limit,
-            // and make plain e-mail address uniqueness global instead of
-            // scoped to provider (an address can never belong to more than
-            // one member, whichever method verified it). The original schema
-            // also had a separate plain KEY named "email" — must go too, or
-            // adding the new UNIQUE KEY of the same name collides with it.
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_member_identities
-                DROP INDEX member_provider,
-                DROP INDEX provider_email,
-                DROP INDEX email,
-                ADD UNIQUE KEY email (email(191))");
-            update_option('avpvh_db_version', '2.0');
-        }
-        if (version_compare($version, '2.1', '<')) {
-            // The Google-Sheets-sync registration system (avm_registrations /
-            // avm_registration_attendance / avm_sync_conflicts) was never
-            // launched (sync was never configured, 0 rows) and is superseded
-            // by avm_camp_participation(_days), which is properly linked to
-            // real members. Drop the old tables so the data model only
-            // exists once.
-            $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_registration_attendance");
-            $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_sync_conflicts");
-            $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}avm_registrations");
-            update_option('avpvh_db_version', '2.1');
-        }
-        if (version_compare($version, '2.2', '<')) {
-            // Needed to render/edit day-by-day attendance for a camp (the
-            // "Kampdeelname" screen) without hardcoding the date range.
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camps
-                ADD COLUMN start_date DATE NULL AFTER location,
-                ADD COLUMN end_date DATE NULL AFTER start_date");
-            update_option('avpvh_db_version', '2.2');
-        }
-        if (version_compare($version, '2.3', '<')) {
-            // avm_activity_participation_days was added to install()
-            // alongside avm_activity_participation, but install() only runs
-            // on activation — already-active sites never got it. dbDelta is
-            // safe to call standalone for one table. (Table was originally
-            // named avm_camp_participation_days; a fresh install created
-            // after the 2.14 rename never hits this branch with the old
-            // name since install() already creates the current name.)
-            $charset = $wpdb->get_charset_collate();
-            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-            dbDelta("CREATE TABLE {$wpdb->prefix}avm_activity_participation_days (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                participation_id INT UNSIGNED NOT NULL,
-                date DATE NOT NULL,
-                status VARCHAR(10) NOT NULL DEFAULT '',
-                PRIMARY KEY (id),
-                UNIQUE KEY participation_date (participation_id, date)
-            ) $charset;");
-            update_option('avpvh_db_version', '2.3');
-        }
-        if (version_compare($version, '2.4', '<')) {
-            // VARCHAR(50) was too narrow for real free-text diet notes
-            // (some run well past 50 characters) — widen to match the
-            // free-text notes column next to it.
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camp_participation MODIFY diet TEXT NULL");
-            update_option('avpvh_db_version', '2.4');
-        }
-        if (version_compare($version, '2.5', '<')) {
-            self::migrate_to_relationships_table();
-            update_option('avpvh_db_version', '2.5');
-        }
-        if (version_compare($version, '2.6', '<')) {
+    }
+
+    /**
+     * Every schema version after 1.0 and what takes an existing site there,
+     * in order. The changes themselves are in AVPVH_DB_Migrations.
+     *
+     * @return array<string, callable(): void>
+     */
+    private static function upgrade_steps(): array {
+        $install = self::install(...);
+        $run = static fn(string $version): \Closure => static fn() => AVPVH_DB_Migrations::run($version);
+        $add_column = static fn(string $version): \Closure => static fn() => AVPVH_DB_Migrations::add_missing_column($version);
+        $normalize_addresses = self::normalize_stored_addresses(...);
+        return [
+            '1.2' => $install,
+            '1.3' => $run('1.3'),
+            '1.4' => $install,
+            '1.5' => $run('1.5'),
+            '1.6' => $install,
+            '1.7' => $run('1.7'),
+            '1.8' => $run('1.8'),
+            '1.9' => $run('1.9'),
+            '2.0' => $run('2.0'),
+            '2.1' => $run('2.1'),
+            '2.2' => $run('2.2'),
+            '2.3' => AVPVH_DB_Migrations::create_participation_days(...),
+            '2.4' => $run('2.4'),
+            '2.5' => self::migrate_to_relationships_table(...),
             // Broadens avm_camps beyond just the annual dig — a "kamp" row's
             // real dates are also the natural period for a temporary voogd
             // assignment (see the relationships add-form's activity picker),
             // and covers weekends/outings too now, not just kampen. Types
             // live in their own table (avm_activity_types) rather than a
             // fixed ENUM, so club admins can rename or add types later.
-            self::migrate_to_activity_types_table();
-            update_option('avpvh_db_version', '2.6');
-        }
-        if (version_compare($version, '2.7', '<')) {
-            // Doopnaam (baptism_name) was a separate field from paspoortnaam
-            // but never actually used for anything distinct — fold any
-            // existing data into passport_name and drop the column.
-            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'baptism_name'");
-            if ($column_exists) {
-                $wpdb->query("UPDATE {$wpdb->prefix}avm_members
-                    SET passport_name = baptism_name
-                    WHERE baptism_name != '' AND passport_name = ''");
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members DROP COLUMN baptism_name");
-            }
-            update_option('avpvh_db_version', '2.7');
-        }
-        if (version_compare($version, '2.8', '<')) {
-            // Passport name must read exactly as printed in the passport —
-            // strip parenthetical nicknames/notes left over from the old
-            // doopnaam data folded in during 2.7 (e.g. "Roepnaam (Volledige
-            // Namen)" -> "Roepnaam Volledige Namen").
-            $rows = $wpdb->get_results(
-                "SELECT id, passport_name FROM {$wpdb->prefix}avm_members
-                 WHERE passport_name LIKE '%(%' OR passport_name LIKE '%)%'
-                    OR passport_name LIKE '%[%' OR passport_name LIKE '%]%'
-                    OR passport_name LIKE '%{%' OR passport_name LIKE '%}%'"
-            );
-            foreach ($rows as $row) {
-                $cleaned = trim(preg_replace('/\s+/', ' ', preg_replace('/[()\[\]{}]/', '', $row->passport_name)));
-                $wpdb->update(
-                    "{$wpdb->prefix}avm_members",
-                    ['passport_name' => $cleaned],
-                    ['id' => $row->id],
-                    ['%s'], ['%d']
-                );
-            }
-            update_option('avpvh_db_version', '2.8');
-        }
-        if (version_compare($version, '2.9', '<')) {
-            // avm_role_delegations was added to install() alongside the rest
-            // of the schema, but install() only runs on activation —
-            // already-active sites never got it. dbDelta is safe to call
-            // standalone for one table.
-            $charset = $wpdb->get_charset_collate();
-            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-            dbDelta("CREATE TABLE {$wpdb->prefix}avm_role_delegations (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                role VARCHAR(30) NOT NULL,
-                delegated_to_member_id INT UNSIGNED NOT NULL,
-                delegated_by_member_id INT UNSIGNED NOT NULL,
-                starts_at DATETIME NOT NULL,
-                ends_at DATETIME NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                KEY role_active (role, delegated_to_member_id, ends_at)
-            ) $charset;");
-            update_option('avpvh_db_version', '2.9');
-        }
-        if (version_compare($version, '2.10', '<')) {
-            // Scholier/student is a status the contribution rate depends on
-            // (avpvh-bookkeeping) but that can't be derived from age alone.
-            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'is_student'");
-            if (!$column_exists) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
-                    ADD COLUMN is_student TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER birth_date");
-            }
-            update_option('avpvh_db_version', '2.10');
-        }
-        if (version_compare($version, '2.11', '<')) {
-            // Bank-account holder names are routinely printed as initials +
-            // surname ("A B C Jansen", "D E F Bakker") — a separate field
-            // from passport_name (a full legal name, mostly still unfilled)
-            // gives avpvh-bookkeeping's matcher a direct, reliable target,
-            // and can be auto-backfilled from confirmed bank transactions.
-            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'initials'");
-            if (!$column_exists) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
-                    ADD COLUMN initials VARCHAR(20) NOT NULL DEFAULT '' AFTER passport_name");
-            }
-            update_option('avpvh_db_version', '2.11');
-        }
-        if (version_compare($version, '2.12', '<')) {
-            // Some members' exact birth date will genuinely never be known
-            // (old records, lost paperwork) but the year often is — a
-            // real, if imprecise, age beats avpvh-bookkeeping's
-            // no-date-at-all "assume adult" fallback. Only used when
-            // birth_date itself is empty (see the profile form's sanitizer).
-            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'birth_year'");
-            if (!$column_exists) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
-                    ADD COLUMN birth_year SMALLINT UNSIGNED NULL AFTER birth_date");
-            }
-            update_option('avpvh_db_version', '2.12');
-        }
-        if (version_compare($version, '2.13', '<')) {
+            '2.6' => self::migrate_to_activity_types_table(...),
+            '2.7' => AVPVH_DB_Migrations::fold_baptism_name(...),
+            '2.8' => AVPVH_DB_Migrations::strip_passport_brackets(...),
+            '2.9' => AVPVH_DB_Migrations::create_role_delegations(...),
+            '2.10' => $add_column('2.10'),
+            '2.11' => $add_column('2.11'),
+            '2.12' => $add_column('2.12'),
             // "Everything you can be asked to contribute money for is an
             // activity" — contribution, drank, t-shirts etc. join camps as
             // named activity types, not just Kamp/Weekend/Uitje/Wandeling/
             // Feest/Anders. Skip-if-exists, same pattern as the original
             // seed in migrate_to_activity_types_table() below.
-            self::append_activity_types();
-
-            // location -> kenmerk: not every activity has a physical
-            // location (contribution, a drank-tab) — kenmerk is a generic
-            // "whatever identifies this activity" field, still free text.
-            $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_camps LIKE 'kenmerk'");
-            if (!$column_exists) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camps CHANGE location kenmerk VARCHAR(150) NOT NULL DEFAULT ''");
-            }
-            update_option('avpvh_db_version', '2.13');
-        }
-        if (version_compare($version, '2.14', '<')) {
-            // The "camp" naming had been stale since 2.6 (avm_camps holds
-            // every activity type — Kamp, Contributie, Congres, ... —
-            // "camp" was never accurate for most rows). Renames only:
-            // RENAME TABLE / CHANGE COLUMN preserve all existing data,
-            // nothing is recreated. avpvh-bookkeeping (a separate plugin
-            // that reads avm_activities and listens for the participation-
-            // saved hook) is updated and deployed together with this.
-            if ($wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}avm_camps'")) {
-                $wpdb->query("RENAME TABLE {$wpdb->prefix}avm_camps TO {$wpdb->prefix}avm_activities");
-            }
-            if ($wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}avm_camp_participation'")) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camp_participation
-                    CHANGE COLUMN camp_id activity_id INT UNSIGNED NOT NULL");
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_camp_participation
-                    RENAME INDEX member_camp TO member_activity,
-                    RENAME INDEX camp_id TO activity_id");
-                $wpdb->query("RENAME TABLE {$wpdb->prefix}avm_camp_participation TO {$wpdb->prefix}avm_activity_participation");
-            }
-            if ($wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}avm_camp_participation_days'")) {
-                $wpdb->query("RENAME TABLE {$wpdb->prefix}avm_camp_participation_days TO {$wpdb->prefix}avm_activity_participation_days");
-            }
-            if ($wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_members LIKE 'share_camp_history'")) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_members
-                    CHANGE COLUMN share_camp_history share_activity_history TINYINT(1) UNSIGNED NOT NULL DEFAULT 1");
-            }
-            update_option('avpvh_db_version', '2.14');
-        }
-
-        if (version_compare($version, '2.15', '<')) {
-            // Distinguishes an identity actually proven by its owner (OAuth
-            // round-trip, or the e-mail-link flow) from one an admin typed
-            // in directly via the "Nieuw e-mailadres koppelen" form with no
-            // proof at all. There's no way to tell which mechanism created
-            // an existing row after the fact, so existing rows are backfilled
-            // as verified — the admin-direct-add path was always the rare
-            // exception, and most rows on the live site came from a real
-            // OAuth login/add. New admin-direct additions from this point on
-            // are the only ones that land unverified (see class-admin.php).
-            if (!$wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_member_identities LIKE 'verified_at'")) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_member_identities
-                    ADD COLUMN verified_at TIMESTAMP NULL DEFAULT NULL AFTER is_primary");
-                $wpdb->query("UPDATE {$wpdb->prefix}avm_member_identities SET verified_at = created_at");
-            }
-            update_option('avpvh_db_version', '2.15');
-        }
-
-        if (version_compare($version, '2.16', '<')) {
-            // The e-mail-link add/login flow (class-email-identity.php) logs
-            // attempts with method='email' and, while a link is outstanding,
-            // result='link_sent' — neither existed in these ENUMs yet, so
-            // every such log_attempt() call was failing silently before this.
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_login_attempts
-                MODIFY method ENUM('proxy','google','microsoft','password_reset','email') NOT NULL,
-                MODIFY result ENUM('success','no_member','hibp_warned','link_sent') NOT NULL");
-            update_option('avpvh_db_version', '2.16');
-        }
-
-        if (version_compare($version, '2.17', '<')) {
+            '2.13' => static function () use ($add_column): void {
+                self::append_activity_types();
+                $add_column('2.13')();
+            },
+            '2.14' => AVPVH_DB_Migrations::rename_camp_tables(...),
+            '2.15' => $add_column('2.15'),
+            '2.16' => $run('2.16'),
             // install() alone can't seed rows safely on repeat activation —
             // dbDelta only handles structure — so run it here to create the
             // two new tables on already-active installs, then seed the
             // initial flag catalog. 'ere-lid' is the only one with
             // affects_fees=1 for now; see AVBK_Fee_Generation in
             // avpvh-bookkeeping for where that's read.
-            self::install();
-            self::seed_member_flags();
-            update_option('avpvh_db_version', '2.17');
-        }
-
-        if (version_compare($version, '2.18', '<')) {
-            // A flag like 'geroyeerd' (expelled) should force the member's
-            // status to 'inactive' the moment it's assigned — see
-            // set_member_flags(). Generalized as a per-flag catalog column
-            // (same shape as affects_fees) rather than hardcoding the
-            // 'geroyeerd' slug in application logic, so any future flag can
-            // opt into the same behavior without a code change.
-            if (!$wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_member_flags LIKE 'sets_inactive'")) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_member_flags
-                    ADD COLUMN sets_inactive TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER affects_fees");
-            }
-            update_option('avpvh_db_version', '2.18');
-        }
-
-        if (version_compare($version, '2.19', '<')) {
-            // Lets an admin mark an activity as eligible to supply
-            // participant-based tag suggestions in the gallery plugin
-            // (matched there by activity name + year against a Drive
-            // folder name) — an explicit opt-in so non-camp activities
-            // like "Contributie" or "t-shirt" never accidentally match.
-            if (!$wpdb->get_var("SHOW COLUMNS FROM {$wpdb->prefix}avm_activities LIKE 'gallery_taggable'")) {
-                $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_activities
-                    ADD COLUMN gallery_taggable TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER kenmerk");
-            }
-            update_option('avpvh_db_version', '2.19');
-        }
-
-        // 2.21: 2.19 is gallery_taggable above (live before it was merged).
-        if (version_compare($version, '2.21', '<')) {
-            // install() alone can't create a new table on an already-active
-            // site — dbDelta only handles structure, not seeding — so run it
-            // here too, same pattern as the 2.17 migration above.
-            self::install();
-            update_option('avpvh_db_version', '2.21');
-        }
-
-        // Directory cache table (avm_directory_users). Was 2.20 on
-        // feature/openldap-directory, but production reached 2.21 first, so
-        // a 2.20 here would be skipped there.
-        if (version_compare($version, '2.22', '<')) {
-            self::install();
-            update_option('avpvh_db_version', '2.22');
-        }
-
-        if (version_compare($version, '2.23', '<')) {
-            // This column joins avm_members.lldap_user_id, whose collation is
-            // deliberately utf8mb4_unicode_ci. The cache originally inherited
-            // the WordPress database default (utf8mb4_unicode_520_ci on the
-            // live site), which makes MariaDB reject every equality join as an
-            // illegal mix of collations once OpenLDAP becomes active.
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}avm_directory_users
-                MODIFY user_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL");
-            update_option('avpvh_db_version', '2.23');
-        }
-        if (version_compare($version, '2.24', '<')) {
+            '2.17' => static function (): void {
+                self::install();
+                self::seed_member_flags();
+            },
+            '2.18' => $add_column('2.18'),
+            '2.19' => $add_column('2.19'),
+            // 2.21: 2.19 is gallery_taggable above (live before it was
+            // merged). install() alone can't create a new table on an
+            // already-active site — dbDelta only handles structure, not
+            // seeding — so run it here too, same pattern as 2.17 above.
+            '2.21' => $install,
+            // Directory cache table (avm_directory_users). Was 2.20 on
+            // feature/openldap-directory, but production reached 2.21 first,
+            // so a 2.20 here would be skipped there.
+            '2.22' => $install,
+            '2.23' => $run('2.23'),
             // Activities on the website (AVPVH_Activity_List): where, what
             // (rich text) and whether to list it at all.
-            self::install();
-            update_option('avpvh_db_version', '2.24');
-        }
-        if (version_compare($version, '2.25', '<')) {
+            '2.24' => $install,
             // Emergency contact split up: emergency_contact keeps the name
             // (existing free text stays there), plus relation, phone and
             // address of that person.
-            self::install();
-            update_option('avpvh_db_version', '2.25');
-        }
-        if (version_compare($version, '2.26', '<')) {
+            '2.25' => $install,
             // Emergency contact can be another member (emergency_member_id);
             // their name, phone and address are then used instead of the
             // typed-in fields.
-            self::install();
-            update_option('avpvh_db_version', '2.26');
-        }
-        if (version_compare($version, '2.27', '<')) {
+            '2.26' => $install,
             // House number addition in its own column ("40-1 hoog" -> 40 /
             // 1), so it can be compared, sorted and sent on as the BAG and
             // PostNL expect.
-            self::install();
-            self::split_house_number_additions();
-            update_option('avpvh_db_version', '2.27');
-        }
-        if (version_compare($version, '2.28', '<')) {
+            '2.27' => static function (): void {
+                self::install();
+                self::split_house_number_additions();
+            },
             // Country names in one spelling, European postcodes without a
             // country prefix, Belgian/Luxembourg numbers out of the street.
-            self::normalize_stored_addresses();
-            update_option('avpvh_db_version', '2.28');
-        }
-        if (version_compare($version, '2.29', '<')) {
+            '2.28' => $normalize_addresses,
             // Same pass again: clean() now also takes a number with a floor
             // note ("Lei 19 (2e v.)") out of a Belgian street.
-            self::normalize_stored_addresses();
-            update_option('avpvh_db_version', '2.29');
-        }
-        if (version_compare($version, '2.30', '<')) {
+            '2.29' => $normalize_addresses,
             // Date of death (avm_members.death_date): set_death_date() ends
             // the member's addresses on it.
-            self::install();
-            update_option('avpvh_db_version', '2.30');
-        }
-        if (version_compare($version, '2.31', '<')) {
+            '2.30' => $install,
             // Same pass again: clean() now also takes a Dutch house number
             // (one to three digits) out of the street when it is empty.
-            self::normalize_stored_addresses();
-            update_option('avpvh_db_version', '2.31');
-        }
-        if (version_compare($version, '2.32', '<')) {
-            // LLDAP is gone: drop its connection settings (incl. password).
-            delete_option('avpvh_lldap_url');
-            delete_option('avpvh_lldap_user');
-            delete_option('avpvh_lldap_password');
-            update_option('avpvh_db_version', '2.32');
-        }
-        if (version_compare($version, '2.33', '<')) {
+            '2.31' => $normalize_addresses,
+            '2.32' => AVPVH_DB_Migrations::drop_lldap_settings(...),
             // avm_addresses.member_entered: an address a member entered
             // themselves gives no household rights until the board confirms
             // it. Existing rows stay 0 (confirmed).
-            self::install();
-            update_option('avpvh_db_version', '2.33');
-        }
-        if (version_compare($version, '2.34', '<')) {
+            '2.33' => $install,
             // avm_members.archive_access: the board lets an ex-member see
             // the posts and photos of their membership years. Off for all.
-            self::install();
-            update_option('avpvh_db_version', '2.34');
-        }
+            '2.34' => $install,
+        ];
     }
 
     /**
