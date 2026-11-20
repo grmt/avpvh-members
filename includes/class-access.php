@@ -299,6 +299,22 @@ class AVPVH_Access {
         return new \WP_REST_Response(['ok' => true], 200);
     }
 
+    /**
+     * Validates a user-supplied post-login redirect target strictly against
+     * this site's own host, never allowing externally whitelisted IdP hosts
+     * (Google, Microsoft, Authelia) as user-controlled redirect_to targets.
+     */
+    public static function safe_same_site_redirect(string $redirect_to): string {
+        $home = home_url('/');
+        if ($redirect_to === '') {
+            return $home;
+        }
+        $target = wp_validate_redirect($redirect_to, $home);
+        $home_host = strtolower((string) wp_parse_url($home, PHP_URL_HOST));
+        $target_host = strtolower((string) wp_parse_url($target, PHP_URL_HOST));
+        return ($target_host === '' || $target_host === $home_host) ? $target : $home;
+    }
+
     // SSO callback after Authelia 1FA password login. Authelia redirects to /avpvh-sso/
     // where auto_login_from_proxy_header() (priority 1) has authenticated the user.
     // This handler (priority 2) redirects the user to their target page or the home page.
@@ -311,7 +327,7 @@ class AVPVH_Access {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
         $target = (!empty($redirect_to) && is_user_logged_in())
-            ? wp_validate_redirect($redirect_to, home_url('/'))
+            ? self::safe_same_site_redirect($redirect_to)
             : (is_user_logged_in() ? home_url('/') : home_url(self::LOGIN_PATH));
 
         wp_safe_redirect($target);
@@ -330,7 +346,7 @@ class AVPVH_Access {
                 }
                 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
                 $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
-                $target = !empty($redirect_to) ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
+                $target = self::safe_same_site_redirect($redirect_to);
                 wp_safe_redirect($target);
                 exit;
             }
@@ -631,7 +647,11 @@ class AVPVH_Access {
      * @return mixed the unchanged response, or a WP_Error
      */
     public function hide_members_page_from_rest($response, array $handler, \WP_REST_Request $request) { // NOSONAR -- $handler: the filter passes it before $request
-        if (!preg_match('#^/wp/v2/pages/(\d+)#', $request->get_route(), $match)) {
+        $route = $request->get_route();
+        if (preg_match('#^/wp/v2/media(?:/|$)#', $route) && !$this->current_user_may_read_members_section()) {
+            return new \WP_Error('rest_forbidden', __('Geen toegang.', 'avpvh-members'), ['status' => 403]);
+        }
+        if (!preg_match('#^/wp/v2/pages/(\d+)#', $route, $match)) {
             return $response;
         }
         $page_id = (int) $match[1];
@@ -682,9 +702,9 @@ class AVPVH_Access {
         $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
         $sso_target  = home_url('/avpvh-sso/');
         if (!empty($redirect_to)) {
-            $sso_target = add_query_arg('redirect_to', $redirect_to, $sso_target);
+            $sso_target = add_query_arg('redirect_to', rawurlencode($redirect_to), $sso_target);
         }
-        $authelia_url = add_query_arg('rd', $sso_target, 'https://auth.avphilipsvanhorne.nl/');
+        $authelia_url = add_query_arg('rd', rawurlencode($sso_target), 'https://auth.avphilipsvanhorne.nl/');
 
         $providers  = AVPVH_OAuth::configured_providers();
         $login_urls = [];

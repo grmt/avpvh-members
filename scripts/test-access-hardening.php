@@ -350,6 +350,7 @@ $res_mixed = $access->exclude_members_pages_from_rest_query(['post__in' => [11, 
 check('anonymous REST post__in mixed keeps only public page 20', ($res_mixed['post__in'] ?? null) === [20]);
 check('anonymous REST query sets has_password=false', ($res_mixed['has_password'] ?? null) === false);
 check('anonymous single REST password-protected page returns 404', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/pages/42')) instanceof WP_Error);
+check('anonymous REST /wp/v2/media returns 403', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/media')) instanceof WP_Error);
 check('anonymous oEmbed password-protected page returns 0', $access->hide_members_page_from_oembed(42) === 0);
 $c_res = $access->exclude_restricted_comments_from_rest_query(['post_id' => 11]);
 check('anonymous REST comment query for /leden/ page becomes [0]', ($c_res['post__in'] ?? null) === [0] && !isset($c_res['post_id']));
@@ -481,6 +482,18 @@ $_GET = [AVPVH_Tenant_SSO::LOGOUT_ACTION => 'bogus-nonce'];
 $logout_exit = null;
 try { $t_sso->handle_logout(); } catch (Test_Exit $e) { $logout_exit = $e; }
 check('tenant invalid logout nonce shows confirmation', $logout_exit instanceof Test_Exit && $logout_exit->kind === 'die' && is_user_logged_in());
+
+// Strict subscriber-only check for tenant OAuth accounts.
+check('tenant subscriber-only check accepts plain subscriber', AVPVH_Tenant_SSO::user_is_subscriber_only(2) === true);
+check('tenant subscriber-only check rejects editor', AVPVH_Tenant_SSO::user_is_subscriber_only(5) === false);
+check('tenant subscriber-only check rejects administrator', AVPVH_Tenant_SSO::user_is_subscriber_only(1) === false);
+
+// Same-site redirect validation refuses external IdP hosts.
+if (!function_exists('wp_validate_redirect')) {
+    function wp_validate_redirect(string $url, string $fallback): string { return $url; }
+}
+check('same-site redirect keeps local URL', AVPVH_Access::safe_same_site_redirect('https://site.example.invalid/leden/') === 'https://site.example.invalid/leden/');
+check('same-site redirect rejects external IdP host', AVPVH_Access::safe_same_site_redirect('https://accounts.google.com/o/oauth2/v2/auth') === 'https://site.example.invalid/');
 
 echo $failures ? "\n$failures failure(s)\n" : "\nAccess hardening tests: OK\n";
 exit($failures ? 1 : 0);

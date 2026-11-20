@@ -19,55 +19,83 @@ class AVPVH_Xlsx_Writer {
         $sheet_xml = self::build_sheet($rows, $col_widths, $style_index);
 
         $tmp = tempnam(sys_get_temp_dir(), 'avpvh_xlsx_');
-        $zip = new ZipArchive();
-        $zip->open($tmp, ZipArchive::OVERWRITE);
+        if ($tmp === false) {
+            return '';
+        }
+        try {
+            $zip = new ZipArchive();
+            if ($zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                return '';
+            }
 
-        $zip->addEmptyDir('_rels');
-        $zip->addEmptyDir('xl');
-        $zip->addEmptyDir('xl/_rels');
-        $zip->addEmptyDir('xl/worksheets');
+            $zip->addEmptyDir('_rels');
+            $zip->addEmptyDir('xl');
+            $zip->addEmptyDir('xl/_rels');
+            $zip->addEmptyDir('xl/worksheets');
 
-        $zip->addFromString('[Content_Types].xml',
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
-            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' .
-            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' .
-            '<Default Extension="xml" ContentType="application/xml"/>' .
-            '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' .
-            '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' .
-            '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' .
-            '</Types>'
-        );
+            $zip->addFromString('[Content_Types].xml',
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' .
+                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' .
+                '<Default Extension="xml" ContentType="application/xml"/>' .
+                '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' .
+                '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' .
+                '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' .
+                '</Types>'
+            );
 
-        $zip->addFromString('_rels/.rels',
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' .
-            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' .
-            '</Relationships>'
-        );
+            $zip->addFromString('_rels/.rels',
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' .
+                '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' .
+                '</Relationships>'
+            );
 
-        $zip->addFromString('xl/_rels/workbook.xml.rels',
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' .
-            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' .
-            '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' .
-            '</Relationships>'
-        );
+            $zip->addFromString('xl/_rels/workbook.xml.rels',
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' .
+                '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' .
+                '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' .
+                '</Relationships>'
+            );
 
-        $zip->addFromString('xl/workbook.xml',
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
-            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' .
-            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' .
-            '<sheets><sheet name="' . htmlspecialchars($sheet_name, ENT_XML1 | ENT_QUOTES) . '" sheetId="1" r:id="rId1"/></sheets>' .
-            '</workbook>'
-        );
+            $zip->addFromString('xl/workbook.xml',
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+                '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' .
+                'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' .
+                '<sheets><sheet name="' . htmlspecialchars($sheet_name, ENT_XML1 | ENT_QUOTES) . '" sheetId="1" r:id="rId1"/></sheets>' .
+                '</workbook>'
+            );
 
-        $zip->addFromString('xl/styles.xml', $styles_xml);
-        $zip->addFromString('xl/worksheets/sheet1.xml', $sheet_xml);
-        $zip->close();
+            $zip->addFromString('xl/styles.xml', $styles_xml);
+            $zip->addFromString('xl/worksheets/sheet1.xml', $sheet_xml);
+            $zip->close();
 
-        $bytes = file_get_contents($tmp);
-        wp_delete_file($tmp);
-        return $bytes;
+            return (string) file_get_contents($tmp);
+        } finally {
+            if (file_exists($tmp)) {
+                wp_delete_file($tmp);
+            }
+        }
+    }
+
+    private static function sanitize_hex_color(mixed $color): string {
+        $hex = strtoupper((string) $color);
+        return preg_match('/^[0-9A-F]{6}$/', $hex) ? $hex : '';
+    }
+
+    /** Neutralize spreadsheet formula triggers on non-numeric strings (preserving plain international phone numbers like "+31 6 ..."). */
+    private static function neutralize_formula(string $value): string {
+        if ($value === '') {
+            return $value;
+        }
+        if (preg_match('/^[\t\r=@]/', $value)) {
+            return "'" . $value;
+        }
+        if (preg_match('/^[+\-]/', $value) && !preg_match('/^\+\d[\d\s\-()]{5,}$/', $value)) {
+            return "'" . $value;
+        }
+        return $value;
     }
 
     private static function build_styles(array $rows): array {
@@ -78,7 +106,7 @@ class AVPVH_Xlsx_Writer {
         foreach ($rows as $row) {
             foreach ($row as $cell) {
                 $bold = !empty($cell['bold']) ? 1 : 0;
-                $color = $cell['color'] ?? '';
+                $color = self::sanitize_hex_color($cell['color'] ?? '');
                 $key = $bold . '|' . $color;
                 if (!isset($combos[$key])) {
                     $combos[$key] = null;
@@ -156,7 +184,7 @@ class AVPVH_Xlsx_Writer {
             foreach ($row as $cell) {
                 $ref = self::col_letter($c) . $r;
                 $bold = !empty($cell['bold']) ? 1 : 0;
-                $color = $cell['color'] ?? '';
+                $color = self::sanitize_hex_color($cell['color'] ?? '');
                 $s = $style_index[$bold . '|' . $color] ?? 0;
                 // Control characters (say, pasted into a notes field) aren't
                 // allowed in XML 1.0 and would make the file unreadable.
@@ -167,8 +195,9 @@ class AVPVH_Xlsx_Writer {
                 } elseif (is_numeric($value) && $value === (string) (float) $value) {
                     $cells_xml .= '<c r="' . $ref . '" s="' . $s . '"><v>' . htmlspecialchars($value, ENT_XML1) . '</v></c>';
                 } else {
+                    $safe = self::neutralize_formula($value);
                     $cells_xml .= '<c r="' . $ref . '" s="' . $s . '" t="inlineStr"><is><t xml:space="preserve">' .
-                        htmlspecialchars($value, ENT_XML1 | ENT_QUOTES) . '</t></is></c>';
+                        htmlspecialchars($safe, ENT_XML1 | ENT_QUOTES) . '</t></is></c>';
                 }
                 $c++;
             }

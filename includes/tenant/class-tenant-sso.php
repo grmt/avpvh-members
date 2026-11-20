@@ -180,6 +180,9 @@ class AVPVH_Tenant_SSO {
 
         $this->log_in($user_id, self::VIA_AUTHELIA);
         $this->log('callback', $identity['uid'], $role);
+        if (function_exists('nocache_headers')) {
+            nocache_headers();
+        }
         wp_safe_redirect($target);
         exit;
     }
@@ -260,6 +263,25 @@ class AVPVH_Tenant_SSO {
     }
 
     /**
+     * Strict subscriber-only check for OAuth sessions: user must have only the
+     * subscriber role and no elevated capabilities.
+     */
+    public static function user_is_subscriber_only(int $user_id): bool {
+        $user = get_user_by('id', $user_id);
+        if (!$user || array_values((array) $user->roles) !== ['subscriber']) {
+            return false;
+        }
+        if (function_exists('user_can')) {
+            foreach (['edit_posts', 'manage_options', 'list_users', 'moderate_comments'] as $cap) {
+                if (user_can($user, $cap)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
      * Re-ask Authelia for directory-provisioned users once per
      * recheck_seconds, so removed group memberships and ended Authelia
      * sessions take effect quickly.
@@ -273,8 +295,21 @@ class AVPVH_Tenant_SSO {
         if ($subject === '') {
             return; // a local account (emergency access), not provisioned
         }
-        $checked = (int) get_user_meta($user_id, self::CHECKED_META, true);
+        $meta_checked = (int) get_user_meta($user_id, self::CHECKED_META, true);
+        $session_checked = $this->session_checked_at($user_id);
+        $checked = ($session_checked !== null && $meta_checked > 0)
+            ? min($session_checked, $meta_checked)
+            : ($session_checked ?? $meta_checked);
         if (time() - $checked < (int) $this->config->get('recheck_seconds')) {
+            return;
+        }
+
+        // OAuth sessions may never carry more than subscriber rights, even if
+        // a higher role (e.g. editor) was assigned manually after login.
+        if ($this->session_login() !== self::VIA_AUTHELIA && !self::user_is_subscriber_only($user_id)) {
+            $this->log('recheck', '', 'oauth_elevated_role');
+            wp_logout();
+            wp_set_current_user(0);
             return;
         }
 
@@ -286,6 +321,32 @@ class AVPVH_Tenant_SSO {
             return;
         }
         $this->sync_user($user_id, $identity, $role);
+        $this->touch_session_checked_at($user_id);
+    }
+
+    private function session_checked_at(int $user_id): ?int {
+        $token = wp_get_session_token();
+        if ($token === '') {
+            return null;
+        }
+        $session = \WP_Session_Tokens::get_instance($user_id)->get($token);
+        return is_array($session) && isset($session['avpvh_checked']) ? (int) $session['avpvh_checked'] : null;
+    }
+
+    private function touch_session_checked_at(int $user_id): void {
+        $token = wp_get_session_token();
+        if ($token === '') {
+            return;
+        }
+        $manager = \WP_Session_Tokens::get_instance($user_id);
+        if (!method_exists($manager, 'update')) {
+            return;
+        }
+        $session = $manager->get($token);
+        if (is_array($session)) {
+            $session['avpvh_checked'] = time();
+            $manager->update($token, $session);
+        }
     }
 
     /**

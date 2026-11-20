@@ -145,13 +145,14 @@ class AVPVH_PDOK {
         $key = 'avpvh_pdok_q_' . substr(hash('sha256', $url), 0, 32);
         $docs = get_transient($key);
         if (!is_array($docs)) {
-            $response = wp_remote_get($url, ['timeout' => 5]);
+            $http_get = function_exists('wp_safe_remote_get') ? 'wp_safe_remote_get' : 'wp_remote_get';
+            $response = $http_get($url, ['timeout' => 5, 'redirection' => 0]);
             if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
                 return [];
             }
             $decoded = json_decode(wp_remote_retrieve_body($response), true);
             $docs = is_array($decoded['response']['docs'] ?? null) ? $decoded['response']['docs'] : [];
-            set_transient($key, $docs, self::CACHE_TTL);
+            set_transient($key, $docs, $docs ? self::CACHE_TTL : 15 * MINUTE_IN_SECONDS);
         }
         $town = AVPVH_Address_Normalizer::fold($city);
         return array_values(array_filter($docs, fn(array $doc) => AVPVH_Address_Normalizer::fold((string) ($doc['woonplaatsnaam'] ?? '')) === $town));
@@ -189,21 +190,23 @@ class AVPVH_PDOK {
     }
 
     private static function fetch(string $postcode, string $number): ?array {
-        $response = wp_remote_get(self::url($postcode, $number), ['timeout' => 5]);
+        $http_get = function_exists('wp_safe_remote_get') ? 'wp_safe_remote_get' : 'wp_remote_get';
+        $response = $http_get(self::url($postcode, $number), ['timeout' => 5, 'redirection' => 0]);
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
             return null;
         }
         return self::store($postcode, $number, wp_remote_retrieve_body($response));
     }
 
-    /** Caches a PDOK answer (also "no such address"); a malformed one isn't cached. */
+    /** Caches a PDOK answer (short TTL for empty misses to avoid options bloat). */
     private static function store(string $postcode, string $number, string $body): ?array {
         $decoded = json_decode($body, true);
         if (!is_array($decoded['response']['docs'] ?? null)) {
             return null;
         }
         $docs = $decoded['response']['docs'];
-        set_transient(self::cache_key($postcode, $number), $docs, self::CACHE_TTL);
+        $ttl = $docs ? self::CACHE_TTL : (defined('MINUTE_IN_SECONDS') ? 15 * MINUTE_IN_SECONDS : 900);
+        set_transient(self::cache_key($postcode, $number), $docs, $ttl);
         return $docs;
     }
 }

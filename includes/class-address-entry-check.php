@@ -73,7 +73,8 @@ class AVPVH_Address_Entry_Check {
         }
         $address = [];
         foreach (['street', 'house_number', 'house_number_addition', 'postal_code', 'city', 'country'] as $field) {
-            $address[$field] = sanitize_text_field(wp_unslash($_POST[$field] ?? ''));
+            $value = sanitize_text_field(wp_unslash($_POST[$field] ?? ''));
+            $address[$field] = function_exists('mb_substr') ? mb_substr($value, 0, 100) : substr($value, 0, 100);
         }
         $address = AVPVH_Address_Normalizer::clean($address);
         $found = AVPVH_Address_Lookup::lookup($address);

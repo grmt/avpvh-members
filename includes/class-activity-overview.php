@@ -59,7 +59,6 @@ class AVPVH_Activity_Overview {
                         <th scope="col"><?php esc_html_e('Naam', 'avpvh-members'); ?></th>
                         <th scope="col"><?php esc_html_e('Nachten', 'avpvh-members'); ?></th>
                         <th scope="col"><?php esc_html_e('Nawacht', 'avpvh-members'); ?></th>
-                        <th scope="col"><?php esc_html_e('Dieet', 'avpvh-members'); ?></th>
                         <?php foreach ($date_range as $date) : ?>
                             <th scope="col"><?php echo esc_html(date_i18n('D j-n', strtotime($date))); ?></th>
                         <?php endforeach; ?>
@@ -73,7 +72,6 @@ class AVPVH_Activity_Overview {
                             <td><?php echo esc_html($name); ?></td>
                             <td><?php echo esc_html((string) ($p->nights ?? '')); ?></td>
                             <td><?php echo $p->nawacht ? esc_html__('ja', 'avpvh-members') : ''; ?></td>
-                            <td><?php echo esc_html($p->diet ?? ''); ?></td>
                             <?php foreach ($date_range as $date) :
                                 $status = $days[$date] ?? '';
                                 $color = match ($status) {

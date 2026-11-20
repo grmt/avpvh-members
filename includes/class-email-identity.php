@@ -24,7 +24,7 @@ class AVPVH_Email_Identity {
 
     public function register_routes(): void {
         register_rest_route('avpvh/v1', '/email-identity/confirm', [
-            'methods'             => 'GET',
+            'methods'             => ['GET', 'POST'],
             'callback'            => [$this, 'handle_confirm'],
             'permission_callback' => '__return_true',
         ]);
@@ -61,18 +61,8 @@ class AVPVH_Email_Identity {
             exit;
         }
 
-        if ($this->email_claimed_by_someone_else($email, $member_id)) {
-            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'in_use'], $profile_url));
-            exit;
-        }
-
-        if (AVPVH_DB::get_member_identity_count($member_id) >= 3 && !AVPVH_DB::get_member_identity('email', $email)) {
-            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'limit'], $profile_url));
-            exit;
-        }
-
-        // Each request mails an address the member typed: cap it, so an
-        // account can't be used to send our mail to anyone, endlessly.
+        // Apply the hourly limit before checking whether the address is in use
+        // or at the identity limit, so repeated probes are throttled too.
         $sent_key = 'avpvh_email_identity_sent_' . $member_id;
         $sent     = (int) get_transient($sent_key);
         if ($sent >= self::MAILS_PER_HOUR) {
@@ -80,6 +70,16 @@ class AVPVH_Email_Identity {
             exit;
         }
         set_transient($sent_key, $sent + 1, HOUR_IN_SECONDS);
+
+        if ($this->email_claimed_by_someone_else($email, $member_id)) {
+            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'in_use'], $profile_url));
+            exit;
+        }
+
+        if (AVPVH_DB::get_member_identity_count($member_id) >= 3 && !AVPVH_DB::get_identity_by_email($email)) {
+            wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'limit'], $profile_url));
+            exit;
+        }
 
         $token = $this->store_token([
             'mode'      => 'add',
@@ -104,17 +104,38 @@ class AVPVH_Email_Identity {
     // -------------------------------------------------------------------
 
     public function handle_confirm(\WP_REST_Request $request): void {
-        $token  = sanitize_text_field((string) $request->get_param('token'));
-        $stored = $token ? get_transient('avpvh_email_identity_' . $token) : false;
-        if ($stored) {
-            delete_transient('avpvh_email_identity_' . $token); // single-use
-        }
+        $token = sanitize_text_field((string) $request->get_param('token'));
+        $key   = $token !== '' ? self::token_key($token) : '';
+        $stored = $key !== '' ? get_transient($key) : false;
 
         $payload = $stored ? json_decode((string) $stored, true) : null;
         if (!is_array($payload) || ($payload['mode'] ?? '') !== 'add') {
             wp_die(esc_html__('Deze link is ongeldig of verlopen. Vraag een nieuwe aan.', 'avpvh-members'), esc_html__('Link verlopen', 'avpvh-members'), ['response' => 400]);
         }
 
+        // GET only renders a confirmation button so mail-security scanners
+        // and link prefetchers cannot consume the token or link an address.
+        if (strtoupper((string) $request->get_method()) !== 'POST') {
+            $email = esc_html((string) ($payload['email'] ?? ''));
+            $action = esc_url(rest_url('avpvh/v1/email-identity/confirm'));
+            nocache_headers();
+            header('Referrer-Policy: no-referrer');
+            wp_die(
+                '<p>' . sprintf(
+                    /* translators: %s: e-mail address */
+                    esc_html__('Wil je %s koppelen als inlog-e-mailadres bij AV Philips van Horne?', 'avpvh-members'),
+                    '<strong>' . $email . '</strong>'
+                ) . '</p>'
+                . '<form method="post" action="' . $action . '">'
+                . '<input type="hidden" name="token" value="' . esc_attr($token) . '">'
+                . '<p><button type="submit" class="button button-primary">' . esc_html__('Ja, e-mailadres bevestigen', 'avpvh-members') . '</button></p>'
+                . '</form>',
+                esc_html__('E-mailadres bevestigen', 'avpvh-members'),
+                ['response' => 200]
+            );
+        }
+
+        delete_transient($key); // single-use
         $this->confirm_add($payload);
     }
 
@@ -150,7 +171,7 @@ class AVPVH_Email_Identity {
     // -------------------------------------------------------------------
 
     private function email_claimed_by_someone_else(string $email, int $member_id): bool {
-        $existing_identity = AVPVH_DB::get_member_identity('email', $email);
+        $existing_identity = AVPVH_DB::get_identity_by_email($email);
         if ($existing_identity && (int) $existing_identity->member_id !== $member_id) {
             return true;
         }
@@ -158,9 +179,14 @@ class AVPVH_Email_Identity {
         return $existing_owner && (int) $existing_owner->id !== $member_id;
     }
 
+    /** Transient key for a confirmation token: hashed so raw tokens stay out of wp_options. */
+    public static function token_key(string $token): string {
+        return 'avpvh_email_identity_' . hash('sha256', $token);
+    }
+
     private function store_token(array $payload, int $ttl): string {
         $token = bin2hex(random_bytes(32));
-        set_transient('avpvh_email_identity_' . $token, wp_json_encode($payload), $ttl);
+        set_transient(self::token_key($token), wp_json_encode($payload), $ttl);
         return $token;
     }
 

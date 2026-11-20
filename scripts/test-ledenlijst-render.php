@@ -78,6 +78,11 @@ class AVPVH_Directory {
 class AVPVH_Address_Normalizer {
     public static function format_street_line($m) { return trim($m->street . ' ' . $m->house_number . $m->house_number_addition); }
 }
+class AVPVH_Roles {
+    public static function current_user_has_role(string $role): bool {
+        return $role === 'bestuur' && in_array($GLOBALS['current_user_id'], $GLOBALS['bestuur_users'] ?? [], true);
+    }
+}
 
 require_once getenv('AVPVH_LEDENLIJST_TEST_CLASS') ?: dirname(__DIR__) . '/includes/class-ledenlijst.php';
 
@@ -94,7 +99,7 @@ $all = [
     lid(5, 'Eva', 'Zonderstraat', ['street' => '', 'postal_code' => '', 'city' => '', 'country' => '', 'email' => null]),
 ];
 AVPVH_DB::$leden = $all;
-$GLOBALS['user_meta'] = [107 => ['avpvh_member_role' => 'Bestuur']];
+$GLOBALS['bestuur_users'] = [107];
 
 function render(array $as, array $get = []): string {
     $GLOBALS['logged_in'] = $as['logged_in'] ?? true;

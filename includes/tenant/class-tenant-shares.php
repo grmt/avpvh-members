@@ -49,6 +49,8 @@ class AVPVH_Tenant_Shares {
         $share = $shares[$id];
         nocache_headers();
         header('X-Robots-Tag: noindex, nofollow');
+        header('Referrer-Policy: no-referrer');
+        header('X-Content-Type-Options: nosniff');
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the token itself is the secret
         $token = preg_replace('/[^A-Za-z0-9]/', '', sanitize_text_field(wp_unslash($_GET['t'] ?? '')));
@@ -108,10 +110,22 @@ class AVPVH_Tenant_Shares {
         return wp_upload_dir()['basedir'] . '/private/delen/' . $share['file'];
     }
 
+    private static function token_key(string $id, string $token): string {
+        return 'avpvh_share_' . substr(hash('sha256', $id . ':' . $token), 0, 32);
+    }
+
     private function stream(string $id, array $share, string $token): void {
-        $who = get_transient('avpvh_share_' . $id . '_' . $token);
+        $who = get_transient(self::token_key($id, $token));
         if (!$who) {
             $this->render($id, $share, __('Deze downloadlink is verlopen. Vul hieronder opnieuw je e-mailadres in.', 'avpvh-members'));
+        }
+        // Re-verify e-mail recipients against the current share config so
+        // removing an address revokes outstanding links immediately.
+        $who_str = (string) $who;
+        if (!str_starts_with($who_str, 'user:') && !str_starts_with($who_str, 'uid:')
+            && !in_array($who_str, $share['emails'], true)) {
+            delete_transient(self::token_key($id, $token));
+            $this->render($id, $share, __('Deze downloadlink is niet meer geldig.', 'avpvh-members'));
         }
         $path = $this->path($share);
         if (!is_readable($path)) {
@@ -119,12 +133,14 @@ class AVPVH_Tenant_Shares {
             exit(esc_html__('Bestand niet gevonden.', 'avpvh-members'));
         }
         // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- who downloaded, as a hash only
-        error_log(sprintf('[avpvh-tenant] tenant=%s share=%s download by=%s', $this->config->tenant_id(), $id, substr(hash('sha256', (string) $who), 0, 12)));
+        error_log(sprintf('[avpvh-tenant] tenant=%s share=%s download by=%s', $this->config->tenant_id(), $id, substr(hash('sha256', $who_str), 0, 12)));
         while (ob_get_level()) {
             ob_end_clean();
         }
         header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="' . str_replace('"', '', $share['file']) . '"');
+        header('X-Content-Type-Options: nosniff');
+        header('Referrer-Policy: no-referrer');
+        header('Content-Disposition: attachment; filename="' . str_replace(['"', "\r", "\n"], '', $share['file']) . '"');
         header('Content-Length: ' . filesize($path));
         readfile($path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a large private file
         exit;
@@ -132,7 +148,7 @@ class AVPVH_Tenant_Shares {
 
     private function render_button(string $id, array $share, string $who): void {
         $token = wp_generate_password(32, false, false);
-        set_transient('avpvh_share_' . $id . '_' . $token, $who, DAY_IN_SECONDS);
+        set_transient(self::token_key($id, $token), $who, DAY_IN_SECONDS);
         $link = add_query_arg([self::QUERY_VAR => $id, 't' => $token], home_url('/'));
         $size = is_readable($this->path($share)) ? (int) round(filesize($this->path($share)) / 1048576) : 0;
         $this->render($id, $share, '<p><a class="avpvh-share-download" href="' . esc_url($link) . '">'
