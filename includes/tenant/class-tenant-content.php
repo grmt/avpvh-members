@@ -155,13 +155,14 @@ class AVPVH_Tenant_Content {
 
     /** Hides comments on protected pages in comment feeds and front-end queries. */
     public function exclude_comments_from_clauses(array $clauses): array {
-        if ($this->current_user_may_read() || (is_admin() && !wp_doing_ajax())) {
+        if ($this->current_user_may_read() || (is_admin() && !wp_doing_ajax()) || wp_doing_cron() || (defined('WP_CLI') && WP_CLI)) {
             return $clauses;
         }
         global $wpdb;
         $ids = $this->protected_ids();
         if ($ids && $wpdb) {
             $id_list = implode(',', array_map('intval', $ids));
+            $clauses['where'] = trim($clauses['where'] ?? '') ?: '1=1';
             $clauses['where'] .= " AND {$wpdb->comments}.comment_post_ID NOT IN ({$id_list})";
         }
         return $clauses;

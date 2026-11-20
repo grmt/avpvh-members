@@ -138,6 +138,8 @@ $wpdb = new class {
 function __(string $t, string $d = ''): string { return $t; }
 function esc_html__(string $t, string $d = ''): string { return $t; }
 function esc_html(string $t): string { return htmlspecialchars($t, ENT_QUOTES, 'UTF-8'); }
+function esc_html_e(string $t, string $d = ''): void { echo esc_html($t); }
+function admin_url(string $path = ''): string { return home_url('/wp-admin/' . $path); }
 function esc_url(string $u): string { return $u; }
 function add_action(string $h, mixed ...$a): void {}
 function add_filter(string $h, mixed ...$a): void {}
@@ -155,7 +157,7 @@ function add_query_arg(string $k, string $v, string $u): string { return $u . (s
 function is_wp_error(mixed $v): bool { return $v instanceof WP_Error; }
 function is_admin(): bool { return $GLOBALS['test_admin']; }
 function wp_doing_ajax(): bool { return false; }
-function wp_doing_cron(): bool { return false; }
+function wp_doing_cron(): bool { return $GLOBALS['test_cron'] ?? false; }
 function is_user_logged_in(): bool { return $GLOBALS['test_logged_in']; }
 function get_current_user_id(): int { return $GLOBALS['test_user_id']; }
 function wp_get_current_user(): WP_User { return $GLOBALS['test_users'][get_current_user_id()]; }
@@ -172,6 +174,7 @@ function current_user_can(string $cap): bool {
 }
 function get_option(string $name, mixed $default = false): mixed { return $GLOBALS['test_options'][$name] ?? $default; }
 function get_post(int $id): ?WP_Post { return $GLOBALS['test_posts'][$id] ?? null; }
+function get_post_meta(int $id, string $key, bool $single = false): mixed { return $GLOBALS['test_post_meta'][$id][$key] ?? ''; }
 function get_posts(array $args): array {
     if (($args['name'] ?? '') === 'leden') { return [10]; }
     return [];
@@ -221,8 +224,14 @@ class AVPVH_Directory {
         return is_array($g) ? $g : [];
     }
     public static function get_user_groups(string $uid): array|WP_Error {
+        $GLOBALS['test_group_reads'][$uid] = ($GLOBALS['test_group_reads'][$uid] ?? 0) + 1;
         return $GLOBALS['test_groups'][$uid] ?? [];
     }
+    public static function remove_from_group(string $uid, string $group): bool {
+        $GLOBALS['test_groups'][$uid] = array_values(array_diff($GLOBALS['test_groups'][$uid], [$group]));
+        return true;
+    }
+    public static function forget_groups(string ...$uids): void { AVPVH_Roles::forget_elevated_groups(...$uids); }
 }
 class AVPVH_Directory_Cache {
     public static int $refreshes = 0;
@@ -238,6 +247,7 @@ require_once dirname(__DIR__) . '/includes/class-nav-auth.php';
 require_once dirname(__DIR__) . '/includes/class-access.php';
 require_once dirname(__DIR__) . '/includes/class-member-profile-form.php';
 require_once dirname(__DIR__) . '/includes/class-member-profile-page.php';
+require_once dirname(__DIR__) . '/includes/class-member-profile-sections.php';
 require_once dirname(__DIR__) . '/includes/class-media-protection.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-config.php';
 require_once dirname(__DIR__) . '/includes/tenant/class-tenant-identity.php';
@@ -256,6 +266,7 @@ $wpdb = new class($wpdb) {
     public function get_var(mixed $q): mixed { return $this->inner->get_var($q); }
     public function get_col(string $sql): array { return $this->inner->get_col($sql); }
     public function get_results(mixed $q): array { return []; }
+    public function query(mixed $q): int { return 0; }
     public function get_row(mixed $q): ?object {
         if (is_array($q)) {
             [$sql, $args] = $q;
@@ -316,6 +327,16 @@ check('real voorzitter counts as elevated', AVPVH_Roles::member_has_elevated_acc
 check('member with active delegation counts as elevated', AVPVH_Roles::member_has_elevated_access(40) === true);
 check('boek member counts as elevated', AVPVH_Roles::member_has_elevated_access(60) === true);
 check('unreachable directory fails closed as elevated', AVPVH_Roles::member_has_elevated_access(70) === true);
+AVPVH_Roles::member_has_elevated_access(20);
+check('security group reads are reused within the request', $GLOBALS['test_group_reads']['lid.test'] === 1);
+$GLOBALS['test_groups']['lid.test'][] = 'bloggers';
+AVPVH_Directory::forget_groups('lid.test');
+check('group write invalidates request security cache', AVPVH_Roles::member_has_elevated_access(20));
+array_pop($GLOBALS['test_groups']['lid.test']);
+AVPVH_Directory::forget_groups('lid.test');
+check('removing only boek reports a privilege removal', AVPVH_Roles::strip_bestuur_roles(60));
+$GLOBALS['test_groups']['boek.test'] = ['leden', 'boek'];
+AVPVH_Directory::forget_groups('boek.test');
 
 // --- Role & delegation boundaries -------------------------------------------
 wp_set_current_user(3); // real voorzitter
@@ -355,6 +376,10 @@ try { $profile_form->handle_save_profile(); } catch (Test_Exit $e) { $save_error
 check('1FA officer cannot redirect another member save to own record', $save_error instanceof Test_Exit && $save_error->status === 403);
 [$profile_target, $profile_view] = AVPVH_Member_Profile_Page::resolve($GLOBALS['test_members'][30], 20);
 check('1FA officer does not get another member admin edit form', $profile_target->id === 30 && $profile_view === 'own');
+ob_start();
+AVPVH_Member_Profile_Sections::render_relationships($GLOBALS['test_members'][20]);
+$relationship_html = ob_get_clean();
+check('1FA relationship view offers step-up before editing', str_contains($relationship_html, 'tweestapsverificatie') && !str_contains($relationship_html, 'value="avpvh_add_relationship"'));
 $_POST = [];
 array_pop($GLOBALS['test_groups']['voorz.test']);
 
@@ -371,6 +396,9 @@ check('birth_date age 16 is not minor', AVPVH_DB::is_minor_member((object) ['bir
 check('birth_year-only 2012 (in 2026) is minor', AVPVH_DB::is_minor_member((object) ['birth_date' => null, 'birth_year' => 2012], 16) === true);
 check('birth_year-only 2010 (in 2026) conservatively minor', AVPVH_DB::is_minor_member((object) ['birth_date' => null, 'birth_year' => 2010], 16) === true);
 check('birth_year-only 2005 (in 2026) is not minor', AVPVH_DB::is_minor_member((object) ['birth_date' => null, 'birth_year' => 2005], 16) === false);
+check('uncertain sixteenth birthday grants no identity/consent rights', !AVPVH_DB::is_minor_member((object) ['birth_year' => 2010], 16, true));
+check('certain under-sixteen birth year still grants guardian rights', AVPVH_DB::is_minor_member((object) ['birth_year' => 2011], 16, true));
+check('uncertain eighteenth birthday grants no parent management rights', !AVPVH_DB::is_minor_member((object) ['birth_year' => 2008], 18, true));
 
 // --- REST, oEmbed and comment filtering -------------------------------------
 $pw_page = new WP_Post();
@@ -386,12 +414,27 @@ $res_mixed = $access->exclude_members_pages_from_rest_query(['post__in' => [11, 
 check('anonymous REST post__in mixed keeps only public page 20', ($res_mixed['post__in'] ?? null) === [20]);
 check('anonymous REST query sets has_password=false', ($res_mixed['has_password'] ?? null) === false);
 check('anonymous single REST password-protected page returns 404', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/pages/42')) instanceof WP_Error);
-check('anonymous REST /wp/v2/media returns 403', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/media')) instanceof WP_Error);
+check('anonymous REST /wp/v2/media listing passes to the bucket filter', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/media')) === null);
+$GLOBALS['test_post_meta'][90]['_wp_attached_file'] = 'public/2026/example.jpg';
+$GLOBALS['test_post_meta'][91]['_wp_attached_file'] = 'private/2026/example.jpg';
+check('anonymous REST public media item is allowed', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/media/90')) === null);
+check('anonymous REST private media item is blocked', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/media/91')) instanceof WP_Error);
+$media_args = $access->filter_public_media_query([]);
+check('public media collections restrict the attachment file prefix', $media_args['meta_query'][0] === ['key' => '_wp_attached_file', 'value' => '^public/', 'compare' => 'REGEXP']);
+$existing_meta = ['relation' => 'OR', ['key' => 'a'], ['key' => 'b']];
+$media_args = $access->filter_public_media_query(['meta_query' => $existing_meta]);
+check('public media restriction is ANDed with existing OR queries', $media_args['meta_query']['relation'] === 'AND' && $media_args['meta_query'][0] === $existing_meta);
 check('anonymous oEmbed password-protected page returns 0', $access->hide_members_page_from_oembed(42) === 0);
 $c_res = $access->exclude_restricted_comments_from_rest_query(['post_id' => 11]);
 check('anonymous REST comment query for /leden/ page becomes [0]', ($c_res['post__in'] ?? null) === [0] && !isset($c_res['post_id']));
+$comment_clauses = $access->exclude_restricted_comments_from_clauses(['where' => '']);
+check('empty member comment WHERE starts with a valid predicate', str_starts_with($comment_clauses['where'], '1=1 AND '));
+$GLOBALS['test_cron'] = true;
+check('member comments are unfiltered during cron', $access->exclude_restricted_comments_from_clauses(['where' => '']) === ['where' => '']);
+$GLOBALS['test_cron'] = false;
 
 wp_set_current_user(2); // ordinary active member
+check('active member media collections are not restricted to public files', $access->filter_public_media_query([]) === []);
 $m_dmarc = $access->exclude_members_pages_from_rest_query(['post__in' => [15, 1920]]);
 check('ordinary member REST post__in of restricted pages becomes [0]', ($m_dmarc['post__in'] ?? null) === [0]);
 check('ordinary member single REST DMARC page returns 404', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/pages/15')) instanceof WP_Error);
@@ -426,6 +469,15 @@ check('1FA admin blocked on admin-post avpvh_save_settings', $blocked_admin_post
 $_REQUEST['action'] = 'avpvh_set_directory_consent';
 $access->enforce_step_up_2fa_for_admin_post();
 check('1FA user allowed on front-end admin-post avpvh_set_directory_consent', true);
+foreach (['hide', 'tidy', 'delete', 'recreate'] as $gallery_action) {
+    $_REQUEST['action'] = 'avpvh_gallery_share_' . $gallery_action;
+    $access->enforce_step_up_2fa_for_admin_post();
+    check('1FA member allowed to ' . $gallery_action . ' own gallery share', true);
+}
+$_REQUEST['action'] = 'avpvh_add_relationship';
+$relationship_blocked = false;
+try { $access->enforce_step_up_2fa_for_admin_post(); } catch (Test_Exit $e) { $relationship_blocked = $e->status === 403; }
+check('granting relationship-based access still requires 2FA', $relationship_blocked);
 
 $GLOBALS['test_session_data']['avpvh_2fa'] = true;
 check('2FA session passes POST /wp/v2/posts', $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/wp/v2/posts', 'POST')) === null);
@@ -437,6 +489,11 @@ $_SERVER['REQUEST_URI'] = '/wp-json/wp/v2/posts';
 $_SERVER['HTTP_X_AVPVH_PROXY_SECRET'] = AVPVH_PROXY_SECRET;
 $access->auto_login_from_proxy_header();
 check('proxy header ignored on /wp-json/', !is_user_logged_in());
+$_SERVER['REQUEST_URI'] = '/?rest_route=%2Fwp%2Fv2%2Fposts';
+$_GET['rest_route'] = '/wp/v2/posts';
+$access->auto_login_from_proxy_header();
+check('proxy header ignored on query-string REST route before REST_REQUEST exists', !is_user_logged_in());
+unset($_GET['rest_route']);
 
 $_SERVER['REQUEST_URI'] = '/avpvh-sso/';
 $_SERVER['HTTP_X_AVPVH_PROXY_SECRET'] = 'wrong-secret';
@@ -474,6 +531,11 @@ wp_logout();
 $t_rest = $t_content->exclude_from_rest_query(['post__in' => [10, 11]]);
 check('tenant REST post__in of protected pages becomes [0]', ($t_rest['post__in'] ?? null) === [0]);
 check('tenant oEmbed protected page returns 0', $t_content->hide_from_oembed(11) === 0);
+$tenant_comments = $t_content->exclude_comments_from_clauses(['where' => '']);
+check('empty tenant comment WHERE starts with a valid predicate', str_starts_with($tenant_comments['where'], '1=1 AND '));
+$GLOBALS['test_cron'] = true;
+check('tenant comments are unfiltered during cron', $t_content->exclude_comments_from_clauses(['where' => '']) === ['where' => '']);
+$GLOBALS['test_cron'] = false;
 
 // 1FA admin who is also a member -> downgraded to subscriber.
 $_COOKIE['test_session'] = 'sess-ok';

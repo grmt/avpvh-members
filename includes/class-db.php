@@ -1392,13 +1392,15 @@ class AVPVH_DB {
      * True when $member is under $threshold years old. When only birth_year
      * is stored (birth_date IS NULL), errs on the side of protecting minors
      * (e.g. born in current_year - 16 may still be 15 until their birthday).
+     * Set $require_certain for granting rights: uncertainty never grants access.
      */
-    public static function is_minor_member(object $member, int $threshold = 16): bool {
+    public static function is_minor_member(object $member, int $threshold = 16, bool $require_certain = false): bool {
         if (!empty($member->birth_date)) {
             return self::age((string) $member->birth_date) < $threshold;
         }
         if (!empty($member->birth_year)) {
-            return ((int) current_time('Y') - (int) $member->birth_year) <= $threshold;
+            $age_in_year = (int) current_time('Y') - (int) $member->birth_year;
+            return $require_certain ? $age_in_year < $threshold : $age_in_year <= $threshold;
         }
         return false;
     }
@@ -2178,7 +2180,7 @@ class AVPVH_DB {
                 continue;
             }
             $shared_home = self::addresses_grant_household($actor_addr, self::current_address($target_id));
-            $parent_of_minor = !$shared_home && self::is_parent_of($member_id, $target_id) && self::is_minor_member($m, 18);
+            $parent_of_minor = !$shared_home && self::is_parent_of($member_id, $target_id) && self::is_minor_member($m, 18, true);
             if ($shared_home || $parent_of_minor) {
                 $manageable[] = $m;
             }

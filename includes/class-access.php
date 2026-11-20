@@ -21,6 +21,10 @@ class AVPVH_Access {
         'avpvh_make_primary_identity',
         'avpvh_request_identity',
         'avpvh_start_email_identity',
+        'avpvh_gallery_share_hide',
+        'avpvh_gallery_share_tidy',
+        'avpvh_gallery_share_delete',
+        'avpvh_gallery_share_recreate',
     ];
 
     /** @var array{method: string, two_factor: bool}|null */
@@ -52,6 +56,7 @@ class AVPVH_Access {
         // the members section and restricted pages are hidden there separately.
         add_action('pre_get_posts',                  [$this, 'exclude_members_pages_from_queries']);
         add_filter('rest_page_query',                [$this, 'exclude_members_pages_from_rest_query']);
+        add_filter('rest_attachment_query',          [$this, 'filter_public_media_query']);
         add_filter('rest_post_search_query',         [$this, 'exclude_members_pages_from_rest_query']);
         add_filter('rest_comment_query',             [$this, 'exclude_restricted_comments_from_rest_query']);
         add_filter('comments_clauses',               [$this, 'exclude_restricted_comments_from_clauses']);
@@ -610,13 +615,14 @@ class AVPVH_Access {
 
     /** Hides comments on restricted pages and password-protected posts in feeds/front-end queries. */
     public function exclude_restricted_comments_from_clauses(array $clauses): array {
-        if (is_admin() && !wp_doing_ajax()) {
+        if ((is_admin() && !wp_doing_ajax()) || wp_doing_cron() || (defined('WP_CLI') && WP_CLI)) {
             return $clauses;
         }
         global $wpdb;
         if (!$wpdb) {
             return $clauses;
         }
+        $clauses['where'] = trim($clauses['where'] ?? '') ?: '1=1';
         $excluded = $this->restricted_page_ids_for_current_user();
         if ($excluded) {
             $id_list = implode(',', array_map('intval', $excluded));
@@ -648,7 +654,9 @@ class AVPVH_Access {
      */
     public function hide_members_page_from_rest($response, array $handler, \WP_REST_Request $request) { // NOSONAR -- $handler: the filter passes it before $request
         $route = $request->get_route();
-        if (preg_match('#^/wp/v2/media(?:/|$)#', $route) && !$this->current_user_may_read_members_section()) {
+        if (preg_match('#^/wp/v2/media/(\d+)(?:/|$)#i', $route, $media)
+            && !$this->current_user_may_read_members_section()
+            && !str_starts_with((string) get_post_meta((int) $media[1], '_wp_attached_file', true), 'public/')) {
             return new \WP_Error('rest_forbidden', __('Geen toegang.', 'avpvh-members'), ['status' => 403]);
         }
         if (!preg_match('#^/wp/v2/pages/(\d+)#', $route, $match)) {
@@ -661,6 +669,17 @@ class AVPVH_Access {
             return new \WP_Error('rest_post_invalid_id', __('Ongeldige bericht-ID.', 'avpvh-members'), ['status' => 404]);
         }
         return $response;
+    }
+
+    /** Public REST media listings may expose only files deliberately published to public/. */
+    public function filter_public_media_query(array $args): array {
+        if (!$this->current_user_may_read_members_section()) {
+            $public = ['key' => '_wp_attached_file', 'value' => '^public/', 'compare' => 'REGEXP'];
+            $args['meta_query'] = empty($args['meta_query'])
+                ? [$public]
+                : ['relation' => 'AND', $args['meta_query'], $public];
+        }
+        return $args;
     }
 
     /** oEmbed would otherwise give away a restricted or password-protected page's title. */
@@ -772,8 +791,9 @@ class AVPVH_Access {
         if ((defined('REST_REQUEST') && REST_REQUEST) || (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST)) {
             return;
         }
-        $req_path = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
-        if (str_starts_with($req_path, '/wp-json/')) {
+        $req_path = (string) wp_parse_url(sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'] ?? '')), PHP_URL_PATH);
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing detection only; REST performs authentication and nonce checks
+        if (isset($_GET['rest_route']) || preg_match('#/wp-json(?:/|$)#', $req_path)) {
             return;
         }
 

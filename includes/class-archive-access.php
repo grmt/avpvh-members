@@ -191,6 +191,7 @@ class AVPVH_Archive_Access {
         $hidden = self::hidden_post_ids();
         if ($hidden && $wpdb) {
             $id_list = implode(',', array_map('intval', $hidden));
+            $clauses['where'] = trim($clauses['where'] ?? '') ?: '1=1';
             $clauses['where'] .= " AND {$wpdb->comments}.comment_post_ID NOT IN ({$id_list})";
         }
         return $clauses;

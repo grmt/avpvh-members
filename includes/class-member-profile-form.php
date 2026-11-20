@@ -232,7 +232,7 @@ class AVPVH_Member_Profile_Form {
                 return true;
             }
         }
-        if ($target_elevated || !AVPVH_DB::is_minor_member($target, 16)) {
+        if ($target_elevated || !AVPVH_DB::is_minor_member($target, 16, true)) {
             return false;
         }
         $household = $own_member ? AVPVH_DB::get_manageable_members((int) $own_member->id) : [];

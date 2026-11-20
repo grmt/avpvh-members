@@ -32,7 +32,7 @@ class AVPVH_Newsletter_Consent {
             }
             // Adults manage their own newsletter consent; a household member
             // may only change it on behalf of a minor (< 16).
-            if (!$member || !AVPVH_DB::is_minor_member($member, 16)) {
+            if (!$member || !AVPVH_DB::is_minor_member($member, 16, true)) {
                 wp_die(esc_html__('Geen toegang tot dit ledenprofiel.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
             }
         }

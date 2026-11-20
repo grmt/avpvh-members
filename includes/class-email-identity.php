@@ -116,17 +116,15 @@ class AVPVH_Email_Identity {
         // GET only renders a confirmation button so mail-security scanners
         // and link prefetchers cannot consume the token or link an address.
         if (strtoupper((string) $request->get_method()) !== 'POST') {
-            $email = esc_html((string) ($payload['email'] ?? ''));
-            $action = esc_url(rest_url('avpvh/v1/email-identity/confirm'));
             nocache_headers();
             header('Referrer-Policy: no-referrer');
             wp_die(
                 '<p>' . sprintf(
                     /* translators: %s: e-mail address */
                     esc_html__('Wil je %s koppelen als inlog-e-mailadres bij AV Philips van Horne?', 'avpvh-members'),
-                    '<strong>' . $email . '</strong>'
+                    '<strong>' . esc_html((string) ($payload['email'] ?? '')) . '</strong>'
                 ) . '</p>'
-                . '<form method="post" action="' . $action . '">'
+                . '<form method="post" action="' . esc_url(rest_url('avpvh/v1/email-identity/confirm')) . '">'
                 . '<input type="hidden" name="token" value="' . esc_attr($token) . '">'
                 . '<p><button type="submit" class="button button-primary">' . esc_html__('Ja, e-mailadres bevestigen', 'avpvh-members') . '</button></p>'
                 . '</form>',

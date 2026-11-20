@@ -13,6 +13,16 @@ class AVPVH_Roles {
     const OFFICER_ROLES = ['voorzitter', 'secretaris', 'penningmeester'];
     const ALL_ROLES = ['bestuur', 'voorzitter', 'secretaris', 'penningmeester'];
 
+    /** @var array<string, array|\WP_Error> Live group reads, reused only within this request. */
+    private static array $elevated_group_cache = [];
+
+    /** Invalidate security reads after a directory group write. */
+    public static function forget_elevated_groups(string ...$uids): void {
+        foreach ($uids as $uid) {
+            unset(self::$elevated_group_cache[$uid]);
+        }
+    }
+
     /**
      * Real (OpenLDAP-derived) roles for a member, with implied 'bestuur'
      * folded in. Does not include delegated roles — use member_has_role()
@@ -394,7 +404,7 @@ class AVPVH_Roles {
         }
         $uid = (string) ($member->lldap_user_id ?? $member->user_id ?? '');
         if ($uid !== '' && method_exists('AVPVH_Directory', 'get_user_groups')) {
-            $groups = AVPVH_Directory::get_user_groups($uid);
+            $groups = self::$elevated_group_cache[$uid] ??= AVPVH_Directory::get_user_groups($uid);
             if (is_wp_error($groups)) {
                 return true; // fail closed when directory is unreachable
             }
@@ -659,6 +669,7 @@ class AVPVH_Roles {
         }
 
         $changed = false;
+        $board_changed = false;
         $strip_groups = self::elevated_groups();
         foreach ($groups as $group) {
             if (!in_array(strtolower($group), $strip_groups, true)) {
@@ -669,9 +680,8 @@ class AVPVH_Roles {
                 error_log("AVPVH_Roles: could not remove member {$member_id} from {$group}: " . $removed->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
                 continue;
             }
-            if (in_array(strtolower($group), self::ALL_ROLES, true)) {
-                $changed = true;
-            }
+            $changed = true;
+            $board_changed = $board_changed || in_array(strtolower($group), self::ALL_ROLES, true);
         }
 
         $now = current_time('mysql');
@@ -682,7 +692,7 @@ class AVPVH_Roles {
         ));
 
         AVPVH_Directory::forget_groups($member->lldap_user_id);
-        if ($changed) {
+        if ($board_changed) {
             self::mark_oud_bestuurder_if_left($member_id);
         }
         return $changed || $ended > 0;

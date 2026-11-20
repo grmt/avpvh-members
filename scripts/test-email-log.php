@@ -57,6 +57,9 @@ $hidden = static fn(string $subject): bool => AVPVH_Email_Log::body_hidden((obje
 check('password mail: body hidden', $hidden('AV Philips van Horne — Wachtwoord aanmaken'), true);
 check('login details changed: body hidden', $hidden('AV Philips van Horne — inloggegevens gewijzigd'), true);
 check('e-mail confirmation mail: body hidden', $hidden('AV Philips van Horne — bevestig je e-mailadres'), true);
+check('camp registration confirmation: body shown', $hidden('Bevestiging inschrijving kamp'), false);
+check('English email confirmation: body hidden', $hidden('Confirm your email'), true);
+check('English camp confirmation: body shown', $hidden('Camp registration confirmation'), false);
 check('payment reminder: body shown', $hidden('Openstaande betaling — Drankrekening'), false);
 check('credit settled: body shown', $hidden('[AV-PvH] Tegoed verrekend'), false);
 

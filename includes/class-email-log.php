@@ -25,7 +25,7 @@ class AVPVH_Email_Log {
     const SECRET_HOSTS = ['drive.google.com', 'docs.google.com', 'photos.google.com', 'photos.app.goo.gl'];
 
     /** Subjects of mails whose body is never shown. */
-    const AUTH_SUBJECT = '/wachtwoord|inloggegevens|inlog|login|password|verifi|beveiligingscode|bevestig|confirm|reset|activat|e-mailadres|email address|2fa|otp|herstel/i';
+    const AUTH_SUBJECT = '/wachtwoord|inloggegevens|inlog|login|password|verifi|beveiligingscode|reset|activat|e-mailadres|email address|2fa|\botp\b|accountherstel|(?:confirm|bevestig).*(?:e-?mail|account)/i';
 
     const REDACTED = '[link verborgen]';
 

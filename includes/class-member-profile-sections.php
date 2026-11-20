@@ -220,6 +220,8 @@ class AVPVH_Member_Profile_Sections {
     public static function render_relationships(object $member): void {
         $relationships = AVPVH_DB::get_relationships((int) $member->id);
         $can_manage = AVPVH_Roles::can_manage_members();
+        $needs_step_up = $can_manage && class_exists('AVPVH_Access') && !AVPVH_Access::current_session_has_2fa();
+        $can_manage = $can_manage && !$needs_step_up;
         ?>
         <fieldset class="avpvh-relationships">
             <legend><?php esc_html_e('Relaties', 'avpvh-members'); ?></legend>
@@ -238,7 +240,9 @@ class AVPVH_Member_Profile_Sections {
                 <?php endif; ?>
             </table>
 
-            <?php if (!$can_manage) : ?>
+            <?php if ($needs_step_up) : ?>
+                <p class="avpvh-field-hint"><a href="<?php echo esc_url(admin_url()); ?>"><?php esc_html_e('Log in met tweestapsverificatie om relaties te wijzigen.', 'avpvh-members'); ?></a></p>
+            <?php elseif (!$can_manage) : ?>
                 <p class="avpvh-field-hint"><?php esc_html_e('Klopt er iets niet of mist er een relatie? Het bestuur past relaties aan.', 'avpvh-members'); ?></p>
             <?php else : ?>
                 <?php self::render_relationship_add_form($member); ?>

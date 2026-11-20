@@ -84,20 +84,6 @@ class AVPVH_Xlsx_Writer {
         return preg_match('/^[0-9A-F]{6}$/', $hex) ? $hex : '';
     }
 
-    /** Neutralize spreadsheet formula triggers on non-numeric strings (preserving plain international phone numbers like "+31 6 ..."). */
-    private static function neutralize_formula(string $value): string {
-        if ($value === '') {
-            return $value;
-        }
-        if (preg_match('/^[\t\r=@]/', $value)) {
-            return "'" . $value;
-        }
-        if (preg_match('/^[+\-]/', $value) && !preg_match('/^\+\d[\d\s\-()]{5,}$/', $value)) {
-            return "'" . $value;
-        }
-        return $value;
-    }
-
     private static function build_styles(array $rows): array {
         // Collect distinct (bold, color) combinations used by any cell.
         $combos = ['0|' => 0]; // default style always index 0
@@ -195,9 +181,9 @@ class AVPVH_Xlsx_Writer {
                 } elseif (is_numeric($value) && $value === (string) (float) $value) {
                     $cells_xml .= '<c r="' . $ref . '" s="' . $s . '"><v>' . htmlspecialchars($value, ENT_XML1) . '</v></c>';
                 } else {
-                    $safe = self::neutralize_formula($value);
+                    // inlineStr stores literal text; only an <f> element is a formula.
                     $cells_xml .= '<c r="' . $ref . '" s="' . $s . '" t="inlineStr"><is><t xml:space="preserve">' .
-                        htmlspecialchars($safe, ENT_XML1 | ENT_QUOTES) . '</t></is></c>';
+                        htmlspecialchars($value, ENT_XML1 | ENT_QUOTES) . '</t></is></c>';
                 }
                 $c++;
             }
