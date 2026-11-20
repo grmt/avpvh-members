@@ -59,6 +59,12 @@ php scripts/test-identity-helpers.php
 php scripts/test-identity-limit.php
 php scripts/test-admin-email-return.php
 php scripts/test-email-log.php
+php scripts/test-email-identity-flow.php
+php scripts/test-participation-form-flow.php
+php scripts/test-profile-submission-flow.php
+php scripts/test-member-account-flow.php
+php scripts/test-tenant-invalid-config.php
+php scripts/test-xlsx-writer.php
 php scripts/test-profile-form-render.php
 php scripts/test-ledenlijst-render.php
 php scripts/test-db-upgrade-steps.php
@@ -101,6 +107,14 @@ without, each with `AVPVH_VISITOR_TEST_DUMP=<file>`, and compare the files.
 
 ## Notes
 
-- There is no PHPUnit suite in this repo.
-- These tests are smoke checks, not full integration tests.
+- PHPUnit runs the scripts through their generated wrappers. New scripts need
+  `bin/make-script-tests` before running the suite.
+- The workflow scripts call the production handlers with fictional records and
+  in-memory WordPress, database and directory boundaries. They check submitted
+  data, rejected requests and resulting writes without contacting live services.
+- The XLSX test also opens a generated archive and validates its XML when
+  `ext-zip` is available; that archive check skips otherwise. Use PHP with
+  `ext-zip` and PCOV/Xdebug to measure the full workbook-generation path.
+- These tests complement the integration tests, which require their documented
+  disposable services.
 - Keep ad-hoc scripts in the repo so they can be rerun later.
