@@ -29,7 +29,11 @@ class AVPVH_Tenant_Content {
         add_filter('render_block_core/navigation',         [$this, 'add_account_block_item'], 10, 2);
         add_filter('render_block_core/template-part',      [$this, 'add_account_header_item'], 10, 2);
         add_filter('rest_page_query',            [$this, 'exclude_from_rest_query']);
+        add_filter('rest_post_search_query',     [$this, 'exclude_from_rest_query']);
+        add_filter('rest_comment_query',         [$this, 'exclude_comments_from_rest_query']);
+        add_filter('comments_clauses',           [$this, 'exclude_comments_from_clauses']);
         add_filter('rest_request_before_callbacks', [$this, 'hide_from_rest_item'], 10, 3);
+        add_filter('oembed_request_post_id',     [$this, 'hide_from_oembed']);
         add_filter('wp_sitemaps_posts_query_args', [$this, 'exclude_from_rest_query']);
         add_action('wp_head',                    [$this, 'noindex']);
     }
@@ -101,16 +105,74 @@ class AVPVH_Tenant_Content {
             return;
         }
         $ids = $this->protected_ids();
-        if ($ids) {
-            $query->set('post__not_in', array_merge((array) $query->get('post__not_in'), $ids));
+        if (!$ids) {
+            return;
         }
+        $in = array_values(array_filter(array_map('intval', (array) $query->get('post__in'))));
+        if ($in) {
+            // WP_Query ignores post__not_in whenever post__in is set.
+            $remaining = array_values(array_diff($in, $ids));
+            $query->set('post__in', $remaining ?: [0]);
+            return;
+        }
+        $query->set('post__not_in', array_merge((array) $query->get('post__not_in'), $ids));
     }
 
     public function exclude_from_rest_query(array $args): array {
-        if (!$this->current_user_may_read() && $this->protected_ids()) {
-            $args['post__not_in'] = array_merge((array) ($args['post__not_in'] ?? []), $this->protected_ids());
+        if ($this->current_user_may_read()) {
+            return $args;
         }
+        $ids = $this->protected_ids();
+        if (!$ids) {
+            return $args;
+        }
+        $in = array_values(array_filter(array_map('intval', (array) ($args['post__in'] ?? []))));
+        if ($in) {
+            $remaining = array_values(array_diff($in, $ids));
+            $args['post__in'] = $remaining ?: [0];
+            return $args;
+        }
+        $args['post__not_in'] = array_merge((array) ($args['post__not_in'] ?? []), $ids);
         return $args;
+    }
+
+    /** Hides comments on protected pages over /wp/v2/comments. */
+    public function exclude_comments_from_rest_query(array $args): array {
+        if ($this->current_user_may_read()) {
+            return $args;
+        }
+        $ids = $this->protected_ids();
+        if (!$ids) {
+            return $args;
+        }
+        if (!empty($args['post_id']) && in_array((int) $args['post_id'], $ids, true)) {
+            unset($args['post_id']);
+            $args['post__in'] = [0];
+            return $args;
+        }
+        return $this->exclude_from_rest_query($args);
+    }
+
+    /** Hides comments on protected pages in comment feeds and front-end queries. */
+    public function exclude_comments_from_clauses(array $clauses): array {
+        if ($this->current_user_may_read() || (is_admin() && !wp_doing_ajax())) {
+            return $clauses;
+        }
+        global $wpdb;
+        $ids = $this->protected_ids();
+        if ($ids && $wpdb) {
+            $id_list = implode(',', array_map('intval', $ids));
+            $clauses['where'] .= " AND {$wpdb->comments}.comment_post_ID NOT IN ({$id_list})";
+        }
+        return $clauses;
+    }
+
+    /** oEmbed would otherwise give away a protected page's title and existence. */
+    public function hide_from_oembed($post_id) {
+        if (!$this->current_user_may_read() && in_array((int) $post_id, $this->protected_ids(), true)) {
+            return 0;
+        }
+        return $post_id;
     }
 
     /**

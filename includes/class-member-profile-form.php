@@ -61,11 +61,16 @@ class AVPVH_Member_Profile_Form {
             wp_send_json_error(__('Ledenprofiel niet gevonden.', 'avpvh-members'));
         }
 
-        $is_admin_edit = AVPVH_Roles::can_manage_members() && !empty($_POST['member_id']);
+        $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
+        $has_2fa = !class_exists('AVPVH_Access') || !method_exists('AVPVH_Access', 'current_session_has_2fa')
+            || AVPVH_Access::current_session_has_2fa();
+        $is_admin_edit = AVPVH_Roles::can_manage_members() && $has_2fa
+            && !empty($_POST['member_id'])
+            && (!$own_member || (int) $member->id !== (int) $own_member->id || array_key_exists('birth_date', $_POST));
         $member_data = $this->sanitize_member_data($_POST, $is_admin_edit);
 
         $emergency_member_id = absint(wp_unslash($_POST['emergency_member_id'] ?? 0));
-        if ($emergency_member_id && !isset(self::emergency_candidates($member, AVPVH_DB::get_member_by_wp_user(get_current_user_id()))[$emergency_member_id])) {
+        if ($emergency_member_id && !isset(self::emergency_candidates($member, $own_member)[$emergency_member_id])) {
             wp_send_json_error(__('Dit lid kan niet als noodcontact gekozen worden.', 'avpvh-members'));
         }
         // As a string, like the stored value, so the audit log only notes real changes.
@@ -147,12 +152,16 @@ class AVPVH_Member_Profile_Form {
      * $member. The current link always stays selectable, even if that
      * member has since left the ledenlijst.
      */
-    /** Members someone can pick as emergency contact: everyone with an address the viewer may see, plus the current pick. */
+    /** Members someone can pick as emergency contact: active members/admins see everyone with an address; visitors/ex-members only keep their current pick. */
     public static function emergency_candidates(object $member, ?object $own_member): array {
         $candidates = [];
-        foreach (AVPVH_DB::get_members_with_address((int) ($own_member->id ?? 0), AVPVH_Roles::can_manage_members()) as $m) {
-            if ((int) $m->id !== (int) $member->id) {
-                $candidates[(int) $m->id] = avpvh_format_name($m);
+        $may_list_members = AVPVH_Roles::can_manage_members()
+            || ($own_member && (!isset($own_member->status) || $own_member->status === 'active'));
+        if ($may_list_members) {
+            foreach (AVPVH_DB::get_members_with_address((int) ($own_member->id ?? 0), AVPVH_Roles::can_manage_members()) as $m) {
+                if ((int) $m->id !== (int) $member->id) {
+                    $candidates[(int) $m->id] = avpvh_format_name($m);
+                }
             }
         }
         $current_id = (int) ($member->emergency_member_id ?? 0);
@@ -175,16 +184,56 @@ class AVPVH_Member_Profile_Form {
     }
 
     /**
-     * Member admins (AVPVH_Roles::can_manage_members()) can edit any member;
-     * everyone else can edit their own profile or a household member's
-     * (same family link or current address).
+     * Member admins (AVPVH_Roles::can_manage_members()) can edit any non-elevated
+     * member (and WP admins can edit anyone) once their session has completed 2FA;
+     * everyone else can edit their own profile or a non-elevated household member's.
      */
     public static function can_edit_member(?object $own_member, int $target_member_id): bool {
-        if (AVPVH_Roles::can_manage_members()) {
+        $is_self = $own_member && (int) $own_member->id === $target_member_id;
+        if ($is_self) {
             return true;
+        }
+        $target_elevated = method_exists('AVPVH_Roles', 'member_has_elevated_access')
+            && AVPVH_Roles::member_has_elevated_access($target_member_id);
+        $has_2fa = !class_exists('AVPVH_Access') || !method_exists('AVPVH_Access', 'current_session_has_2fa')
+            || AVPVH_Access::current_session_has_2fa();
+        if (AVPVH_Roles::can_manage_members() && $has_2fa) {
+            if (!$target_elevated || (function_exists('current_user_can') && current_user_can('manage_options'))) {
+                return true;
+            }
+        }
+        if ($target_elevated) {
+            return false;
         }
         $household = $own_member ? AVPVH_DB::get_manageable_members((int) $own_member->id) : [];
         return in_array($target_member_id, array_map('intval', array_column($household, 'id')), true);
+    }
+
+    /**
+     * Login identities (removing or changing the primary OpenLDAP mail) are
+     * stricter than general profile fields: adults manage their own; a
+     * household member may only manage a minor's (< 16); admins with 2FA follow
+     * the elevated-target boundary.
+     */
+    private static function can_manage_identities(?object $own_member, object $target): bool {
+        $target_id = (int) $target->id;
+        if ($own_member && (int) $own_member->id === $target_id) {
+            return true;
+        }
+        $target_elevated = method_exists('AVPVH_Roles', 'member_has_elevated_access')
+            && AVPVH_Roles::member_has_elevated_access($target_id);
+        $has_2fa = !class_exists('AVPVH_Access') || !method_exists('AVPVH_Access', 'current_session_has_2fa')
+            || AVPVH_Access::current_session_has_2fa();
+        if (AVPVH_Roles::can_manage_members() && $has_2fa) {
+            if (!$target_elevated || (function_exists('current_user_can') && current_user_can('manage_options'))) {
+                return true;
+            }
+        }
+        if ($target_elevated || !AVPVH_DB::is_minor_member($target, 16)) {
+            return false;
+        }
+        $household = $own_member ? AVPVH_DB::get_manageable_members((int) $own_member->id) : [];
+        return in_array($target_id, array_map('intval', array_column($household, 'id')), true);
     }
 
     /**
@@ -224,13 +273,13 @@ class AVPVH_Member_Profile_Form {
         $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
         $own_member = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
 
-        if (!$member_id || !self::can_edit_member($own_member, $member_id)) {
-            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
-        }
-
-        $member = AVPVH_DB::get_member($member_id);
+        $member = $member_id ? AVPVH_DB::get_member($member_id) : null;
         if (!$member) {
             wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
+        }
+
+        if (!self::can_manage_identities($own_member, $member)) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $identities = AVPVH_DB::get_member_identities($member_id);
@@ -278,13 +327,13 @@ class AVPVH_Member_Profile_Form {
         $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
         $own_member  = AVPVH_DB::get_member_by_wp_user(get_current_user_id());
 
-        if (!$member_id || !self::can_edit_member($own_member, $member_id)) {
-            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
-        }
-
-        $member = AVPVH_DB::get_member($member_id);
+        $member = $member_id ? AVPVH_DB::get_member($member_id) : null;
         if (!$member) {
             wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
+        }
+
+        if (!self::can_manage_identities($own_member, $member)) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
         $target = null;
@@ -296,6 +345,10 @@ class AVPVH_Member_Profile_Form {
         }
 
         if ($target) {
+            if (empty($target->verified_at)) {
+                wp_safe_redirect(add_query_arg(['member_id' => $member_id, 'identity_error' => 'unverified'], self::back_url()));
+                exit;
+            }
             AVPVH_DB::set_primary_identity($member_id, $identity_id);
             $result = AVPVH_Directory::update_user($member->lldap_user_id, ['mail' => $target->email]);
             if (is_wp_error($result)) {

@@ -7,6 +7,24 @@ class AVPVH_Access {
     const LOGIN_PATH = '/avpvh-login/';
     /** Leaked-password reports accepted per IP address per 15 minutes (handle_hibp_flag()). */
     private const HIBP_FLAGS_PER_IP = 5;
+    /** Session token keys tracking auth method and step-up 2FA completion. */
+    const SESSION_AUTH_KEY = 'avpvh_auth_method';
+    const SESSION_2FA_KEY  = 'avpvh_2fa';
+
+    /** Front-end 1FA admin-post actions that do not require wp-admin 2FA. */
+    private const FRONTEND_ADMIN_POST_ACTIONS = [
+        'avpvh_export_ledenlijst',
+        'avpvh_save_own_participation',
+        'avpvh_set_directory_consent',
+        'avpvh_set_newsletter_consent',
+        'avpvh_remove_identity',
+        'avpvh_make_primary_identity',
+        'avpvh_request_identity',
+        'avpvh_start_email_identity',
+    ];
+
+    /** @var array{method: string, two_factor: bool}|null */
+    private static ?array $pending_session_auth = null;
 
     /** @var int[]|null IDs of the members section, see members_section_ids() */
     private ?array $section = null;
@@ -17,6 +35,9 @@ class AVPVH_Access {
         add_action('init',               [$this, 'handle_sso_callback'], 2);
         add_action('wp_login',           [$this, 'reset_session_idle_timer'], 10, 2);
         add_action('admin_init',         [$this, 'restrict_wordpress_admin']);
+        add_action('admin_init',         [$this, 'enforce_step_up_2fa_for_admin_post'], 5);
+        add_filter('attach_session_information', [$this, 'attach_session_auth_metadata']);
+        add_filter('xmlrpc_enabled',     '__return_false');
         add_action('template_redirect',  [$this, 'handle_login_bridge']);
         add_filter('show_admin_bar',     [$this, 'filter_admin_bar_visibility'], 20);
         add_filter('user_has_cap',       [$this, 'filter_member_capabilities'], 10, 4);
@@ -27,11 +48,14 @@ class AVPVH_Access {
         add_filter('the_password_form',    [$this, 'members_only_form']);
         add_action('rest_api_init',        [$this, 'register_hibp_route']);
 
-        // template_redirect never runs for REST, search listings or oEmbed:
-        // the members section is hidden there separately.
+        // template_redirect never runs for REST, search listings, comments or oEmbed:
+        // the members section and restricted pages are hidden there separately.
         add_action('pre_get_posts',                  [$this, 'exclude_members_pages_from_queries']);
         add_filter('rest_page_query',                [$this, 'exclude_members_pages_from_rest_query']);
         add_filter('rest_post_search_query',         [$this, 'exclude_members_pages_from_rest_query']);
+        add_filter('rest_comment_query',             [$this, 'exclude_restricted_comments_from_rest_query']);
+        add_filter('comments_clauses',               [$this, 'exclude_restricted_comments_from_clauses']);
+        add_filter('rest_request_before_callbacks',  [$this, 'enforce_step_up_2fa_for_rest'], 5, 3);
         add_filter('rest_request_before_callbacks',  [$this, 'hide_members_page_from_rest'], 10, 3);
         add_filter('oembed_request_post_id',         [$this, 'hide_members_page_from_oembed']);
 
@@ -43,6 +67,132 @@ class AVPVH_Access {
 
         add_filter('avpvh_flst_user_groups',       ['AVPVH_Roles', 'user_filelist_groups'], 10, 2);
         add_filter('avpvh_flst_available_groups',  ['AVPVH_Roles', 'available_filelist_groups']);
+    }
+
+    /** Records auth method & 2FA state to be attached to the next WP session cookie. */
+    public static function mark_next_session_auth(string $method, bool $two_factor): void {
+        self::$pending_session_auth = ['method' => $method, 'two_factor' => $two_factor];
+    }
+
+    public function attach_session_auth_metadata(array $session): array {
+        if (self::$pending_session_auth !== null) {
+            $session[self::SESSION_AUTH_KEY] = self::$pending_session_auth['method'];
+            $session[self::SESSION_2FA_KEY]  = self::$pending_session_auth['two_factor'];
+            self::$pending_session_auth = null;
+        }
+        return $session;
+    }
+
+    /** Marks the current WP session token as having satisfied Authelia 2FA. */
+    private static function upgrade_current_session_2fa(): void {
+        if (!is_user_logged_in() || !function_exists('wp_get_session_token') || !class_exists('WP_Session_Tokens')) {
+            return;
+        }
+        $token = wp_get_session_token();
+        if ($token === '') {
+            return;
+        }
+        $manager = \WP_Session_Tokens::get_instance(get_current_user_id());
+        $session = $manager->get($token);
+        if (is_array($session) && empty($session[self::SESSION_2FA_KEY])) {
+            $session[self::SESSION_2FA_KEY] = true;
+            $manager->update($token, $session);
+        }
+    }
+
+    /**
+     * Whether the current WP session has passed step-up 2FA (i.e. visited a
+     * 2FA-gated /wp-admin/ route via Authelia). Sessions started via 1FA
+     * (OAuth or /avpvh-sso/) return false until upgraded.
+     */
+    public static function current_session_has_2fa(): bool {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+        if (!function_exists('wp_get_session_token') || !class_exists('WP_Session_Tokens')) {
+            return true;
+        }
+        $token = wp_get_session_token();
+        if ($token === '') {
+            return true;
+        }
+        $session = \WP_Session_Tokens::get_instance(get_current_user_id())->get($token);
+        if (!is_array($session) || !isset($session[self::SESSION_AUTH_KEY])) {
+            return true;
+        }
+        return !empty($session[self::SESSION_2FA_KEY]);
+    }
+
+    /**
+     * True when the current request is a /wp-admin/ route gated by Authelia
+     * two_factor (not bypassed admin-ajax.php, admin-post.php or async-upload.php).
+     */
+    private function is_wp_admin_2fa_request(): bool {
+        if (!function_exists('is_admin') || !is_admin()) {
+            return false;
+        }
+        if (function_exists('wp_doing_ajax') && wp_doing_ajax()) {
+            return false;
+        }
+        global $pagenow;
+        return !in_array($pagenow ?? '', ['admin-ajax.php', 'admin-post.php', 'async-upload.php'], true);
+    }
+
+    /**
+     * All plugin admin-post actions outside FRONTEND_ADMIN_POST_ACTIONS live
+     * behind wp-admin pages. Because Authelia bypasses admin-post.php for
+     * front-end forms, verify the session actually stepped up to 2FA.
+     */
+    public function enforce_step_up_2fa_for_admin_post(): void {
+        global $pagenow;
+        if (($pagenow ?? '') !== 'admin-post.php' || !is_user_logged_in()) {
+            return;
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing gate; each handler verifies its own nonce
+        $action = sanitize_key(wp_unslash($_REQUEST['action'] ?? ''));
+        if ($action === '' || !str_starts_with($action, 'avpvh_') || in_array($action, self::FRONTEND_ADMIN_POST_ACTIONS, true)) {
+            return;
+        }
+        if (!self::current_session_has_2fa()) {
+            wp_die(
+                esc_html__('Voor deze beheerdersactie is tweestapsverificatie (2FA) nodig. Open eerst /wp-admin/ om met 2FA in te loggen.', 'avpvh-members'),
+                esc_html__('Tweestapsverificatie vereist', 'avpvh-members'),
+                ['response' => 403]
+            );
+        }
+    }
+
+    /**
+     * Prevents a 1FA session (e.g. OAuth login on the front end, which carries
+     * a wp_rest nonce) of a WP admin or officer from performing privileged
+     * REST writes or reading /wp/v2/users or /wp/v2/settings without 2FA.
+     *
+     * @return mixed
+     */
+    public function enforce_step_up_2fa_for_rest($response, array $handler, \WP_REST_Request $request) {
+        if (!is_user_logged_in() || self::current_session_has_2fa()) {
+            return $response;
+        }
+        $route = $request->get_route();
+        if (str_starts_with($route, '/avpvh/v1/')) {
+            return $response;
+        }
+        $is_privileged = current_user_can('manage_options')
+            || (class_exists('AVPVH_Roles') && AVPVH_Roles::current_user_needs_wp_admin());
+        if (!$is_privileged) {
+            return $response;
+        }
+        $method = strtoupper((string) $request->get_method());
+        $is_write = !in_array($method, ['GET', 'HEAD', 'OPTIONS'], true);
+        $is_sensitive_read = (bool) preg_match('#^/wp/v2/(users|settings)(/|$)#', $route);
+        if ($is_write || $is_sensitive_read) {
+            return new \WP_Error(
+                'avpvh_2fa_required',
+                __('Voor deze actie is tweestapsverificatie (2FA) nodig. Open eerst /wp-admin/ om met 2FA in te loggen.', 'avpvh-members'),
+                ['status' => 403]
+            );
+        }
+        return $response;
     }
 
     /**
@@ -198,6 +348,7 @@ class AVPVH_Access {
         }
 
         $this->redirect_dmarc_page();
+        $this->redirect_boek_page();
     }
 
     /** A blog post within the period an ex-member may see (AVPVH_Archive_Access). */
@@ -212,13 +363,99 @@ class AVPVH_Access {
     // under /leden/; it is shown in wp-admin under DMARC-rapporten, so
     // the page itself is never shown, not even to ordinary members.
     private function redirect_dmarc_page(): void {
-        $dmarc_page_id = (int) get_option(AVPVH_DMARC_PAGE_OPTION);
+        $dmarc_page_id = $this->dmarc_page_id();
         if ($dmarc_page_id && is_page($dmarc_page_id)) {
             wp_safe_redirect(AVPVH_Roles::can_view_dmarc()
                 ? admin_url('admin.php?page=avpvh-dmarc')
                 : home_url('/'));
             exit;
         }
+    }
+
+    // Server-side enforcement for "Zoeken in documenten" (group:boek) so it
+    // does not depend solely on Authelia's URL regex.
+    private function redirect_boek_page(): void {
+        $doc_page_id = $this->doc_search_page_id();
+        if ($doc_page_id && is_page($doc_page_id) && !$this->current_user_has_boek_access()) {
+            wp_safe_redirect(is_user_logged_in() ? home_url('/') : home_url(self::LOGIN_PATH));
+            exit;
+        }
+    }
+
+    private function dmarc_page_id(): int {
+        if (!defined('AVPVH_DMARC_PAGE_OPTION') || !function_exists('get_option')) {
+            return 0;
+        }
+        return (int) get_option(AVPVH_DMARC_PAGE_OPTION);
+    }
+
+    private function doc_search_page_id(): int {
+        return class_exists('AVPVH_Nav_Auth') ? (int) AVPVH_Nav_Auth::DOC_SEARCH_PAGE_ID : 0;
+    }
+
+    private function current_user_has_boek_access(): bool {
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        if (!is_user_logged_in()) {
+            return false;
+        }
+        $member = avpvh_get_member_by_wp_user(get_current_user_id());
+        if (!$member || ($member->status ?? '') !== 'active' || empty($member->user_id)) {
+            return false;
+        }
+        return class_exists('AVPVH_Directory')
+            && in_array('boek', AVPVH_Directory::cached_user_groups($member->user_id), true);
+    }
+
+    /**
+     * Page IDs the current viewer must never see in search, feeds, REST,
+     * oEmbed or comments: /leden/ for non-members, the DMARC report page for
+     * anyone without DMARC permission, and the boek search page for non-boek users.
+     *
+     * @return int[]
+     */
+    private function restricted_page_ids_for_current_user(): array {
+        $ids = $this->current_user_may_read_members_section() ? [] : $this->members_section_ids();
+        $dmarc_id = $this->dmarc_page_id();
+        if ($dmarc_id && !(class_exists('AVPVH_Roles') && AVPVH_Roles::can_view_dmarc())) {
+            $ids[] = $dmarc_id;
+        }
+        $doc_id = $this->doc_search_page_id();
+        if ($doc_id && !$this->current_user_has_boek_access()) {
+            $ids[] = $doc_id;
+        }
+        return array_values(array_unique(array_filter(array_map('intval', $ids))));
+    }
+
+    private function is_password_protected_post(int $post_id): bool {
+        if ($post_id <= 0 || !function_exists('get_post')) {
+            return false;
+        }
+        $post = get_post($post_id);
+        return $post instanceof \WP_Post && !empty($post->post_password);
+    }
+
+    /**
+     * Applies excluded IDs safely to WP_Query args: when post__in is present,
+     * WP_Query ignores post__not_in completely, so excluded IDs must be
+     * subtracted from post__in (falling back to [0] for no matches).
+     */
+    private function apply_exclusions_to_args(array $args, array $excluded): array {
+        if (!$excluded) {
+            return $args;
+        }
+        $in = array_values(array_filter(array_map('intval', (array) ($args['post__in'] ?? []))));
+        if ($in) {
+            $remaining = array_values(array_diff($in, $excluded));
+            $args['post__in'] = $remaining ?: [0];
+            return $args;
+        }
+        $args['post__not_in'] = array_values(array_unique(array_merge(
+            array_values(array_filter(array_map('intval', (array) ($args['post__not_in'] ?? [])))),
+            $excluded
+        )));
+        return $args;
     }
 
     private function is_members_only_request(): bool {
@@ -308,31 +545,88 @@ class AVPVH_Access {
         if (is_admin() && !wp_doing_ajax() || !$query->is_search() && !$query->is_feed()) {
             return;
         }
-        if ($this->current_user_may_read_members_section()) {
-            return;
+        $excluded = $this->restricted_page_ids_for_current_user();
+        if ($excluded) {
+            $in = array_values(array_filter(array_map('intval', (array) $query->get('post__in'))));
+            if ($in) {
+                $remaining = array_values(array_diff($in, $excluded));
+                $query->set('post__in', $remaining ?: [0]);
+            } else {
+                $query->set('post__not_in', array_values(array_unique(array_merge(
+                    array_values(array_filter(array_map('intval', (array) $query->get('post__not_in')))),
+                    $excluded
+                ))));
+            }
         }
-        $query->set('post__not_in', $this->exclude_members_section($query->get('post__not_in')));
-        if ($query->is_search()) {
+        if ($query->is_search() && !$this->current_user_may_read_members_section()) {
             $query->set('has_password', false);
         }
     }
 
     /** The same for REST collections: /wp/v2/pages and /wp/v2/search. */
     public function exclude_members_pages_from_rest_query(array $args): array {
+        $excluded = $this->restricted_page_ids_for_current_user();
+        if ($excluded) {
+            $args = $this->apply_exclusions_to_args($args, $excluded);
+        }
         if (!$this->current_user_may_read_members_section()) {
-            $args['post__not_in'] = $this->exclude_members_section($args['post__not_in'] ?? []);
+            $args['has_password'] = false;
         }
         return $args;
     }
 
-    private function exclude_members_section($post__not_in): array {
-        return array_values(array_unique(array_merge(array_filter((array) $post__not_in), $this->members_section_ids())));
+    /** Hides comments on restricted pages and password-protected posts over REST. */
+    public function exclude_restricted_comments_from_rest_query(array $args): array {
+        $excluded = $this->restricted_page_ids_for_current_user();
+        if (!$this->current_user_may_read_members_section()) {
+            $excluded = array_values(array_unique(array_merge($excluded, $this->password_protected_post_ids())));
+        }
+        if (!$excluded) {
+            return $args;
+        }
+        if (!empty($args['post_id']) && in_array((int) $args['post_id'], $excluded, true)) {
+            unset($args['post_id']);
+            $args['post__in'] = [0];
+            return $args;
+        }
+        return $this->apply_exclusions_to_args($args, $excluded);
+    }
+
+    /** Hides comments on restricted pages and password-protected posts in feeds/front-end queries. */
+    public function exclude_restricted_comments_from_clauses(array $clauses): array {
+        if (is_admin() && !wp_doing_ajax()) {
+            return $clauses;
+        }
+        global $wpdb;
+        if (!$wpdb) {
+            return $clauses;
+        }
+        $excluded = $this->restricted_page_ids_for_current_user();
+        if ($excluded) {
+            $id_list = implode(',', array_map('intval', $excluded));
+            $clauses['where'] .= " AND {$wpdb->comments}.comment_post_ID NOT IN ({$id_list})";
+        }
+        if (!$this->current_user_may_read_members_section()) {
+            $clauses['where'] .= " AND {$wpdb->comments}.comment_post_ID NOT IN (SELECT ID FROM {$wpdb->posts} WHERE post_password != '')";
+        }
+        return $clauses;
+    }
+
+    /** @return int[] */
+    private function password_protected_post_ids(): array {
+        global $wpdb;
+        if (!$wpdb) {
+            return [];
+        }
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- short query for REST comment filtering
+        $ids = $wpdb->get_col("SELECT ID FROM {$wpdb->posts} WHERE post_password != ''");
+        return array_map('intval', $ids ?: []);
     }
 
     /**
-     * A members-section page over REST (/wp/v2/pages/<id> and its
-     * sub-routes) answers 404, as if it did not exist. Checked before the
-     * callback runs: a WP_Error from rest_prepare_page breaks the controller.
+     * A restricted page over REST (/wp/v2/pages/<id> and its sub-routes)
+     * answers 404, as if it did not exist. Checked before the callback runs:
+     * a WP_Error from rest_prepare_page breaks the controller.
      *
      * @return mixed the unchanged response, or a WP_Error
      */
@@ -340,15 +634,20 @@ class AVPVH_Access {
         if (!preg_match('#^/wp/v2/pages/(\d+)#', $request->get_route(), $match)) {
             return $response;
         }
-        if (in_array((int) $match[1], $this->members_section_ids(), true) && !$this->current_user_may_read_members_section()) {
+        $page_id = (int) $match[1];
+        $blocked = in_array($page_id, $this->restricted_page_ids_for_current_user(), true)
+            || (!$this->current_user_may_read_members_section() && $this->is_password_protected_post($page_id));
+        if ($blocked) {
             return new \WP_Error('rest_post_invalid_id', __('Ongeldige bericht-ID.', 'avpvh-members'), ['status' => 404]);
         }
         return $response;
     }
 
-    /** oEmbed would otherwise give away a members page's title. */
+    /** oEmbed would otherwise give away a restricted or password-protected page's title. */
     public function hide_members_page_from_oembed($post_id) {
-        if (in_array((int) $post_id, $this->members_section_ids(), true) && !$this->current_user_may_read_members_section()) {
+        $id = (int) $post_id;
+        if (in_array($id, $this->restricted_page_ids_for_current_user(), true)
+            || (!$this->current_user_may_read_members_section() && $this->is_password_protected_post($id))) {
             return 0;
         }
         return $post_id;
@@ -447,6 +746,27 @@ class AVPVH_Access {
     }
 
     public function auto_login_from_proxy_header(): void {
+        // Never bootstrap a WP session from proxy headers on REST or XML-RPC:
+        // REST endpoints authenticate via WP cookies + wp_rest nonce (setting
+        // the current user at init priority 1 would bypass REST CSRF checks).
+        if ((defined('REST_REQUEST') && REST_REQUEST) || (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST)) {
+            return;
+        }
+        $req_path = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+        if (str_starts_with($req_path, '/wp-json/')) {
+            return;
+        }
+
+        // Optional defense-in-depth shared secret between Nginx and PHP-FPM
+        // (define AVPVH_PROXY_SECRET in wp-config.php and pass X-AVPVH-Proxy-Secret
+        // from Nginx) so a direct request to PHP-FPM can never spoof Remote-User.
+        if (defined('AVPVH_PROXY_SECRET') && AVPVH_PROXY_SECRET !== '') {
+            $sent = (string) ($_SERVER['HTTP_X_AVPVH_PROXY_SECRET'] ?? '');
+            if (!hash_equals((string) AVPVH_PROXY_SECRET, $sent)) {
+                return;
+            }
+        }
+
         // Authelia sends Remote-User = the OpenLDAP uid (e.g. "jan.jansen"), not an email.
         // nginx passes it via fastcgi_param HTTP_REMOTE_USER → $_SERVER['HTTP_REMOTE_USER'].
         $lldap_uid = sanitize_text_field(wp_unslash($_SERVER['HTTP_REMOTE_USER'] ?? ''));
@@ -454,17 +774,24 @@ class AVPVH_Access {
             return;
         }
 
-        // With OpenLDAP the member lookup JOINs the local cache: refresh this
-        // one account first, so a brand-new or just-changed account works
-        // without waiting for the 15-minute sync.
-        AVPVH_Directory_Cache::refresh_user($lldap_uid);
         $member = AVPVH_DB::get_member_by_lldap_uid($lldap_uid);
         if (!$member) {
-            return;
+            // Refresh this one account once when not in the local cache yet,
+            // so a brand-new account works without waiting for the 15-minute sync.
+            AVPVH_Directory_Cache::refresh_user($lldap_uid);
+            $member = AVPVH_DB::get_member_by_lldap_uid($lldap_uid);
+            if (!$member) {
+                return;
+            }
         }
+
+        $is_2fa_route = $this->is_wp_admin_2fa_request();
 
         if (is_user_logged_in()) {
             if ((int) get_current_user_id() === (int) $member->wp_user_id) {
+                if ($is_2fa_route) {
+                    self::upgrade_current_session_2fa();
+                }
                 return;
             }
             // The WP auth cookie and the Authelia cookie (HTTP_REMOTE_USER,
@@ -478,6 +805,14 @@ class AVPVH_Access {
                 home_url('/avpvh-login/?login_error=identity_mismatch')
             ));
             exit;
+        }
+
+        // Refresh the user's cache entry before creating a new session so
+        // recently changed mail/displayName is up to date.
+        AVPVH_Directory_Cache::refresh_user($lldap_uid);
+        $member = AVPVH_DB::get_member_by_lldap_uid($lldap_uid);
+        if (!$member) {
+            return;
         }
 
         $email = $member->email;
@@ -508,6 +843,10 @@ class AVPVH_Access {
                 AVPVH_DB::set_wp_user_id((int) $member->id, $uid);
                 $user = get_user_by('id', $uid);
             } else {
+                if (!AVPVH_DB::can_safely_link_wp_user($user, (int) $member->id)) {
+                    error_log("AVPVH_Access: refused unsafe auto-link of WP user {$user->ID} to member {$member->id}."); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational security refusal log
+                    return;
+                }
                 AVPVH_DB::set_wp_user_id((int) $member->id, $user->ID);
             }
         }
@@ -517,6 +856,7 @@ class AVPVH_Access {
         }
 
         AVPVH_DB::log_attempt($email, 'proxy', 'success');
+        self::mark_next_session_auth('proxy', $is_2fa_route);
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID);
         do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately firing WP core's own wp_login hook (not a custom hook) so other code listening for a normal login still runs on this proxy/OAuth auth bridge

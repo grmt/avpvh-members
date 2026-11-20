@@ -21,10 +21,10 @@ class AVPVH_Tenant_Identity {
     /**
      * @return array{status: string, uid?: string, groups?: string[], email?: string, name?: string}
      */
-    public static function probe(AVPVH_Tenant_Config $config): array {
+    public static function probe(AVPVH_Tenant_Config $config, ?string $target_url = null): array {
         $cookie_name = (string) $config->get('authelia_session_cookie');
-        $session = sanitize_text_field(wp_unslash($_COOKIE[$cookie_name] ?? ''));
-        if ($session === '') {
+        $session = (string) wp_unslash($_COOKIE[$cookie_name] ?? '');
+        if ($session === '' || preg_match('/[\x00-\x20\x22\x2c\x3b\x5c\x7f]/', $session)) {
             return ['status' => self::ANONYMOUS];
         }
 
@@ -33,12 +33,23 @@ class AVPVH_Tenant_Identity {
             'redirection' => 0,
             'headers'     => [
                 'X-Original-Method' => 'GET',
-                'X-Original-URL'    => $config->identity_probe_url(),
+                'X-Original-URL'    => $target_url ?? $config->identity_probe_url(),
                 'X-Forwarded-For'   => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? '')),
                 'Cookie'            => $cookie_name . '=' . $session,
             ],
         ]);
         return self::interpret($response);
+    }
+
+    /**
+     * Verifies against Authelia's two_factor-gated /wp-admin/ URL that the
+     * current Authelia session has completed 2FA before granting administrator.
+     *
+     * @return array{status: string, uid?: string, groups?: string[], email?: string, name?: string}
+     */
+    public static function probe_admin_2fa(AVPVH_Tenant_Config $config): array {
+        $admin_url = 'https://' . $config->get('canonical_host') . '/wp-admin/';
+        return self::probe($config, $admin_url);
     }
 
     /** Turns an auth-request response (or WP_Error) into an identity. */

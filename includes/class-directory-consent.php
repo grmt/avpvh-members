@@ -30,7 +30,9 @@ class AVPVH_Directory_Consent {
                     break;
                 }
             }
-            if (!$member) {
+            // Under AVG/GDPR, adults give or withdraw their own consent; a
+            // household member may only set consent for a minor (< 16).
+            if (!$member || !AVPVH_DB::is_minor_member($member, 16)) {
                 wp_die(esc_html__('Geen toegang tot dit ledenprofiel.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
             }
         }

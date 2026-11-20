@@ -901,9 +901,12 @@ class AVPVH_Member_Merge {
      * (fail closed).
      */
     private static function involves_elevated_access(object $keep, object $remove, array $accounts): bool {
-        $elevated_groups = array_merge(AVPVH_Roles::ALL_ROLES, [AVPVH_Roles::IT_GROUP, AVPVH_Roles::BLOGGER_GROUP, 'boek']);
+        $elevated_groups = AVPVH_Roles::elevated_groups();
         foreach (['keep' => $keep, 'remove' => $remove] as $side => $member) {
-            if (($accounts[$side]['exists'] && !$accounts[$side]['groups_known']) || array_intersect($elevated_groups, $accounts[$side]['groups'])) {
+            if (($accounts[$side]['exists'] && !$accounts[$side]['groups_known']) || array_intersect($elevated_groups, array_map('strtolower', $accounts[$side]['groups']))) {
+                return true;
+            }
+            if (!empty($member->id) && AVPVH_Roles::has_any_active_delegation((int) $member->id)) {
                 return true;
             }
             $wp_user = $member->wp_user_id ? get_userdata((int) $member->wp_user_id) : null;

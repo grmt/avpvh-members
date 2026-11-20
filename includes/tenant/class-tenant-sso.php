@@ -103,6 +103,33 @@ class AVPVH_Tenant_SSO {
     }
 
     /**
+     * Grants 'administrator' only when Authelia confirms 2FA on /wp-admin/;
+     * an admin logged in with 1FA only is downgraded to 'subscriber' (if in
+     * the member group) or gets null (requiring 2FA step-up).
+     *
+     * @return array{0: ?string, 1: string} [resolved role, reason ('ok'|'needs_2fa'|'error'|'no_access')]
+     */
+    private function resolve_role_with_2fa(array $identity): array {
+        $role = self::role_for_groups($identity['groups'], $this->config);
+        if ($role !== 'administrator') {
+            return [$role, $role !== null ? 'ok' : 'no_access'];
+        }
+        $twofa = AVPVH_Tenant_Identity::probe_admin_2fa($this->config);
+        if ($twofa['status'] === AVPVH_Tenant_Identity::OK
+            && ($twofa['uid'] ?? '') === ($identity['uid'] ?? '')
+            && self::role_for_groups($twofa['groups'] ?? [], $this->config) === 'administrator') {
+            return ['administrator', 'ok'];
+        }
+        if ($twofa['status'] === AVPVH_Tenant_Identity::ERROR) {
+            return [null, 'error'];
+        }
+        if (in_array($this->config->member_group(), $identity['groups'], true)) {
+            return ['subscriber', 'ok'];
+        }
+        return [null, 'needs_2fa'];
+    }
+
+    /**
      * Authelia sends the visitor back to the probe path after login. Ask
      * Authelia who it is, provision the local user and continue to the
      * requested page on this site.
@@ -120,7 +147,23 @@ class AVPVH_Tenant_SSO {
             $this->deny(__('Inloggen is niet gelukt. Probeer het later opnieuw.', 'avpvh-members'), 503);
         }
 
-        $role = self::role_for_groups($identity['groups'], $this->config);
+        [$role, $reason] = $this->resolve_role_with_2fa($identity);
+        if ($reason === 'error') {
+            $this->log('callback', $identity['uid'], 'twofa_probe_error');
+            $this->deny(__('Inloggen is niet gelukt. Probeer het later opnieuw.', 'avpvh-members'), 503);
+        }
+        if ($reason === 'needs_2fa') {
+            // Admin-only account arrived via 1FA: bounce to Authelia for /wp-admin/
+            // so 2FA is completed before any administrator WP session is created.
+            $this->log('callback', $identity['uid'], 'needs_2fa');
+            $step_up = add_query_arg(
+                'rd',
+                rawurlencode('https://' . $this->config->get('canonical_host') . '/wp-admin/'),
+                untrailingslashit((string) $this->config->get('authelia_url')) . '/'
+            );
+            wp_safe_redirect($step_up);
+            exit;
+        }
         if ($role === null) {
             $this->log('callback', $identity['uid'], 'no_tenant_access');
             if (is_user_logged_in()) {
@@ -154,7 +197,7 @@ class AVPVH_Tenant_SSO {
         if ($identity['status'] !== AVPVH_Tenant_Identity::OK) {
             return false;
         }
-        $role = self::role_for_groups($identity['groups'], $this->config);
+        [$role] = $this->resolve_role_with_2fa($identity);
         if ($role === null) {
             return false;
         }
@@ -258,7 +301,7 @@ class AVPVH_Tenant_SSO {
             $identity = AVPVH_Tenant_Identity::probe($this->config);
             $same_user = $identity['status'] === AVPVH_Tenant_Identity::OK
                 && $subject === $expected . $identity['uid'];
-            $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
+            $role = $same_user ? $this->resolve_role_with_2fa($identity)[0] : null;
             return [$identity, $same_user, $role];
         }
         $directory = AVPVH_Tenant_Directory::for_config($this->config);
@@ -441,9 +484,19 @@ class AVPVH_Tenant_SSO {
         if ($nonce === '') {
             return;
         }
-        if (is_user_logged_in() && wp_verify_nonce($nonce, self::LOGOUT_ACTION)) {
-            wp_logout();
+        if (!is_user_logged_in()) {
+            wp_safe_redirect(home_url('/'));
+            exit;
         }
+        if (!wp_verify_nonce($nonce, self::LOGOUT_ACTION)) {
+            wp_die(
+                '<p>' . esc_html__('Wil je uitloggen?', 'avpvh-members') . '</p><p><a class="button" href="' . esc_url($this->logout_url('', '')) . '">'
+                    . esc_html__('Uitloggen', 'avpvh-members') . '</a> <a href="' . esc_url(home_url('/')) . '">' . esc_html__('Nee, terug', 'avpvh-members') . '</a></p>',
+                esc_html__('Uitloggen', 'avpvh-members'),
+                ['response' => 200]
+            );
+        }
+        wp_logout();
         // Authelia's /logout ends the single sign-on session for every
         // Rechtspreker site; the plugin's own session is gone already.
         wp_safe_redirect(add_query_arg(

@@ -20,7 +20,7 @@ class AVPVH_Roles {
      */
     public static function get_member_roles(int $member_id): array {
         $member = AVPVH_DB::get_member($member_id);
-        if (!$member || empty($member->user_id)) {
+        if (!$member || empty($member->user_id) || (isset($member->status) && $member->status !== 'active')) {
             return [];
         }
 
@@ -41,6 +41,7 @@ class AVPVH_Roles {
     public static function member_is_blogger(int $member_id): bool {
         $member = AVPVH_DB::get_member($member_id);
         return $member && !empty($member->user_id)
+            && (!isset($member->status) || $member->status === 'active')
             && in_array(self::BLOGGER_GROUP, AVPVH_Directory::cached_user_groups($member->user_id), true);
     }
 
@@ -222,6 +223,7 @@ class AVPVH_Roles {
     public static function member_is_it_admin(int $member_id): bool {
         $member = AVPVH_DB::get_member($member_id);
         return $member && !empty($member->user_id)
+            && (!isset($member->status) || $member->status === 'active')
             && in_array(self::IT_GROUP, AVPVH_Directory::cached_user_groups($member->user_id), true);
     }
 
@@ -230,10 +232,10 @@ class AVPVH_Roles {
         return $member && self::member_is_it_admin((int) $member->id);
     }
 
-    // Paginarechten: the voorzitter (who already decides who holds which
-    // role) and the IT-beheerder; WP admins via can_manage_roles().
+    // Paginarechten: only a real voorzitter (OpenLDAP group, not a temporary
+    // delegation), the IT-beheerder, or a WP admin.
     public static function can_manage_page_permissions(): bool {
-        return self::can_manage_roles() || self::current_user_is_it_admin();
+        return self::can_appoint_officers() || self::current_user_is_it_admin();
     }
 
     public static function can_manage_members(): bool {
@@ -264,14 +266,13 @@ class AVPVH_Roles {
         return self::current_user_can_access_page('merge_members');
     }
 
-    // Rollen & delegatie: voorzitter only. A delegation hands out real
-    // officer rights (secretaris = ledenbeheer, activiteiten, nieuwsbrief),
-    // so any bestuur member being able to delegate would let them grant
-    // those to themselves.
+    // Rollen & delegatie: real voorzitter (OpenLDAP group, not a temporary
+    // delegation) or WP admin only — otherwise a temporary stand-in could
+    // grant themselves a permanent or decades-long delegation.
     const ROLE_ADMIN_ROLES = ['voorzitter'];
 
     public static function can_manage_roles(): bool {
-        return self::is_admin_or_has_any_role(self::ROLE_ADMIN_ROLES);
+        return self::can_appoint_officers();
     }
 
     // Rollen & delegatie is visible to every real rolhouder too, so a
@@ -334,6 +335,10 @@ class AVPVH_Roles {
 
     public static function has_active_delegation(int $member_id, string $role): bool {
         global $wpdb;
+        $member = AVPVH_DB::get_member($member_id);
+        if (!$member || (isset($member->status) && $member->status !== 'active')) {
+            return false;
+        }
         $now = current_time('mysql');
         $count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}avm_role_delegations
@@ -342,6 +347,62 @@ class AVPVH_Roles {
             $role, $member_id, $now, $now
         ));
         return (int) $count > 0;
+    }
+
+    /** True if $member_id currently holds any active role delegation. */
+    public static function has_any_active_delegation(int $member_id): bool {
+        global $wpdb;
+        if ($member_id <= 0 || !$wpdb || !function_exists('current_time')) {
+            return false;
+        }
+        $now = current_time('mysql');
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}avm_role_delegations
+             WHERE delegated_to_member_id = %d
+               AND starts_at <= %s AND (ends_at IS NULL OR ends_at >= %s)",
+            $member_id, $now, $now
+        ));
+        return (int) $count > 0;
+    }
+
+    /**
+     * Directory groups that confer elevated access beyond ordinary membership.
+     */
+    public static function elevated_groups(): array {
+        return array_merge(self::ALL_ROLES, [self::IT_GROUP, self::BLOGGER_GROUP, 'boek']);
+    }
+
+    /**
+     * Whether $member_id holds elevated WordPress, OpenLDAP, or delegated
+     * access. Used to prevent non-admin officers or household members from
+     * taking over or demoting administrators, board members, IT-beheer, etc.
+     * Fails closed when OpenLDAP groups cannot be read.
+     */
+    public static function member_has_elevated_access(int $member_id): bool {
+        $member = AVPVH_DB::get_member($member_id);
+        if (!$member) {
+            return false;
+        }
+        if (!empty($member->wp_user_id) && function_exists('get_userdata')) {
+            $wp_user = get_userdata((int) $member->wp_user_id);
+            if ($wp_user && (user_can($wp_user, 'manage_options') || user_can($wp_user, 'edit_users') || array_diff($wp_user->roles, ['subscriber', 'contributor']))) {
+                return true;
+            }
+        }
+        if (self::has_any_active_delegation($member_id)) {
+            return true;
+        }
+        $uid = (string) ($member->lldap_user_id ?? $member->user_id ?? '');
+        if ($uid !== '' && method_exists('AVPVH_Directory', 'get_user_groups')) {
+            $groups = AVPVH_Directory::get_user_groups($uid);
+            if (is_wp_error($groups)) {
+                return true; // fail closed when directory is unreachable
+            }
+            if (array_intersect(self::elevated_groups(), array_map('strtolower', $groups))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Active delegations, most recently created first — for the admin screen. */
@@ -414,8 +475,11 @@ class AVPVH_Roles {
         if (!in_array($role, self::OFFICER_ROLES, true)) {
             return false;
         }
-        if (!$by_admin && !self::member_has_role($by_member_id, $role) && !self::member_has_role($by_member_id, 'bestuur')) {
-            return false;
+        if (!$by_admin) {
+            $real_roles = self::get_member_roles($by_member_id);
+            if (!in_array($role, $real_roles, true) && !in_array('bestuur', $real_roles, true)) {
+                return false;
+            }
         }
 
         return (bool) $wpdb->insert(
@@ -595,8 +659,9 @@ class AVPVH_Roles {
         }
 
         $changed = false;
+        $strip_groups = self::elevated_groups();
         foreach ($groups as $group) {
-            if (!in_array($group, self::ALL_ROLES, true)) {
+            if (!in_array(strtolower($group), $strip_groups, true)) {
                 continue;
             }
             $removed = AVPVH_Directory::remove_from_group($member->lldap_user_id, $group);
@@ -604,7 +669,9 @@ class AVPVH_Roles {
                 error_log("AVPVH_Roles: could not remove member {$member_id} from {$group}: " . $removed->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
                 continue;
             }
-            $changed = true;
+            if (in_array(strtolower($group), self::ALL_ROLES, true)) {
+                $changed = true;
+            }
         }
 
         $now = current_time('mysql');
