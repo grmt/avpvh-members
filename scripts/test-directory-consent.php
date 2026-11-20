@@ -1,103 +1,47 @@
 <?php
 declare(strict_types=1);
 
-/**
- * Ad-hoc checks for the ledenlijst directory-consent decision logic.
- * Mirrors AVPVH_Directory_Consent::handle_set_consent() without a database.
- *
- * Run:
- *   php scripts/test-directory-consent.php
- */
+/** Run the real directory-consent handler against in-memory WordPress/DB boundaries. */
+require_once dirname(__DIR__) . '/tests/fixtures/consent.php';
+require_once dirname(__DIR__) . '/includes/class-directory-consent.php';
 
-function format_result(string $label, bool $ok): void {
-    echo ($ok ? '[OK] ' : '[FAIL] ') . $label . PHP_EOL;
+$handler = new AVPVH_Directory_Consent();
+consent_check('directory action calls the consent handler', $GLOBALS['hooks']['admin_post_avpvh_set_directory_consent'] === [$handler, 'handle_set_consent']);
+consent_authorization_cases($handler, 'avpvh_directory_consent');
+
+foreach ([
+    ['granted', ['share_email' => '1', 'share_phone' => '1', 'share_address' => '1'], [1, 1, 1]],
+    ['granted', ['share_email' => '1', 'share_address' => '1'], [1, 0, 1]],
+    ['granted', [], [0, 0, 0]],
+    ['declined', ['share_email' => '1', 'share_phone' => '1', 'share_address' => '1'], [0, 0, 0]],
+    ['declined', [], [0, 0, 0]],
+] as [$decision, $shares, $expected]) {
+    reset_consent();
+    $_POST = ['consent' => $decision] + $shares;
+    $exit = run_consent($handler);
+    consent_check($decision . ' saves only the selected sharing fields with an audit timestamp', $GLOBALS['writes'] === [[
+        'id' => 10,
+        'data' => [
+            'directory_consent' => $decision,
+            'directory_consent_at' => '2026-06-15 12:00:00',
+            'share_email' => $expected[0], 'share_phone' => $expected[1], 'share_address' => $expected[2],
+        ],
+        'formats' => ['%s', '%s', '%d', '%d', '%d'],
+    ]]);
+    consent_check('saved consent returns to the originating page', $exit->kind === 'redirect' && $exit->body === 'https://club.example.invalid/profiel/?tab=privacy&consent_saved=1');
 }
 
-/**
- * Mirrors the field values AVPVH_Directory_Consent::handle_set_consent() would
- * write, given a decision and which share checkboxes were posted.
- */
-function resolve_consent_update(string $decision, array $posted_shares): array {
-    $granted = $decision === 'granted';
-    return [
-        'directory_consent' => $decision,
-        'share_email'       => $granted && !empty($posted_shares['share_email']) ? 1 : 0,
-        'share_phone'       => $granted && !empty($posted_shares['share_phone']) ? 1 : 0,
-        'share_address'     => $granted && !empty($posted_shares['share_address']) ? 1 : 0,
-    ];
+foreach ([null, '', 'pending', 'invalid'] as $decision) {
+    reset_consent();
+    $_POST = $decision === null ? [] : ['consent' => $decision];
+    $exit = run_consent($handler);
+    consent_check('missing or unsupported decisions cannot change consent', $exit->status === 400 && !$GLOBALS['writes']);
 }
 
-echo 'Schema defaults:' . PHP_EOL;
-format_result('new members default to directory_consent = granted (opt-out model, v1.8)', true);
+reset_consent();
+$_POST['consent'] = 'GRANTED';
+$GLOBALS['referer'] = false;
+$exit = run_consent($handler);
+consent_check('normalized decisions save and a missing referrer falls back to home', $GLOBALS['writes'][0]['data']['directory_consent'] === 'granted' && $exit->body === 'https://club.example.invalid/?consent_saved=1');
 
-echo PHP_EOL . 'Consent decision resolution:' . PHP_EOL;
-
-$decision_cases = [
-    [
-        'label' => 'granting with all boxes checked shares all 3 fields',
-        'decision' => 'granted',
-        'posted' => ['share_email' => '1', 'share_phone' => '1', 'share_address' => '1'],
-        'expected' => ['directory_consent' => 'granted', 'share_email' => 1, 'share_phone' => 1, 'share_address' => 1],
-    ],
-    [
-        'label' => 'granting with one box unchecked only shares the checked fields',
-        'decision' => 'granted',
-        'posted' => ['share_email' => '1', 'share_address' => '1'],
-        'expected' => ['directory_consent' => 'granted', 'share_email' => 1, 'share_phone' => 0, 'share_address' => 1],
-    ],
-    [
-        'label' => 'declining zeroes all share_* flags regardless of posted boxes',
-        'decision' => 'declined',
-        'posted' => ['share_email' => '1', 'share_phone' => '1', 'share_address' => '1'],
-        'expected' => ['directory_consent' => 'declined', 'share_email' => 0, 'share_phone' => 0, 'share_address' => 0],
-    ],
-    [
-        'label' => 'declining with no boxes posted still zeroes all flags',
-        'decision' => 'declined',
-        'posted' => [],
-        'expected' => ['directory_consent' => 'declined', 'share_email' => 0, 'share_phone' => 0, 'share_address' => 0],
-    ],
-];
-
-foreach ($decision_cases as $case) {
-    $actual = resolve_consent_update($case['decision'], $case['posted']);
-    $ok = $actual === $case['expected'];
-    format_result($case['label'], $ok);
-    if (!$ok) {
-        echo '  expected: ' . var_export($case['expected'], true) . PHP_EOL;
-        echo '  actual:   ' . var_export($actual, true) . PHP_EOL;
-    }
-}
-
-/**
- * Mirrors handle_set_consent()'s target-member resolution: own member by
- * default, or an explicit posted member_id — but only if it's in the
- * caller's household (AVPVH_DB::get_manageable_members()).
- */
-function resolve_target_member(int $own_id, int $requested_id, array $manageable_ids): ?int {
-    if ($requested_id <= 0 || $requested_id === $own_id) {
-        return $own_id;
-    }
-    return in_array($requested_id, $manageable_ids, true) ? $requested_id : null;
-}
-
-echo PHP_EOL . 'Authorization (target member resolution):' . PHP_EOL;
-
-$auth_cases = [
-    ['label' => 'no member_id posted — resolves to own member', 'own' => 1, 'requested' => 0, 'manageable' => [1], 'expected' => 1],
-    ['label' => 'member_id posted equal to own id — resolves to own member', 'own' => 1, 'requested' => 1, 'manageable' => [1], 'expected' => 1],
-    ['label' => 'member_id posted for a household member — allowed', 'own' => 1, 'requested' => 57, 'manageable' => [1, 57], 'expected' => 57],
-    ['label' => 'member_id posted for a stranger — rejected (no IDOR)', 'own' => 1, 'requested' => 99, 'manageable' => [1, 57], 'expected' => null],
-];
-
-foreach ($auth_cases as $case) {
-    $actual = resolve_target_member($case['own'], $case['requested'], $case['manageable']);
-    $ok = $actual === $case['expected'];
-    format_result($case['label'], $ok);
-    if (!$ok) {
-        echo '  expected: ' . var_export($case['expected'], true) . PHP_EOL;
-        echo '  actual:   ' . var_export($actual, true) . PHP_EOL;
-    }
-}
-
-echo PHP_EOL . 'Done.' . PHP_EOL;
+echo "Directory consent tests: OK\n";
