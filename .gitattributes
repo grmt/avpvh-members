@@ -4,6 +4,10 @@
 # loads at runtime may go there: no operator scripts, tests, plans or CI.
 /scripts           export-ignore
 /bin               export-ignore
+/tests             export-ignore
+/composer.json     export-ignore
+/composer.lock     export-ignore
+/phpunit.xml.dist  export-ignore
 /.github           export-ignore
 /.venv             export-ignore
 /*.md              export-ignore

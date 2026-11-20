@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Writes tests/scripts/<name>.phpt for every scripts/test-*.php that has none.
+# Each .phpt runs the script as its own PHP process (so its stubs and globals
+# stay its own, and exit() works), and PHPUnit measures its coverage.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+for script in scripts/test-*.php; do
+    name=$(basename "$script" .php)
+    phpt="tests/scripts/${name#test-}.phpt"
+    [ -e "$phpt" ] && continue
+    cat > "$phpt" <<PHPT
+--TEST--
+$script
+--FILE--
+<?php
+require __DIR__ . '/../../$script';
+--EXPECTREGEX--
+\A(?s)(?!.*(?:\[FAIL\]|\bFAIL\b|Fatal error|Warning: |Deprecated: |Notice: )).*
+PHPT
+    echo "wrote $phpt"
+done

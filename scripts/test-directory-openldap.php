@@ -14,8 +14,10 @@
  *     php scripts/test-directory-openldap.php
  */
 
-if (!extension_loaded('ldap')) {
-    echo "SKIP: integration test; needs the PHP ldap extension and a throwaway OpenLDAP (see above).\n";
+// Only against a throwaway server named explicitly: CI and PHPUnit have the
+// ldap extension but no OpenLDAP.
+if (!extension_loaded('ldap') || getenv('AVPVH_LDAP_URL') === false) {
+    echo "SKIP: integration test; needs the PHP ldap extension and AVPVH_LDAP_URL of a throwaway OpenLDAP (see above).\n";
     exit(0);
 }
 define('ABSPATH', __DIR__ . '/');

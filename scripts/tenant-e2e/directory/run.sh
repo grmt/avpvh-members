@@ -16,4 +16,4 @@ for _ in $(seq 1 60); do
     docker compose exec -T openldap ldapsearch -x -H ldap://localhost:1389 -b dc=nl -s base dn >/dev/null 2>&1 && break
     sleep 2
 done
-docker compose exec -T -e AVPVH_TEST_LDAP_SILENT_URL="${AVPVH_TEST_LDAP_SILENT_URL:-}" php php scripts/test-tenant-directory.php
+docker compose exec -T -e AVPVH_TENANT_DIRECTORY_TEST=1 -e AVPVH_TEST_LDAP_SILENT_URL="${AVPVH_TEST_LDAP_SILENT_URL:-}" php php scripts/test-tenant-directory.php

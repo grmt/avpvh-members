@@ -7,7 +7,9 @@ declare(strict_types=1);
  * seed.ldif). Run through that directory's run.sh; it needs the PHP ldap
  * extension and the test server.
  */
-if (!extension_loaded('ldap')) {
+// run.sh sets AVPVH_TENANT_DIRECTORY_TEST: CI and PHPUnit have the ldap
+// extension but not the test server.
+if (!extension_loaded('ldap') || getenv('AVPVH_TENANT_DIRECTORY_TEST') === false) {
     echo "SKIP: integration test; run it through scripts/tenant-e2e/directory/run.sh.\n";
     exit(0);
 }

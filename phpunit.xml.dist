@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The tests are the stand-alone scripts/test-*.php, each run as its own PHP
+  process through tests/scripts/*.phpt (bin/make-script-tests adds missing
+  ones). Coverage is measured over the plugin code only.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="true">
+    <testsuites>
+        <testsuite name="scripts">
+            <directory suffix=".phpt">tests/scripts</directory>
+            <file>tests/ScriptTestsTest.php</file>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory suffix=".php">includes</directory>
+            <directory suffix=".php">admin</directory>
+            <file>avpvh-members.php</file>
+        </include>
+    </source>
+</phpunit>
