@@ -118,6 +118,9 @@ final class AVPVH_Directory {
 
     /** Clears the per-user and all-members group caches after a group change. */
     public static function forget_groups(string ...$uids): void {
+        if (class_exists('AVPVH_Roles')) {
+            AVPVH_Roles::forget_elevated_groups(...$uids);
+        }
         foreach ($uids as $uid) {
             delete_transient('avpvh_dir_groups_' . strtolower($uid));
         }

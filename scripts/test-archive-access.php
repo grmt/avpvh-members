@@ -43,6 +43,7 @@ class WP_Query {
 // Posts 1..4 from 2010, 2015, 2020, 2025.
 $wpdb = new class {
     public string $posts = 'wp_posts';
+    public string $comments = 'wp_comments';
     public function get_results(string $sql): array {
         return [(object) ['ID' => 1, 'y' => 2010], (object) ['ID' => 2, 'y' => 2015], (object) ['ID' => 3, 'y' => 2020], (object) ['ID' => 4, 'y' => 2025]];
     }
@@ -73,6 +74,8 @@ $hidden = fn(): array => AVPVH_Archive_Access::hidden_post_ids();
 
 as_user(0, null);
 check('a visitor sees no posts', $hidden() === [1, 2, 3, 4]);
+$comment_clauses = $a->filter_comments_clauses(['where' => '']);
+check('empty archive comment WHERE starts with a valid predicate', str_starts_with($comment_clauses['where'], '1=1 AND '));
 check('a visitor: no year in the gallery', !AVPVH_Archive_Access::year_allowed(2015));
 
 as_user(5, member('active'));

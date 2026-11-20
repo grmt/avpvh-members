@@ -149,7 +149,6 @@ class AVPVH_OAuth {
 
         $key    = AVPVH_OIDC::state_key('avpvh_oauth_state_', $state);
         $stored = json_decode((string) get_transient($key), true);
-        delete_transient($key);
 
         // The state must be one we issued (transient) AND the one this
         // browser started with (cookie): a callback URL from a flow started
@@ -162,6 +161,7 @@ class AVPVH_OAuth {
             wp_safe_redirect(home_url('/avpvh-login/?login_error=oauth_expired'));
             exit;
         }
+        delete_transient($key);
 
         $add_request = ($stored['mode'] ?? '') === 'add' ? $stored : null;
         $redirect_to = (string) ($stored['redirect_to'] ?? '');
@@ -215,11 +215,12 @@ class AVPVH_OAuth {
         if (is_user_logged_in()) {
             wp_logout();
         }
+        AVPVH_Access::mark_next_session_auth('oauth', false);
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID, true);
         do_action('wp_login', $user->user_login, $user); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately firing WP core's own wp_login hook (not a custom hook) so other code listening for a normal login still runs on this OAuth bridge
 
-        $target = !empty($redirect_to) ? wp_validate_redirect($redirect_to, home_url('/')) : home_url('/');
+        $target = AVPVH_Access::safe_same_site_redirect($redirect_to);
         // Only the browser itself can drop the shared Authelia cookie, so
         // route it through Authelia's /logout on the way to the target.
         AVPVH_Nav_Auth::invalidate_authelia_session();
@@ -263,7 +264,7 @@ class AVPVH_OAuth {
         }
 
         // Never let this e-mail be claimed if it's already linked to someone else.
-        $existing_identity = AVPVH_DB::get_member_identity($provider, $email);
+        $existing_identity = AVPVH_DB::get_identity_by_email($email);
         if ($existing_identity && (int) $existing_identity->member_id !== $member_id) {
             wp_safe_redirect(add_query_arg($redirect_args + ['identity_error' => 'in_use'], $profile_url));
             exit;
@@ -334,7 +335,7 @@ class AVPVH_OAuth {
     public static function login_url(string $provider, string $redirect_to = ''): string {
         $url = self::route_url($provider, 'start');
         if (!empty($redirect_to)) {
-            $url = add_query_arg('redirect_to', $redirect_to, $url);
+            $url = add_query_arg('redirect_to', rawurlencode($redirect_to), $url);
         }
         return $url;
     }

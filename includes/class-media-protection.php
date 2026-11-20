@@ -37,7 +37,7 @@ class AVPVH_Media_Protection {
         if ($post->post_type !== 'page' || $new !== 'publish') {
             return;
         }
-        if ($this->determine_bucket($post) !== 'public') {
+        if ($this->determine_bucket($post, true) !== 'public') {
             return; // member page — keep private
         }
 
@@ -168,11 +168,14 @@ class AVPVH_Media_Protection {
     }
 
     /**
-     * Returns 'public' only for uploads attached to a non-member public page.
-     * Everything else (posts, member pages, no context) → 'private'.
+     * Returns 'public' only for uploads attached to a published non-member public page.
+     * Everything else (posts, draft/private/pending pages, member pages, no context) → 'private'.
      */
-    private function determine_bucket(?\WP_Post $post): string {
+    private function determine_bucket(?\WP_Post $post, bool $assume_published = false): string {
         if (!$post || $post->post_type !== 'page') {
+            return 'private';
+        }
+        if (!$assume_published && isset($post->post_status) && $post->post_status !== 'publish') {
             return 'private';
         }
         if ($post->post_password !== '') {
@@ -185,13 +188,14 @@ class AVPVH_Media_Protection {
     }
 
     /**
-     * Returns true if the page is in the /leden/ hierarchy or is the login page.
+     * Returns true if the page is in the /leden/ hierarchy (any status) or is the login page.
      */
     private function is_member_page(int $page_id): bool {
+        $statuses = ['publish', 'private', 'draft', 'pending', 'future', 'auto-draft'];
         $roots = get_posts([
             'name'        => 'leden',
             'post_type'   => 'page',
-            'post_status' => 'publish',
+            'post_status' => $statuses,
             'numberposts' => -1,
             'fields'      => 'ids',
         ]);
@@ -200,10 +204,21 @@ class AVPVH_Media_Protection {
             $roots[] = $login->ID;
         }
 
+        $root_ids = array_map('intval', $roots);
+        if (in_array($page_id, $root_ids, true)) {
+            return true;
+        }
+        if (function_exists('get_post_ancestors')) {
+            $ancestors = array_map('intval', get_post_ancestors($page_id));
+            if (array_intersect($root_ids, $ancestors)) {
+                return true;
+            }
+        }
+
         $all = [];
-        foreach ($roots as $root_id) {
-            $children = get_pages(['child_of' => $root_id, 'post_status' => 'publish']);
-            $all      = array_merge($all, wp_list_pluck($children, 'ID'), [$root_id]);
+        foreach ($root_ids as $root_id) {
+            $children = get_pages(['child_of' => $root_id, 'post_status' => implode(',', $statuses)]);
+            $all      = array_merge($all, array_map('intval', wp_list_pluck($children, 'ID')), [$root_id]);
         }
 
         return in_array($page_id, $all, true);

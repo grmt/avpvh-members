@@ -122,11 +122,11 @@ class AVPVH_Tenant_OAuth {
         $state  = sanitize_text_field((string) $request->get_param('state'));
         $key    = AVPVH_OIDC::state_key('avpvh_toauth_', $state);
         $stored = $state !== '' ? get_transient($key) : false;
-        delete_transient($key);
 
         if (!AVPVH_OIDC::state_matches_browser($state) || !is_array($stored) || ($stored['provider'] ?? '') !== $name) {
             $this->fail('expired', $name);
         }
+        delete_transient($key);
         $target = (string) $stored['redirect_to'];
         $code   = sanitize_text_field((string) $request->get_param('code'));
         $email  = $code !== '' ? $this->verified_email($name, $code, (string) $stored['verifier'], (string) $stored['nonce']) : null;
@@ -154,8 +154,9 @@ class AVPVH_Tenant_OAuth {
         if (is_wp_error($user_id)) {
             $this->fail('link', $name, $identity['uid'], $user_id->get_error_code(), $target);
         }
-        // A role given by hand (say, editor) is not for this route either.
-        if (user_can($user_id, 'edit_posts')) {
+        // Reject any account that already holds more than subscriber privileges
+        // before mutating metadata or issuing a session.
+        if (!AVPVH_Tenant_SSO::user_is_subscriber_only($user_id)) {
             $this->fail('admin', $name, $identity['uid'], '', $target);
         }
         $this->sso->log_in($user_id, $name);

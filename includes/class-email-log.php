@@ -19,13 +19,13 @@ class AVPVH_Email_Log {
     const PER_PAGE = 20;
 
     /** Query parameter names that carry a secret. */
-    const SECRET_PARAM = '/token|key|confirm|share|nonce|code|hash|sig|secret|pass|auth/i';
+    const SECRET_PARAM = '/token|key|confirm|share|nonce|code|hash|sig|secret|pass|auth|newuseremail|activate|reset|^rp$/i';
 
     /** Hosts whose URLs are themselves the key (anyone with the link). */
     const SECRET_HOSTS = ['drive.google.com', 'docs.google.com', 'photos.google.com', 'photos.app.goo.gl'];
 
     /** Subjects of mails whose body is never shown. */
-    const AUTH_SUBJECT = '/wachtwoord|inloggegevens|inlog|login|password|verifi|beveiligingscode/i';
+    const AUTH_SUBJECT = '/wachtwoord|inloggegevens|inlog|login|password|verifi|beveiligingscode|reset|activat|e-mailadres|email address|2fa|\botp\b|accountherstel|(?:confirm|bevestig).*(?:e-?mail|account)/i';
 
     const REDACTED = '[link verborgen]';
 
@@ -114,6 +114,19 @@ class AVPVH_Email_Log {
             if (preg_match(self::SECRET_PARAM, (string) $name)) {
                 return true;
             }
+        }
+        $fragment = (string) wp_parse_url($url, PHP_URL_FRAGMENT);
+        if ($fragment !== '') {
+            parse_str($fragment, $frag_params);
+            foreach (array_keys($frag_params) as $name) {
+                if (preg_match(self::SECRET_PARAM, (string) $name)) {
+                    return true;
+                }
+            }
+        }
+        $path = (string) wp_parse_url($url, PHP_URL_PATH);
+        if (preg_match('#/(?:s|share|token|confirm|reset|verify)/[A-Za-z0-9._~-]{12,}#i', $path)) {
+            return true;
         }
         return false;
     }

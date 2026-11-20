@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 
 define('ABSPATH', __DIR__ . '/');
+function wp_parse_url(string $url, int $component = -1): mixed { return parse_url($url, $component); }
 
 $test_logged_in = true;
 $test_current_user_id = 101;

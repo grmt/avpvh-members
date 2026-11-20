@@ -79,11 +79,22 @@ def get_db(password: str):
 # ---------------------------------------------------------------------------
 
 def directory(*args: str) -> str:
-    """Run one directory-bridge.php command; returns its answer line."""
+    """Run one directory-bridge.php command via env vars; returns its answer line."""
+    cmd = args[0] if args else ''
+    env_flags: list[str] = ['-e', f'AVPVH_BRIDGE_CMD={cmd}']
+    if len(args) > 1:
+        env_flags += ['-e', f'AVPVH_BRIDGE_UID={args[1]}']
+    if cmd == 'create':
+        if len(args) > 2:
+            env_flags += ['-e', f'AVPVH_BRIDGE_MAIL={args[2]}']
+        if len(args) > 3:
+            env_flags += ['-e', f'AVPVH_BRIDGE_NAME={args[3]}']
+    elif cmd == 'add-to-group' and len(args) > 2:
+        env_flags += ['-e', f'AVPVH_BRIDGE_GROUP={args[2]}']
     with open(DIRECTORY_BRIDGE, 'rb') as code:
         r = subprocess.run(
-            ['docker', 'compose', 'run', '--rm', '-T', 'wpcli-pvh',
-             'wp', 'eval-file', '-', *args],
+            ['docker', 'compose', 'run', '--rm', '-T', *env_flags, 'wpcli-pvh',
+             'wp', 'eval-file', '-'],
             cwd=COMPOSE_DIR, stdin=code, capture_output=True, timeout=120,
         )
     # PHP deprecation notices from other plugins share stdout; the answer

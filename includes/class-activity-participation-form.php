@@ -25,6 +25,9 @@ class AVPVH_Activity_Participation_Form {
         if (!$own_member) {
             return '<p>' . esc_html__('Geen lidprofiel gevonden.', 'avpvh-members') . '</p>';
         }
+        if ($own_member->status !== 'active' && !AVPVH_Roles::can_manage_activities()) {
+            return '<p>' . esc_html__('Dit formulier is alleen beschikbaar voor actieve leden.', 'avpvh-members') . '</p>';
+        }
 
         $activity = AVPVH_DB::get_current_camp_activity();
         if (!$activity) {
@@ -128,17 +131,37 @@ class AVPVH_Activity_Participation_Form {
         $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
         $activity_id = absint(wp_unslash($_POST['activity_id'] ?? 0));
 
-        if (!$own_member || !$this->can_edit_member($own_member, $member_id)) {
+        if (!$own_member || ($own_member->status !== 'active' && !AVPVH_Roles::can_manage_activities()) || !$this->can_edit_member($own_member, $member_id)) {
             wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
-        $activity = AVPVH_DB::get_activity($activity_id);
-        if (!$activity) {
-            wp_die(esc_html__('Activiteit niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
+        // Self-service edits only apply to the current open camp activity,
+        // never historical camps or non-camp activities (e.g. Contributie).
+        $activity = AVPVH_DB::get_current_camp_activity();
+        if (!$activity || (int) $activity->id !== $activity_id) {
+            wp_die(esc_html__('Deze activiteit kan niet meer via dit formulier worden gewijzigd.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
+        }
+
+        $allowed_dates = [];
+        if ($activity->start_date && $activity->end_date) {
+            $cursor = new DateTime($activity->start_date);
+            $end = new DateTime($activity->end_date);
+            $guard = 0;
+            while ($cursor <= $end && $guard < 62) {
+                $allowed_dates[$cursor->format('Y-m-d')] = true;
+                $cursor->modify('+1 day');
+                $guard++;
+            }
+        }
+        $max_nights = $allowed_dates ? count($allowed_dates) : 31;
+
+        $nights = '';
+        if (isset($_POST['nights']) && $_POST['nights'] !== '') {
+            $nights = min(absint(wp_unslash($_POST['nights'])), $max_nights);
         }
 
         $fields = [
-            'nights'  => isset($_POST['nights']) && $_POST['nights'] !== '' ? absint(wp_unslash($_POST['nights'])) : '',
+            'nights'  => $nights,
             'nawacht' => !empty($_POST['nawacht']),
             'diet'    => sanitize_text_field(wp_unslash($_POST['diet'] ?? '')),
             'notes'   => sanitize_textarea_field(wp_unslash($_POST['notes'] ?? '')),
@@ -147,9 +170,10 @@ class AVPVH_Activity_Participation_Form {
 
         $days = [];
         foreach ((array) wp_unslash($_POST['day'] ?? []) as $date => $status) {
-            $date = sanitize_text_field($date);
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                $days[$date] = sanitize_text_field($status);
+            $date = sanitize_text_field((string) $date);
+            $status = sanitize_text_field((string) $status);
+            if (isset($allowed_dates[$date]) && $status === 'n') {
+                $days[$date] = 'n';
             }
         }
         AVPVH_DB::save_participation_days($participation_id, $days);

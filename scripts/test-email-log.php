@@ -33,6 +33,9 @@ check('t-shirt token', $secret('https://example.test/tshirt/?tshirt_token=abc123
 check('photo share confirmation', $secret('https://example.test/foto-delen/?confirm_photo_share=abc'), true);
 check('admin-post share with token, &amp; encoded', $secret('https://example.test/wp-admin/admin-post.php?action=x&amp;share=1&amp;token=abc'), true);
 check('WordPress login key', $secret('https://example.test/wp-login.php?action=rp&rm_token=a&rm_key=b'), true);
+check('WordPress e-mail change confirmation', $secret('https://example.test/wp-admin/profile.php?newuseremail=0123456789abcdef0123456789abcdef'), true);
+check('path-based share token', $secret('https://example.test/share/AbCdEfGhIjKlMnOpQrSt'), true);
+check('fragment-based token', $secret('https://example.test/app/#token=abc123'), true);
 check('personal Google Drive folder', $secret('https://drive.google.com/drive/folders/AbCdEfGhIjKlMnOpQrSt'), true);
 
 // Links that don't.
@@ -53,6 +56,10 @@ check('redact on plain text', AVPVH_Email_Log::redact("Map: https://drive.google
 $hidden = static fn(string $subject): bool => AVPVH_Email_Log::body_hidden((object) ['subject' => $subject]);
 check('password mail: body hidden', $hidden('AV Philips van Horne — Wachtwoord aanmaken'), true);
 check('login details changed: body hidden', $hidden('AV Philips van Horne — inloggegevens gewijzigd'), true);
+check('e-mail confirmation mail: body hidden', $hidden('AV Philips van Horne — bevestig je e-mailadres'), true);
+check('camp registration confirmation: body shown', $hidden('Bevestiging inschrijving kamp'), false);
+check('English email confirmation: body hidden', $hidden('Confirm your email'), true);
+check('English camp confirmation: body shown', $hidden('Camp registration confirmation'), false);
 check('payment reminder: body shown', $hidden('Openstaande betaling — Drankrekening'), false);
 check('credit settled: body shown', $hidden('[AV-PvH] Tegoed verrekend'), false);
 

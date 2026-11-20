@@ -145,6 +145,7 @@ foreach ($attachments as $att) {
         $counts['skipped']++; continue;
     }
 
+    $meta    = wp_get_attachment_metadata($att->ID) ?: null;
     $bucket  = bucket_for_attachment($rel_path, $meta, $public_paths);
     $new_rel = $bucket . '/' . $rel_path;
     $old_dir = $base_dir . '/' . dirname($rel_path);
@@ -153,7 +154,6 @@ foreach ($attachments as $att) {
     printf("  [%s] #%d %s\n", strtoupper($bucket), $att->ID, $rel_path);
 
     // Collect all files: original + all sizes
-    $meta    = wp_get_attachment_metadata($att->ID);
     $to_move = [basename($rel_path)];
     if (!empty($meta['sizes'])) {
         foreach ($meta['sizes'] as $size) {
@@ -192,7 +192,7 @@ $known = array_flip($wpdb->get_col("
 "));
 $known_basenames = [];
 foreach ($wpdb->get_col("SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key='_wp_attachment_metadata'") as $s) {
-    $d = @unserialize($s);
+    $d = @unserialize($s, ['allowed_classes' => false]);
     if (!empty($d['sizes'])) {
         foreach ($d['sizes'] as $sz) {
             $known_basenames[$sz['file']] = true;

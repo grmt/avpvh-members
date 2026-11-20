@@ -296,7 +296,7 @@ class AVPVH_Ledenlijst {
         }
 
         $is_admin = current_user_can('manage_options');
-        $is_bestuur = $is_admin || strtolower((string) get_user_meta(get_current_user_id(), 'avpvh_member_role', true)) === 'bestuur';
+        $is_bestuur = $is_admin || AVPVH_Roles::current_user_has_role('bestuur');
         $leden = AVPVH_DB::get_members_with_address((int) $own_member->id, $is_bestuur);
 
         $group_map = AVPVH_Directory::cached_all_group_memberships();

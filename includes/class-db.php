@@ -1321,6 +1321,24 @@ class AVPVH_DB {
     }
 
     /**
+     * Whether an existing WordPress user matched by e-mail may safely be
+     * auto-linked to $member_id during first login. Never auto-links a
+     * privileged WP account (admin/editor/etc.) or a WP user already linked
+     * to a different member.
+     */
+    public static function can_safely_link_wp_user(\WP_User $user, int $member_id): bool {
+        if (user_can($user, 'manage_options') || user_can($user, 'edit_users') || array_diff((array) $user->roles, ['subscriber', 'contributor'])) {
+            return false;
+        }
+        global $wpdb;
+        $other = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_members WHERE wp_user_id = %d AND id != %d LIMIT 1",
+            (int) $user->ID, $member_id
+        ));
+        return $other === 0;
+    }
+
+    /**
      * Finds or provisions the WP_User a member logs in as — shared by every
      * login path (Google/Microsoft OAuth, e-mail-link). WP users here exist
      * solely so WordPress can maintain a session; members never set a WP
@@ -1336,8 +1354,16 @@ class AVPVH_DB {
 
         $user = get_user_by('email', $email);
         if (!$user) {
+            $base_login = sanitize_user((string) ($member->lldap_user_id ?: strstr($email, '@', true)), true);
+            if ($base_login === '') {
+                $base_login = 'lid-' . (int) $member->id;
+            }
+            $login = $base_login;
+            if (username_exists($login)) {
+                $login = $base_login . '-' . (int) $member->id;
+            }
             $uid = wp_create_user(
-                sanitize_user(strstr($email, '@', true)),
+                $login,
                 wp_generate_password(64),
                 $email
             );
@@ -1347,14 +1373,36 @@ class AVPVH_DB {
             wp_update_user([
                 'ID'           => $uid,
                 'display_name' => avpvh_format_name($member),
+                'role'         => 'subscriber',
             ]);
             self::set_wp_user_id((int) $member->id, $uid);
             $user = get_user_by('id', $uid);
         } else {
+            if (!self::can_safely_link_wp_user($user, (int) $member->id)) {
+                error_log("AVPVH_DB: refused unsafe auto-link of WP user {$user->ID} to member {$member->id}."); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational security refusal log
+                return null;
+            }
             self::set_wp_user_id((int) $member->id, $user->ID);
         }
 
         return $user ?: null;
+    }
+
+    /**
+     * True when $member is under $threshold years old. When only birth_year
+     * is stored (birth_date IS NULL), errs on the side of protecting minors
+     * (e.g. born in current_year - 16 may still be 15 until their birthday).
+     * Set $require_certain for granting rights: uncertainty never grants access.
+     */
+    public static function is_minor_member(object $member, int $threshold = 16, bool $require_certain = false): bool {
+        if (!empty($member->birth_date)) {
+            return self::age((string) $member->birth_date) < $threshold;
+        }
+        if (!empty($member->birth_year)) {
+            $age_in_year = (int) current_time('Y') - (int) $member->birth_year;
+            return $require_certain ? $age_in_year < $threshold : $age_in_year <= $threshold;
+        }
+        return false;
     }
 
     // -------------------------------------------------------------------
@@ -1374,7 +1422,7 @@ class AVPVH_DB {
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT u.email,
                     m.id, m.lldap_user_id, m.first_name, m.suffix, m.last_name, m.phone, m.mobile, m.status,
-                    m.birth_date, m.share_email, m.share_phone, m.share_address,
+                    m.birth_date, m.birth_year, m.share_email, m.share_phone, m.share_address,
                     a.street, a.house_number, a.house_number_addition, a.postal_code, a.city, a.country
              FROM {$identity} u
              JOIN {$wpdb->prefix}avm_members m ON m.lldap_user_id = u.user_id
@@ -1394,7 +1442,7 @@ class AVPVH_DB {
 
         $leden = [];
         foreach ($rows as $lid) {
-            $is_minor = $lid->birth_date && self::age($lid->birth_date) < 16;
+            $is_minor = self::is_minor_member($lid, 16);
             if ($is_minor) {
                 $visible = $viewer_sees_minors
                     || ($viewer_member_id && self::is_same_household($viewer_member_id, (int) $lid->id));
@@ -1995,9 +2043,29 @@ class AVPVH_DB {
         ));
     }
 
+    /**
+     * Directional parent check: true when $parent_id is recorded as parent
+     * ('ouder van') of $child_id (or $child_id is 'kind van' $parent_id) in
+     * a currently valid relationship.
+     */
+    public static function is_parent_of(int $parent_id, int $child_id): bool {
+        global $wpdb;
+        $today = current_time('Y-m-d');
+        $result = $wpdb->get_var($wpdb->prepare(
+            "SELECT r.id FROM {$wpdb->prefix}avm_relationships r
+             JOIN {$wpdb->prefix}avm_relationship_labels l ON l.id = r.label_id
+             WHERE ((r.member_id = %d AND r.related_member_id = %d AND l.code = 'ouder')
+                 OR (r.member_id = %d AND r.related_member_id = %d AND l.code = 'kind'))
+               AND (r.valid_from IS NULL OR r.valid_from <= %s)
+               AND (r.valid_until IS NULL OR r.valid_until >= %s)
+             LIMIT 1",
+            $child_id, $parent_id, $parent_id, $child_id, $today, $today
+        ));
+        return (bool) $result;
+    }
+
     // True if the two members have a (currently valid) 'ouder_kind' edge
-    // in either direction — used to grant profile-edit permission to a
-    // non-cohabiting parent (e.g. after a divorce).
+    // in either direction — used for household display/minor visibility.
     public static function is_family_member(int $member_id_1, int $member_id_2): bool {
         global $wpdb;
         $today = current_time('Y-m-d');
@@ -2083,19 +2151,37 @@ class AVPVH_DB {
 
     /**
      * Members $member_id may manage (view/edit) via the self-service profile
-     * form: themselves plus everyone in their household. Includes $member_id.
+     * form: always themselves, plus — when $member_id is an active member —
+     * cohabiting active members (confirmed shared address) and their own
+     * minor children (< 18) living elsewhere via an ouder/kind link.
+     * Inactive ex-members and visitors can only manage their own record.
      */
     public static function get_manageable_members(int $member_id): array {
         global $wpdb;
+        $actor = self::get_member($member_id);
+        if (!$actor) {
+            return [];
+        }
+        if ($actor->status !== 'active') {
+            return [$actor];
+        }
         // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- fully static query, no dynamic values at all
         $active = $wpdb->get_results(
             self::member_select() . " WHERE m.status = 'active' ORDER BY m.last_name, m.first_name"
         ) ?: [];
         // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
+        $actor_addr = self::current_address($member_id);
         $manageable = [];
         foreach ($active as $m) {
-            if (self::is_same_household($member_id, (int) $m->id)) {
+            $target_id = (int) $m->id;
+            if ($target_id === $member_id) {
+                $manageable[] = $m;
+                continue;
+            }
+            $shared_home = self::addresses_grant_household($actor_addr, self::current_address($target_id));
+            $parent_of_minor = !$shared_home && self::is_parent_of($member_id, $target_id) && self::is_minor_member($m, 18, true);
+            if ($shared_home || $parent_of_minor) {
                 $manageable[] = $m;
             }
         }
@@ -2524,20 +2610,27 @@ class AVPVH_DB {
         // restore 'active', since that's a real membership decision an
         // admin should make deliberately, not a side effect of unchecking
         // a box.
-        if ($flag_ids) {
-            $placeholders = implode(',', array_fill(0, count($flag_ids), '%d'));
-            $forces_inactive = (bool) $wpdb->get_var($wpdb->prepare(
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $placeholders is a %d run built to match count($flag_ids); PHPCS can't verify the count statically but prepare() gets exactly one %d per array element
-                "SELECT 1 FROM {$wpdb->prefix}avm_member_flags WHERE id IN ($placeholders) AND sets_inactive = 1 LIMIT 1",
-                $flag_ids
-            ));
-            if ($forces_inactive) {
-                $member = self::get_member($member_id);
-                if ($member && $member->status !== 'inactive') {
-                    self::update_member_with_audit($member_id, ['status' => 'inactive'], ['%s']);
-                }
+        if ($flag_ids && self::flag_ids_include_inactivating($flag_ids)) {
+            $member = self::get_member($member_id);
+            if ($member && $member->status !== 'inactive') {
+                self::update_member_with_audit($member_id, ['status' => 'inactive'], ['%s']);
             }
         }
+    }
+
+    /** True if any of the given flag IDs has sets_inactive = 1. */
+    public static function flag_ids_include_inactivating(array $flag_ids): bool {
+        global $wpdb;
+        $flag_ids = array_values(array_filter(array_map('intval', $flag_ids)));
+        if (!$flag_ids) {
+            return false;
+        }
+        $placeholders = implode(',', array_fill(0, count($flag_ids), '%d'));
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $placeholders is a %d run built to match count($flag_ids); PHPCS can't verify the count statically but prepare() gets exactly one %d per array element
+            "SELECT 1 FROM {$wpdb->prefix}avm_member_flags WHERE id IN ($placeholders) AND sets_inactive = 1 LIMIT 1",
+            $flag_ids
+        ));
     }
 
     /** Toggles a single flag (by slug) for a member — used by the self-service nieuwsbrief checkbox, which shouldn't touch anyone else's flags. */

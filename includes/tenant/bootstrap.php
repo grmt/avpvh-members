@@ -35,20 +35,60 @@ if ($avpvh_plugin_locale !== '') {
         load_plugin_textdomain('avpvh-members', false, dirname(plugin_basename(AVPVH_PLUGIN_DIR . 'avpvh-members.php')) . '/languages');
     });
 }
+$avpvh_tenant_accounts = new AVPVH_Account_Privacy();
+
 if (!$avpvh_tenant_config->is_valid()) {
-    // Fail closed: no login or provisioning with an incomplete or
-    // inconsistent configuration. Only the setting names are shown.
+    // Fail closed: block front-end pages, REST, file auth and wp-login.php for
+    // non-admins so an invalid tenant config can never expose members-only
+    // content or private files. Existing WP admins can still reach wp-admin to
+    // read the notice.
     add_action('admin_notices', static function () use ($avpvh_tenant_config): void {
         if (current_user_can('manage_options')) {
             echo '<div class="notice notice-error"><p>'
                 . esc_html(sprintf(
                     /* translators: %s: comma-separated names of invalid settings */
-                    __('AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit.', 'avpvh-members'),
+                    __('AV-PvH Members: de tenantconfiguratie is ongeldig (%s). Inloggen via Authelia staat uit en de site is tijdelijk afgeschermd.', 'avpvh-members'),
                     implode(', ', $avpvh_tenant_config->errors())
                 ))
                 . '</p></div>';
         }
     });
+    add_action('init', static function (): void {
+        $path = wp_parse_url(sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'] ?? '')), PHP_URL_PATH);
+        if (is_string($path) && trim($path, '/') === 'avpvh-file-auth') {
+            status_header(503);
+            nocache_headers();
+            exit;
+        }
+    }, 0);
+    add_action('template_redirect', static function (): void {
+        if (!current_user_can('manage_options')) {
+            wp_die(
+                esc_html__('Deze website is tijdelijk niet beschikbaar vanwege een configuratiefout. Probeer het later opnieuw.', 'avpvh-members'),
+                esc_html__('Tijdelijk niet beschikbaar', 'avpvh-members'),
+                ['response' => 503]
+            );
+        }
+    }, 0);
+    add_filter('rest_authentication_errors', static function ($result) {
+        if (current_user_can('manage_options')) {
+            return $result;
+        }
+        return new \WP_Error(
+            'avpvh_tenant_config_invalid',
+            __('Deze website is tijdelijk niet beschikbaar vanwege een configuratiefout.', 'avpvh-members'),
+            ['status' => 503]
+        );
+    }, 1);
+    add_action('login_init', static function () use ($avpvh_tenant_config): void {
+        if (!$avpvh_tenant_config->get('local_login')) {
+            wp_die(
+                esc_html__('Inloggen is tijdelijk niet beschikbaar vanwege een configuratiefout.', 'avpvh-members'),
+                esc_html__('Tijdelijk niet beschikbaar', 'avpvh-members'),
+                ['response' => 503]
+            );
+        }
+    }, 0);
     return;
 }
 
@@ -56,7 +96,6 @@ $avpvh_tenant_sso = new AVPVH_Tenant_SSO($avpvh_tenant_config);
 $avpvh_tenant_content = new AVPVH_Tenant_Content($avpvh_tenant_config, $avpvh_tenant_sso);
 $avpvh_tenant_shares = new AVPVH_Tenant_Shares($avpvh_tenant_config, $avpvh_tenant_content);
 $avpvh_tenant_files = new AVPVH_Tenant_Files($avpvh_tenant_config, $avpvh_tenant_sso, $avpvh_tenant_content);
-$avpvh_tenant_accounts = new AVPVH_Account_Privacy();
 if ($avpvh_tenant_config->oauth_clients()) {
     $avpvh_tenant_oauth = new AVPVH_Tenant_OAuth($avpvh_tenant_config, $avpvh_tenant_sso);
 }

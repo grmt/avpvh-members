@@ -152,7 +152,8 @@ class AVPVH_Address_Lookup {
         if (is_array($cached)) {
             return $cached;
         }
-        $response = wp_remote_get($url, ['timeout' => 5, 'headers' => ['Accept' => 'application/json']]);
+        $http_get = function_exists('wp_safe_remote_get') ? 'wp_safe_remote_get' : 'wp_remote_get';
+        $response = $http_get($url, ['timeout' => 5, 'redirection' => 0, 'headers' => ['Accept' => 'application/json']]);
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
             return null;
         }
@@ -160,7 +161,8 @@ class AVPVH_Address_Lookup {
         if (!is_array($data)) {
             return null;
         }
-        set_transient($key, $data, self::CACHE_TTL);
+        $ttl = $data ? self::CACHE_TTL : (defined('MINUTE_IN_SECONDS') ? 15 * MINUTE_IN_SECONDS : 900);
+        set_transient($key, $data, $ttl);
         return $data;
     }
 }

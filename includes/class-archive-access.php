@@ -33,6 +33,8 @@ class AVPVH_Archive_Access {
         add_action('pre_get_posts',                 [$this, 'filter_query']);
         add_filter('rest_post_query',               [$this, 'filter_rest_args']);
         add_filter('rest_post_search_query',        [$this, 'filter_rest_args']);
+        add_filter('rest_comment_query',            [$this, 'filter_rest_comment_args']);
+        add_filter('comments_clauses',              [$this, 'filter_comments_clauses']);
         add_filter('rest_request_before_callbacks', [$this, 'hide_post_from_rest'], 10, 3);
         add_filter('oembed_request_post_id',        [$this, 'hide_post_from_oembed']);
         add_filter('get_previous_post_where',       [$this, 'filter_adjacent_where']);
@@ -153,10 +155,46 @@ class AVPVH_Archive_Access {
     /** /wp/v2/posts and /wp/v2/search: the same, over REST. */
     public function filter_rest_args(array $args): array {
         $hidden = self::hidden_post_ids();
-        if ($hidden) {
-            $args['post__not_in'] = $this->merge_not_in($args['post__not_in'] ?? [], $hidden);
+        if (!$hidden) {
+            return $args;
         }
+        $in = array_values(array_filter(array_map('intval', (array) ($args['post__in'] ?? []))));
+        if ($in) {
+            $remaining = array_values(array_diff($in, $hidden));
+            $args['post__in'] = $remaining ?: [0];
+            return $args;
+        }
+        $args['post__not_in'] = $this->merge_not_in($args['post__not_in'] ?? [], $hidden);
         return $args;
+    }
+
+    /** Hides comments on hidden posts over /wp/v2/comments. */
+    public function filter_rest_comment_args(array $args): array {
+        $hidden = self::hidden_post_ids();
+        if (!$hidden) {
+            return $args;
+        }
+        if (!empty($args['post_id']) && in_array((int) $args['post_id'], $hidden, true)) {
+            unset($args['post_id']);
+            $args['post__in'] = [0];
+            return $args;
+        }
+        return $this->filter_rest_args($args);
+    }
+
+    /** Hides comments on hidden posts in comment feeds and front-end queries. */
+    public function filter_comments_clauses(array $clauses): array {
+        if ((is_admin() && !wp_doing_ajax()) || wp_doing_cron() || (defined('WP_CLI') && WP_CLI)) {
+            return $clauses;
+        }
+        global $wpdb;
+        $hidden = self::hidden_post_ids();
+        if ($hidden && $wpdb) {
+            $id_list = implode(',', array_map('intval', $hidden));
+            $clauses['where'] = trim($clauses['where'] ?? '') ?: '1=1';
+            $clauses['where'] .= " AND {$wpdb->comments}.comment_post_ID NOT IN ({$id_list})";
+        }
+        return $clauses;
     }
 
     /**

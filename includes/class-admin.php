@@ -349,6 +349,9 @@ class AVPVH_Admin {
     }
 
     public function render_settings(): void {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
+        }
         $oauth_test = isset($_GET['oauth_test']) ? sanitize_text_field(wp_unslash($_GET['oauth_test'])) : null;
         $oauth_test_provider = isset($_GET['oauth_provider']) ? sanitize_text_field(wp_unslash($_GET['oauth_provider'])) : null;
 
@@ -615,6 +618,22 @@ class AVPVH_Admin {
      * an admin typing an address in has no proof the member actually
      * controls it, unlike the self-service OAuth/e-mail-link flows.
      */
+    /**
+     * Prevents non-WP-admin officers (secretaris, penningmeester, it-beheer,
+     * delegated officers) from modifying login identities, OpenLDAP e-mail, or
+     * inactivating flags/death dates of an elevated account (WP admin, board
+     * member, it-beheer, blogger, boek, or active delegation holder).
+     */
+    private function require_elevated_target_admin(int $member_id): void {
+        if ($member_id > 0 && !current_user_can('manage_options') && AVPVH_Roles::member_has_elevated_access($member_id)) {
+            wp_die(
+                esc_html__('Alleen een beheerder mag het e-mailadres, de inlogadressen of de status van een beheerder of bestuurslid wijzigen.', 'avpvh-members'),
+                esc_html__('Geen toegang', 'avpvh-members'),
+                ['response' => 403]
+            );
+        }
+    }
+
     public function handle_add_identity(): void {
         check_admin_referer('avpvh_add_identity');
         if (!$this->can_manage_members()) {
@@ -622,6 +641,7 @@ class AVPVH_Admin {
         }
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $this->require_elevated_target_admin($member_id);
         $email     = sanitize_email(wp_unslash($_POST['email'] ?? ''));
 
         if ($member_id <= 0 || !$email) {
@@ -665,6 +685,7 @@ class AVPVH_Admin {
         }
 
         $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $this->require_elevated_target_admin($member_id);
         $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
 
         // Same rule as the self-service member-profile page (see
@@ -687,6 +708,7 @@ class AVPVH_Admin {
         }
 
         $member_id   = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $this->require_elevated_target_admin($member_id);
         $identity_id = absint(wp_unslash($_POST['identity_id'] ?? 0));
         AVPVH_DB::set_primary_identity($member_id, $identity_id);
 
@@ -716,6 +738,9 @@ class AVPVH_Admin {
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $flag_ids  = array_map('intval', (array) wp_unslash($_POST['flag_ids'] ?? []));
+        if ($member_id && AVPVH_DB::flag_ids_include_inactivating($flag_ids)) {
+            $this->require_elevated_target_admin($member_id);
+        }
         $stripped = false;
         if ($member_id) {
             AVPVH_DB::set_member_flags($member_id, $flag_ids);
@@ -836,6 +861,7 @@ class AVPVH_Admin {
         }
 
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $this->require_elevated_target_admin($member_id);
         $email     = sanitize_email(wp_unslash($_POST['email'] ?? ''));
         $member    = $member_id ? AVPVH_DB::get_member($member_id) : null;
 
@@ -1303,6 +1329,9 @@ class AVPVH_Admin {
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
         $raw = sanitize_text_field(wp_unslash($_POST['death_date'] ?? ''));
         $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) && checkdate((int) substr($raw, 5, 2), (int) substr($raw, 8, 2), (int) substr($raw, 0, 4)) ? $raw : null;
+        if ($date !== null) {
+            $this->require_elevated_target_admin($member_id);
+        }
         $result = AVPVH_DB::set_death_date($member_id, $date);
         if ($date && AVPVH_DB::member_has_inactivating_flag($member_id)) {
             AVPVH_Roles::strip_bestuur_roles($member_id);

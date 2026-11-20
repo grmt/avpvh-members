@@ -34,6 +34,9 @@ class AVPVH_Tenant_SSO {
     /** How the session about to be created was started. */
     private string $login_method = self::VIA_AUTHELIA;
 
+    /** @var array<string, bool> Admin authorization for this request's browser session only. */
+    private array $session_admin_access = [];
+
     private AVPVH_Tenant_Config $config;
 
     public function __construct(AVPVH_Tenant_Config $config) {
@@ -48,6 +51,7 @@ class AVPVH_Tenant_SSO {
         add_filter('login_url',       [$this, 'filter_login_url'], 10, 2);
         add_filter('allowed_redirect_hosts', [$this, 'allow_authelia_host']);
         add_filter('attach_session_information', [$this, 'attach_login_method']);
+        add_filter('user_has_cap', [$this, 'filter_session_capabilities'], 20, 4);
         add_action('set_logged_in_cookie', [$this, 'on_logged_in_cookie']);
         add_filter('avpvh_flst_user_groups', [$this, 'filter_filelist_user_groups'], 10, 2);
         add_filter('avpvh_flst_available_groups', [$this, 'filter_filelist_available_groups']);
@@ -103,6 +107,33 @@ class AVPVH_Tenant_SSO {
     }
 
     /**
+     * Grants 'administrator' only when Authelia confirms 2FA on /wp-admin/;
+     * an admin logged in with 1FA only is downgraded to 'subscriber' (if in
+     * the member group) or gets null (requiring 2FA step-up).
+     *
+     * @return array{0: ?string, 1: string} [resolved role, reason ('ok'|'needs_2fa'|'error'|'no_access')]
+     */
+    private function resolve_role_with_2fa(array $identity): array {
+        $role = self::role_for_groups($identity['groups'], $this->config);
+        if ($role !== 'administrator') {
+            return [$role, $role !== null ? 'ok' : 'no_access'];
+        }
+        $twofa = AVPVH_Tenant_Identity::probe_admin_2fa($this->config);
+        if ($twofa['status'] === AVPVH_Tenant_Identity::OK
+            && ($twofa['uid'] ?? '') === ($identity['uid'] ?? '')
+            && self::role_for_groups($twofa['groups'] ?? [], $this->config) === 'administrator') {
+            return ['administrator', 'ok'];
+        }
+        if ($twofa['status'] === AVPVH_Tenant_Identity::ERROR) {
+            return [null, 'error'];
+        }
+        if (in_array($this->config->member_group(), $identity['groups'], true)) {
+            return ['subscriber', 'ok'];
+        }
+        return [null, 'needs_2fa'];
+    }
+
+    /**
      * Authelia sends the visitor back to the probe path after login. Ask
      * Authelia who it is, provision the local user and continue to the
      * requested page on this site.
@@ -120,7 +151,23 @@ class AVPVH_Tenant_SSO {
             $this->deny(__('Inloggen is niet gelukt. Probeer het later opnieuw.', 'avpvh-members'), 503);
         }
 
-        $role = self::role_for_groups($identity['groups'], $this->config);
+        [$role, $reason] = $this->resolve_role_with_2fa($identity);
+        if ($reason === 'error') {
+            $this->log('callback', $identity['uid'], 'twofa_probe_error');
+            $this->deny(__('Inloggen is niet gelukt. Probeer het later opnieuw.', 'avpvh-members'), 503);
+        }
+        if ($reason === 'needs_2fa') {
+            // Admin-only account arrived via 1FA: bounce to Authelia for /wp-admin/
+            // so 2FA is completed before any administrator WP session is created.
+            $this->log('callback', $identity['uid'], 'needs_2fa');
+            $step_up = add_query_arg(
+                'rd',
+                rawurlencode('https://' . $this->config->get('canonical_host') . '/wp-admin/'),
+                untrailingslashit((string) $this->config->get('authelia_url')) . '/'
+            );
+            wp_safe_redirect($step_up);
+            exit;
+        }
         if ($role === null) {
             $this->log('callback', $identity['uid'], 'no_tenant_access');
             if (is_user_logged_in()) {
@@ -137,6 +184,9 @@ class AVPVH_Tenant_SSO {
 
         $this->log_in($user_id, self::VIA_AUTHELIA);
         $this->log('callback', $identity['uid'], $role);
+        if (function_exists('nocache_headers')) {
+            nocache_headers();
+        }
         wp_safe_redirect($target);
         exit;
     }
@@ -154,7 +204,7 @@ class AVPVH_Tenant_SSO {
         if ($identity['status'] !== AVPVH_Tenant_Identity::OK) {
             return false;
         }
-        $role = self::role_for_groups($identity['groups'], $this->config);
+        [$role] = $this->resolve_role_with_2fa($identity);
         if ($role === null) {
             return false;
         }
@@ -196,7 +246,53 @@ class AVPVH_Tenant_SSO {
 
     public function attach_login_method(array $session): array {
         $session[self::LOGIN_KEY] = $this->login_method;
+        $session['avpvh_checked'] = time();
         return $session;
+    }
+
+    /**
+     * WP roles belong to the account, while 2FA belongs to the browser.
+     * Recheck the current browser before using any capability beyond reading,
+     * including REST, AJAX and admin-post requests during the recheck interval.
+     * Local emergency accounts and checks about other users are left alone.
+     */
+    public function filter_session_capabilities(array $allcaps, array $caps, array $args, \WP_User $user): array { // NOSONAR -- $args: WordPress passes it before $user
+        $reader_caps = ['read', 'level_0', 'exist'];
+        if ($user->ID !== get_current_user_id() || !array_diff($caps, $reader_caps)) {
+            return $allcaps;
+        }
+        $subject = (string) get_user_meta($user->ID, self::SUBJECT_META, true);
+        if ($subject === '' || $this->session_allows_elevated_capabilities($user, $subject)) {
+            return $allcaps;
+        }
+        foreach (array_keys($allcaps) as $cap) {
+            if (!in_array($cap, $reader_caps, true)) {
+                $allcaps[$cap] = false;
+            }
+        }
+        return $allcaps;
+    }
+
+    private function session_allows_elevated_capabilities(\WP_User $user, string $subject): bool {
+        if ($this->session_login() !== self::VIA_AUTHELIA) {
+            return false;
+        }
+        $requires_admin_group = in_array('administrator', $user->roles, true);
+        $cookie = (string) ($_COOKIE[(string) $this->config->get('authelia_session_cookie')] ?? '');
+        $key = hash('sha256', $subject . ':' . wp_get_session_token() . ':' . $cookie . ':' . (int) $requires_admin_group);
+        if (!array_key_exists($key, $this->session_admin_access)) {
+            // Deny any recursive capability check while the probe is running.
+            $this->session_admin_access[$key] = false;
+            $identity = AVPVH_Tenant_Identity::probe_admin_2fa($this->config);
+            $directory_role = self::role_for_groups($identity['groups'] ?? [], $this->config);
+            // Preserve manually assigned roles such as editor after 2FA, but
+            // administrator always requires an actual directory admin group.
+            $this->session_admin_access[$key] = $identity['status'] === AVPVH_Tenant_Identity::OK
+                && $subject === $this->config->tenant_id() . '/' . ($identity['uid'] ?? '')
+                && $directory_role !== null
+                && (!$requires_admin_group || $directory_role === 'administrator');
+        }
+        return $this->session_admin_access[$key];
     }
 
     /** Make the newly set logged-in cookie available for nonces in the same request. */
@@ -217,6 +313,25 @@ class AVPVH_Tenant_SSO {
     }
 
     /**
+     * Strict subscriber-only check for OAuth sessions: user must have only the
+     * subscriber role and no elevated capabilities.
+     */
+    public static function user_is_subscriber_only(int $user_id): bool {
+        $user = get_user_by('id', $user_id);
+        if (!$user || array_values((array) $user->roles) !== ['subscriber']) {
+            return false;
+        }
+        if (function_exists('user_can')) {
+            foreach (['edit_posts', 'manage_options', 'list_users', 'moderate_comments'] as $cap) {
+                if (user_can($user, $cap)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
      * Re-ask Authelia for directory-provisioned users once per
      * recheck_seconds, so removed group memberships and ended Authelia
      * sessions take effect quickly.
@@ -230,8 +345,21 @@ class AVPVH_Tenant_SSO {
         if ($subject === '') {
             return; // a local account (emergency access), not provisioned
         }
-        $checked = (int) get_user_meta($user_id, self::CHECKED_META, true);
+        $meta_checked = (int) get_user_meta($user_id, self::CHECKED_META, true);
+        $session_checked = $this->session_checked_at($user_id);
+        $checked = ($session_checked !== null && $meta_checked > 0)
+            ? min($session_checked, $meta_checked)
+            : ($session_checked ?? $meta_checked);
         if (time() - $checked < (int) $this->config->get('recheck_seconds')) {
+            return;
+        }
+
+        // OAuth sessions may never carry more than subscriber rights, even if
+        // a higher role (e.g. editor) was assigned manually after login.
+        if ($this->session_login() !== self::VIA_AUTHELIA && !self::user_is_subscriber_only($user_id)) {
+            $this->log('recheck', '', 'oauth_elevated_role');
+            wp_logout();
+            wp_set_current_user(0);
             return;
         }
 
@@ -243,6 +371,32 @@ class AVPVH_Tenant_SSO {
             return;
         }
         $this->sync_user($user_id, $identity, $role);
+        $this->touch_session_checked_at($user_id);
+    }
+
+    private function session_checked_at(int $user_id): ?int {
+        $token = wp_get_session_token();
+        if ($token === '') {
+            return null;
+        }
+        $session = \WP_Session_Tokens::get_instance($user_id)->get($token);
+        return is_array($session) && isset($session['avpvh_checked']) ? (int) $session['avpvh_checked'] : null;
+    }
+
+    private function touch_session_checked_at(int $user_id): void {
+        $token = wp_get_session_token();
+        if ($token === '') {
+            return;
+        }
+        $manager = \WP_Session_Tokens::get_instance($user_id);
+        if (!method_exists($manager, 'update')) {
+            return;
+        }
+        $session = $manager->get($token);
+        if (is_array($session)) {
+            $session['avpvh_checked'] = time();
+            $manager->update($token, $session);
+        }
     }
 
     /**
@@ -258,7 +412,7 @@ class AVPVH_Tenant_SSO {
             $identity = AVPVH_Tenant_Identity::probe($this->config);
             $same_user = $identity['status'] === AVPVH_Tenant_Identity::OK
                 && $subject === $expected . $identity['uid'];
-            $role = $same_user ? self::role_for_groups($identity['groups'], $this->config) : null;
+            $role = $same_user ? $this->resolve_role_with_2fa($identity)[0] : null;
             return [$identity, $same_user, $role];
         }
         $directory = AVPVH_Tenant_Directory::for_config($this->config);
@@ -441,9 +595,19 @@ class AVPVH_Tenant_SSO {
         if ($nonce === '') {
             return;
         }
-        if (is_user_logged_in() && wp_verify_nonce($nonce, self::LOGOUT_ACTION)) {
-            wp_logout();
+        if (!is_user_logged_in()) {
+            wp_safe_redirect(home_url('/'));
+            exit;
         }
+        if (!wp_verify_nonce($nonce, self::LOGOUT_ACTION)) {
+            wp_die(
+                '<p>' . esc_html__('Wil je uitloggen?', 'avpvh-members') . '</p><p><a class="button" href="' . esc_url($this->logout_url('', '')) . '">'
+                    . esc_html__('Uitloggen', 'avpvh-members') . '</a> <a href="' . esc_url(home_url('/')) . '">' . esc_html__('Nee, terug', 'avpvh-members') . '</a></p>',
+                esc_html__('Uitloggen', 'avpvh-members'),
+                ['response' => 200]
+            );
+        }
+        wp_logout();
         // Authelia's /logout ends the single sign-on session for every
         // Rechtspreker site; the plugin's own session is gone already.
         wp_safe_redirect(add_query_arg(
