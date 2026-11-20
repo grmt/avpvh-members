@@ -1,6 +1,8 @@
 <?php
 defined('ABSPATH') || exit;
 
+require_once __DIR__ . '/class-member-merge-refusal.php';
+
 /**
  * Merges a duplicate member ("remove") into the member that stays ("keep").
  * Powers the "Leden samenvoegen" admin page — the interactive successor of
@@ -320,180 +322,281 @@ class AVPVH_Member_Merge {
      * Returns ['warnings' => post-commit problems, 'notes' => what happened to the e-mail addresses].
      */
     public static function execute(int $keep_id, int $remove_id, array $choices, string $fingerprint): array|\WP_Error {
-        global $wpdb;
-        $p = $wpdb->prefix;
+        try {
+            $plan = self::merge_plan($keep_id, $remove_id, $choices, $fingerprint);
+        } catch (AVPVH_Member_Merge_Refusal $refusal) {
+            return $refusal->error;
+        }
+        return self::write_merge($plan) ?? self::after_merge($plan);
+    }
 
+    /**
+     * The checked preview and every choice resolved, before anything is
+     * written: preview, email, address_choices, updates, final, final_key.
+     *
+     * @throws AVPVH_Member_Merge_Refusal
+     */
+    private static function merge_plan(int $keep_id, int $remove_id, array $choices, string $fingerprint): array {
+        $preview = self::checked_preview($keep_id, $remove_id, $fingerprint);
+        $email = self::checked_email($preview, $choices['email'] ?? [], $keep_id, $remove_id);
+        $address_choices = self::address_choices($preview['address_plan'], $choices['address_groups'] ?? [], $keep_id);
+        $updates = self::field_updates($preview, $choices);
+        $final = (object) array_merge((array) $preview['keep'], $updates);
+        $final_key = AVPVH_Name_Matcher::normalize_person_name($final->first_name, $final->suffix, $final->last_name);
+        return compact('preview', 'email', 'address_choices', 'updates', 'final', 'final_key');
+    }
+
+    /** @throws AVPVH_Member_Merge_Refusal */
+    private static function checked_preview(int $keep_id, int $remove_id, string $fingerprint): array {
         $preview = self::preview($keep_id, $remove_id);
         if (is_wp_error($preview)) {
-            return $preview;
+            throw new AVPVH_Member_Merge_Refusal($preview);
         }
         if ($preview['blockers']) {
-            return new \WP_Error('blocked', implode(' ', $preview['blockers']));
+            throw new AVPVH_Member_Merge_Refusal(new \WP_Error('blocked', implode(' ', $preview['blockers'])));
         }
         if (!hash_equals($preview['fingerprint'], $fingerprint)) {
-            return new \WP_Error('stale', __('De gegevens van een van beide leden zijn gewijzigd sinds je de vergelijking opende. Bekijk de vergelijking opnieuw.', 'avpvh-members'));
+            throw new AVPVH_Member_Merge_Refusal(new \WP_Error('stale', __('De gegevens van een van beide leden zijn gewijzigd sinds je de vergelijking opende. Bekijk de vergelijking opnieuw.', 'avpvh-members')));
         }
+        return $preview;
+    }
 
-        $keep = $preview['keep'];
-        $remove = $preview['remove'];
-
-        $email = self::resolve_email($preview['email'], $choices['email'] ?? []);
+    /** @throws AVPVH_Member_Merge_Refusal */
+    private static function checked_email(array $preview, array $choice, int $keep_id, int $remove_id): array {
+        $email = self::resolve_email($preview['email'], $choice);
         if (is_wp_error($email)) {
-            return $email;
+            throw new AVPVH_Member_Merge_Refusal($email);
         }
         $owner = $email['primary'] !== '' ? AVPVH_DB::get_identity_by_email($email['primary']) : null;
         if ($owner && !in_array((int) $owner->member_id, [$keep_id, $remove_id], true)) {
-            return new \WP_Error('email_taken', sprintf(/* translators: %s: e-mail address */ __('%s is al een inlogadres van een ander lid.', 'avpvh-members'), $email['primary']));
+            throw new AVPVH_Member_Merge_Refusal(new \WP_Error('email_taken', sprintf(/* translators: %s: e-mail address */ __('%s is al een inlogadres van een ander lid.', 'avpvh-members'), $email['primary'])));
         }
+        return $email;
+    }
 
+    /**
+     * @return array<string, array> address group id => address_choice()
+     * @throws AVPVH_Member_Merge_Refusal
+     */
+    private static function address_choices(array $address_plan, array $posted, int $keep_id): array {
         $address_choices = [];
-        foreach ($preview['address_plan'] as $group) {
-            $choice = self::address_choice($group, $choices['address_groups'][$group['id']] ?? [], $keep_id);
+        foreach ($address_plan as $group) {
+            $choice = self::address_choice($group, $posted[$group['id']] ?? [], $keep_id);
             if (is_wp_error($choice)) {
-                return $choice;
+                throw new AVPVH_Member_Merge_Refusal($choice);
             }
             $address_choices[$group['id']] = $choice;
         }
+        return $address_choices;
+    }
 
+    /**
+     * Member columns that take the duplicate's value or a typed-in name.
+     *
+     * @throws AVPVH_Member_Merge_Refusal
+     */
+    private static function field_updates(array $preview, array $choices): array {
         $updates = [];
         foreach ($preview['fields'] as $field => $info) {
             $choice = $choices['fields'][$field] ?? $info['default'];
             if ($field === 'name' && $choice === 'custom') {
-                // A name typed in, e.g. both records abbreviated differently.
-                $custom = array_map(fn($part) => trim((string) $part), $choices['name_custom'] ?? []);
-                if (($custom['first_name'] ?? '') === '' || ($custom['last_name'] ?? '') === '') {
-                    return new \WP_Error('name', __('Vul bij een eigen naam ten minste voornaam en achternaam in.', 'avpvh-members'));
+                $updates += self::custom_name($choices['name_custom'] ?? []);
+            } elseif ($choice === 'remove') {
+                foreach (self::field_columns($field) as $column) {
+                    $updates[$column] = $preview['remove']->$column;
                 }
-                $updates += ['first_name' => $custom['first_name'], 'suffix' => $custom['suffix'] ?? '', 'last_name' => $custom['last_name']];
-                continue;
-            }
-            if ($choice !== 'remove') {
-                continue;
-            }
-            foreach (self::field_columns($field) as $column) {
-                $updates[$column] = $remove->$column;
             }
         }
-        $final = (object) array_merge((array) $keep, $updates);
-        $final_key = AVPVH_Name_Matcher::normalize_person_name($final->first_name, $final->suffix, $final->last_name);
+        return $updates;
+    }
 
+    /**
+     * A name typed in, e.g. both records abbreviated differently.
+     *
+     * @throws AVPVH_Member_Merge_Refusal
+     */
+    private static function custom_name(array $posted): array {
+        $custom = array_map(fn($part) => trim((string) $part), $posted);
+        if (($custom['first_name'] ?? '') === '' || ($custom['last_name'] ?? '') === '') {
+            throw new AVPVH_Member_Merge_Refusal(new \WP_Error('name', __('Vul bij een eigen naam ten minste voornaam en achternaam in.', 'avpvh-members')));
+        }
+        return ['first_name' => $custom['first_name'], 'suffix' => $custom['suffix'] ?? '', 'last_name' => $custom['last_name']];
+    }
+
+    /** Every database change of the merge in one transaction; null when committed. */
+    private static function write_merge(array $plan): ?\WP_Error {
+        global $wpdb;
         $wpdb->query('START TRANSACTION');
         try {
-            if ($updates) {
-                self::check($wpdb->update("{$p}avm_members", $updates, ['id' => $keep_id]), 'lidgegevens bijwerken');
-                foreach ($updates as $column => $value) {
-                    AVPVH_DB::log_member_change($keep_id, $column, self::str($keep->$column), self::str($value));
-                }
-            }
-
-            foreach ($preview['address_plan'] as $group) {
-                self::apply_address_group($group, $address_choices[$group['id']], $keep_id);
-            }
-
-            self::merge_participation($keep_id, $remove_id);
-            self::merge_fees($keep_id, $remove_id);
-
-            self::check($wpdb->query($wpdb->prepare(
-                "DELETE r FROM {$p}avm_member_flag_assignments r
-                 JOIN {$p}avm_member_flag_assignments k ON k.flag_id = r.flag_id AND k.member_id = %d
-                 WHERE r.member_id = %d",
-                $keep_id, $remove_id
-            )), 'dubbele kenmerken opruimen');
-            self::repoint("{$p}avm_member_flag_assignments", 'member_id', $remove_id, $keep_id);
-
-            if (self::count("{$p}avm_member_identities", 'member_id', $keep_id) > 0) {
-                self::check($wpdb->update("{$p}avm_member_identities", ['is_primary' => 0], ['member_id' => $remove_id]), 'inlogadressen bijwerken');
-            }
-            self::repoint("{$p}avm_member_identities", 'member_id', $remove_id, $keep_id);
-
-            self::merge_relationships($keep_id, $remove_id);
-            self::merge_aliases($keep, $remove, $final_key);
-
-            self::repoint("{$p}avm_member_audit_log", 'member_id', $remove_id, $keep_id);
-            self::repoint("{$p}avm_role_delegations", 'delegated_to_member_id', $remove_id, $keep_id);
-            self::repoint("{$p}avm_role_delegations", 'delegated_by_member_id', $remove_id, $keep_id);
-            self::repoint("{$p}avm_members", 'emergency_member_id', $remove_id, $keep_id);
-            // Whoever had one of the two as emergency contact now has the
-            // merged member; the merged member itself can't be its own.
-            self::check($wpdb->update("{$p}avm_members", ['emergency_member_id' => null], ['id' => $keep_id, 'emergency_member_id' => $keep_id]), 'noodcontact bijwerken');
-
-            foreach (self::external_columns() as [$table, $column]) {
-                self::repoint($table, $column, $remove_id, $keep_id);
-            }
-
-            if ($wpdb->delete("{$p}avm_members", ['id' => $remove_id], ['%d']) !== 1) {
-                throw new \RuntimeException('verwijderen van het dubbele lid mislukt');
-            }
-            AVPVH_DB::log_member_change(
-                $keep_id,
-                'samenvoeging',
-                'lid #' . $remove_id . ' (' . avpvh_format_name($remove) . ')',
-                'samengevoegd in lid #' . $keep_id
-            );
+            self::merge_rows($plan);
             $wpdb->query('COMMIT');
         } catch (\Throwable $exception) {
             $wpdb->query('ROLLBACK');
             return new \WP_Error('failed', sprintf(/* translators: %s: error message */ __('Samenvoegen afgebroken, er is niets gewijzigd: %s', 'avpvh-members'), $exception->getMessage()));
         }
+        return null;
+    }
 
-        $warnings = [];
-        $notes = [];
-        $remove_account = $preview['accounts']['remove'];
+    private static function merge_rows(array $plan): void {
+        $keep = $plan['preview']['keep'];
+        $remove = $plan['preview']['remove'];
+        $keep_id = (int) $keep->id;
+        $remove_id = (int) $remove->id;
 
-        // The account's display name follows a changed name, as when it's
-        // edited on the profile.
-        if (array_intersect_key($updates, array_flip(['first_name', 'suffix', 'last_name'])) && $preview['accounts']['keep']['exists']) {
-            $renamed = AVPVH_Directory::update_user($preview['accounts']['keep']['uid'], ['display_name' => avpvh_format_name($final)]);
-            if (is_wp_error($renamed)) {
-                /* translators: %s: error message */
-                $warnings[] = sprintf(__('De naam van het account kon niet worden bijgewerkt: %s', 'avpvh-members'), $renamed->get_error_message());
-            }
+        self::update_member_fields($keep, $plan['updates']);
+        foreach ($plan['preview']['address_plan'] as $group) {
+            self::apply_address_group($group, $plan['address_choices'][$group['id']], $keep_id);
         }
+        self::merge_participation($keep_id, $remove_id);
+        self::merge_fees($keep_id, $remove_id);
+        self::merge_flags($keep_id, $remove_id);
+        self::merge_identities($keep_id, $remove_id);
+        self::merge_relationships($keep_id, $remove_id);
+        self::merge_aliases($keep, $remove, $plan['final_key']);
+        self::repoint_remaining($keep_id, $remove_id);
+        self::delete_duplicate($keep_id, $remove);
+    }
 
-        if ($remove_account['exists']) {
-            $result = AVPVH_Directory::delete_user($remove_account['uid']);
-            if (is_wp_error($result)) {
-                $warnings[] = sprintf(
-                    /* translators: 1: account name, 2: error message */ __('De leden zijn samengevoegd, maar het account "%1$s" kon niet worden verwijderd: %2$s', 'avpvh-members'),
-                    $remove_account['uid'],
-                    $result->get_error_message()
-                );
-            }
-            AVPVH_Directory::forget_groups($remove_account['uid']);
+    private static function update_member_fields(object $keep, array $updates): void {
+        global $wpdb;
+        if (!$updates) {
+            return;
         }
-
-        // Only after the duplicate's account is gone: the directory may
-        // refuse an address another account still holds.
-        $old_email = $preview['email']['keep'];
-        if ($email['primary'] !== '' && strcasecmp($email['primary'], $old_email) !== 0) {
-            $result = AVPVH_Directory::update_user($preview['accounts']['keep']['uid'], ['mail' => $email['primary']]);
-            if (is_wp_error($result)) {
-                $warnings[] = sprintf(
-                    /* translators: 1: e-mail address, 2: error message */ __('Het e-mailadres kon niet worden gewijzigd in %1$s: %2$s', 'avpvh-members'),
-                    $email['primary'],
-                    $result->get_error_message()
-                );
-            } else {
-                AVPVH_DB::log_member_change($keep_id, 'email', $old_email, $email['primary']);
-                $notes[] = sprintf(/* translators: %s: e-mail address */ __('Het e-mailadres is nu %s.', 'avpvh-members'), $email['primary']);
-                if (!self::make_primary_identity($keep_id, $email['primary'])) {
-                    $warnings[] = __('Het nieuwe e-mailadres kon niet als primair inlogadres worden vastgelegd (maximum bereikt?).', 'avpvh-members');
-                }
-            }
+        self::check($wpdb->update("{$wpdb->prefix}avm_members", $updates, ['id' => (int) $keep->id]), 'lidgegevens bijwerken');
+        foreach ($updates as $column => $value) {
+            AVPVH_DB::log_member_change((int) $keep->id, $column, self::str($keep->$column), self::str($value));
         }
+    }
 
-        // The duplicate's address would otherwise vanish with its account —
-        // keep it reachable as a (not yet verified) login address, unless
-        // the admin said it was wrong.
-        if ($email['extra'] !== '' && !AVPVH_DB::get_identity_by_email($email['extra'])) {
-            if (AVPVH_DB::ensure_identity($keep_id, 'email', $email['extra'])) {
-                $notes[] = sprintf(/* translators: %s: e-mail address */ __('%s is toegevoegd als extra (onbevestigd) inlogadres.', 'avpvh-members'), $email['extra']);
-            } else {
-                $warnings[] = __('Het e-mailadres van het verwijderde account kon niet als inlogadres worden toegevoegd (maximum bereikt?).', 'avpvh-members');
-            }
+    private static function merge_flags(int $keep_id, int $remove_id): void {
+        global $wpdb;
+        $p = $wpdb->prefix;
+        self::check($wpdb->query($wpdb->prepare(
+            "DELETE r FROM {$p}avm_member_flag_assignments r
+                 JOIN {$p}avm_member_flag_assignments k ON k.flag_id = r.flag_id AND k.member_id = %d
+                 WHERE r.member_id = %d",
+            $keep_id, $remove_id
+        )), 'dubbele kenmerken opruimen');
+        self::repoint("{$p}avm_member_flag_assignments", 'member_id', $remove_id, $keep_id);
+    }
+
+    private static function merge_identities(int $keep_id, int $remove_id): void {
+        global $wpdb;
+        $p = $wpdb->prefix;
+        if (self::count("{$p}avm_member_identities", 'member_id', $keep_id) > 0) {
+            self::check($wpdb->update("{$p}avm_member_identities", ['is_primary' => 0], ['member_id' => $remove_id]), 'inlogadressen bijwerken');
         }
+        self::repoint("{$p}avm_member_identities", 'member_id', $remove_id, $keep_id);
+    }
 
-        return ['warnings' => $warnings, 'notes' => $notes];
+    private static function repoint_remaining(int $keep_id, int $remove_id): void {
+        global $wpdb;
+        $p = $wpdb->prefix;
+        self::repoint("{$p}avm_member_audit_log", 'member_id', $remove_id, $keep_id);
+        self::repoint("{$p}avm_role_delegations", 'delegated_to_member_id', $remove_id, $keep_id);
+        self::repoint("{$p}avm_role_delegations", 'delegated_by_member_id', $remove_id, $keep_id);
+        self::repoint("{$p}avm_members", 'emergency_member_id', $remove_id, $keep_id);
+        // Whoever had one of the two as emergency contact now has the
+        // merged member; the merged member itself can't be its own.
+        self::check($wpdb->update("{$p}avm_members", ['emergency_member_id' => null], ['id' => $keep_id, 'emergency_member_id' => $keep_id]), 'noodcontact bijwerken');
+
+        foreach (self::external_columns() as [$table, $column]) {
+            self::repoint($table, $column, $remove_id, $keep_id);
+        }
+    }
+
+    private static function delete_duplicate(int $keep_id, object $remove): void {
+        global $wpdb;
+        $remove_id = (int) $remove->id;
+        if ($wpdb->delete("{$wpdb->prefix}avm_members", ['id' => $remove_id], ['%d']) !== 1) {
+            throw new \RuntimeException('verwijderen van het dubbele lid mislukt');
+        }
+        AVPVH_DB::log_member_change(
+            $keep_id,
+            'samenvoeging',
+            'lid #' . $remove_id . ' (' . avpvh_format_name($remove) . ')',
+            'samengevoegd in lid #' . $keep_id
+        );
+    }
+
+    /** The account changes after COMMIT; a failure there is a warning, the merge stands. */
+    private static function after_merge(array $plan): array {
+        $parts = [self::rename_account($plan), self::delete_account($plan), self::change_email($plan), self::add_extra_email($plan)];
+        return array_merge_recursive(['warnings' => [], 'notes' => []], ...$parts);
+    }
+
+    /** The account's display name follows a changed name, as when it's edited on the profile. */
+    private static function rename_account(array $plan): array {
+        $account = $plan['preview']['accounts']['keep'];
+        if (!array_intersect_key($plan['updates'], array_flip(['first_name', 'suffix', 'last_name'])) || !$account['exists']) {
+            return [];
+        }
+        $renamed = AVPVH_Directory::update_user($account['uid'], ['display_name' => avpvh_format_name($plan['final'])]);
+        return is_wp_error($renamed)
+            /* translators: %s: error message */
+            ? ['warnings' => [sprintf(__('De naam van het account kon niet worden bijgewerkt: %s', 'avpvh-members'), $renamed->get_error_message())]]
+            : [];
+    }
+
+    private static function delete_account(array $plan): array {
+        $account = $plan['preview']['accounts']['remove'];
+        if (!$account['exists']) {
+            return [];
+        }
+        $result = AVPVH_Directory::delete_user($account['uid']);
+        AVPVH_Directory::forget_groups($account['uid']);
+        return is_wp_error($result)
+            ? ['warnings' => [sprintf(
+                /* translators: 1: account name, 2: error message */ __('De leden zijn samengevoegd, maar het account "%1$s" kon niet worden verwijderd: %2$s', 'avpvh-members'),
+                $account['uid'],
+                $result->get_error_message()
+            )]]
+            : [];
+    }
+
+    /**
+     * Only after the duplicate's account is gone: the directory may refuse
+     * an address another account still holds.
+     */
+    private static function change_email(array $plan): array {
+        $primary = $plan['email']['primary'];
+        $old_email = $plan['preview']['email']['keep'];
+        if ($primary === '' || strcasecmp($primary, $old_email) === 0) {
+            return [];
+        }
+        $result = AVPVH_Directory::update_user($plan['preview']['accounts']['keep']['uid'], ['mail' => $primary]);
+        if (is_wp_error($result)) {
+            return ['warnings' => [sprintf(
+                /* translators: 1: e-mail address, 2: error message */ __('Het e-mailadres kon niet worden gewijzigd in %1$s: %2$s', 'avpvh-members'),
+                $primary,
+                $result->get_error_message()
+            )]];
+        }
+        return self::record_new_email((int) $plan['preview']['keep']->id, $old_email, $primary);
+    }
+
+    private static function record_new_email(int $keep_id, string $old_email, string $primary): array {
+        AVPVH_DB::log_member_change($keep_id, 'email', $old_email, $primary);
+        $outcome = ['notes' => [sprintf(/* translators: %s: e-mail address */ __('Het e-mailadres is nu %s.', 'avpvh-members'), $primary)]];
+        if (!self::make_primary_identity($keep_id, $primary)) {
+            $outcome['warnings'] = [__('Het nieuwe e-mailadres kon niet als primair inlogadres worden vastgelegd (maximum bereikt?).', 'avpvh-members')];
+        }
+        return $outcome;
+    }
+
+    /**
+     * The duplicate's address would otherwise vanish with its account — keep
+     * it reachable as a (not yet verified) login address, unless the admin
+     * said it was wrong.
+     */
+    private static function add_extra_email(array $plan): array {
+        $extra = $plan['email']['extra'];
+        if ($extra === '' || AVPVH_DB::get_identity_by_email($extra)) {
+            return [];
+        }
+        return AVPVH_DB::ensure_identity((int) $plan['preview']['keep']->id, 'email', $extra)
+            ? ['notes' => [sprintf(/* translators: %s: e-mail address */ __('%s is toegevoegd als extra (onbevestigd) inlogadres.', 'avpvh-members'), $extra)]]
+            : ['warnings' => [__('Het e-mailadres van het verwijderde account kon niet als inlogadres worden toegevoegd (maximum bereikt?).', 'avpvh-members')]];
     }
 
     /**
