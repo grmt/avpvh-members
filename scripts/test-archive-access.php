@@ -129,6 +129,14 @@ check('wp-admin is left alone', $q->get('post__not_in') === '');
 $GLOBALS['test_admin'] = false;
 
 check('REST collection args', $a->filter_rest_args([])['post__not_in'] === [1, 4]);
+check('REST include lists lose hidden posts', $a->filter_rest_args(['post__in' => [1, 2]])['post__in'] === [2]);
+check('REST include list of only hidden posts becomes empty', $a->filter_rest_args(['post__in' => [1, 4]])['post__in'] === [0]);
+check('REST comments on a hidden post find nothing', $a->filter_rest_comment_args(['post_id' => 4])['post__in'] === [0]);
+check('REST comments on mixed posts retain only visible posts', $a->filter_rest_comment_args(['post__in' => [1, 2, 3, 4]])['post__in'] === [2, 3]);
+check('REST comment exclusions preserve existing exclusions', $a->filter_rest_comment_args(['post__not_in' => [9]])['post__not_in'] === [9, 1, 4]);
+$GLOBALS['test_admin'] = true;
+check('administrative comment queries stay unchanged', $a->filter_comments_clauses(['where' => '']) === ['where' => '']);
+$GLOBALS['test_admin'] = false;
 check('REST: a hidden post is a 404', $a->hide_post_from_rest(null, [], new WP_REST_Request('/wp/v2/posts/4')) instanceof WP_Error);
 check('REST: also its revisions', $a->hide_post_from_rest(null, [], new WP_REST_Request('/wp/v2/posts/1/revisions')) instanceof WP_Error);
 check('REST: a visible post stays', $a->hide_post_from_rest(null, [], new WP_REST_Request('/wp/v2/posts/2')) === null);
@@ -138,6 +146,7 @@ check('previous/next links skip hidden posts', $a->filter_adjacent_where('WHERE 
 
 as_user(5, member('active'));
 check('an active member: queries untouched', $a->filter_rest_args([]) === [] && $a->filter_adjacent_where('WHERE x') === 'WHERE x');
+check('active member REST comment queries are unchanged', $a->filter_rest_comment_args(['post_id' => 4]) === ['post_id' => 4]);
 
 echo $failures ? "\n$failures check(s) failed.\n" : "\nArchive access tests: OK\n";
 exit($failures ? 1 : 0);

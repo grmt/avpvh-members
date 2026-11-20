@@ -14,6 +14,28 @@ declare(strict_types=1);
 define('ABSPATH', __DIR__ . '/');
 
 class Redirected extends RuntimeException {}
+class Admin_Action_Denied extends Error { public function __construct(public int $status) {} }
+
+function __(string $text, string $domain = ''): string { return $text; }
+function esc_html__(string $text, string $domain = ''): string { return htmlspecialchars($text, ENT_QUOTES, 'UTF-8'); }
+function absint(mixed $value): int { return abs((int) $value); }
+function sanitize_text_field(string $value): string { return trim(strip_tags($value)); }
+function sanitize_email(string $value): string { return $value; }
+function current_user_can(string $cap): bool { return $GLOBALS['wp_admin'] ?? false; }
+function check_admin_referer(string $action): void {}
+function wp_die(string $message, mixed $title = '', array $args = []): void { throw new Admin_Action_Denied(is_int($title) ? $title : ($args['response'] ?? 500)); }
+class AVPVH_Roles {
+    public static function can_manage_members(): bool { return $GLOBALS['member_admin'] ?? true; }
+    public static function member_has_elevated_access(int $id): bool { return $id === 45; }
+    public static function sync_status_group(int $id): bool { return true; }
+}
+class AVPVH_DB {
+    public static function ensure_identity(int $member, string $provider, string $email): bool { $GLOBALS['admin_writes'][] = compact('member', 'provider', 'email'); return true; }
+    public static function flag_ids_include_inactivating(array $ids): bool { return in_array(7, $ids, true); }
+    public static function set_member_flags(int $member, array $flags): void { $GLOBALS['admin_writes'][] = compact('member', 'flags'); }
+    public static function member_has_inactivating_flag(int $member): bool { return false; }
+    public static function set_death_date(int $member, ?string $date): array { $GLOBALS['admin_writes'][] = compact('member', 'date'); return ['closed' => 0, 'later' => 0]; }
+}
 
 $GLOBALS['referer'] = false;
 function wp_safe_redirect(string $url): void { throw new Redirected($url); }
@@ -91,5 +113,35 @@ check(
 
 $GLOBALS['referer'] = 'https://example.test/leden/beheer/member-profile/?member_id=45&email_error=1&identity_primary=1';
 check('back_url() drops every notice arg', AVPVH_Member_Profile_Form::back_url(), 'https://example.test/leden/beheer/member-profile/?member_id=45');
+
+$admin = (new ReflectionClass(AVPVH_Admin::class))->newInstanceWithoutConstructor();
+$GLOBALS['admin_writes'] = [];
+$denied = false;
+try { $admin->render_settings(); } catch (Admin_Action_Denied $exit) { $denied = $exit->status === 403; }
+check('settings require WordPress administration rights', $denied, true);
+foreach (['handle_add_identity', 'handle_delete_identity', 'handle_primary_identity', 'handle_update_email', 'handle_save_member_flags', 'handle_set_death_date'] as $handler) {
+    $_POST = ['member_id' => 45, 'identity_id' => 2, 'email' => 'fixture@example.invalid', 'flag_ids' => [7], 'death_date' => '2026-01-01'];
+    $denied = false;
+    try { $admin->$handler(); } catch (Admin_Action_Denied $exit) { $denied = $exit->status === 403; }
+    check($handler . ' rejects an elevated target before writing', $denied && !$GLOBALS['admin_writes'], true);
+}
+$GLOBALS['wp_admin'] = true;
+$_POST = ['member_id' => 45, 'email' => 'fixture@example.invalid'];
+$url = '';
+try { $admin->handle_add_identity(); } catch (Redirected $exit) { $url = $exit->getMessage(); }
+check('WordPress administrator may add a target identity and returns to its detail', $GLOBALS['admin_writes'] === [['member' => 45, 'provider' => 'email', 'email' => 'fixture@example.invalid']] && str_contains($url, 'identity_ok=1'), true);
+$GLOBALS['wp_admin'] = false;
+$GLOBALS['admin_writes'] = [];
+$_POST = ['member_id' => 46, 'email' => 'ordinary@example.invalid'];
+try { $admin->handle_add_identity(); } catch (Redirected $exit) {}
+check('member administrator can still modify ordinary targets', $GLOBALS['admin_writes'][0]['member'] === 46, true);
+$GLOBALS['admin_writes'] = [];
+$_POST = ['member_id' => 45, 'flag_ids' => [6]];
+try { $admin->handle_save_member_flags(); } catch (Redirected $exit) {}
+check('ordinary flags remain editable without changing target status', $GLOBALS['admin_writes'] === [['member' => 45, 'flags' => [6]]], true);
+$GLOBALS['admin_writes'] = [];
+$_POST = ['member_id' => 45, 'death_date' => ''];
+try { $admin->handle_set_death_date(); } catch (Redirected $exit) {}
+check('clearing a date remains distinct from applying an inactivating date', $GLOBALS['admin_writes'] === [['member' => 45, 'date' => null]], true);
 
 echo "Admin e-mail return tests: OK\n";

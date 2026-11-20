@@ -156,7 +156,7 @@ function home_url(string $p = '/'): string { return 'https://site.example.invali
 function add_query_arg(string $k, string $v, string $u): string { return $u . (str_contains($u, '?') ? '&' : '?') . $k . '=' . $v; }
 function is_wp_error(mixed $v): bool { return $v instanceof WP_Error; }
 function is_admin(): bool { return $GLOBALS['test_admin']; }
-function wp_doing_ajax(): bool { return false; }
+function wp_doing_ajax(): bool { return $GLOBALS['test_ajax'] ?? false; }
 function wp_doing_cron(): bool { return $GLOBALS['test_cron'] ?? false; }
 function is_user_logged_in(): bool { return $GLOBALS['test_logged_in']; }
 function get_current_user_id(): int { return $GLOBALS['test_user_id']; }
@@ -164,7 +164,7 @@ function wp_get_current_user(): WP_User { return $GLOBALS['test_users'][get_curr
 function absint(mixed $v): int { return abs((int) $v); }
 function check_ajax_referer(string $action, string $key): void {}
 function wp_send_json_error(mixed $data, ?int $status = null): void { throw new Test_Exit('json_error', $status ?? 200, (string) $data); }
-function wp_get_session_token(): string { return 'tok-1'; }
+function wp_get_session_token(): string { return $GLOBALS['test_session_token'] ?? 'tok-1'; }
 function get_userdata(int $id): WP_User|false { return $GLOBALS['test_users'][$id] ?? false; }
 function get_user_by(string $f, mixed $v): WP_User|false { return $f === 'id' ? ($GLOBALS['test_users'][(int) $v] ?? false) : false; }
 function user_can(WP_User $u, string $cap): bool { return in_array($cap, $u->caps, true) || in_array('administrator', $u->roles, true); }
@@ -184,6 +184,7 @@ function get_pages(array $args): array {
     return [];
 }
 function get_page_by_path(string $p): ?object { return null; }
+function is_page(mixed $id = null): bool { return ($GLOBALS['test_page_id'] ?? null) === $id; }
 function get_post_ancestors(int $id): array { return in_array($id, [11, 15, 1920, 77], true) ? [10] : []; }
 function wp_list_pluck(array $list, string $field): array { return array_map(static fn($o) => $o->$field, $list); }
 function current_time(string $fmt): string { return $fmt === 'Y' ? '2026' : ($fmt === 'Y-m-d' ? '2026-06-15' : '2026-06-15 12:00:00'); }
@@ -278,7 +279,7 @@ $wpdb = new class($wpdb) {
                     if ((int) ($m->wp_user_id ?? 0) === (int) $args[0]) { return $m; }
                 }
             }
-            if (str_contains($sql, 'WHERE m.lldap_user_id = %s')) {
+            if (str_contains($sql, 'WHERE m.lldap_user_id = %s') || str_contains($sql, 'WHERE u.user_id = %s')) {
                 foreach ($GLOBALS['test_members'] as $m) {
                     if (($m->lldap_user_id ?? '') === $args[0]) { return $m; }
                 }
@@ -639,6 +640,102 @@ if (!function_exists('wp_validate_redirect')) {
 }
 check('same-site redirect keeps local URL', AVPVH_Access::safe_same_site_redirect('https://site.example.invalid/leden/') === 'https://site.example.invalid/leden/');
 check('same-site redirect rejects external IdP host', AVPVH_Access::safe_same_site_redirect('https://accounts.google.com/o/oauth2/v2/auth') === 'https://site.example.invalid/');
+
+// Request and session transitions exercise production filters, not copied rules.
+AVPVH_Access::mark_next_session_auth('oauth', false);
+$session = $access->attach_session_auth_metadata(['expiration' => 123]);
+check('new session retains its expiry and records its login method and factor', $session === ['expiration' => 123, 'avpvh_auth_method' => 'oauth', 'avpvh_2fa' => false]);
+check('pending authentication metadata is used only once', $access->attach_session_auth_metadata(['expiration' => 456]) === ['expiration' => 456]);
+wp_logout();
+check('anonymous viewer has no completed step-up', !AVPVH_Access::current_session_has_2fa());
+wp_set_current_user(1);
+$GLOBALS['test_session_token'] = '';
+check('non-cookie authentication retains its established behavior', AVPVH_Access::current_session_has_2fa());
+unset($GLOBALS['test_session_token']);
+$GLOBALS['test_session_data'] = ['expiration' => 123];
+check('legacy session metadata retains its established behavior', AVPVH_Access::current_session_has_2fa());
+$GLOBALS['test_session_data'] = ['avpvh_auth_method' => 'oauth', 'avpvh_2fa' => false];
+$_SERVER['HTTP_REMOTE_USER'] = 'admin.test';
+$_SERVER['HTTP_X_AVPVH_PROXY_SECRET'] = AVPVH_PROXY_SECRET;
+$_SERVER['REQUEST_URI'] = '/wp-admin/';
+$GLOBALS['test_admin'] = true;
+$pagenow = 'index.php';
+$access->auto_login_from_proxy_header();
+check('matching proxy identity upgrades only the current session after admin step-up', get_current_user_id() === 1 && $GLOBALS['test_session_data']['avpvh_2fa'] === true);
+foreach (['admin-post.php', 'admin-ajax.php', 'async-upload.php'] as $endpoint) {
+    $GLOBALS['test_session_data']['avpvh_2fa'] = false;
+    $pagenow = $endpoint;
+    $GLOBALS['test_ajax'] = $endpoint === 'admin-ajax.php';
+    $access->auto_login_from_proxy_header();
+    check($endpoint . ' does not upgrade a 1FA session', !$GLOBALS['test_session_data']['avpvh_2fa']);
+}
+$GLOBALS['test_ajax'] = $GLOBALS['test_admin'] = false;
+$pagenow = 'index.php';
+$access->enforce_step_up_2fa_for_admin_post();
+check('admin-post gate ignores unrelated request types', true);
+check('1FA administrator can read ordinary public REST content', $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/wp/v2/posts')) === null);
+check('administrator can read the document page through REST', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/pages/1920')) === null);
+wp_set_current_user(2);
+check('ordinary member REST writes retain endpoint-specific permission checks', $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/example/v1/form', 'POST')) === null);
+wp_set_current_user(6);
+check('inactive member cannot read the document page', $access->hide_members_page_from_rest(null, [], new WP_REST_Request('/wp/v2/pages/1920')) instanceof WP_Error);
+wp_logout();
+$_SERVER['HTTP_REMOTE_USER'] = 'missing.fixture';
+$refreshes = AVPVH_Directory_Cache::$refreshes;
+$access->auto_login_from_proxy_header();
+check('unknown proxy account is refreshed once and never logged in', !is_user_logged_in() && AVPVH_Directory_Cache::$refreshes === $refreshes + 1);
+foreach ([[11, 20], [11]] as $include) {
+    $query = new WP_Query(true);
+    $query->set('post__in', $include);
+    $access->exclude_members_pages_from_queries($query);
+    check('member search include list excludes restricted IDs ' . implode(',', $include), $query->get('post__in') === (in_array(20, $include, true) ? [20] : [0]));
+}
+$comments = $access->exclude_restricted_comments_from_rest_query(['post__in' => [11, 20]]);
+check('member REST comment include list retains public posts only', $comments['post__in'] === [20]);
+$saved_db = $wpdb;
+$wpdb = null;
+check('comment filtering tolerates an unavailable query connection', $access->exclude_restricted_comments_from_clauses(['where' => 'x=1']) === ['where' => 'x=1']);
+$wpdb = $saved_db;
+$_SERVER['HTTP_REMOTE_USER'] = '';
+$_SERVER['REQUEST_URI'] = '/';
+
+$GLOBALS['test_page_id'] = 1920;
+$book_guard = new ReflectionMethod($access, 'redirect_boek_page');
+$book_exit = null;
+try { $book_guard->invoke($access); } catch (Test_Exit $e) { $book_exit = $e; }
+check('document-page visitor is sent to the login page', $book_exit?->detail === home_url('/avpvh-login/'));
+wp_set_current_user(2);
+$book_exit = null;
+try { $book_guard->invoke($access); } catch (Test_Exit $e) { $book_exit = $e; }
+check('document-page member without the group is sent home', $book_exit?->detail === home_url('/'));
+wp_set_current_user(7);
+check('document-page member with the group passes the guard', $book_guard->invoke($access) === null);
+unset($GLOBALS['test_page_id']);
+
+wp_logout();
+foreach ([[11, 20], [11]] as $include) {
+    $query = new WP_Query(true);
+    $query->set('post__in', $include);
+    $t_content->exclude_from_queries($query);
+    check('tenant search include list excludes protected IDs ' . implode(',', $include), $query->get('post__in') === (in_array(20, $include, true) ? [20] : [0]));
+}
+$query = new WP_Query(true);
+$query->set('post__not_in', [99]);
+$t_content->exclude_from_queries($query);
+check('tenant search preserves existing exclusions', in_array(99, $query->get('post__not_in'), true) && in_array(11, $query->get('post__not_in'), true));
+$query = new WP_Query(false, false, true, true);
+$query->set('post__in', [11]);
+$t_content->exclude_from_queries($query);
+check('direct tenant page queries remain for the request guard', $query->get('post__in') === [11]);
+$comments = $t_content->exclude_comments_from_rest_query(['post_id' => 11]);
+check('tenant comments on protected pages cannot be queried directly', $comments['post__in'] === [0] && !isset($comments['post_id']));
+$comments = $t_content->exclude_comments_from_rest_query(['post__in' => [11, 20]]);
+check('tenant mixed comment lists retain public page comments only', $comments['post__in'] === [20]);
+check('tenant oEmbed preserves public pages', $t_content->hide_from_oembed(20) === 20);
+wp_set_current_user(2);
+$GLOBALS['test_meta'][2][AVPVH_Tenant_SSO::GROUPS_META] = ['vp4042-leden'];
+check('tenant member collection args are unchanged', $t_content->exclude_from_rest_query(['post__in' => [11]]) === ['post__in' => [11]]);
+check('tenant member comment args are unchanged', $t_content->exclude_comments_from_rest_query(['post_id' => 11]) === ['post_id' => 11]);
 
 echo $failures ? "\n$failures failure(s)\n" : "\nAccess hardening tests: OK\n";
 exit($failures ? 1 : 0);

@@ -62,6 +62,8 @@ php scripts/test-email-log.php
 php scripts/test-email-identity-flow.php
 php scripts/test-participation-form-flow.php
 php scripts/test-profile-submission-flow.php
+php scripts/test-member-account-flow.php
+php scripts/test-tenant-invalid-config.php
 php scripts/test-xlsx-writer.php
 php scripts/test-profile-form-render.php
 php scripts/test-ledenlijst-render.php
