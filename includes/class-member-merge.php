@@ -346,6 +346,7 @@ class AVPVH_Member_Merge {
         return compact('preview', 'email', 'address_choices', 'updates', 'final', 'final_key');
     }
 
+    // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- a refusal carries a WP_Error; its message is escaped where it is shown
     /** @throws AVPVH_Member_Merge_Refusal */
     private static function checked_preview(int $keep_id, int $remove_id, string $fingerprint): array {
         $preview = self::preview($keep_id, $remove_id);
@@ -422,6 +423,8 @@ class AVPVH_Member_Merge {
         }
         return ['first_name' => $custom['first_name'], 'suffix' => $custom['suffix'] ?? '', 'last_name' => $custom['last_name']];
     }
+
+    // phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 
     /** Every database change of the merge in one transaction; null when committed. */
     private static function write_merge(array $plan): ?\WP_Error {
