@@ -18,6 +18,9 @@ $activity_counts = [];
 foreach ($wpdb->get_results("SELECT member_id, COUNT(*) AS n FROM {$wpdb->prefix}avm_activity_participation GROUP BY member_id") as $row) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- fixed query, no user input
     $activity_counts[(int) $row->member_id] = (int) $row->n;
 }
+// Contribution status from AVPVH_Fees: this plugin's own records, or the
+// bookkeeping plugin's when that one keeps the contribution.
+$fee_statuses = AVPVH_Fees::statuses_for_year(wp_list_pluck($members, 'id'), $current_year);
 // Recorded name variants (maiden name, old spelling, ...) — the search box
 // also finds a member by those, like the old server-side search did.
 $alias_names = [];
@@ -30,11 +33,6 @@ $status_labels = [
     'inactive' => __('Ex-lid', 'avpvh-members'),
     'visitor'  => __('Bezoeker', 'avpvh-members'),
 ];
-$fee_labels = [
-    'paid'    => __('Betaald', 'avpvh-members'),
-    'pending' => __('Openstaand', 'avpvh-members'),
-    'waived'  => __('Vrijgesteld', 'avpvh-members'),
-];
 ?>
 <div class="wrap">
     <h1><?php esc_html_e('AVP-PvH Leden', 'avpvh-members'); ?></h1>
@@ -44,6 +42,7 @@ $fee_labels = [
     <p>
         <a href="<?php echo esc_url(add_query_arg(['page' => 'avpvh-add-member'], admin_url('admin.php'))); ?>" class="button"><?php esc_html_e('Nieuwe persoon', 'avpvh-members'); ?></a>
     </p>
+    <?php AVPVH_Fees_Admin::render_year_panel($current_year); ?>
 
     <?php if (!$members) : ?>
         <p><?php esc_html_e('Geen leden gevonden.', 'avpvh-members'); ?></p>
@@ -86,8 +85,7 @@ $fee_labels = [
                 $member_id  = (int) $item->id;
                 $detail_url = add_query_arg(['page' => 'avpvh-member-detail', 'id' => $member_id], admin_url('admin.php'));
                 $identities = AVPVH_DB::get_member_identities($member_id);
-                $fee        = AVPVH_DB::get_fee_for_year($member_id, $current_year);
-                $fee_label  = $fee ? ($fee_labels[$fee->status] ?? $fee->status) : __('Geen record', 'avpvh-members');
+                $fee_label  = AVPVH_Fees::label($fee_statuses[$member_id]['status'] ?? AVPVH_Fees::NONE);
                 $flag_names = wp_list_pluck(AVPVH_DB::get_flags_for_member($member_id), 'label');
                 $status     = $status_labels[$item->status] ?? $item->status;
                 ?>
@@ -118,7 +116,7 @@ $fee_labels = [
                     </td>
                     <td><?php echo esc_html($status); ?></td>
                     <td data-sort-value="<?php echo esc_attr($item->joined_year ?: ''); ?>" data-filter-value="<?php echo esc_attr($item->joined_year ?: ''); ?>"><?php echo esc_html($item->joined_year ?: '—'); ?></td>
-                    <td data-filter-value="<?php echo esc_attr($fee_label); ?>"><?php echo esc_html($fee ? $fee_label : '—'); ?></td>
+                    <td data-filter-value="<?php echo esc_attr($fee_label); ?>"><?php echo esc_html($fee_label); ?></td>
                     <td><?php echo esc_html((string) ($activity_counts[$member_id] ?? 0)); ?></td>
                     <td data-filter-value="<?php echo esc_attr(implode('|', $flag_names)); ?>"><?php echo esc_html(implode(', ', $flag_names)); ?></td>
                     <td>

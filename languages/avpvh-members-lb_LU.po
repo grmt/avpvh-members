@@ -3295,3 +3295,85 @@ msgid "%d mail"
 msgid_plural "%d mails"
 msgstr[0] "%d Mail"
 msgstr[1] "%d Mailen"
+
+#: includes/class-fees.php
+msgid "Deels betaald"
+msgstr "Deelweis bezuelt"
+
+#: includes/class-fees.php
+msgid "Niet aangemaakt"
+msgstr "Net ugeluecht"
+
+#: includes/class-fees-admin.php
+#. translators: %s: name of the plugin that keeps the contribution, e.g. Boekhouding
+#, php-format
+msgid "De contributie wordt bijgehouden in de %s; de kolom hieronder toont de stand daaruit."
+msgstr "De Bäitrag gëtt an der %s gefouert; d’Kolonn hei ënnendrënner weist de Stand dovun."
+
+#: includes/class-fees-admin.php
+msgid "Naar de tarieven"
+msgstr "Bei d’Tariffer"
+
+#: includes/class-fees-admin.php
+msgid "Contributie aanmaken voor een jaar"
+msgstr "Bäiträg fir e Joer uleeën"
+
+#: includes/class-fees-admin.php
+msgid "Bedrag (€)"
+msgstr "Betrag (€)"
+
+#: includes/class-fees-admin.php
+msgid "Aanmaken voor alle actieve leden"
+msgstr "Fir all aktiv Memberen uleeën"
+
+#: includes/class-fees-admin.php
+msgid "Leden die al een regel voor dat jaar hebben, blijven zoals ze zijn. Leden met een kenmerk \"Vrijgesteld van contributie\" krijgen Vrijgesteld. Betalingen zet je daarna per lid op het tabblad Contributie."
+msgstr "Memberen, déi fir dat Joer schonn eng Zeil hunn, bleiwe wéi se sinn. Memberen mat dem Kennzeechen \"Vrijgesteld van contributie\" kréien Befreit. Bezuelunge setz du duerno pro Member am Tab Bäitrag."
+
+#: includes/class-fees-admin.php
+msgid "Kon de contributie niet opslaan."
+msgstr "De Bäitrag konnt net gespäichert ginn."
+
+#: includes/class-fees-admin.php
+#. translators: %s: name of the plugin that keeps the contribution, e.g. Boekhouding
+#, php-format
+msgid "Bijgehouden in de %s."
+msgstr "Gefouert an der %s."
+
+#: includes/class-fees-admin.php
+msgid "Bekijken of wijzigen"
+msgstr "Kucken oder änneren"
+
+#: includes/class-fees-admin.php
+msgid "Geen contributie vastgelegd."
+msgstr "Kee Bäitrag erfaasst."
+
+#: includes/class-fees-admin.php
+msgid "Deze contributieregel verwijderen?"
+msgstr "Dës Bäitragszeil läschen?"
+
+#: includes/class-fees-admin.php
+msgid "Jaar toevoegen"
+msgstr "Joer derbäisetzen"
+
+#: includes/class-fees-admin.php
+msgid "Verschuldigd (€)"
+msgstr "Fälleg (€)"
+
+#: includes/class-fees-admin.php
+msgid "Betaald (€)"
+msgstr "Bezuelt (€)"
+
+#: includes/class-fees-admin.php
+msgid "Vul een jaar en een bedrag in."
+msgstr "Gëff e Joer an e Betrag an."
+
+#: includes/class-fees-admin.php
+#. translators: 1: year, 2: records created, 3: records waived, 4: members that already had one
+#, php-format
+msgid "Contributie %1$d: %2$d aangemaakt, %3$d vrijgesteld, %4$d hadden er al een."
+msgstr "Bäitrag %1$d: %2$d ugeluecht, %3$d befreit, %4$d haten der schonn een."
+
+#: includes/class-fees-admin.php
+msgid "De contributie wordt in de boekhouding bijgehouden."
+msgstr "De Bäitrag gëtt an der Comptabilitéit gefouert."

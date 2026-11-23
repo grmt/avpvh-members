@@ -1245,44 +1245,16 @@ class AVPVH_DB {
             $params[] = (int) $args['joined_year'];
         }
         // Any-of match — a member showing up under any one of the checked
-        // flags is enough, same OR semantics as the fee_status checkboxes below.
+        // flags is enough.
         $flag_ids = array_values(array_filter(array_map('intval', (array) ($args['flag_id'] ?? []))));
         if ($flag_ids) {
             $placeholders = implode(',', array_fill(0, count($flag_ids), '%d'));
             $where .= " AND EXISTS (SELECT 1 FROM {$wpdb->prefix}avm_member_flag_assignments fa WHERE fa.member_id = m.id AND fa.flag_id IN ($placeholders))";
             array_push($params, ...$flag_ids);
         }
-        $fee_year = !empty($args['fee_year']) ? (int) $args['fee_year'] : (int) current_time('Y');
-
-        // Also any-of — e.g. "pending" + "none" together to find everyone
-        // who doesn't have a paid/waived record yet.
-        $fee_statuses = array_values(array_intersect(
-            (array) ($args['fee_status'] ?? []),
-            ['paid', 'pending', 'waived', 'none']
-        ));
-        if ($fee_statuses) {
-            $join .= " LEFT JOIN {$wpdb->prefix}avm_fees f ON f.member_id = m.id AND f.year = $fee_year";
-            $conditions = [];
-            $specific = array_diff($fee_statuses, ['none']);
-            if (in_array('none', $fee_statuses, true)) {
-                $conditions[] = 'f.id IS NULL';
-            }
-            if ($specific) {
-                $placeholders = implode(',', array_fill(0, count($specific), '%s'));
-                $conditions[] = "f.status IN ($placeholders)";
-                array_push($params, ...array_values($specific));
-            }
-            $where .= ' AND (' . implode(' OR ', $conditions) . ')';
-        }
-
-        $allowed_order = ['last_name', 'suffix_last_name', 'first_name', 'status', 'joined_year', 'fee_status', 'activity_count'];
+        $allowed_order = ['last_name', 'suffix_last_name', 'first_name', 'status', 'joined_year', 'activity_count'];
         $orderby = in_array($args['orderby'] ?? '', $allowed_order, true) ? $args['orderby'] : 'last_name';
         $order   = strtoupper($args['order'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
-
-        // Extra join/column for fee_status sort (only if not already joined for filtering)
-        if ($orderby === 'fee_status' && !str_contains($join, 'avm_fees')) {
-            $join .= " LEFT JOIN {$wpdb->prefix}avm_fees f ON f.member_id = m.id AND f.year = $fee_year";
-        }
 
         $order_sql = match ($orderby) {
             'last_name'        => "m.last_name $order, m.first_name $order",
@@ -1290,7 +1262,6 @@ class AVPVH_DB {
             'first_name'       => "m.first_name $order, m.last_name $order",
             'status'      => "m.status $order, m.last_name ASC",
             'joined_year' => "m.joined_year $order, m.last_name ASC",
-            'fee_status'  => "f.status $order, m.last_name ASC",
             'activity_count' => "(SELECT COUNT(*) FROM {$wpdb->prefix}avm_activity_participation WHERE member_id = m.id) $order, m.last_name ASC",
             default       => "m.last_name ASC, m.first_name ASC",
         };
@@ -1872,14 +1843,100 @@ class AVPVH_DB {
         )) ?: null;
     }
 
-    public static function mark_fee_paid(int $fee_id): void {
+    /** @param int[] $member_ids @return object[] avm_fees rows for $year */
+    public static function get_fees_for_year(array $member_ids, int $year): array {
         global $wpdb;
-        $wpdb->update(
-            "{$wpdb->prefix}avm_fees",
-            ['status' => 'paid', 'paid_date' => current_time('Y-m-d')],
-            ['id' => $fee_id],
-            ['%s', '%s'], ['%d']
-        );
+        $member_ids = array_values(array_filter(array_map('intval', $member_ids)));
+        if (!$member_ids) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($member_ids), '%d'));
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $placeholders is only %d's
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_fees WHERE year = %d AND member_id IN ($placeholders)",
+            $year,
+            ...$member_ids
+        )) ?: [];
+        // phpcs:enable
+    }
+
+    /**
+     * Creates $year's record for every active member without one: pending
+     * with $amount, or waived for a member with a fee-exempt flag. Existing
+     * records are left alone, so running it twice is harmless.
+     *
+     * @return array{created:int,waived:int,existing:int}
+     */
+    public static function create_fees_for_year(int $year, float $amount): array {
+        global $wpdb;
+        $result = ['created' => 0, 'waived' => 0, 'existing' => 0];
+        $members = self::get_members(['status' => 'active']);
+        $existing = [];
+        foreach (self::get_fees_for_year(wp_list_pluck($members, 'id'), $year) as $fee) {
+            $existing[(int) $fee->member_id] = true;
+        }
+        foreach ($members as $member) {
+            $member_id = (int) $member->id;
+            if (isset($existing[$member_id])) {
+                $result['existing']++;
+                continue;
+            }
+            $exempt = self::member_is_fee_exempt($member_id);
+            $ok = $wpdb->insert("{$wpdb->prefix}avm_fees", [
+                'member_id'  => $member_id,
+                'year'       => $year,
+                'amount_due' => $exempt ? 0 : round($amount, 2),
+                'status'     => $exempt ? 'waived' : 'pending',
+            ], ['%d', '%d', '%f', '%s']);
+            if ($ok) {
+                $result[$exempt ? 'waived' : 'created']++;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Creates or replaces one member's record for $year. A paid record
+     * without an amount paid gets the amount due; one without a date gets
+     * today.
+     */
+    public static function save_fee(int $member_id, int $year, string $status, ?float $amount_due, ?float $amount_paid, ?string $paid_date): bool {
+        global $wpdb;
+        if (!in_array($status, ['paid', 'pending', 'waived'], true) || $year < 1900 || !self::get_member($member_id)) {
+            return false;
+        }
+        if ($status === 'paid') {
+            $amount_paid ??= $amount_due;
+            $paid_date ??= current_time('Y-m-d');
+        }
+        if ($status === 'waived') {
+            $paid_date = null;
+        }
+        $data = [
+            'amount_due'  => $amount_due === null ? null : round($amount_due, 2),
+            'amount_paid' => $amount_paid === null ? null : round($amount_paid, 2),
+            'paid_date'   => $paid_date,
+            'status'      => $status,
+        ];
+        $existing_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}avm_fees WHERE member_id = %d AND year = %d",
+            $member_id,
+            $year
+        ));
+        if ($existing_id) {
+            return $wpdb->update("{$wpdb->prefix}avm_fees", $data, ['id' => $existing_id]) !== false;
+        }
+        return (bool) $wpdb->insert("{$wpdb->prefix}avm_fees", ['member_id' => $member_id, 'year' => $year] + $data);
+    }
+
+    /** Removes one record; returns the member it belonged to (0 when there was none). */
+    public static function delete_fee(int $fee_id): int {
+        global $wpdb;
+        $member_id = (int) $wpdb->get_var($wpdb->prepare("SELECT member_id FROM {$wpdb->prefix}avm_fees WHERE id = %d", $fee_id));
+        if ($member_id) {
+            $wpdb->delete("{$wpdb->prefix}avm_fees", ['id' => $fee_id], ['%d']);
+        }
+        return $member_id;
     }
 
     // -------------------------------------------------------------------
@@ -2287,30 +2344,26 @@ class AVPVH_DB {
 
     /**
      * The first and last year with a paid or waived fee or an activity,
-     * as a suggestion for joined_year/left_year; null without any.
+     * as a suggestion for joined_year/left_year; null without any. Fees
+     * come from AVPVH_Fees, so a bookkeeping plugin's payments count too.
      *
      * @return array{from:int,to:int}|null
      */
     public static function suggest_membership_years(int $member_id): ?array {
         global $wpdb;
         $p = $wpdb->prefix;
-        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- admin page, one member
-        $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT MIN(y) AS from_year, MAX(y) AS to_year FROM (
-                SELECT year AS y FROM {$p}avm_fees WHERE member_id = %d AND status IN ('paid','waived')
-                UNION ALL
-                SELECT a.year FROM {$p}avm_activity_participation ap
-                    JOIN {$p}avm_activities a ON a.id = ap.activity_id
-                    WHERE ap.member_id = %d
-            ) years",
-            $member_id,
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- admin page, one member
+        $years = array_map('intval', $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT a.year FROM {$p}avm_activity_participation ap
+                JOIN {$p}avm_activities a ON a.id = ap.activity_id
+                WHERE ap.member_id = %d AND a.year IS NOT NULL",
             $member_id
-        ));
-        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        if (!$row || !(int) $row->from_year) {
+        )));
+        $years = array_filter(array_merge($years, AVPVH_Fees::settled_years($member_id)));
+        if (!$years) {
             return null;
         }
-        return ['from' => (int) $row->from_year, 'to' => (int) $row->to_year];
+        return ['from' => min($years), 'to' => max($years)];
     }
 
     public static function log_member_change(int $member_id, string $field_name, ?string $old_value, ?string $new_value): void {
@@ -2374,6 +2427,7 @@ class AVPVH_DB {
                 self::log_member_change($member_id, $field, (string) $old_value, (string) $new_value);
             }
         }
+        self::member_changed($member_id);
     }
 
     /** Case-insensitive first+last name match — used by the "Nieuwe persoon" admin form to warn before creating what might be a duplicate. Doesn't consider suffix, since a treasurer typing e.g. "Jan Voorbeeld" should still be warned about "Jan van Voorbeeld". */
@@ -2542,7 +2596,20 @@ class AVPVH_DB {
             ],
             ['%s', '%s', '%s', '%s', '%s', '%d', '%s']
         );
-        return (int) $wpdb->insert_id;
+        $member_id = (int) $wpdb->insert_id;
+        if ($member_id) {
+            self::member_changed($member_id);
+        }
+        return $member_id;
+    }
+
+    /**
+     * Tells other plugins a member's data changed (status, birth date,
+     * flags, ...), so e.g. avpvh-bookkeeping can recompute the
+     * contribution. Fired after the change is saved.
+     */
+    public static function member_changed(int $member_id): void {
+        do_action('avpvh_mbrs_member_changed', $member_id);
     }
 
     // -------------------------------------------------------------------
@@ -2616,6 +2683,7 @@ class AVPVH_DB {
                 self::update_member_with_audit($member_id, ['status' => 'inactive'], ['%s']);
             }
         }
+        self::member_changed($member_id);
     }
 
     /** True if any of the given flag IDs has sets_inactive = 1. */
