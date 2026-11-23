@@ -259,12 +259,15 @@ class AVPVH_Fees_Admin {
     }
 
     private static function redirect_list(array $args): never {
-        wp_safe_redirect(add_query_arg(['page' => self::LIST_PAGE] + $args, admin_url('admin.php')));
-        exit;
+        self::redirect(['page' => self::LIST_PAGE] + $args);
     }
 
     private static function redirect_detail(int $member_id, array $args): never {
-        wp_safe_redirect(add_query_arg(['page' => self::DETAIL_PAGE, 'id' => $member_id, 'tab' => 'fees'] + $args, admin_url('admin.php')));
+        self::redirect(['page' => self::DETAIL_PAGE, 'id' => $member_id, 'tab' => 'fees'] + $args);
+    }
+
+    private static function redirect(array $args): never {
+        wp_safe_redirect(add_query_arg($args, admin_url('admin.php')));
         exit;
     }
 }

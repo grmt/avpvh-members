@@ -38,10 +38,10 @@ function wp_unslash($v) { return $v; }
 function sanitize_key($v) { return strtolower(preg_replace('/[^a-z0-9_\-]/i', '', (string) $v)); }
 function sanitize_text_field($v) { return trim((string) $v); }
 function check_admin_referer($a) { return true; }
-function wp_safe_redirect($url) { throw new Redirected($url); }
+function wp_safe_redirect($url) { if ($GLOBALS['redirect_throws'] ?? true) { throw new Redirected($url); } $GLOBALS['redirected'] = $url; }
 function wp_die($msg = '', $code = 0) { throw new Died((string) $code); }
 function wp_list_pluck(array $list, string $field) { return array_map(static fn($o) => $o->$field, $list); }
-function do_action(...$args) {}
+function do_action(string $hook, ...$args) { $GLOBALS['actions'][] = [$hook, ...$args]; }
 function add_action(...$args) {}
 function apply_filters(string $hook, $value, ...$args) {
     return isset($GLOBALS['filters'][$hook]) ? ($GLOBALS['filters'][$hook])($value, ...$args) : $value;
@@ -110,7 +110,9 @@ final class Fake_WPDB {
         return null;
     }
     public function get_col($sql) { return str_contains($sql, 'avm_activity_participation') ? ['2019', '2021'] : []; }
+    public int $insert_id = 0;
     public function insert($table, $data, $format = null) {
+        if ($table === 'wp_avm_members') { $this->insert_id = 50; return 1; }
         if ($table !== 'wp_avm_fees') { return false; }
         $id = $this->next++;
         $this->fees[$id] = (object) (['id' => $id] + $data + [
@@ -168,6 +170,9 @@ check('membership years from activities and settled fees', $years === ['from' =>
 $deleted = fee_of(2, 2024)->id;
 check('delete returns the member', AVPVH_DB::delete_fee($deleted) === 2 && fee_of(2, 2024) === null);
 check('delete unknown returns 0', AVPVH_DB::delete_fee(9999) === 0);
+
+$GLOBALS['actions'] = [];
+check('create_member announces the new member', AVPVH_DB::create_member('u50', 'Cas', '', 'Jansen', null, 'active') === 50 && $GLOBALS['actions'] === [['avpvh_mbrs_member_changed', 50]]);
 
 // --- handlers ---------------------------------------------------------------
 $admin = new AVPVH_Fees_Admin();
@@ -228,4 +233,13 @@ check('tab shows the bookkeeping status without forms', str_contains($tab, 'Deel
 $_POST = ['member_id' => '1', 'year' => '2026', 'status' => 'paid'];
 check('handlers refuse while the bookkeeping is in charge', redirect_of([$admin, 'handle_save']) === 'died:409');
 
-echo PHP_EOL . 'Done.' . PHP_EOL;
+// Last: a real redirect ends the request (exit), so the rest is reported at shutdown.
+$GLOBALS['filters'] = [];
+$GLOBALS['redirect_throws'] = false;
+register_shutdown_function(static function (): void {
+    check('handler exits right after the redirect', str_contains($GLOBALS['redirected'] ?? '', 'fees_error=input'));
+    echo PHP_EOL . 'Done.' . PHP_EOL;
+});
+$_POST = ['year' => '2027', 'amount' => ''];
+$admin->handle_generate();
+check('handler exits right after the redirect', false);
