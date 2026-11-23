@@ -373,7 +373,7 @@ function avpvh_merge_member_combo(string $name, array $members, int $selected_id
                 <?php endforeach; ?>
                 <?php foreach ($preview['fees'] as $fee) : ?>
                     <li>
-                        <?php echo esc_html(sprintf(/* translators: 1: year, 2: fee status */ __('Contributie %1$s (%2$s)', 'avpvh-members'), $fee['year'], $fee['status'] === 'paid' ? __('Betaald', 'avpvh-members') : ($fee['status'] === 'unpaid' ? __('Openstaand', 'avpvh-members') : $fee['status']))); ?>
+                        <?php echo esc_html(sprintf(/* translators: 1: year, 2: fee status */ __('Contributie %1$s (%2$s)', 'avpvh-members'), $fee['year'], AVPVH_Fees::label((string) $fee['status']))); ?>
                         <?php if ($fee['conflict']) : ?>
                             — <em><?php echo $fee['wins'] ? esc_html__('deze vervangt de openstaande regel van het behouden lid', 'avpvh-members') : esc_html__('de regel van het behouden lid blijft, deze vervalt', 'avpvh-members'); ?></em>
                         <?php endif; ?>

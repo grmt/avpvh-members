@@ -8,7 +8,6 @@ class AVPVH_Admin {
         add_filter('set_screen_option_avpvh_login_attempts_per_page', static function ($status, $option, $value) {
             return max(1, min(500, (int) $value));
         }, 10, 3);
-        add_action('admin_post_avpvh_mark_fee_paid', [$this, 'handle_mark_fee_paid']);
         add_action('admin_post_avpvh_save_settings', [$this, 'handle_save_settings']);
         add_action('admin_post_avpvh_test_oauth',    [$this, 'handle_test_oauth']);
         add_action('admin_post_avpvh_add_identity',   [$this, 'handle_add_identity']);
@@ -593,23 +592,6 @@ class AVPVH_Admin {
         }
 
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
-        exit;
-    }
-
-    public function handle_mark_fee_paid(): void {
-        check_admin_referer('avpvh_mark_fee_paid');
-        if (!$this->can_manage_members()) {
-            wp_die(esc_html__('Geen toegang.', 'avpvh-members'), 403);
-        }
-        $fee_id    = absint(wp_unslash($_POST['fee_id'] ?? 0));
-        $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
-        if ($fee_id > 0) {
-            AVPVH_DB::mark_fee_paid($fee_id);
-        }
-        wp_safe_redirect(add_query_arg(
-            ['page' => 'avpvh-member-detail', 'id' => $member_id, 'updated' => '1'],
-            admin_url('admin.php')
-        ));
         exit;
     }
 

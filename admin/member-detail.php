@@ -54,7 +54,6 @@ $current_address_count = count(array_filter(
     static fn(object $a): bool => (!$a->valid_from || $a->valid_from <= $today) && (!$a->valid_until || $a->valid_until >= $today)
 ));
 $activities = AVPVH_DB::get_activities_for_member($member_id);
-$fees       = AVPVH_DB::get_fees_for_member($member_id);
 $identities = AVPVH_DB::get_member_identities($member_id);
 $all_flags  = AVPVH_DB::get_all_flags();
 $member_flag_ids = wp_list_pluck(AVPVH_DB::get_flags_for_member($member_id), 'id');
@@ -601,36 +600,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     </div>
 
     <?php elseif ($active_tab === 'fees') : ?>
-    <h2><?php esc_html_e('Contributieoverzicht', 'avpvh-members'); ?></h2>
-    <div style="overflow-x:auto">
-    <table class="wp-list-table widefat striped">
-        <thead><tr><th><?php esc_html_e('Jaar', 'avpvh-members'); ?></th><th><?php esc_html_e('Verschuldigd', 'avpvh-members'); ?></th><th><?php esc_html_e('Betaald', 'avpvh-members'); ?></th><th><?php esc_html_e('Betaaldatum', 'avpvh-members'); ?></th><th><?php esc_html_e('Status', 'avpvh-members'); ?></th><th><?php esc_html_e('Actie', 'avpvh-members'); ?></th></tr></thead>
-        <tbody>
-        <?php if (!$fees) : ?>
-            <tr><td colspan="6"><?php esc_html_e('Geen contributierecords.', 'avpvh-members'); ?></td></tr>
-        <?php else : foreach ($fees as $f) : ?>
-            <tr>
-                <td><?php echo esc_html($f->year); ?></td>
-                <td><?php echo $f->amount_due !== null ? '€ ' . number_format((float) $f->amount_due, 2, ',', '.') : '—'; ?></td>
-                <td><?php echo $f->amount_paid !== null ? '€ ' . number_format((float) $f->amount_paid, 2, ',', '.') : '—'; ?></td>
-                <td><?php echo esc_html($f->paid_date ?: '—'); ?></td>
-                <td><?php echo esc_html($f->status === 'paid' ? __('Betaald', 'avpvh-members') : ($f->status === 'unpaid' ? __('Openstaand', 'avpvh-members') : $f->status)); ?></td>
-                <td>
-                    <?php if ($f->status !== 'paid') : ?>
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('avpvh_mark_fee_paid'); ?>
-                        <input type="hidden" name="action"    value="avpvh_mark_fee_paid">
-                        <input type="hidden" name="fee_id"    value="<?php echo esc_attr($f->id); ?>">
-                        <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                        <button type="submit" class="button button-small"><?php esc_html_e('Markeer als betaald', 'avpvh-members'); ?></button>
-                    </form>
-                    <?php endif; ?>
-                </td>
-            </tr>
-        <?php endforeach; endif; ?>
-        </tbody>
-    </table>
-    </div>
+    <?php AVPVH_Fees_Admin::render_member_tab($member_id); ?>
 
     <?php elseif ($active_tab === 'relationships') : ?>
     <?php AVPVH_Member_Profile_Sections::render_relationships($member); ?>

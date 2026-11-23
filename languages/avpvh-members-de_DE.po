@@ -3295,3 +3295,85 @@ msgid "%d mail"
 msgid_plural "%d mails"
 msgstr[0] "%d E-Mail"
 msgstr[1] "%d E-Mails"
+
+#: includes/class-fees.php
+msgid "Deels betaald"
+msgstr "Teilweise bezahlt"
+
+#: includes/class-fees.php
+msgid "Niet aangemaakt"
+msgstr "Nicht angelegt"
+
+#: includes/class-fees-admin.php
+#. translators: %s: name of the plugin that keeps the contribution, e.g. Boekhouding
+#, php-format
+msgid "De contributie wordt bijgehouden in de %s; de kolom hieronder toont de stand daaruit."
+msgstr "Der Mitgliedsbeitrag wird in der %s geführt; die Spalte unten zeigt den Stand daraus."
+
+#: includes/class-fees-admin.php
+msgid "Naar de tarieven"
+msgstr "Zu den Tarifen"
+
+#: includes/class-fees-admin.php
+msgid "Contributie aanmaken voor een jaar"
+msgstr "Mitgliedsbeiträge für ein Jahr anlegen"
+
+#: includes/class-fees-admin.php
+msgid "Bedrag (€)"
+msgstr "Betrag (€)"
+
+#: includes/class-fees-admin.php
+msgid "Aanmaken voor alle actieve leden"
+msgstr "Für alle aktiven Mitglieder anlegen"
+
+#: includes/class-fees-admin.php
+msgid "Leden die al een regel voor dat jaar hebben, blijven zoals ze zijn. Leden met een kenmerk \"Vrijgesteld van contributie\" krijgen Vrijgesteld. Betalingen zet je daarna per lid op het tabblad Contributie."
+msgstr "Mitglieder, die für dieses Jahr schon eine Zeile haben, bleiben unverändert. Mitglieder mit dem Merkmal \"Vrijgesteld van contributie\" erhalten Befreit. Zahlungen trägst du danach pro Mitglied im Reiter Beitrag ein."
+
+#: includes/class-fees-admin.php
+msgid "Kon de contributie niet opslaan."
+msgstr "Der Beitrag konnte nicht gespeichert werden."
+
+#: includes/class-fees-admin.php
+#. translators: %s: name of the plugin that keeps the contribution, e.g. Boekhouding
+#, php-format
+msgid "Bijgehouden in de %s."
+msgstr "Geführt in der %s."
+
+#: includes/class-fees-admin.php
+msgid "Bekijken of wijzigen"
+msgstr "Ansehen oder ändern"
+
+#: includes/class-fees-admin.php
+msgid "Geen contributie vastgelegd."
+msgstr "Kein Beitrag erfasst."
+
+#: includes/class-fees-admin.php
+msgid "Deze contributieregel verwijderen?"
+msgstr "Diese Beitragszeile löschen?"
+
+#: includes/class-fees-admin.php
+msgid "Jaar toevoegen"
+msgstr "Jahr hinzufügen"
+
+#: includes/class-fees-admin.php
+msgid "Verschuldigd (€)"
+msgstr "Fällig (€)"
+
+#: includes/class-fees-admin.php
+msgid "Betaald (€)"
+msgstr "Bezahlt (€)"
+
+#: includes/class-fees-admin.php
+msgid "Vul een jaar en een bedrag in."
+msgstr "Gib ein Jahr und einen Betrag ein."
+
+#: includes/class-fees-admin.php
+#. translators: 1: year, 2: records created, 3: records waived, 4: members that already had one
+#, php-format
+msgid "Contributie %1$d: %2$d aangemaakt, %3$d vrijgesteld, %4$d hadden er al een."
+msgstr "Beitrag %1$d: %2$d angelegt, %3$d befreit, %4$d hatten schon einen."
+
+#: includes/class-fees-admin.php
+msgid "De contributie wordt in de boekhouding bijgehouden."
+msgstr "Der Beitrag wird in der Buchhaltung geführt."

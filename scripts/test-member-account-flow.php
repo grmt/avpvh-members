@@ -33,6 +33,7 @@ function wp_update_user(array $data): int {
     return $data['ID'];
 }
 function get_current_user_id(): int { return 501; }
+function do_action(string $hook, mixed ...$args): void {}
 class AVPVH_Directory_Cache { public static function table(): string { return 'wp_avm_directory_users'; } }
 $wpdb = new class {
     public string $prefix = 'wp_';
