@@ -898,19 +898,18 @@ class AVPVH_Admin {
         // Only PvH groups are on the form, so only those may change: a
         // member's groups of other tenants (or lldap_* system groups) must
         // survive a save untouched, and a forged POST can't add them.
-        $pvh_groups = AVPVH_Directory::only_pvh_groups($all_groups);
-        $selected   = array_values(array_intersect(array_map('strtolower', array_map('sanitize_text_field', (array) wp_unslash($_POST['groups'] ?? []))), $pvh_groups));
-        $current    = AVPVH_Directory::only_pvh_groups($current_groups);
+        // leden/ex-leden follow the status and aren't changed here either.
+        [$to_add, $to_remove] = AVPVH_Member_Status::group_changes($all_groups, $current_groups, (array) wp_unslash($_POST['groups'] ?? []));
 
         $had_error = false;
-        foreach (array_diff($selected, $current) as $group) {
+        foreach ($to_add as $group) {
             $result = AVPVH_Directory::add_to_group($member->lldap_user_id, $group);
             if (is_wp_error($result)) {
                 $had_error = true;
                 error_log("AVPVH_Admin: failed to add member {$member_id} to group {$group}: " . $result->get_error_message()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operational failure log
             }
         }
-        foreach (array_diff($current, $selected) as $group) {
+        foreach ($to_remove as $group) {
             $result = AVPVH_Directory::remove_from_group($member->lldap_user_id, $group);
             if (is_wp_error($result)) {
                 $had_error = true;

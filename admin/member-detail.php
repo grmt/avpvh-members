@@ -173,6 +173,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <?php elseif (!empty($_GET['groups_error'])) : ?>
         <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Groepen konden niet (volledig) worden bijgewerkt — zie het serverlog.', 'avpvh-members'); ?></p></div>
     <?php endif; ?>
+    <?php AVPVH_Member_Status::render_notice(); ?>
     <?php if ($sync_msg) : ?>
         <div class="notice notice-<?php echo $sync_ok ? 'success' : 'error'; ?> is-dismissible"><p><?php echo esc_html($sync_msg); ?></p></div>
     <?php endif; ?>
@@ -217,7 +218,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                 <p class="description"><?php echo esc_html(sprintf(/* translators: %s: account username */ __('Dit is het contactadres van het account zelf, los van de Inlogadressen hieronder — al wordt het automatisch bijgewerkt naar het adres dat daar als primair wordt ingesteld. Leeg laten en opslaan zet het om naar een placeholder-adres (%s@avpvh.local), hetzelfde als bij een lid zonder echt e-mailadres.', 'avpvh-members'), $member->lldap_user_id)); ?></p>
             </td>
         </tr>
-        <tr><th><?php esc_html_e('Status', 'avpvh-members'); ?></th><td><?php echo esc_html(AVPVH_Roles::get_status_label($member->status)); ?></td></tr>
+        <?php AVPVH_Member_Status::render_status_row($member); ?>
         <tr><th><?php esc_html_e('Telefoon', 'avpvh-members'); ?></th><td><?php echo esc_html($member->phone); ?></td></tr>
         <tr><th><?php esc_html_e('Mobiel', 'avpvh-members'); ?></th><td><?php echo esc_html($member->mobile); ?></td></tr>
         <tr><th><?php esc_html_e('Noodcontact', 'avpvh-members'); ?></th><td><?php echo esc_html(AVPVH_Member_Merge::field_display($member, 'emergency_contact')); ?></td></tr>
@@ -544,7 +545,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
 
     <details class="avpvh-detail-section" name="avpvh-detail-section">
     <summary><h2><?php esc_html_e('Groepen (toegangsrechten)', 'avpvh-members'); ?></h2></summary>
-    <p class="description"><?php esc_html_e('Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor "Zoeken in documenten") — los van de kenmerken hierboven, die alleen labels/filters zijn.', 'avpvh-members'); ?></p>
+    <p class="description"><?php esc_html_e('Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor "Zoeken in documenten") — los van de kenmerken hierboven, die alleen labels/filters zijn. De groepen leden en ex-leden volgen de status hierboven.', 'avpvh-members'); ?></p>
     <?php
     $all_groups     = AVPVH_Directory::list_groups();
     $current_groups = AVPVH_Directory::get_user_groups($member->lldap_user_id);
@@ -561,11 +562,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
             <p>
                 <?php foreach ($all_groups as $group) : ?>
-                    <label style="display:inline-block;margin-right:1.5rem">
-                        <input type="checkbox" name="groups[]" value="<?php echo esc_attr($group); ?>"
-                            <?php checked(in_array($group, $current_groups, true)); ?>>
-                        <?php echo esc_html($group); ?>
-                    </label>
+                    <?php AVPVH_Member_Status::render_group_checkbox($group, $current_groups); ?>
                 <?php endforeach; ?>
                 <?php if (!$all_groups) : ?>
                     <em><?php esc_html_e('Geen groepen gevonden.', 'avpvh-members'); ?></em>

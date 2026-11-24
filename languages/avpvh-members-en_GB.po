@@ -866,8 +866,8 @@ msgid "Groepen (toegangsrechten)"
 msgstr "Groups (access rights)"
 
 #: admin/member-detail.php:327
-msgid "Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor \"Zoeken in documenten\") — los van de kenmerken hierboven, die alleen labels/filters zijn."
-msgstr "Group membership controls actual access (e.g. secretary permissions, the book group for \"Search documents\") — separate from the attributes above, which are only labels/filters."
+msgid "Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor \"Zoeken in documenten\") — los van de kenmerken hierboven, die alleen labels/filters zijn. De groepen leden en ex-leden volgen de status hierboven."
+msgstr "Group membership controls actual access (e.g. secretary permissions, the book group for \"Search documents\") — separate from the attributes above, which are only labels/filters. The groups leden and ex-leden follow the status above."
 
 #: admin/member-detail.php:336
 msgid "Kon de groepen niet ophalen."
@@ -3377,3 +3377,35 @@ msgstr "Membership fee %1$d: %2$d created, %3$d exempt, %4$d already had one."
 #: includes/class-fees-admin.php
 msgid "De contributie wordt in de boekhouding bijgehouden."
 msgstr "The membership fee is kept in the bookkeeping."
+
+#: includes/class-member-status.php
+msgid "Lid of status niet gevonden."
+msgstr "Member or status not found."
+
+#: includes/class-member-status.php
+msgid "Alleen een beheerder mag het e-mailadres, de inlogadressen of de status van een beheerder of bestuurslid wijzigen."
+msgstr "Only an administrator may change the e-mail address, the login addresses or the status of an administrator or board member."
+
+#: includes/class-member-status.php
+msgid "Zet het lid ook in de groep leden of ex-leden (een bezoeker in geen van beide). Ex-lid of bezoeker haalt bestuursrollen en beheerrechten weg."
+msgstr "Also puts the member in the group leden or ex-leden (a visitor in neither). Ex-member or visitor removes board roles and admin rights."
+
+#: includes/class-member-status.php
+msgid "Volgt de status"
+msgstr "Follows the status"
+
+#: includes/class-member-status.php
+msgid "Status niet gewijzigd: dit lid heeft een kenmerk dat inactief maakt (zoals Overleden of Geroyeerd). Haal dat kenmerk eerst weg."
+msgstr "Status not changed: this member has an attribute that makes them inactive (such as Deceased or Expelled). Remove that attribute first."
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen, maar de groepen leden/ex-leden konden niet worden bijgewerkt. Probeer het opnieuw."
+msgstr "Status saved, but the groups leden/ex-leden could not be updated. Please try again."
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen. Dit lid is daardoor uit het bestuur, de bestuursrollen en de beheergroepen gehaald. Vergeet de KVK niet als diegene daar als bestuurder staat."
+msgstr "Status saved. This member has therefore been removed from the board, the board roles and the admin groups. Do not forget the KVK if they are registered there as a director."
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen."
+msgstr "Status saved."

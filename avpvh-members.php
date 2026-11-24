@@ -3,7 +3,7 @@
  * Plugin Name: AV-PvH Members
  * Plugin URI:  https://github.com/grmt/avpvh-members
  * Description: Member login, access control, fee tracking and admin for AV Philips van Horne.
- * Version:     1.0.133
+ * Version:     1.0.134
  * Author:      grmt
  * Author URI:  https://github.com/grmt/avpvh-members
  * Text Domain: avpvh-members
@@ -80,6 +80,7 @@ require_once AVPVH_PLUGIN_DIR . 'includes/class-activity-participation-form.php'
 require_once AVPVH_PLUGIN_DIR . 'includes/class-directory-consent.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-newsletter-consent.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-admin.php';
+require_once AVPVH_PLUGIN_DIR . 'includes/class-member-status.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-fees-admin.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-protection.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-media-token.php';
@@ -143,6 +144,7 @@ $avpvh_newsletter_consent = new AVPVH_Newsletter_Consent();
 $avpvh_member_profile_form = new AVPVH_Member_Profile_Form();
 AVPVH_Address_Entry_Check::init();
 $avpvh_admin = new AVPVH_Admin();
+AVPVH_Member_Status::init();
 $avpvh_fees_admin = new AVPVH_Fees_Admin();
 $avpvh_media_protection = new AVPVH_Media_Protection();
 $avpvh_media_token = new AVPVH_Media_Token();

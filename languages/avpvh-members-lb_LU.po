@@ -866,8 +866,8 @@ msgid "Groepen (toegangsrechten)"
 msgstr "Gruppen (Zougangsrechter)"
 
 #: admin/member-detail.php:327
-msgid "Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor \"Zoeken in documenten\") — los van de kenmerken hierboven, die alleen labels/filters zijn."
-msgstr "D'Gruppememberschaft reegelt de richtegen Zougang (z. B. Sekretär-Rechter, d'Bicher-Grupp fir \"Sichen an Dokumenter\") — onofhängeg vun de Merkmoler hei uewen, déi nëmme Labelen/Filtere sinn."
+msgid "Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor \"Zoeken in documenten\") — los van de kenmerken hierboven, die alleen labels/filters zijn. De groepen leden en ex-leden volgen de status hierboven."
+msgstr "D'Gruppememberschaft reegelt de richtegen Zougang (z. B. Sekretär-Rechter, d'Bicher-Grupp fir \"Sichen an Dokumenter\") — onofhängeg vun de Merkmoler hei uewen, déi nëmme Labelen/Filtere sinn. D'Gruppe leden an ex-leden riichte sech nom Status hei uewen."
 
 #: admin/member-detail.php:336
 msgid "Kon de groepen niet ophalen."
@@ -3377,3 +3377,35 @@ msgstr "Bäitrag %1$d: %2$d ugeluecht, %3$d befreit, %4$d haten der schonn een."
 #: includes/class-fees-admin.php
 msgid "De contributie wordt in de boekhouding bijgehouden."
 msgstr "De Bäitrag gëtt an der Comptabilitéit gefouert."
+
+#: includes/class-member-status.php
+msgid "Lid of status niet gevonden."
+msgstr "Member oder Status net fonnt."
+
+#: includes/class-member-status.php
+msgid "Alleen een beheerder mag het e-mailadres, de inlogadressen of de status van een beheerder of bestuurslid wijzigen."
+msgstr "Nëmmen en Administrateur däerf d'E-Mail-Adress, d'Login-Adressen oder de Status vun engem Administrateur oder Comitésmember änneren."
+
+#: includes/class-member-status.php
+msgid "Zet het lid ook in de groep leden of ex-leden (een bezoeker in geen van beide). Ex-lid of bezoeker haalt bestuursrollen en beheerrechten weg."
+msgstr "Setzt de Member och an d'Grupp leden oder ex-leden (e Besucher an keng vun deenen zwou). Ex-Member oder Besucher hëlt Comitésrollen an Administratiounsrechter ewech."
+
+#: includes/class-member-status.php
+msgid "Volgt de status"
+msgstr "Riicht sech nom Status"
+
+#: includes/class-member-status.php
+msgid "Status niet gewijzigd: dit lid heeft een kenmerk dat inactief maakt (zoals Overleden of Geroyeerd). Haal dat kenmerk eerst weg."
+msgstr "Status net geännert: Dëse Member huet e Merkmol, dat en inaktiv mécht (wéi Verstuerwen oder Ausgeschloss). Huel dat Merkmol als éischt ewech."
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen, maar de groepen leden/ex-leden konden niet worden bijgewerkt. Probeer het opnieuw."
+msgstr "Status gespäichert, mä d'Gruppe leden/ex-leden konnten net aktualiséiert ginn. Probéier et nach eng Kéier."
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen. Dit lid is daardoor uit het bestuur, de bestuursrollen en de beheergroepen gehaald. Vergeet de KVK niet als diegene daar als bestuurder staat."
+msgstr "Status gespäichert. Dëse Member gouf doduerch aus dem Comité, de Comitésrollen an den Administratiounsgruppe geholl. Vergiess d'KVK net, wann déi Persoun do als Comitésmember agedroen ass."
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen."
+msgstr "Status gespäichert."

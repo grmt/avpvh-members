@@ -923,10 +923,7 @@ msgid "Groepen (toegangsrechten)"
 msgstr ""
 
 #: admin/member-detail.php:327
-msgid ""
-"Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-"
-"groep voor \"Zoeken in documenten\") — los van de kenmerken hierboven, die "
-"alleen labels/filters zijn."
+msgid "Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor \"Zoeken in documenten\") — los van de kenmerken hierboven, die alleen labels/filters zijn. De groepen leden en ex-leden volgen de status hierboven."
 msgstr ""
 
 #: admin/member-detail.php:336
@@ -3596,4 +3593,36 @@ msgstr ""
 
 #: includes/class-fees-admin.php
 msgid "De contributie wordt in de boekhouding bijgehouden."
+msgstr ""
+
+#: includes/class-member-status.php
+msgid "Lid of status niet gevonden."
+msgstr ""
+
+#: includes/class-member-status.php
+msgid "Alleen een beheerder mag het e-mailadres, de inlogadressen of de status van een beheerder of bestuurslid wijzigen."
+msgstr ""
+
+#: includes/class-member-status.php
+msgid "Zet het lid ook in de groep leden of ex-leden (een bezoeker in geen van beide). Ex-lid of bezoeker haalt bestuursrollen en beheerrechten weg."
+msgstr ""
+
+#: includes/class-member-status.php
+msgid "Volgt de status"
+msgstr ""
+
+#: includes/class-member-status.php
+msgid "Status niet gewijzigd: dit lid heeft een kenmerk dat inactief maakt (zoals Overleden of Geroyeerd). Haal dat kenmerk eerst weg."
+msgstr ""
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen, maar de groepen leden/ex-leden konden niet worden bijgewerkt. Probeer het opnieuw."
+msgstr ""
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen. Dit lid is daardoor uit het bestuur, de bestuursrollen en de beheergroepen gehaald. Vergeet de KVK niet als diegene daar als bestuurder staat."
+msgstr ""
+
+#: includes/class-member-status.php
+msgid "Status opgeslagen."
 msgstr ""
