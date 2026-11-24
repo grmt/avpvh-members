@@ -74,6 +74,8 @@ php scripts/test-ledenlijst-render.php
 php scripts/test-db-upgrade-steps.php
 php scripts/test-member-merge-execute.php
 php scripts/test-member-status.php
+php scripts/test-member-status-direct.php
+php scripts/test-member-detail-groups.php
 php scripts/test-role-labels.php
 php scripts/test-address-normalizer.php
 php scripts/test-name-matcher-loose.php
