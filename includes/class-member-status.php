@@ -86,7 +86,7 @@ class AVPVH_Member_Status {
         $labels = AVPVH_Roles::get_status_labels();
         ?>
         <tr>
-            <th><?php esc_html_e('Status', 'avpvh-members'); ?></th>
+            <th scope="row"><?php esc_html_e('Status', 'avpvh-members'); ?></th>
             <td>
                 <?php if (!AVPVH_Roles::can_manage_members()) : ?>
                     <?php echo esc_html(AVPVH_Roles::get_status_label((string) $member->status)); ?>
