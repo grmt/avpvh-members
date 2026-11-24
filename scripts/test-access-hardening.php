@@ -143,6 +143,9 @@ function admin_url(string $path = ''): string { return home_url('/wp-admin/' . $
 function esc_url(string $u): string { return $u; }
 function add_action(string $h, mixed ...$a): void {}
 function add_filter(string $h, mixed ...$a): void {}
+function apply_filters(string $h, mixed $value, mixed ...$a): mixed {
+    return isset($GLOBALS['test_filters'][$h]) ? ($GLOBALS['test_filters'][$h])($value, ...$a) : $value;
+}
 function add_shortcode(string $t, callable $c): void {}
 function sanitize_key(string $k): string { return preg_replace('/[^a-z0-9_\-]/', '', strtolower($k)); }
 function sanitize_text_field(string $v): string { return trim($v); }
@@ -456,6 +459,13 @@ $r_users = $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('
 check('1FA admin blocked on GET /wp/v2/users', $r_users instanceof WP_Error && $r_users->data['status'] === 403);
 $r_own = $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/avpvh/v1/oauth/google/start', 'GET'));
 check('1FA admin allowed on /avpvh/v1/ routes', $r_own === null);
+check('1FA admin blocked on POST to an unregistered read route', $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/avpvh-fav/v1/search', 'POST')) instanceof WP_Error);
+$GLOBALS['test_filters']['avpvh_mbrs_2fa_exempt_rest_routes'] = static fn(array $r): array => [...$r, '/avpvh-fav/v1/search', '/x/v1/*', 42];
+check('1FA admin allowed on a registered read-only POST route', $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/avpvh-fav/v1/search', 'POST')) === null);
+check('exempt routes match exactly, not by prefix', $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/avpvh-fav/v1/search/x', 'POST')) instanceof WP_Error);
+check('other routes of that plugin stay behind 2FA', $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/avpvh-fav/v1/scan/delete', 'POST')) instanceof WP_Error);
+check('wildcard-looking exempt entries are ignored', $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request('/x/v1/anything', 'POST')) instanceof WP_Error);
+unset($GLOBALS['test_filters']['avpvh_mbrs_2fa_exempt_rest_routes']);
 
 $pagenow = 'admin-post.php';
 $_REQUEST['action'] = 'avpvh_save_settings';

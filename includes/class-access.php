@@ -182,6 +182,9 @@ class AVPVH_Access {
         if (str_starts_with($route, '/avpvh/v1/')) {
             return $response;
         }
+        if (in_array($route, self::read_only_rest_routes(), true)) {
+            return $response;
+        }
         $is_privileged = current_user_can('manage_options')
             || (class_exists('AVPVH_Roles') && AVPVH_Roles::current_user_needs_wp_admin());
         if (!$is_privileged) {
@@ -198,6 +201,23 @@ class AVPVH_Access {
             );
         }
         return $response;
+    }
+
+    /**
+     * Exact REST routes that use POST but only read, such as
+     * avpvh-find-and-view's search proxy (/avpvh-fav/v1/search). Other
+     * plugins add theirs with the avpvh_mbrs_2fa_exempt_rest_routes filter;
+     * a route that changes anything must never be added. The route's own
+     * permission_callback still applies.
+     *
+     * @return list<string>
+     */
+    private static function read_only_rest_routes(): array {
+        $routes = apply_filters('avpvh_mbrs_2fa_exempt_rest_routes', []);
+        if (!is_array($routes)) {
+            return [];
+        }
+        return array_values(array_filter($routes, static fn($r): bool => is_string($r) && preg_match('#^/[a-z0-9_-]+/v[0-9]+/[A-Za-z0-9_/-]+$#D', $r) === 1));
     }
 
     /**
