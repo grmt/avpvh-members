@@ -34,7 +34,13 @@ function current_user_can($cap) { return $GLOBALS['is_admin']; }
 function wp_die($message, $title = '', $args = []) { throw new Test_Die(($args['response'] ?? 500) . ' ' . $message); }
 function add_query_arg(array $args, string $url) { return $url . '?' . http_build_query($args); }
 function admin_url($p = '') { return 'https://example.test/wp-admin/' . $p; }
-function wp_safe_redirect($url) { throw new Test_Redirect($url); }
+function wp_safe_redirect($url) {
+    if (!empty($GLOBALS['really_exit'])) {
+        $GLOBALS['redirected_to'] = $url;
+        return true;
+    }
+    throw new Test_Redirect($url);
+}
 function wp_nonce_field($action) { echo '<input type="hidden" name="_wpnonce" value="nonce-' . $action . '">'; }
 function selected($a, $b) { echo ((string) $a === (string) $b) ? ' selected' : ''; }
 function checked($v) { echo $v ? ' checked' : ''; }
@@ -191,3 +197,14 @@ check('notice: kenmerk blocks', str_contains($notice(['status_error' => 'flag'])
 check('notice: sync failed', str_contains($notice(['status_saved' => '1', 'status_error' => 'sync']), 'notice-error'));
 
 echo "Member status tests: OK\n";
+
+// Last: a real redirect ends the request (exit), as in WordPress.
+reset_state();
+$GLOBALS['really_exit'] = true;
+$_POST = ['member_id' => '1', 'status' => 'inactive'];
+register_shutdown_function(static function (): void {
+    $ok = ($GLOBALS['redirected_to'] ?? '') === 'https://example.test/wp-admin/admin.php?page=avpvh-member-detail&id=1&status_saved=1';
+    echo ($ok ? '[OK] ' : '[FAIL] ') . 'redirect ends the request' . PHP_EOL;
+});
+AVPVH_Member_Status::handle_set_status();
+echo "[FAIL] still running after the redirect\n";
