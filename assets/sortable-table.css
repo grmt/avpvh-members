@@ -36,6 +36,10 @@
 
 .avpvh-table-wrap {
     overflow-x: auto;
+    /* Containing block for absolutely positioned content, such as a
+       header's screen-reader-text label: without it that content escapes
+       the scroll frame and widens the whole page. */
+    position: relative;
 }
 
 .avpvh-sortable-table thead th {
