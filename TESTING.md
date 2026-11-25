@@ -52,6 +52,19 @@ vendor/bin/phpunit --coverage-text   # with pcov or xdebug
 
 The scripts also still run on their own: `php scripts/test-<name>.php`.
 
+## Python import scripts
+
+`tests/python/` holds pytest tests for the Python scripts in `scripts/`
+(currently `import-avpvh-camps.py`). They generate their workbooks in the
+test, use fictitious names and need no database. CI runs them in the
+`quality.yml` pytest job and passes the coverage of `scripts/` to SonarQube
+Cloud, so new Python code also needs 80% coverage. Locally:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements-test.txt pytest pytest-cov
+.venv/bin/python -m pytest --cov=scripts --cov-report=term-missing tests/python
+```
+
 ## Saved Ad-hoc Tests
 
 ```bash
