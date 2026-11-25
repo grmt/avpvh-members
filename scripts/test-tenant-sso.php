@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+ob_start();
 
 /**
  * Checks for the Rechtspreker tenant layer (includes/tenant/): config
@@ -36,6 +37,7 @@ class WP_REST_Request {
 class WP_Post { public int $ID = 0; }
 class WP_User {
     public array $roles = [];
+    public array $allcaps = ['read' => true];
     public string $user_login = '';
     public string $user_email = '';
     public string $display_name = '';
@@ -111,6 +113,7 @@ class WP_Session_Tokens {
         return $token === 'test-token' && $this->user_id === $GLOBALS['test_current'] ? $GLOBALS['test_session'] : null;
     }
 }
+function is_ssl(): bool { return true; }
 function wp_logout(): void { $GLOBALS['test_current'] = 0; $GLOBALS['test_auth_cookie'] = 0; }
 function do_action(string $hook, mixed ...$args): void {
     // Other login listeners are not part of this test.
@@ -526,7 +529,7 @@ check('author archive is a 404 for visitors, without the canonical redirect', $w
 $wp_query->is_404 = false;
 $test_current = $member_id;
 $accounts->hide_author_archive();
-check('author archive stays for logged-in users', !$wp_query->is_404);
+check('author archive hides account names from logged-in readers', $wp_query->is_404);
 
 // --- Back to the file after the login --------------------------------------
 
@@ -581,6 +584,39 @@ foreach ($test_logs as $line) {
         break;
     }
 }
+
+$test_current = $member_id;
+$test_users[$member_id]->roles = ['subscriber'];
+$test_users[$member_id]->allcaps = ['read' => true, 'custom_privileged_action' => true];
+check('raw custom capabilities make a subscriber ineligible for OAuth', !AVPVH_Tenant_SSO::user_is_subscriber_only($member_id));
+$before_meta = $test_meta[$member_id];
+$subject = $test_meta[$member_id][AVPVH_Tenant_SSO::SUBJECT_META];
+$uid = explode('/', $subject, 2)[1];
+$result = $sso->provision(['uid' => $uid, 'name' => 'Fictief Gewijzigd', 'email' => 'changed@example.invalid', 'groups' => ['vp4042-leden']], 'subscriber', true);
+check('OAuth refuses elevated existing accounts before provisioning changes metadata', is_wp_error($result) && $test_meta[$member_id] === $before_meta);
+$test_meta[$member_id][AVPVH_Tenant_SSO::CHECKED_META] = 0;
+$test_session = ['avpvh_login' => 'google', 'avpvh_checked' => 0];
+$_SERVER['REQUEST_URI'] = '/';
+$sso->recheck_session();
+check('OAuth recheck rejects raw elevated capabilities', $test_current === 0);
+$_GET = ['avpvh_tenant_logout' => 'nonce-avpvh_tenant_logout'];
+$_POST = [];
+$_SERVER['REQUEST_METHOD'] = 'GET';
+try { $sso->handle_logout(); } catch (AVPVH_Test_Exit $exit) {}
+check('signed-out logout asks for explicit confirmation', $exit->kind === 'die' && $exit->status === 200 && str_contains($exit->detail, 'method="post"'));
+$cookie_name = '__Host-avpvh_tenant_logout_confirm';
+$_SERVER['REQUEST_METHOD'] = 'POST';
+$_POST = ['avpvh_tenant_logout' => 'nonce-avpvh_tenant_logout', 'avpvh_logout_confirmation' => 'another-browser'];
+try { $sso->handle_logout(); } catch (AVPVH_Test_Exit $exit) {}
+check('a confirmation from another browser cannot end this session', $exit->kind === 'die' && !str_contains($exit->detail, '/logout?rd='));
+$_POST['avpvh_logout_confirmation'] = $_COOKIE[$cookie_name];
+$cookie = $_COOKIE[$cookie_name];
+unset($_COOKIE[$cookie_name]);
+try { $sso->handle_logout(); } catch (AVPVH_Test_Exit $exit) {}
+check('signed-out confirmation needs its browser cookie', $exit->kind === 'die' && $exit->status === 200);
+$_POST['avpvh_logout_confirmation'] = $_COOKIE[$cookie_name];
+try { $sso->handle_logout(); } catch (AVPVH_Test_Exit $exit) {}
+check('confirmed deny-page logout ends Authelia after WordPress logged out', $exit->kind === 'redirect' && str_starts_with($exit->detail, 'https://auth.example.invalid/logout?rd=') && !isset($_COOKIE[$cookie_name]));
 
 echo $failures ? "\n$failures check(s) failed.\n" : "\nAll checks passed.\n";
 exit($failures ? 1 : 0);

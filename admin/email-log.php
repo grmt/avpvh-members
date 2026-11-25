@@ -25,8 +25,14 @@ $paged   = max(1, absint(wp_unslash($_GET['paged'] ?? 1)));
     <div class="notice notice-warning"><p><?php esc_html_e('Er is geen e-mail log: FluentSMTP is niet geïnstalleerd of houdt geen log bij.', 'avpvh-members'); ?></p></div>
 <?php elseif ($view_id > 0) :
     $mail = AVPVH_Email_Log::get($view_id);
+    $back_url = AVPVH_Access::safe_same_site_redirect(wp_get_referer() ?: $base_url);
+    parse_str((string) wp_parse_url($back_url, PHP_URL_QUERY), $back_query);
+    if (($back_query['page'] ?? '') !== 'avpvh-email-log'
+        || wp_parse_url($back_url, PHP_URL_PATH) !== wp_parse_url($base_url, PHP_URL_PATH)) {
+        $back_url = $base_url;
+    }
     ?>
-    <p><a href="<?php echo esc_url(wp_get_referer() ?: $base_url); ?>">&larr; <?php esc_html_e('Terug naar het log', 'avpvh-members'); ?></a></p>
+    <p><a href="<?php echo esc_url($back_url); ?>">&larr; <?php esc_html_e('Terug naar het log', 'avpvh-members'); ?></a></p>
     <?php if (!$mail) : ?>
         <div class="notice notice-error"><p><?php esc_html_e('Deze mail staat niet (meer) in het log.', 'avpvh-members'); ?></p></div>
     <?php else : ?>

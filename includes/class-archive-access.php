@@ -18,6 +18,7 @@
  */
 
 defined('ABSPATH') || exit;
+require_once __DIR__ . '/class-content-guard.php';
 
 class AVPVH_Archive_Access {
 
@@ -37,6 +38,7 @@ class AVPVH_Archive_Access {
         add_filter('comments_clauses',              [$this, 'filter_comments_clauses']);
         add_filter('rest_request_before_callbacks', [$this, 'hide_post_from_rest'], 10, 3);
         add_filter('oembed_request_post_id',        [$this, 'hide_post_from_oembed']);
+        AVPVH_Content_Guard::register(static fn(int $id): bool => in_array($id, self::hidden_post_ids(), true));
         add_filter('get_previous_post_where',       [$this, 'filter_adjacent_where']);
         add_filter('get_next_post_where',           [$this, 'filter_adjacent_where']);
     }
@@ -204,7 +206,8 @@ class AVPVH_Archive_Access {
      * @return mixed the unchanged response, or a WP_Error
      */
     public function hide_post_from_rest($response, array $handler, \WP_REST_Request $request) { // NOSONAR -- $handler: the filter passes it before $request
-        if (!preg_match('#^/wp/v2/posts/(\d+)#', $request->get_route(), $match)) {
+        $route = strtolower($request->get_route());
+        if (!preg_match('#^/wp/v2/posts/(\d+)(?:/|$)#i', $route, $match)) {
             return $response;
         }
         if (in_array((int) $match[1], self::hidden_post_ids(), true)) {

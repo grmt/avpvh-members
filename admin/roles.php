@@ -86,7 +86,7 @@ $role_label = AVPVH_Roles::get_role_labels();
                                 <input type="hidden" name="action" value="avpvh_step_down">
                                 <input type="hidden" name="role" value="<?php echo esc_attr($role); ?>">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($holder->id); ?>">
-                                <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js($role === 'voorzitter' ? __('Voorzitterschap neerleggen? Diegene blijft bestuurslid. Daarna kan alleen de beheerder een nieuwe voorzitter aanwijzen.', 'avpvh-members') : __('Functie neerleggen? Diegene blijft bestuurslid; de functie is daarna niet ingevuld.', 'avpvh-members')); ?>');"><?php esc_html_e('Aftreden', 'avpvh-members'); ?></button>
+                                <button type="submit" class="button button-small" data-avpvh-confirm="<?php echo esc_attr($role === 'voorzitter' ? __('Voorzitterschap neerleggen? Diegene blijft bestuurslid. Daarna kan alleen de beheerder een nieuwe voorzitter aanwijzen.', 'avpvh-members') : __('Functie neerleggen? Diegene blijft bestuurslid; de functie is daarna niet ingevuld.', 'avpvh-members')); ?>"><?php esc_html_e('Aftreden', 'avpvh-members'); ?></button>
                             </form>
                         <?php endif; ?>
                         <br>
@@ -199,7 +199,7 @@ $role_label = AVPVH_Roles::get_role_labels();
                                 <input type="hidden" name="action" value="avpvh_set_bestuur">
                                 <input type="hidden" name="op" value="remove">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($m->id); ?>">
-                                <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js(__('Uit het bestuur verwijderen? Diegene krijgt het kenmerk Oud-bestuurder.', 'avpvh-members')); ?>');"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
+                                <button type="submit" class="button button-small" data-avpvh-confirm="<?php echo esc_attr(__('Uit het bestuur verwijderen? Diegene krijgt het kenmerk Oud-bestuurder.', 'avpvh-members')); ?>"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
                             </form>
                         <?php endif; ?>
                         <?php if ($officer_roles) : ?>
@@ -257,7 +257,7 @@ $role_label = AVPVH_Roles::get_role_labels();
                         <?php wp_nonce_field('avpvh_revoke_delegation'); ?>
                         <input type="hidden" name="action" value="avpvh_revoke_delegation">
                         <input type="hidden" name="delegation_id" value="<?php echo esc_attr($d->id); ?>">
-                        <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js(__('Delegatie intrekken?', 'avpvh-members')); ?>');"><?php esc_html_e('Intrekken', 'avpvh-members'); ?></button>
+                        <button type="submit" class="button button-small" data-avpvh-confirm="<?php echo esc_attr(__('Delegatie intrekken?', 'avpvh-members')); ?>"><?php esc_html_e('Intrekken', 'avpvh-members'); ?></button>
                     </form>
                 </td>
             </tr>

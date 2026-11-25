@@ -23,7 +23,7 @@ class AVPVH_Account_Privacy {
             return $endpoints;
         }
         foreach (array_keys($endpoints) as $route) {
-            if (preg_match('#^/wp/v2/users(?:/|$)#', (string) $route)) {
+            if (preg_match('#^/wp/v2/users(?:/|$)#i', (string) $route)) {
                 unset($endpoints[$route]);
             }
         }
@@ -31,7 +31,15 @@ class AVPVH_Account_Privacy {
     }
 
     public function hide_author_archive(): void {
-        if (!is_author() || is_user_logged_in()) {
+        if (!is_author()) {
+            return;
+        }
+        $active_member = false;
+        if (is_user_logged_in() && function_exists('avpvh_get_member_by_wp_user')) {
+            $member = avpvh_get_member_by_wp_user(get_current_user_id());
+            $active_member = $member && $member->status === 'active';
+        }
+        if (current_user_can('edit_posts') || $active_member) {
             return;
         }
         global $wp_query;

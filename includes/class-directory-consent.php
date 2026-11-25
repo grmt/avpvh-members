@@ -56,7 +56,7 @@ class AVPVH_Directory_Consent {
             ['%s', '%s', '%d', '%d', '%d']
         );
 
-        wp_safe_redirect(add_query_arg('consent_saved', '1', wp_get_referer() ?: home_url('/')));
+        wp_safe_redirect(add_query_arg('consent_saved', '1', AVPVH_Access::safe_same_site_redirect(wp_get_referer() ?: home_url('/'))));
         exit;
     }
 }

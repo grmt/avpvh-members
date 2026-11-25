@@ -103,7 +103,7 @@ class AVPVH_Roles {
         if ($member && empty($member->user_id) && !empty($member->id)) {
             $member = AVPVH_DB::get_member((int) $member->id);
         }
-        if (!$member || empty($member->user_id)) {
+        if (!$member || ($member->status ?? '') !== 'active' || empty($member->user_id)) {
             return $groups;
         }
 
@@ -389,9 +389,13 @@ class AVPVH_Roles {
      * Fails closed when OpenLDAP groups cannot be read.
      */
     public static function member_has_elevated_access(int $member_id): bool {
-        $member = AVPVH_DB::get_member($member_id);
+        global $wpdb;
+        // Identity cache misses must not hide the local account or delegations.
+        $member = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_members WHERE id = %d", $member_id
+        ));
         if (!$member) {
-            return false;
+            return true; // missing target or database failure: refuse privileged mutations
         }
         if (!empty($member->wp_user_id) && function_exists('get_userdata')) {
             $wp_user = get_userdata((int) $member->wp_user_id);
@@ -413,6 +417,35 @@ class AVPVH_Roles {
             }
         }
         return false;
+    }
+
+    public static function require_elevated_target_admin(int $member_id): void {
+        if (!current_user_can('manage_options') && self::member_has_elevated_access($member_id)) {
+            wp_die(esc_html__('Alleen een beheerder mag gegevens van een account met verhoogde rechten wijzigen.', 'avpvh-members'), '', ['response' => 403]);
+        }
+    }
+
+    /** Confirmed matching addresses grant household access to the other account. */
+    public static function require_address_household_admin(int $member_id, object $address): void {
+        self::require_elevated_target_admin($member_id);
+        if (current_user_can('manage_options')) {
+            return;
+        }
+        global $wpdb;
+        $today = current_time('Y-m-d');
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_addresses WHERE member_id <> %d AND member_entered = 0
+             AND (valid_from IS NULL OR valid_from <= %s) AND (valid_until IS NULL OR valid_until >= %s)",
+            $member_id, $today, $today
+        ));
+        if (!is_array($rows)) {
+            wp_die(esc_html__('Adrescontrole is tijdelijk niet beschikbaar.', 'avpvh-members'), '', ['response' => 503]);
+        }
+        foreach ($rows as $other) {
+            if (AVPVH_Address_Matcher::same($address, $other)) {
+                self::require_elevated_target_admin((int) $other->member_id);
+            }
+        }
     }
 
     /** Active delegations, most recently created first — for the admin screen. */

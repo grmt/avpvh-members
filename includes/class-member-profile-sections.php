@@ -122,7 +122,7 @@ class AVPVH_Member_Profile_Sections {
                                     : __('Dit e-mailadres verwijderen?', 'avpvh-members');
                             ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block"
-                                onsubmit="return confirm('<?php echo esc_js($confirm_msg); ?>');">
+                                data-avpvh-confirm="<?php echo esc_attr($confirm_msg); ?>">
                                 <?php wp_nonce_field('avpvh_remove_identity'); ?>
                                 <input type="hidden" name="action" value="avpvh_remove_identity">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
@@ -283,7 +283,7 @@ class AVPVH_Member_Profile_Sections {
                         <td>
                             <?php if ($can_manage) : ?>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                onsubmit="return confirm('<?php echo esc_js(__('Deze relatie verwijderen?', 'avpvh-members')); ?>');">
+                                data-avpvh-confirm="<?php echo esc_attr(__('Deze relatie verwijderen?', 'avpvh-members')); ?>">
                                 <?php wp_nonce_field('avpvh_remove_relationship'); ?>
                                 <input type="hidden" name="action" value="avpvh_remove_relationship">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">
@@ -327,33 +327,7 @@ class AVPVH_Member_Profile_Sections {
                         'first' => $m->first_name,
                         'last'  => $m->last_name,
                     ], $all_members)); ?></script>
-                    <script>
-                    (function () {
-                        var select = document.getElementById('rel_related_member_id');
-                        var input = document.getElementById('rel_related_member_filter');
-                        var members = JSON.parse(document.getElementById('rel_related_member_data').textContent);
-                        if (!select || !input) return;
-                        function apply() {
-                            var term = input.value.trim().toLowerCase();
-                            var selectedValue = select.value;
-                            Array.prototype.slice.call(select.querySelectorAll('option[data-avpvh-plain]')).forEach(function (opt) {
-                                opt.remove();
-                            });
-                            members.forEach(function (m) {
-                                if (term !== ''
-                                    && (m.first || '').toLowerCase().indexOf(term) === -1
-                                    && (m.last || '').toLowerCase().indexOf(term) === -1) return;
-                                var opt = document.createElement('option');
-                                opt.value = m.id;
-                                opt.textContent = m.label;
-                                opt.setAttribute('data-avpvh-plain', '1');
-                                select.appendChild(opt);
-                            });
-                            select.value = selectedValue;
-                        }
-                        input.addEventListener('input', apply);
-                    })();
-                    </script>
+
                 </div>
 
                 <div class="form-group">
@@ -454,7 +428,7 @@ class AVPVH_Member_Profile_Sections {
 
             <p><strong><?php esc_html_e('Contactadres', 'avpvh-members'); ?></strong></p>
             <form method="post" action="<?php echo esc_url($post_url); ?>"
-                onsubmit="return confirm('<?php echo esc_js(__('Contactadres van het account wijzigen?', 'avpvh-members')); ?>');">
+                data-avpvh-confirm="<?php echo esc_attr(__('Contactadres van het account wijzigen?', 'avpvh-members')); ?>">
                 <?php wp_nonce_field('avpvh_update_email'); ?>
                 <input type="hidden" name="action" value="avpvh_update_email">
                 <input type="hidden" name="avpvh_return" value="profile">
@@ -486,7 +460,7 @@ class AVPVH_Member_Profile_Sections {
                             <?php endif; ?>
                             <?php if (AVPVH_DB::can_delete_identity($identities, (int) $identity->id)) : ?>
                             <form method="post" action="<?php echo esc_url($post_url); ?>" style="display:inline-block"
-                                onsubmit="return confirm('<?php echo esc_js(__('Dit e-mailadres verwijderen? Het lid kan er dan niet meer mee inloggen.', 'avpvh-members')); ?>');">
+                                data-avpvh-confirm="<?php echo esc_attr(__('Dit e-mailadres verwijderen? Het lid kan er dan niet meer mee inloggen.', 'avpvh-members')); ?>">
                                 <?php wp_nonce_field('avpvh_remove_identity'); ?>
                                 <input type="hidden" name="action" value="avpvh_remove_identity">
                                 <input type="hidden" name="member_id" value="<?php echo esc_attr($member->id); ?>">

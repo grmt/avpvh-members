@@ -30,6 +30,25 @@ class AVPVH_OIDC {
     const STATE_COOKIE = 'avpvh_oauth_state';
     const STATE_TTL    = 600;
 
+    public static function state_cookie_name(): string {
+        return is_ssl() ? '__Host-' . self::STATE_COOKIE : self::STATE_COOKIE;
+    }
+
+    /** REST cookie authentication may have already reset the current user. */
+    public static function retire_browser_session(): void {
+        $cookie = wp_parse_auth_cookie('', 'logged_in');
+        $user_id = $cookie ? wp_validate_auth_cookie('', 'logged_in') : false;
+        if ($user_id && !empty($cookie['token'])) {
+            \WP_Session_Tokens::get_instance((int) $user_id)->destroy($cookie['token']);
+        }
+        if (is_user_logged_in()) {
+            wp_logout();
+        } else {
+            wp_clear_auth_cookie();
+        }
+        wp_set_current_user(0);
+    }
+
     public static function base64url(string $bytes): string {
         return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
     }
@@ -67,7 +86,7 @@ class AVPVH_OIDC {
      * with. Clears the cookie either way: a state is used once.
      */
     public static function state_matches_browser(string $state): bool {
-        $cookie = sanitize_text_field(wp_unslash($_COOKIE[self::STATE_COOKIE] ?? ''));
+        $cookie = sanitize_text_field(wp_unslash($_COOKIE[self::state_cookie_name()] ?? ''));
         self::set_cookie('', time() - 3600);
         return $state !== '' && $cookie !== '' && hash_equals($cookie, $state);
     }
@@ -99,6 +118,8 @@ class AVPVH_OIDC {
         if (!$claims
             || !in_array($claims['iss'] ?? '', $issuers, true)
             || !in_array($client_id, (array) ($claims['aud'] ?? []), true)
+            || (count((array) ($claims['aud'] ?? [])) > 1 && ($claims['azp'] ?? '') !== $client_id)
+            || (isset($claims['azp']) && $claims['azp'] !== $client_id)
             || (int) ($claims['exp'] ?? 0) < time()
             || $nonce === ''
             || !hash_equals($nonce, (string) ($claims['nonce'] ?? ''))) {
@@ -115,7 +136,7 @@ class AVPVH_OIDC {
         if (headers_sent()) {
             return;
         }
-        setcookie(self::STATE_COOKIE, $value, [
+        setcookie(self::state_cookie_name(), $value, [
             'expires'  => $expires,
             'path'     => '/',
             'secure'   => is_ssl(),

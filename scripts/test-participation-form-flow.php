@@ -50,6 +50,7 @@ class AVPVH_DB {
     }
     public static function save_participation_days(int $id, array $days): void { $GLOBALS['saved_days'][] = compact('id', 'days'); }
 }
+require_once dirname(__DIR__) . '/tests/fixtures/access-session.php';
 require_once dirname(__DIR__) . '/includes/class-activity-participation-form.php';
 
 $results = [];
@@ -57,6 +58,7 @@ function check(string $label, bool $ok): void { $GLOBALS['results'][] = [$label,
 function reset_participation(): void {
     $GLOBALS['actor'] = 10;
     $GLOBALS['officer'] = false;
+    $GLOBALS['two_factor'] = true;
     $GLOBALS['members'] = [
         10 => (object) ['id' => 10, 'status' => 'active', 'name' => 'Fictief Ouder'],
         20 => (object) ['id' => 20, 'status' => 'active', 'name' => 'Fictief Kind'],
@@ -151,6 +153,29 @@ $GLOBALS['camp']->end_date = '2026-12-31';
 $_POST['day'] = ['2026-03-03' => 'n', '2026-03-04' => 'n'];
 submit_participation($form);
 check('oversized date ranges have a bounded accepted window', $GLOBALS['saved'][0]['fields']['nights'] === 62 && $GLOBALS['saved_days'][0]['days'] === ['2026-03-03' => 'n']);
+
+foreach ([0, 999, 30] as $target) {
+    reset_participation();
+    $GLOBALS['officer'] = true;
+    $GLOBALS['two_factor'] = false;
+    $_POST['member_id'] = $target;
+    $exit = submit_participation($form);
+    check('1FA activity officer cannot write unrelated or missing target ' . $target, $exit->status === 403 && !$GLOBALS['saved']);
+}
+foreach ([0, 999] as $target) {
+    reset_participation();
+    $GLOBALS['officer'] = true;
+    $_POST['member_id'] = $target;
+    check('2FA activity officer cannot create orphan participation ' . $target, submit_participation($form)->status === 403 && !$GLOBALS['saved']);
+}
+reset_participation();
+$GLOBALS['officer'] = true;
+$GLOBALS['two_factor'] = false;
+$_GET['member_id'] = 30;
+$html = $form->render_shortcode();
+check('1FA activity officer cannot select an unrelated profile for reading', str_contains($html, 'name="member_id" value="10"'));
+$_POST['member_id'] = 20;
+check('1FA activity officer retains household self-service', submit_participation($form)->status === 302 && $GLOBALS['saved'][0]['member'] === 20);
 
 $failures = 0;
 foreach ($results as [$label, $ok]) {

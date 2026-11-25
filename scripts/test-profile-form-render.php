@@ -135,6 +135,7 @@ class AVPVH_I18n {
     public static function get_supported_locales() { return ['nl_NL' => 'Nederlands', 'en_GB' => 'English']; }
 }
 
+require_once dirname(__DIR__) . '/tests/fixtures/access-session.php';
 require_once getenv('AVPVH_PROFILE_TEST_CLASS') ?: dirname(__DIR__) . '/includes/class-member-profile-form.php';
 if (!getenv('AVPVH_PROFILE_TEST_CLASS')) {
     require_once dirname(__DIR__) . '/includes/class-member-profile-page.php';

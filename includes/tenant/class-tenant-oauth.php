@@ -150,17 +150,23 @@ class AVPVH_Tenant_OAuth {
             $this->fail('admin', $name, $identity['uid'], '', $target);
         }
 
-        $user_id = $this->sso->provision($identity, $role);
+        $user_id = $this->sso->provision($identity, $role, true);
         if (is_wp_error($user_id)) {
-            $this->fail('link', $name, $identity['uid'], $user_id->get_error_code(), $target);
+            $reason = $user_id->get_error_code() === 'oauth_elevated_account' ? 'admin' : 'link';
+            $this->fail($reason, $name, $identity['uid'], $user_id->get_error_code(), $target);
         }
         // Reject any account that already holds more than subscriber privileges
         // before mutating metadata or issuing a session.
         if (!AVPVH_Tenant_SSO::user_is_subscriber_only($user_id)) {
             $this->fail('admin', $name, $identity['uid'], '', $target);
         }
+        AVPVH_OIDC::retire_browser_session();
         $this->sso->log_in($user_id, $name);
         $this->log($name, $identity['uid'], 'subscriber');
+        $cookie_name = (string) $this->config->get('authelia_session_cookie');
+        if (!empty($_COOKIE[$cookie_name])) {
+            $target = $this->sso->authelia_logout_url($target);
+        }
         wp_safe_redirect($target);
         exit;
     }

@@ -25,6 +25,7 @@ class AVPVH_Tenant_Shares {
     const QUERY_VAR    = 'delen';
     const NONCE_ACTION = 'avpvh_tenant_share';
     const MAX_TRIES    = 10;
+    const MAX_SHARE_TRIES = 50;
 
     private AVPVH_Tenant_Config $config;
     private AVPVH_Tenant_Content $content;
@@ -94,13 +95,16 @@ class AVPVH_Tenant_Shares {
         // A simple brake on guessing: at most MAX_TRIES wrong addresses per
         // ten minutes per IP address.
         $rate_key = 'avpvh_share_rate_' . substr(hash('sha256', sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? ''))), 0, 32);
+        $share_rate_key = 'avpvh_share_total_' . hash('sha256', $id);
         $tries = (int) get_transient($rate_key);
-        if ($tries >= self::MAX_TRIES) {
+        $share_tries = (int) get_transient($share_rate_key);
+        if ($tries >= self::MAX_TRIES || $share_tries >= self::MAX_SHARE_TRIES) {
             $this->render($id, $share, __('Te veel pogingen. Probeer het over tien minuten opnieuw.', 'avpvh-members'), false);
         }
         $email = strtolower(sanitize_email(wp_unslash($_POST['email'] ?? '')));
         if ($email === '' || !in_array($email, $share['emails'], true)) {
             set_transient($rate_key, $tries + 1, 10 * MINUTE_IN_SECONDS);
+            set_transient($share_rate_key, $share_tries + 1, 10 * MINUTE_IN_SECONDS);
             $this->render($id, $share, __('Dit e-mailadres heeft geen toegang tot dit bestand.', 'avpvh-members'));
         }
         $this->render_button($id, $share, $email);
@@ -124,6 +128,11 @@ class AVPVH_Tenant_Shares {
         $who_str = (string) $who;
         if (!str_starts_with($who_str, 'user:') && !str_starts_with($who_str, 'uid:')
             && !in_array($who_str, $share['emails'], true)) {
+            delete_transient(self::token_key($id, $token));
+            $this->render($id, $share, __('Deze downloadlink is niet meer geldig.', 'avpvh-members'));
+        }
+        if ((str_starts_with($who_str, 'user:') || str_starts_with($who_str, 'uid:'))
+            && !hash_equals($who_str, $this->member_subject())) {
             delete_transient(self::token_key($id, $token));
             $this->render($id, $share, __('Deze downloadlink is niet meer geldig.', 'avpvh-members'));
         }

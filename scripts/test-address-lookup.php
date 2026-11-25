@@ -21,6 +21,7 @@ function get_transient(string $key): mixed {
 }
 function set_transient(string $key, mixed $value, int $ttl): bool {
     $GLOBALS['test_transients'][$key] = $value;
+    $GLOBALS['test_ttls'][$key] = $ttl;
     return true;
 }
 function is_wp_error(mixed $thing): bool {
@@ -114,4 +115,7 @@ $before = count($test_requests);
 $lookup('Grote Mrkt', '1', '2000', 'Antwerpen', 'België');
 check('cached answers are not fetched again', count($test_requests), $before);
 
+$GLOBALS['test_transients'] = [];
+$lookup('Onbestaande Teststraat', '987', '2000', 'Antwerpen', 'België');
+check('empty address-match payload is cached for fifteen minutes only', array_values($GLOBALS['test_ttls'])[count($GLOBALS['test_ttls']) - 1], 900);
 echo "Address lookup tests: OK\n";

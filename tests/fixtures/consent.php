@@ -69,6 +69,8 @@ function run_consent(object $handler): Consent_Exit {
     throw new RuntimeException('Consent handler did not terminate.');
 }
 
+require_once __DIR__ . '/access-session.php';
+
 /** Both consent handlers must enforce the same session, nonce and household checks. */
 function consent_authorization_cases(object $handler, string $nonce_action): void {
     foreach (['nonce', 'anonymous', 'missing_profile', 'stranger', 'adult_household'] as $case) {

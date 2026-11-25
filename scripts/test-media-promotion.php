@@ -19,6 +19,8 @@ define('ABSPATH', $root . '/wp/');
 file_put_contents(ABSPATH . 'wp-admin/includes/file.php', '<?php');
 ini_set('error_log', $root . '/error.log');
 
+function get_option(string $key, mixed $default = false): mixed { return $GLOBALS['media_options'][$key] ?? $default; }
+
 class WP_Post {
     public int $ID = 0;
     public string $post_type = 'page';
@@ -151,8 +153,17 @@ function check(string $label, bool $ok): void {
     echo ($ok ? '[OK] ' : '[FAIL] ') . $label . PHP_EOL;
 }
 
+class AVPVH_Nav_Auth { const DOC_SEARCH_PAGE_ID = 1920; }
 $mp     = new AVPVH_Media_Protection();
 $public = $root . '/wp-content-pvh/uploads/public/2026/09';
+
+$bucket = new ReflectionMethod($mp, 'determine_bucket');
+$special = new WP_Post();
+$special->ID = 88;
+$GLOBALS['media_options']['avpvh_dmarc_page_id'] = 88;
+check('DMARC page outside the members hierarchy never promotes media', $bucket->invoke($mp, $special, true) === 'private');
+$special->ID = AVPVH_Nav_Auth::DOC_SEARCH_PAGE_ID;
+check('document search outside the members hierarchy never promotes media', $bucket->invoke($mp, $special, true) === 'private');
 
 // 1. Happy path: content references a resized copy only.
 $post = setup_case();

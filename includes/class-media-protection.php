@@ -191,6 +191,13 @@ class AVPVH_Media_Protection {
      * Returns true if the page is in the /leden/ hierarchy (any status) or is the login page.
      */
     private function is_member_page(int $page_id): bool {
+        $special = [(int) get_option(defined('AVPVH_DMARC_PAGE_OPTION') ? AVPVH_DMARC_PAGE_OPTION : 'avpvh_dmarc_page_id', 0)];
+        if (defined('AVPVH_Nav_Auth::DOC_SEARCH_PAGE_ID')) {
+            $special[] = AVPVH_Nav_Auth::DOC_SEARCH_PAGE_ID;
+        }
+        if (in_array($page_id, $special, true)) {
+            return true;
+        }
         $statuses = ['publish', 'private', 'draft', 'pending', 'future', 'auto-draft'];
         $roots = get_posts([
             'name'        => 'leden',

@@ -39,7 +39,7 @@ class AVPVH_Newsletter_Consent {
 
         AVPVH_DB::set_member_flag_by_slug((int) $member->id, 'nieuwsbrief', !empty($_POST['newsletter']));
 
-        wp_safe_redirect(add_query_arg('newsletter_saved', '1', wp_get_referer() ?: home_url('/')));
+        wp_safe_redirect(add_query_arg('newsletter_saved', '1', AVPVH_Access::safe_same_site_redirect(wp_get_referer() ?: home_url('/'))));
         exit;
     }
 }

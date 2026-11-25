@@ -524,8 +524,22 @@ class AVPVH_Member_Merge {
 
     /** The account changes after COMMIT; a failure there is a warning, the merge stands. */
     private static function after_merge(array $plan): array {
-        $parts = [self::rename_account($plan), self::delete_account($plan), self::change_email($plan), self::add_extra_email($plan)];
+        $parts = [self::sync_merged_status($plan), self::rename_account($plan), self::delete_account($plan), self::change_email($plan), self::add_extra_email($plan)];
         return array_merge_recursive(['warnings' => [], 'notes' => []], ...$parts);
+    }
+
+    private static function sync_merged_status(array $plan): array {
+        if (!isset($plan['updates']['status']) || $plan['final']->status === $plan['preview']['keep']->status) {
+            return [];
+        }
+        $id = (int) $plan['final']->id;
+        if ($plan['final']->status !== 'active') {
+            AVPVH_Roles::strip_bestuur_roles($id);
+        }
+        $result = AVPVH_Roles::sync_status_group($id);
+        return is_wp_error($result)
+            ? ['warnings' => [__('De lidstatus is opgeslagen, maar de directorygroepen konden niet worden bijgewerkt.', 'avpvh-members')]]
+            : [];
     }
 
     /** The account's display name follows a changed name, as when it's edited on the profile. */
@@ -903,7 +917,7 @@ class AVPVH_Member_Merge {
     private static function involves_elevated_access(object $keep, object $remove, array $accounts): bool {
         $elevated_groups = AVPVH_Roles::elevated_groups();
         foreach (['keep' => $keep, 'remove' => $remove] as $side => $member) {
-            if (($accounts[$side]['exists'] && !$accounts[$side]['groups_known']) || array_intersect($elevated_groups, array_map('strtolower', $accounts[$side]['groups']))) {
+            if (((string) ($member->lldap_user_id ?? '') !== '' && !$accounts[$side]['groups_known']) || array_intersect($elevated_groups, array_map('strtolower', $accounts[$side]['groups']))) {
                 return true;
             }
             if (!empty($member->id) && AVPVH_Roles::has_any_active_delegation((int) $member->id)) {

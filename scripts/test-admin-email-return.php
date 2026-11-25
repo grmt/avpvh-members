@@ -62,6 +62,7 @@ function remove_query_arg(array $keys, string $url): string {
     return $query ? $base . '?' . http_build_query($query) : $base;
 }
 
+require_once dirname(__DIR__) . '/tests/fixtures/access-session.php';
 require_once dirname(__DIR__) . '/includes/class-member-profile-form.php';
 require_once dirname(__DIR__) . '/includes/class-admin.php';
 

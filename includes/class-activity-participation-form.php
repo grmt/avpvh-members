@@ -60,7 +60,7 @@ class AVPVH_Activity_Participation_Form {
             <?php if (count($huisgenoten) > 1) : ?>
                 <p>
                     <label for="avpvh-activiteit-member-select"><?php esc_html_e('Voor wie:', 'avpvh-members'); ?></label>
-                    <select id="avpvh-activiteit-member-select" onchange="location.href=this.value">
+                    <select id="avpvh-activiteit-member-select" data-avpvh-navigate>
                         <?php foreach ($huisgenoten as $h) :
                             $url = add_query_arg('member_id', $h->id);
                         ?>
@@ -178,7 +178,7 @@ class AVPVH_Activity_Participation_Form {
         }
         AVPVH_DB::save_participation_days($participation_id, $days);
 
-        $redirect = wp_get_referer() ?: home_url('/');
+        $redirect = AVPVH_Access::safe_same_site_redirect(wp_get_referer() ?: home_url('/'));
         wp_safe_redirect(add_query_arg('activiteit_updated', '1', $redirect));
         exit;
     }
@@ -195,7 +195,10 @@ class AVPVH_Activity_Participation_Form {
     }
 
     private function can_edit_member(object $own_member, int $target_member_id): bool {
-        if (AVPVH_Roles::can_manage_activities()) {
+        if ($target_member_id <= 0 || !AVPVH_DB::get_member($target_member_id)) {
+            return false;
+        }
+        if (AVPVH_Roles::can_manage_activities() && AVPVH_Access::current_session_has_2fa()) {
             return true;
         }
         foreach (AVPVH_DB::get_manageable_members((int) $own_member->id) as $m) {

@@ -32,11 +32,20 @@ function sanitize_key($k) { return strtolower(preg_replace('/[^a-z0-9_\-]/i', ''
 function sanitize_text_field($s) { return trim((string) $s); }
 function add_query_arg($args, $url = '') { return $url . '?' . http_build_query((array) $args); }
 function admin_url($p = '') { return 'https://example.test/wp-admin/' . $p; }
+function _n($one, $many, $count, $domain = '') { return $count === 1 ? $one : $many; }
+function number_format_i18n($number) { return (string) $number; }
+function wp_kses($text, $allowed) { return $text; }
+function get_option($name, $default = false) { return $default; }
+function rest_url($path) { return home_url('/wp-json/' . $path); }
+function plugin_dir_url($file) { return home_url('/plugin/'); }
+function avpvh_asset_version($file) { return 'fixture'; }
+function wp_enqueue_script($handle, ...$args) { $GLOBALS['enqueued'][$handle] = $args; }
+function wp_enqueue_style(...$args) {}
 function home_url($p = '') { return 'https://example.test' . $p; }
 function wp_nonce_url($url, $action) { return $url . '&_wpnonce=' . $action; }
 function wp_nonce_field($action) { echo '<input type="hidden" name="_wpnonce" value="nonce-' . $action . '">'; }
 function check_admin_referer($action) { $GLOBALS['log'][] = "nonce $action"; return 1; }
-function current_user_can($cap) { return true; }
+function current_user_can($cap) { return $GLOBALS['wp_admin'] ?? true; }
 function checked($v, $current = true) { echo ((bool) $v === (bool) $current) ? ' checked' : ''; }
 function selected($a, $b) { echo ((string) $a === (string) $b) ? ' selected' : ''; }
 function disabled($v) { echo $v ? ' disabled' : ''; }
@@ -60,12 +69,26 @@ abstract class Test_Empty_Stub {
 final class AVPVH_DB extends Test_Empty_Stub {
     public static object $member;
     public static function get_member($id) { return (int) $id === 7 ? self::$member : null; }
-    public static function get_login_stats_for_email($email) { return null; }
+    public static function get_login_stats_for_email($email) { return (object) ['first_login' => null, 'last_login' => null]; }
+    public static function get_member_identities($id) { return [(object) ['id' => 11, 'provider' => 'email', 'email' => 'fixture@example.invalid', 'verified_at' => '2026-01-01', 'is_primary' => 0]]; }
+    public static function can_delete_identity($identities, $id) { return true; }
+    public static function get_name_aliases($id) { return [(object) ['id' => 12, 'first_name' => 'Fictief', 'last_name' => 'Alias', 'conflicts' => [], 'alias_type' => 'historical', 'valid_from' => null, 'valid_until' => null, 'source' => 'Fixture', 'note' => 'Fixture']]; }
+    public static function get_addresses($id) { return [(object) ['id' => 13, 'street' => 'Fictieve Straat', 'house_number' => '1', 'house_number_addition' => '', 'postal_code' => '1234 AB', 'city' => 'Teststad', 'country' => 'Nederland', 'valid_from' => '2026-01-01', 'valid_until' => null, 'member_entered' => 1]]; }
+    public static function get_all_flags() { return [(object) ['id' => 14, 'slug' => 'nieuwsbrief', 'label' => 'Fictief "kenmerk"', 'affects_fees' => 0, 'sets_inactive' => 0]]; }
     public static function suggest_membership_years($id) { return null; }
 }
 final class AVPVH_Roles extends Test_Empty_Stub {
     const STATUS_GROUPS = ['active' => 'leden', 'inactive' => 'ex-leden', 'visitor' => null];
+    const OFFICER_ROLES = ['voorzitter', 'secretaris', 'penningmeester'];
     public static function can_manage_members() { return true; }
+    public static function can_send_newsletter() { return true; }
+    public static function can_view_roles_page() { return true; }
+    public static function can_manage_roles() { return true; }
+    public static function can_appoint_officers() { return true; }
+    public static function can_step_down($role, $id) { return true; }
+    public static function get_role_labels() { return ['voorzitter' => 'Voorzitter', 'secretaris' => 'Secretaris', 'penningmeester' => 'Penningmeester']; }
+    public static function get_role_holders($role, $delegated = true) { return [AVPVH_DB::$member]; }
+    public static function get_active_delegations() { return [(object) ['id' => 15, 'role' => 'secretaris', 'delegated_to_member_id' => 7, 'delegated_by_member_id' => 0, 'ends_at' => null, 'created_at' => '2026-01-01']]; }
     public static function can_merge_members() { return true; }
     public static function get_status_labels() { return ['active' => 'Lid', 'inactive' => 'Ex-lid', 'visitor' => 'Bezoeker']; }
     public static function get_status_label($s) { return self::get_status_labels()[$s] ?? $s; }
@@ -79,11 +102,13 @@ final class AVPVH_Directory extends Test_Empty_Stub {
     public static function remove_from_group($uid, $g) { $GLOBALS['log'][] = "remove $g"; return true; }
     public static function forget_groups($uid) { $GLOBALS['log'][] = 'forget'; }
 }
+$wpdb = new class { public function get_var($query) { return 1; } };
+final class AVPVH_Directory_Cache { public static function table() { return 'fixture_directory'; } }
 final class AVPVH_Member_Merge extends Test_Empty_Stub {
     public static function field_display($m, $f) { return ''; }
 }
-final class AVPVH_Address_Cleanup extends Test_Empty_Stub {}
-final class AVPVH_Address_Normalizer extends Test_Empty_Stub {}
+final class AVPVH_Address_Cleanup extends Test_Empty_Stub { public static function outdated_badge($address, $status) { return ''; } }
+final class AVPVH_Address_Normalizer extends Test_Empty_Stub { public static function format_house_number($number, $addition) { return trim($number . ' ' . $addition); } }
 final class AVPVH_Fees_Admin extends Test_Empty_Stub {}
 final class AVPVH_Member_Profile_Sections extends Test_Empty_Stub {}
 
@@ -119,6 +144,22 @@ check('groups: hint that leden and ex-leden follow the status', str_contains($ht
 check('groups: only PvH groups, in order', array_keys($box) === ['leden', 'ex-leden', 'boek', 'bloggers']);
 check('groups: leden ticked and greyed out, ex-leden greyed out', $box['leden'] === 'checked disabled' && $box['ex-leden'] === 'disabled');
 check('groups: boek and bloggers can be changed', $box['boek'] === 'checked' && $box['bloggers'] === '');
+
+check('contact actions use data attributes without inline confirmation', substr_count($html, 'data-avpvh-confirm=') >= 4 && !str_contains($html, 'onsubmit='));
+$GLOBALS['wp_admin'] = false;
+$readonly = (static function (): string { ob_start(); include AVPVH_PLUGIN_DIR . 'admin/member-detail.php'; return (string) ob_get_clean(); })();
+check('officer group controls are disabled and have no save button', str_contains($readonly, '<fieldset  disabled>') && !str_contains($readonly, 'Groepen opslaan') && str_contains($readonly, 'Alleen een beheerder kan toegangsrechten wijzigen.'));
+$GLOBALS['wp_admin'] = true;
+$_GET = ['page' => 'avpvh-settings'];
+$_POST = [];
+$admin->enqueue_admin_assets();
+check('admin pages enqueue the shared behavior script', isset($GLOBALS['enqueued']['avpvh-ui-actions']) && str_ends_with($GLOBALS['enqueued']['avpvh-ui-actions'][0], '/assets/ui-actions.js'));
+ob_start(); $admin->render_settings(); $settings = (string) ob_get_clean();
+check('flag removal confirms through an escaped data attribute', str_contains($settings, 'data-avpvh-confirm=') && str_contains($settings, '&quot;kenmerk') && !str_contains($settings, 'onsubmit='));
+ob_start(); $admin->render_roles(); $roles = (string) ob_get_clean();
+check('role and delegation actions use shared confirmations', substr_count($roles, 'data-avpvh-confirm=') >= 3 && !str_contains($roles, 'onclick='));
+ob_start(); $admin->render_newsletter(); $newsletter = (string) ob_get_clean();
+check('newsletter sending uses the shared confirmation', str_contains($newsletter, 'data-avpvh-confirm=') && !str_contains($newsletter, 'onsubmit='));
 
 // --- Saving the groups form ----------------------------------------------------
 $_POST = ['member_id' => '7', 'groups' => ['ex-leden', 'bloggers']];

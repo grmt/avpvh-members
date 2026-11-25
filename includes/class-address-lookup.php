@@ -147,7 +147,7 @@ class AVPVH_Address_Lookup {
 
     /** Decoded JSON from $url, cached; null when the service can't be reached (not cached). */
     private static function get_json(string $url): ?array {
-        $key = 'avpvh_addr_' . substr(hash('sha256', $url), 0, 32);
+        $key = 'avpvh_addr_v2_' . substr(hash('sha256', $url), 0, 32);
         $cached = get_transient($key);
         if (is_array($cached)) {
             return $cached;
@@ -161,7 +161,8 @@ class AVPVH_Address_Lookup {
         if (!is_array($data)) {
             return null;
         }
-        $ttl = $data ? self::CACHE_TTL : (defined('MINUTE_IN_SECONDS') ? 15 * MINUTE_IN_SECONDS : 900);
+        $has_matches = !empty($data['adresMatches'] ?? $data['results'] ?? []);
+        $ttl = $has_matches ? self::CACHE_TTL : (defined('MINUTE_IN_SECONDS') ? 15 * MINUTE_IN_SECONDS : 900);
         set_transient($key, $data, $ttl);
         return $data;
     }

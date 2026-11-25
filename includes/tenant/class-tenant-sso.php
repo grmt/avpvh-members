@@ -30,6 +30,7 @@ class AVPVH_Tenant_SSO {
     const LOGIN_KEY     = 'avpvh_login';
     const VIA_AUTHELIA  = 'authelia';
     const CHOOSER_PATH  = '/avpvh-login/';
+    private const LOGOUT_CONFIRM_COOKIE = 'avpvh_tenant_logout_confirm';
 
     /** How the session about to be created was started. */
     private string $login_method = self::VIA_AUTHELIA;
@@ -41,6 +42,8 @@ class AVPVH_Tenant_SSO {
 
     public function __construct(AVPVH_Tenant_Config $config) {
         $this->config = $config;
+        add_filter('wp_is_application_passwords_available', '__return_false');
+        add_filter('xmlrpc_enabled', '__return_false');
         add_action('init',            [$this, 'handle_logout'], 0);
         add_action('init',            [$this, 'handle_sso_callback'], 1);
         add_action('init',            [$this, 'recheck_session'], 2);
@@ -321,11 +324,9 @@ class AVPVH_Tenant_SSO {
         if (!$user || array_values((array) $user->roles) !== ['subscriber']) {
             return false;
         }
-        if (function_exists('user_can')) {
-            foreach (['edit_posts', 'manage_options', 'list_users', 'moderate_comments'] as $cap) {
-                if (user_can($user, $cap)) {
-                    return false;
-                }
+        foreach ($user->allcaps as $cap => $granted) {
+            if ($granted && !in_array($cap, ['read', 'level_0', 'exist', 'subscriber'], true)) {
+                return false;
             }
         }
         return true;
@@ -429,7 +430,7 @@ class AVPVH_Tenant_SSO {
      *
      * @return int|\WP_Error
      */
-    public function provision(array $identity, string $role) {
+    public function provision(array $identity, string $role, bool $subscriber_only = false) {
         $subject = $this->config->tenant_id() . '/' . $identity['uid'];
         $user_id = $this->find_user($subject);
         if (is_wp_error($user_id)) {
@@ -455,6 +456,9 @@ class AVPVH_Tenant_SSO {
             if (is_wp_error($user_id)) {
                 return $user_id;
             }
+        }
+        if ($subscriber_only && !self::user_is_subscriber_only($user_id)) {
+            return new \WP_Error('oauth_elevated_account');
         }
         $this->sync_user($user_id, $identity, $role);
         return $user_id;
@@ -589,15 +593,19 @@ class AVPVH_Tenant_SSO {
         )));
     }
 
+    public function authelia_logout_url(string $target): string {
+        return add_query_arg('rd', rawurlencode($this->safe_target($target)),
+            untrailingslashit((string) $this->config->get('authelia_url')) . '/logout');
+    }
+
     public function handle_logout(): void {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified right below
-        $nonce = sanitize_text_field(wp_unslash($_GET[self::LOGOUT_ACTION] ?? ''));
+        $nonce = sanitize_text_field(wp_unslash($_POST[self::LOGOUT_ACTION] ?? $_GET[self::LOGOUT_ACTION] ?? ''));
         if ($nonce === '') {
             return;
         }
         if (!is_user_logged_in()) {
-            wp_safe_redirect(home_url('/'));
-            exit;
+            $this->confirm_signed_out_logout($nonce);
         }
         if (!wp_verify_nonce($nonce, self::LOGOUT_ACTION)) {
             wp_die(
@@ -610,12 +618,39 @@ class AVPVH_Tenant_SSO {
         wp_logout();
         // Authelia's /logout ends the single sign-on session for every
         // Rechtspreker site; the plugin's own session is gone already.
-        wp_safe_redirect(add_query_arg(
-            'rd',
-            rawurlencode(home_url('/')),
-            untrailingslashit((string) $this->config->get('authelia_url')) . '/logout'
-        ));
+        wp_safe_redirect($this->authelia_logout_url(home_url('/')));
         exit;
+    }
+
+    /** Bind the confirmation to this browser when WordPress has no session. */
+    private function confirm_signed_out_logout(string $nonce): void {
+        $cookie_name = (is_ssl() ? '__Host-' : '') . self::LOGOUT_CONFIRM_COOKIE;
+        $cookie = (string) ($_COOKIE[$cookie_name] ?? '');
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce and browser token are both verified below
+        $confirmation = sanitize_text_field(wp_unslash($_POST['avpvh_logout_confirmation'] ?? ''));
+        $confirmed = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'
+            && wp_verify_nonce($nonce, self::LOGOUT_ACTION)
+            && $cookie !== '' && $confirmation !== '' && hash_equals($cookie, $confirmation);
+        $token = $confirmed ? '' : bin2hex(random_bytes(32));
+        setcookie($cookie_name, $token, [
+            'expires' => $confirmed ? time() - 3600 : time() + 600,
+            'path' => '/', 'secure' => is_ssl(), 'httponly' => true, 'samesite' => 'Strict',
+        ]);
+        if ($confirmed) {
+            unset($_COOKIE[$cookie_name]);
+            return;
+        }
+        $_COOKIE[$cookie_name] = $token;
+        nocache_headers();
+        wp_die(
+            '<p>' . esc_html__('Wil je uitloggen?', 'avpvh-members') . '</p>'
+            . '<form method="post" action="' . esc_url(home_url('/')) . '">'
+            . '<input type="hidden" name="' . esc_attr(self::LOGOUT_ACTION) . '" value="' . esc_attr(wp_create_nonce(self::LOGOUT_ACTION)) . '">'
+            . '<input type="hidden" name="avpvh_logout_confirmation" value="' . esc_attr($token) . '">'
+            . '<button type="submit">' . esc_html__('Uitloggen', 'avpvh-members') . '</button>'
+            . ' <a href="' . esc_url(home_url('/')) . '">' . esc_html__('Nee, terug', 'avpvh-members') . '</a></form>',
+            esc_html__('Uitloggen', 'avpvh-members'), ['response' => 200]
+        );
     }
 
     /**

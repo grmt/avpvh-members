@@ -157,7 +157,7 @@ class AVPVH_Fees_Admin {
             <summary><?php esc_html_e('Wijzigen', 'avpvh-members'); ?></summary>
             <?php self::render_fee_form($member_id, $row); ?>
             <form method="post" action="<?php echo esc_url(admin_url(self::FORM_ACTION)); ?>" style="margin-top:.5em"
-                onsubmit="return confirm('<?php echo esc_js(__('Deze contributieregel verwijderen?', 'avpvh-members')); ?>');">
+                data-avpvh-confirm="<?php echo esc_attr(__('Deze contributieregel verwijderen?', 'avpvh-members')); ?>">
                 <?php wp_nonce_field('avpvh_delete_fee'); ?>
                 <input type="hidden" name="action" value="avpvh_delete_fee">
                 <input type="hidden" name="fee_id" value="<?php echo esc_attr((string) $row['id']); ?>">

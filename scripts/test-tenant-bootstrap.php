@@ -10,7 +10,9 @@ declare(strict_types=1);
  */
 
 define('ABSPATH', __DIR__ . '/');
+$test_locale = $argv[1] ?? '';
 define('AVPVH_TENANT_CONFIG', [
+    'plugin_locale'            => $test_locale,
     'tenant_id'               => 'rsp_vve_vp4042',
     'ancestors'               => ['rsp', 'rsp_vve'],
     'canonical_host'          => 'site.example.invalid',
@@ -28,13 +30,32 @@ function plugin_dir_path(string $file): string { return dirname($file) . '/'; }
 function home_url(string $path = '/'): string { return 'https://site.example.invalid/' . ltrim($path, '/'); }
 function wp_parse_url(string $url, int $component = -1): mixed { return parse_url($url, $component); }
 function register_activation_hook(string $file, mixed $callback): void { $GLOBALS['activation_hooks']++; }
-function add_action(string $hook, mixed ...$args): void { $GLOBALS['hooks'][] = $hook; }
-function add_filter(string $hook, mixed ...$args): void { $GLOBALS['hooks'][] = $hook; }
+function add_action(string $hook, mixed ...$args): void { $GLOBALS['hooks'][] = $hook; $GLOBALS['callbacks'][$hook][] = $args[0]; }
+function add_filter(string $hook, mixed ...$args): void { add_action($hook, ...$args); }
+function plugin_basename(string $path): string { return basename(dirname($path)) . '/' . basename($path); }
+function load_plugin_textdomain(string $domain, bool $deprecated, string $path): void { $GLOBALS['textdomain'] = [$domain, $path]; }
+class MO {
+    public function import_from_file(string $path): void { $GLOBALS['mo_loads'][] = $path; }
+    public function translate(string $text): string { return 'translated:' . $text; }
+}
 
 require_once dirname(__DIR__) . '/avpvh-members.php';
 
+$locale_ok = false;
+if ($test_locale !== '') {
+    $translate = $GLOBALS['callbacks']['gettext_avpvh-members'][0];
+    $locale_ok = $translate('fallback', 'Fixture') === 'translated:Fixture'
+        && $translate('fallback', 'Second') === 'translated:Second'
+        && count($GLOBALS['mo_loads']) === 1 && str_ends_with($GLOBALS['mo_loads'][0], 'avpvh-members-nl_NL.mo');
+} else {
+    foreach ($GLOBALS['callbacks']['init'] as $callback) {
+        if ($callback instanceof Closure) { $callback(); }
+    }
+    $locale_ok = ($GLOBALS['textdomain'] ?? []) === ['avpvh-members', 'avpvh-members/languages'];
+}
 $failures = 0;
 foreach ([
+    'locale setup applies to plugin text'   => $locale_ok,
     'tenant SSO layer is loaded'            => class_exists('AVPVH_Tenant_SSO', false),
     'AVP member database class is not loaded' => !class_exists('AVPVH_DB', false),
     'AVP access class is not loaded'        => !class_exists('AVPVH_Access', false),
