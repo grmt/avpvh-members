@@ -11,7 +11,8 @@ class AVPVH_Media_Token {
     private const COOKIE_NAME = 'avpvh_media_token';
     private const ISSUER = 'avpvh-members';
     private const AUDIENCE = 'private-media';
-    private const LIFETIME = 8 * HOUR_IN_SECONDS;
+    private const LIFETIME = 15 * 60;
+    private const SESSION_LIFETIME = 8 * HOUR_IN_SECONDS;
     private const SECRET_FILE = '/run/secrets/avpvh_jwt_secret';
 
     public function __construct() {
@@ -38,8 +39,9 @@ class AVPVH_Media_Token {
     }
 
     /**
-     * Makes the JWT a hard session boundary for accounts with private-media
-     * access. Visitors keep their ordinary WordPress session without a JWT.
+     * Refreshes short media tokens within their signed eight-hour session
+     * boundary for accounts with private-media access. Visitors keep their
+     * ordinary WordPress session without a JWT.
      */
     public function enforce_cookie(): void {
         if (!is_user_logged_in()) {
@@ -58,8 +60,13 @@ class AVPVH_Media_Token {
             ? sanitize_text_field(wp_unslash($_COOKIE[self::COOKIE_NAME]))
             : '';
 
-        if ($this->token_expiration($current, $user_id) === null) {
+        $claims = $this->validated_payload($current, $user_id, true);
+        if ($claims === null) {
             wp_logout();
+            return;
+        }
+        if ((int) $claims['exp'] - time() <= 5 * 60 || !isset($claims['session_until'])) {
+            $this->issue_cookie($user_id, (bool) ($claims['session_cookie'] ?? true), (int) ($claims['session_until'] ?? $claims['exp']));
         }
     }
 
@@ -120,9 +127,10 @@ class AVPVH_Media_Token {
     /**
      * Builds an HS256 JWT compatible with lua/resty.openssl.hmac.
      */
-    public static function build_token(int $user_id, int $issued_at, int $expires): ?string {
+    public static function build_token(int $user_id, int $issued_at, int $expires, ?int $session_until = null, bool $session_cookie = true): ?string {
         $secret = self::secret();
-        if ($secret === null || $user_id <= 0 || $expires <= $issued_at) {
+        if ($secret === null || $user_id <= 0 || $expires <= $issued_at || $expires - $issued_at > self::LIFETIME
+            || ($session_until !== null && ($session_until < $expires || $session_until - $issued_at > self::SESSION_LIFETIME))) {
             return null;
         }
 
@@ -136,6 +144,8 @@ class AVPVH_Media_Token {
             'sub' => $user_id,
             'iat' => $issued_at,
             'exp' => $expires,
+            'session_until' => $session_until ?? $expires,
+            'session_cookie' => $session_cookie,
         ]));
         $signing_input = $header . '.' . $payload;
         $signature = hash_hmac('sha256', $signing_input, $secret, true);
@@ -143,21 +153,22 @@ class AVPVH_Media_Token {
         return $signing_input . '.' . self::base64url_encode($signature);
     }
 
-    private function issue_cookie(int $user_id, bool $session_cookie): void {
+    private function issue_cookie(int $user_id, bool $session_cookie, ?int $session_until = null): void {
         if (!$this->user_may_access_private_media($user_id)) {
             $this->clear_cookie();
             return;
         }
 
         $now = time();
-        $expires = $now + self::LIFETIME;
-        $jwt = self::build_token($user_id, $now, $expires);
+        $session_until ??= $now + self::SESSION_LIFETIME;
+        $expires = min($now + self::LIFETIME, $session_until);
+        $jwt = self::build_token($user_id, $now, $expires, $session_until, $session_cookie);
         if ($jwt === null) {
             return;
         }
 
         setcookie(self::COOKIE_NAME, $jwt, [
-            'expires'  => $session_cookie ? 0 : $expires,
+            'expires'  => $session_cookie ? 0 : $session_until,
             'path'     => '/',
             'secure'   => true,
             'httponly' => true,
@@ -177,6 +188,12 @@ class AVPVH_Media_Token {
     }
 
     private function token_expiration(string $jwt, int $user_id): ?int {
+        $claims = $this->validated_payload($jwt, $user_id);
+        return $claims === null ? null : (int) $claims['exp'];
+    }
+
+    /** Expired short media tokens may refresh only within the signed eight-hour session. */
+    private function validated_payload(string $jwt, int $user_id, bool $allow_refresh = false): ?array {
         $secret = self::secret();
         if ($secret === null || $jwt === '') {
             return null;
@@ -209,6 +226,8 @@ class AVPVH_Media_Token {
         $issued_at = (int) ($payload['iat'] ?? 0);
         $expires = (int) ($payload['exp'] ?? 0);
         $now = time();
+        $session_until = (int) ($payload['session_until'] ?? $expires);
+        $max_lifetime = isset($payload['session_until']) ? self::LIFETIME : self::SESSION_LIFETIME;
 
         $valid = ($header['alg'] ?? '') === 'HS256'
             && ($header['typ'] ?? '') === 'JWT'
@@ -216,11 +235,14 @@ class AVPVH_Media_Token {
             && ($payload['aud'] ?? '') === self::AUDIENCE
             && (int) ($payload['sub'] ?? 0) === $user_id
             && $issued_at <= $now + 60
-            && $expires > $now
+            && ($allow_refresh || $expires > $now)
+            && $session_until > $now
+            && $session_until >= $expires
+            && $session_until - $issued_at <= self::SESSION_LIFETIME + 60
             && $expires > $issued_at
-            && $expires - $issued_at <= self::LIFETIME + 60;
+            && $expires - $issued_at <= $max_lifetime + 60;
 
-        return $valid ? $expires : null;
+        return $valid ? $payload : null;
     }
 
     private static function secret(): ?string {

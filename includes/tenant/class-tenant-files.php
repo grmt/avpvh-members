@@ -55,6 +55,9 @@ class AVPVH_Tenant_Files {
         if ($this->content->current_user_may_read()) {
             return 204;
         }
+        if (is_user_logged_in()) {
+            return 403;
+        }
         $identity = AVPVH_Tenant_Identity::probe($this->config);
         if ($identity['status'] === AVPVH_Tenant_Identity::OK) {
             return array_intersect($identity['groups'], $this->config->content_groups()) ? 204 : 403;

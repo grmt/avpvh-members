@@ -56,7 +56,7 @@ function check(string $label, bool $ok): void {
 }
 
 $issued_at = 1_800_000_000;
-$expires   = $issued_at + 8 * HOUR_IN_SECONDS;
+$expires   = $issued_at + 15 * 60;
 $jwt       = AVPVH_Media_Token::build_token(42, $issued_at, $expires);
 
 check('token created', is_string($jwt));
@@ -121,6 +121,20 @@ check('admin with valid media JWT keeps session', $GLOBALS['test_logout_count'] 
 unset($_COOKIE['avpvh_media_token']);
 $validator->enforce_cookie();
 check('admin without media JWT is still logged out', $GLOBALS['test_logout_count'] === $before + 1);
+
+$GLOBALS['test_member_status'] = 'active';
+$GLOBALS['test_admin'] = false;
+$validator->on_logged_in_cookie('fixture', $now + 86400, $now + 86400, 42, 'logged_in', 'fixture');
+$issued = json_decode(decode_base64url(explode('.', $_COOKIE['avpvh_media_token'])[1]), true);
+check('new media tokens expire in fifteen minutes', $issued['exp'] - $issued['iat'] === 900);
+check('media session retains its eight-hour absolute boundary', $issued['session_until'] - $issued['iat'] === 8 * HOUR_IN_SECONDS);
+$_COOKIE['avpvh_media_token'] = AVPVH_Media_Token::build_token(42, $now - 900, $now - 1, $now + 3600, false);
+$before = $GLOBALS['test_logout_count'];
+$validator->enforce_cookie();
+$refreshed = json_decode(decode_base64url(explode('.', $_COOKIE['avpvh_media_token'])[1]), true);
+check('authenticated WordPress silently renews an expired short media token', $GLOBALS['test_logout_count'] === $before && $refreshed['exp'] > $now);
+check('refresh does not extend the absolute session or change persistence', $refreshed['session_until'] === $now + 3600 && !$refreshed['session_cookie']);
+check('new long-lived media tokens cannot be issued', AVPVH_Media_Token::build_token(42, $now, $now + 8 * HOUR_IN_SECONDS) === null);
 
 echo PHP_EOL . 'Done.' . PHP_EOL;
 ob_end_flush();

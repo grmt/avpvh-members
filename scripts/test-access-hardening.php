@@ -46,19 +46,22 @@ class WP_Post {
 class WP_User {
     public array $roles = [];
     public array $caps = [];
+    public array $allcaps = [];
     public string $user_login = '';
     public string $user_email = '';
     public string $display_name = '';
     public function __construct(public int $ID = 0, array $roles = ['subscriber'], array $caps = []) {
         $this->roles = $roles;
         $this->caps = $caps;
+        $this->allcaps = array_fill_keys($caps, true);
     }
     public function set_role(string $role): void { $this->roles = [$role]; }
 }
 class WP_REST_Request {
-    public function __construct(private string $route, private string $method = 'GET') {}
+    public function __construct(private string $route, private string $method = 'GET', private array $params = []) {}
     public function get_route(): string { return $this->route; }
     public function get_method(): string { return $this->method; }
+    public function get_param(string $key): mixed { return $this->params[$key] ?? null; }
 }
 class WP_Query {
     public array $vars = [];
@@ -132,7 +135,10 @@ $wpdb = new class {
         }
         return $ids;
     }
-    public function get_results(mixed $q): array { return []; }
+    public function get_results(mixed $q): array {
+        if (is_string($q) && str_contains($q, 'YEAR(post_date)')) { return [(object) ['ID' => 501, 'y' => 2015], (object) ['ID' => 502, 'y' => 2025]]; }
+        return $GLOBALS['test_address_rows'] ?? [];
+    }
 };
 
 function __(string $t, string $d = ''): string { return $t; }
@@ -141,8 +147,8 @@ function esc_html(string $t): string { return htmlspecialchars($t, ENT_QUOTES, '
 function esc_html_e(string $t, string $d = ''): void { echo esc_html($t); }
 function admin_url(string $path = ''): string { return home_url('/wp-admin/' . $path); }
 function esc_url(string $u): string { return $u; }
-function add_action(string $h, mixed ...$a): void {}
-function add_filter(string $h, mixed ...$a): void {}
+function add_action(string $h, mixed ...$a): void { $GLOBALS['test_hooks'][$h][] = $a; }
+function add_filter(string $h, mixed ...$a): void { $GLOBALS['test_hooks'][$h][] = $a; }
 function apply_filters(string $h, mixed $value, mixed ...$a): mixed {
     return isset($GLOBALS['test_filters'][$h]) ? ($GLOBALS['test_filters'][$h])($value, ...$a) : $value;
 }
@@ -176,6 +182,8 @@ function current_user_can(string $cap): bool {
     return $u ? user_can($u, $cap) : false;
 }
 function get_option(string $name, mixed $default = false): mixed { return $GLOBALS['test_options'][$name] ?? $default; }
+function get_comment(int $id): ?object { return isset($GLOBALS['test_comment_posts'][$id]) ? (object) ['comment_post_ID' => $GLOBALS['test_comment_posts'][$id]] : null; }
+function url_to_postid(string $url): int { return $GLOBALS['test_url_posts'][$url] ?? 0; }
 function get_post(int $id): ?WP_Post { return $GLOBALS['test_posts'][$id] ?? null; }
 function get_post_meta(int $id, string $key, bool $single = false): mixed { return $GLOBALS['test_post_meta'][$id][$key] ?? ''; }
 function get_posts(array $args): array {
@@ -249,6 +257,9 @@ require_once dirname(__DIR__) . '/includes/class-db.php';
 require_once dirname(__DIR__) . '/includes/class-roles.php';
 require_once dirname(__DIR__) . '/includes/class-nav-auth.php';
 require_once dirname(__DIR__) . '/includes/class-access.php';
+require_once dirname(__DIR__) . '/includes/class-archive-access.php';
+require_once dirname(__DIR__) . '/includes/class-avpvh-address-matcher.php';
+require_once dirname(__DIR__) . '/includes/class-avpvh-address-normalizer.php';
 require_once dirname(__DIR__) . '/includes/class-member-profile-form.php';
 require_once dirname(__DIR__) . '/includes/class-member-profile-page.php';
 require_once dirname(__DIR__) . '/includes/class-member-profile-sections.php';
@@ -269,12 +280,16 @@ $wpdb = new class($wpdb) {
     public function prepare(string $sql, mixed ...$args): array { return [$sql, $args]; }
     public function get_var(mixed $q): mixed { return $this->inner->get_var($q); }
     public function get_col(string $sql): array { return $this->inner->get_col($sql); }
-    public function get_results(mixed $q): array { return []; }
+    public function get_results(mixed $q): array {
+        if (is_string($q) && str_contains($q, 'YEAR(post_date)')) { return [(object) ['ID' => 501, 'y' => 2015], (object) ['ID' => 502, 'y' => 2025]]; }
+        return $GLOBALS['test_address_rows'] ?? [];
+    }
     public function query(mixed $q): int { return 0; }
     public function get_row(mixed $q): ?object {
         if (is_array($q)) {
             [$sql, $args] = $q;
-            if (str_contains($sql, 'WHERE m.id = %d')) {
+            if (str_contains($sql, 'INNER JOIN') && !empty($GLOBALS['test_cache_missing'])) { return null; }
+            if (str_contains($sql, 'avm_members WHERE id = %d') || str_contains($sql, 'WHERE m.id = %d')) {
                 return $GLOBALS['test_members'][(int) $args[0]] ?? null;
             }
             if (str_contains($sql, 'WHERE m.wp_user_id = %d')) {
@@ -660,10 +675,10 @@ wp_logout();
 check('anonymous viewer has no completed step-up', !AVPVH_Access::current_session_has_2fa());
 wp_set_current_user(1);
 $GLOBALS['test_session_token'] = '';
-check('non-cookie authentication retains its established behavior', AVPVH_Access::current_session_has_2fa());
+check('non-cookie authentication cannot satisfy 2FA', !AVPVH_Access::current_session_has_2fa());
 unset($GLOBALS['test_session_token']);
 $GLOBALS['test_session_data'] = ['expiration' => 123];
-check('legacy session metadata retains its established behavior', AVPVH_Access::current_session_has_2fa());
+check('legacy session metadata cannot satisfy 2FA', !AVPVH_Access::current_session_has_2fa());
 $GLOBALS['test_session_data'] = ['avpvh_auth_method' => 'oauth', 'avpvh_2fa' => false];
 $_SERVER['HTTP_REMOTE_USER'] = 'admin.test';
 $_SERVER['HTTP_X_AVPVH_PROXY_SECRET'] = AVPVH_PROXY_SECRET;
@@ -746,6 +761,86 @@ wp_set_current_user(2);
 $GLOBALS['test_meta'][2][AVPVH_Tenant_SSO::GROUPS_META] = ['vp4042-leden'];
 check('tenant member collection args are unchanged', $t_content->exclude_from_rest_query(['post__in' => [11]]) === ['post__in' => [11]]);
 check('tenant member comment args are unchanged', $t_content->exclude_comments_from_rest_query(['post_id' => 11]) === ['post_id' => 11]);
+
+// Regression cases for the reported REST, session and elevated-target bypasses.
+wp_logout();
+foreach (['/WP/v2/PaGeS/11', '/wp/v2/PAGES/11/revisions'] as $route) {
+    check('mixed-case restricted main page is hidden: ' . $route, $access->hide_members_page_from_rest(null, [], new WP_REST_Request($route)) instanceof WP_Error);
+    check('mixed-case restricted tenant page is hidden: ' . $route, $t_content->hide_from_rest_item(null, [], new WP_REST_Request($route)) instanceof WP_Error);
+}
+$archive = new AVPVH_Archive_Access();
+AVPVH_Archive_Access::reset();
+check('mixed-case private blog post is hidden', $archive->hide_post_from_rest(null, [], new WP_REST_Request('/wp/v2/PoStS/501')) instanceof WP_Error);
+$GLOBALS['test_comment_posts'] = [101 => 11, 102 => 20, 103 => 501];
+foreach ([
+    'main' => new AVPVH_Content_Guard([$access, 'post_is_restricted']),
+    'tenant' => new AVPVH_Content_Guard(fn(int $id): bool => !$t_content->current_user_may_read() && in_array($id, $t_content->protected_ids(), true)),
+    'archive' => new AVPVH_Content_Guard(fn(int $id): bool => in_array($id, AVPVH_Archive_Access::hidden_post_ids(), true)),
+] as $mode => $guard) {
+    $post = $mode === 'archive' ? 501 : 11;
+    $comment = $mode === 'archive' ? 103 : 101;
+    foreach (['GET', 'HEAD', 'POST', 'PUT', 'DELETE'] as $method) {
+        $result = $guard->guard_rest_comments(null, [], new WP_REST_Request('/wP/v2/CoMmEnTs/' . $comment, $method));
+        check($mode . ': direct comment ' . $method . ' cannot bypass parent access', $result instanceof WP_Error && $result->data['status'] === (in_array($method, ['GET', 'HEAD'], true) ? 404 : 403));
+    }
+    check($mode . ': comment creation on hidden parent is forbidden', $guard->guard_rest_comments(null, [], new WP_REST_Request('/wp/v2/Comments', 'POST', ['post' => $post])) instanceof WP_Error);
+    check($mode . ': moving a public comment to a hidden parent is forbidden', $guard->guard_rest_comments(null, [], new WP_REST_Request('/wp/v2/comments/102', 'POST', ['post' => $post])) instanceof WP_Error);
+    check($mode . ': public comment reads pass', $guard->guard_rest_comments(null, [], new WP_REST_Request('/wp/v2/comments/102')) === null);
+    check($mode . ': hidden comments are closed, public comments retain their setting', !$guard->comments_open(true, $post) && $guard->comments_open(true, 20) && !$guard->comments_open(false, 20));
+    $denied = false;
+    try { $guard->guard_comment_submission($post); } catch (Test_Exit $e) { $denied = $e->status === 403; }
+    check($mode . ': classic comment submissions are forbidden', $denied);
+    $GLOBALS['test_url_posts']['https://site.example.invalid/hidden/'] = $post;
+    check($mode . ': guessed hidden permalinks are not disclosed', $guard->guard_canonical_redirect('https://site.example.invalid/hidden/') === false);
+    check($mode . ': unrelated canonical redirects pass', $guard->guard_canonical_redirect('https://site.example.invalid/public/') === 'https://site.example.invalid/public/');
+}
+wp_set_current_user(1);
+$GLOBALS['test_session_data'] = ['avpvh_auth_method' => 'oauth', 'avpvh_2fa' => false];
+foreach (['/wp/v2/UsErS', '/WP/v2/SeTTings'] as $route) {
+    check('sensitive mixed-case REST read requires 2FA: ' . $route, $access->enforce_step_up_2fa_for_rest(null, [], new WP_REST_Request($route)) instanceof WP_Error);
+}
+foreach (['admin-post.php', 'admin-ajax.php'] as $endpoint) {
+    $pagenow = $endpoint;
+    $_REQUEST['action'] = 'companion_privileged_action';
+    $blocked = false;
+    try {
+        $endpoint === 'admin-post.php' ? $access->enforce_step_up_2fa_for_admin_post() : $access->enforce_step_up_2fa_for_ajax();
+    } catch (Test_Exit $e) { $blocked = $e->status === 403; }
+    check($endpoint . ': companion actions require step-up', $blocked);
+}
+foreach (['avpvh_save_member_profile', 'avpvh_media_session_status', 'gallery_filter'] as $action) {
+    $_REQUEST['action'] = $action;
+    $access->enforce_step_up_2fa_for_ajax();
+    check('1FA frontend AJAX remains accessible: ' . $action, true);
+}
+wp_logout();
+$_SERVER['HTTP_REMOTE_USER'] = 'admin.test';
+$_SERVER['HTTP_X_AVPVH_PROXY_SECRET'] = AVPVH_PROXY_SECRET;
+$_SERVER['REQUEST_URI'] = '/leden/zoeken-in-documenten/';
+$_POST['rest_route'] = '/wp/v2/pages';
+$access->auto_login_from_proxy_header();
+check('POST rest_route never authenticates from proxy headers', !is_user_logged_in());
+$_POST = [];
+$_SERVER['REQUEST_URI'] = '/WP-JSON/wp/v2/posts';
+$access->auto_login_from_proxy_header();
+check('mixed-case REST prefix never authenticates from proxy headers', !is_user_logged_in());
+$GLOBALS['test_cache_missing'] = true;
+check('cache miss cannot hide an elevated local WordPress account', AVPVH_Roles::member_has_elevated_access(10));
+check('cache miss cannot hide directory groups', AVPVH_Roles::member_has_elevated_access(30));
+check('cache miss cannot hide active delegations', AVPVH_Roles::member_has_elevated_access(40));
+unset($GLOBALS['test_cache_missing']);
+check('missing security target fails closed', AVPVH_Roles::member_has_elevated_access(999999));
+wp_set_current_user(4);
+$address = (object) ['street' => 'Fictieve Teststraat', 'house_number' => '1', 'house_number_addition' => '', 'postal_code' => '1234 AB', 'city' => 'Teststad', 'country' => 'Nederland'];
+$GLOBALS['test_address_rows'] = [(object) (['member_id' => 10] + (array) $address)];
+$denied = false;
+try { AVPVH_Roles::require_address_household_admin(20, $address); } catch (Test_Exit $e) { $denied = $e->status === 403; }
+check('officer cannot confirm an address matching an elevated account', $denied);
+$GLOBALS['test_address_rows'] = [];
+AVPVH_Roles::require_address_household_admin(20, $address);
+check('ordinary address confirmations remain available to officers', true);
+wp_set_current_user(6);
+check('inactive member gets no stale File List groups', AVPVH_Roles::user_filelist_groups([], 6) === []);
 
 echo $failures ? "\n$failures failure(s)\n" : "\nAccess hardening tests: OK\n";
 exit($failures ? 1 : 0);

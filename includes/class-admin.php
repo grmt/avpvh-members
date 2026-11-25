@@ -56,6 +56,7 @@ class AVPVH_Admin {
         }
 
         $base = plugin_dir_url(dirname(__FILE__));
+        wp_enqueue_script('avpvh-ui-actions', $base . 'assets/ui-actions.js', [], avpvh_asset_version('assets/ui-actions.js'), true);
         wp_enqueue_style(
             'avpvh-admin',
             $base . 'assets/admin.css',
@@ -464,7 +465,7 @@ class AVPVH_Admin {
                         <td><?php echo $flag->sets_inactive ? esc_html__('Ja', 'avpvh-members') : esc_html__('Nee', 'avpvh-members'); ?></td>
                         <td>
                             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                onsubmit="return confirm('<?php echo esc_js(sprintf(/* translators: %s: flag name */ __('Kenmerk "%s" verwijderen? Dit haalt het ook weg bij alle leden die het hebben.', 'avpvh-members'), $flag->label)); ?>');">
+                                data-avpvh-confirm="<?php echo esc_attr(sprintf(/* translators: %s: flag name */ __('Kenmerk "%s" verwijderen? Dit haalt het ook weg bij alle leden die het hebben.', 'avpvh-members'), $flag->label)); ?>">
                                 <?php wp_nonce_field('avpvh_delete_flag'); ?>
                                 <input type="hidden" name="action" value="avpvh_delete_flag">
                                 <input type="hidden" name="flag_id" value="<?php echo esc_attr($flag->id); ?>">
@@ -820,6 +821,12 @@ class AVPVH_Admin {
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $this->require_elevated_target_admin($member_id);
+        foreach (AVPVH_DB::get_addresses($member_id) as $address) {
+            if ((int) $address->id === $id) {
+                AVPVH_Roles::require_address_household_admin($member_id, $address);
+            }
+        }
         $valid_from = sanitize_text_field(wp_unslash($_POST['valid_from'] ?? '')) ?: null;
         $valid_until = sanitize_text_field(wp_unslash($_POST['valid_until'] ?? '')) ?: null;
         $saved = $id && $member_id && AVPVH_DB::update_address($id, $member_id, $valid_from, $valid_until);
@@ -1109,6 +1116,12 @@ class AVPVH_Admin {
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $this->require_elevated_target_admin($member_id);
+        foreach (AVPVH_DB::get_addresses($member_id) as $address) {
+            if ((int) $address->id === $id) {
+                AVPVH_Roles::require_address_household_admin($member_id, $address);
+            }
+        }
         if ($id && $member_id) {
             AVPVH_DB::confirm_address($id, $member_id);
         }
@@ -1143,6 +1156,7 @@ class AVPVH_Admin {
         }
         $id = absint(wp_unslash($_POST['id'] ?? 0));
         $member_id = absint(wp_unslash($_POST['member_id'] ?? 0));
+        $this->require_elevated_target_admin($member_id);
         if ($id && $member_id) {
             AVPVH_DB::delete_address($id, $member_id);
         }

@@ -46,6 +46,8 @@ check('administrator REST authentication errors are preserved', $hooks['rest_aut
 check('administrator can still reach diagnostic pages', !blocked($hooks['template_redirect'][0][0]));
 $admin = false;
 check('ordinary front-end requests fail closed', blocked($hooks['template_redirect'][0][0]));
+check('admin-post and AJAX fail closed for non-administrators', blocked($hooks['admin_init'][0][0]));
+check('invalid config never loads a plugin locale', !isset($hooks['gettext_avpvh-members']));
 $error = $hooks['rest_authentication_errors'][1][0](null);
 check('REST requests receive a configuration error instead of content', $error->code === 'avpvh_tenant_config_invalid' && $error->data['status'] === 503);
 check('local login is unavailable unless explicitly configured', blocked($hooks['login_init'][0][0]));

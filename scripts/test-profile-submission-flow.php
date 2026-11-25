@@ -45,10 +45,14 @@ function get_transient(string $key): mixed { return $GLOBALS['transients'][$key]
 function set_transient(string $key, mixed $value, int $ttl): bool { $GLOBALS['transients'][$key] = $value; return true; }
 function delete_transient(string $key): bool { unset($GLOBALS['transients'][$key]); return true; }
 function wp_mail(string $to, string $subject, string $body): bool { $GLOBALS['mail'][] = compact('to', 'subject', 'body'); return true; }
-class AVPVH_Access { public static function current_session_has_2fa(): bool { return $GLOBALS['two_factor']; } }
+
 class AVPVH_Roles {
     public static function can_manage_members(): bool { return $GLOBALS['officer']; }
     public static function member_has_elevated_access(int $id): bool { return $id === 40; }
+    public static function require_elevated_target_admin(int $id): void {
+        if ($id === 40 && !current_user_can('manage_options')) { wp_die('Denied', '', ['response' => 403]); }
+    }
+    public static function require_address_household_admin(int $id, object $address): void { self::require_elevated_target_admin($id); }
 }
 class AVPVH_I18n {
     public static function get_supported_locales(): array { return ['nl_NL' => 'Nederlands', 'en_GB' => 'English']; }
@@ -81,11 +85,15 @@ class AVPVH_DB {
     public static function delete_identity_by_id(int $member, int $identity): void { $GLOBALS['deleted'][] = compact('member', 'identity'); }
     public static function set_primary_identity(int $member, int $identity): void { $GLOBALS['primary'][] = compact('member', 'identity'); }
     public static function get_activity(int $id): ?object { return $id === 70 ? (object) ['start_date' => '2026-07-10', 'end_date' => '2026-07-12'] : null; }
+    public static function get_relationship_labels(): array { return [(object) ['id' => 1]]; }
+    public static function get_relationship(int $id): ?object { return $id === 8 ? (object) ['member_id' => 20, 'related_member_id' => 10] : null; }
     public static function relationship_exists(mixed ...$args): bool { return $GLOBALS['duplicate']; }
     public static function add_relationship(mixed ...$args): bool { $GLOBALS['relations'][] = $args; return true; }
     public static function remove_relationship(int $id, int $member): bool { $GLOBALS['removed_relations'][] = compact('id', 'member'); return true; }
 }
+require_once dirname(__DIR__) . '/tests/fixtures/access-session.php';
 require_once dirname(__DIR__) . '/includes/class-member-profile-form.php';
+require_once dirname(__DIR__) . '/includes/class-member-profile-page.php';
 
 $results = [];
 function check(string $label, bool $ok): void { $GLOBALS['results'][] = [$label, $ok]; }
@@ -131,6 +139,24 @@ try {
     $exit = profile_action([$form, 'handle_save_profile']);
     check('2FA member administrator saves birth year and student status for the target', $exit->kind === 'success' && $GLOBALS['writes'][0]['id'] === 30 && $GLOBALS['writes'][0]['data']['birth_year'] === 2010 && $GLOBALS['writes'][0]['data']['birth_date'] === null && $GLOBALS['writes'][0]['data']['is_student'] === 1);
     check('target locale and confirmed address are written to the target only', $GLOBALS['meta'][121]['locale'] === 'en_GB' && $GLOBALS['remembered_locale'] === null && !$GLOBALS['addresses'][0]['member_entered']);
+
+    foreach ([false, true] as $two_factor) {
+        reset_profile();
+        $GLOBALS['officer'] = true;
+        $GLOBALS['two_factor'] = $two_factor;
+        $exit = profile_action([$form, 'handle_save_profile']);
+        check('officer self-profile address always needs confirmation, factor=' . (int) $two_factor, $exit->kind === 'success' && $GLOBALS['addresses'][0]['member_entered']);
+    }
+    reset_profile();
+    $GLOBALS['officer'] = true;
+    $GLOBALS['two_factor'] = false;
+    $_POST['member_id'] = 30;
+    $exit = profile_action([$form, 'handle_save_profile']);
+    check('1FA officer household address cannot become board-confirmed', $exit->kind === 'success' && $GLOBALS['addresses'][0]['member_entered']);
+    [$shown, $view] = AVPVH_Member_Profile_Page::resolve($GLOBALS['members'][10], 30);
+    check('1FA officer sees the household view without admin fields', $shown->id === 30 && $view === 'household');
+    [$shown, $view] = AVPVH_Member_Profile_Page::resolve($GLOBALS['members'][10], 10);
+    check('1FA officer self-profile never selects the admin view', $shown->id === 10 && $view === 'own');
 
     foreach (['anonymous', 'missing_member', 'elevated_target', 'emergency_member', 'emergency_phone', 'storage_error'] as $case) {
         reset_profile();
@@ -203,6 +229,34 @@ try {
     $_POST['relationship_id'] = 8;
     profile_action([$form, 'handle_remove_relationship']);
     check('relationship removal is scoped to the selected member', $GLOBALS['removed_relations'] === [['id' => 8, 'member' => 20]]);
+    foreach (['self_link', 'missing_source', 'missing_target', 'missing_label', 'invalid_date', 'reversed_dates', 'elevated_source', 'elevated_target'] as $case) {
+        reset_profile();
+        $GLOBALS['officer'] = true;
+        $_POST = ['member_id' => 10, 'related_member_id' => 20, 'label_id' => 1];
+        switch ($case) {
+            case 'self_link': $_POST['related_member_id'] = 10; break;
+            case 'missing_source': $_POST['member_id'] = 999; break;
+            case 'missing_target': $_POST['related_member_id'] = 999; break;
+            case 'missing_label': $_POST['label_id'] = 999; break;
+            case 'invalid_date': $_POST['valid_from'] = '2026-02-30'; break;
+            case 'reversed_dates': $_POST += ['valid_from' => '2026-07-12', 'valid_until' => '2026-07-10']; break;
+            case 'elevated_source': $_POST['member_id'] = 40; break;
+            case 'elevated_target': $_POST['related_member_id'] = 40; break;
+        }
+        $exit = profile_action([$form, 'handle_add_relationship']);
+        check($case . ' relationship is rejected without writes', $exit->kind === 'die' && !$GLOBALS['relations']);
+    }
+    reset_profile();
+    $GLOBALS['officer'] = true;
+    $_POST = ['member_id' => 50];
+    profile_action([$form, 'handle_request_identity']);
+    check('repeated verification request is rate limited', profile_action([$form, 'handle_request_identity'])->status === 429 && count($GLOBALS['mail']) === 1);
+    reset_profile();
+    $GLOBALS['actor'] = 999;
+    $GLOBALS['officer'] = true;
+    $_POST = ['member_id' => 30];
+    $exit = profile_action([$form, 'handle_request_identity']);
+    check('administrator without a member record can request verification safely', $exit->kind === 'redirect' && count($GLOBALS['mail']) === 1);
 } finally {
     ini_set('error_log', $previous_log);
     unlink($log);

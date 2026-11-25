@@ -23,7 +23,7 @@ class AVPVH_Account_Privacy {
             return $endpoints;
         }
         foreach (array_keys($endpoints) as $route) {
-            if (preg_match('#^/wp/v2/users(?:/|$)#', (string) $route)) {
+            if (preg_match('#^/wp/v2/users(?:/|$)#i', (string) $route)) {
                 unset($endpoints[$route]);
             }
         }
@@ -31,7 +31,7 @@ class AVPVH_Account_Privacy {
     }
 
     public function hide_author_archive(): void {
-        if (!is_author() || is_user_logged_in()) {
+        if (!is_author() || current_user_can('edit_posts')) {
             return;
         }
         global $wp_query;

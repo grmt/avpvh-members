@@ -22,7 +22,7 @@ class AVPVH_Member_Profile_Page {
     public static function resolve(?object $own_member, int $requested_id): array {
         $view = 'own';
         $may_edit = $requested_id > 0 && AVPVH_Member_Profile_Form::can_edit_member($own_member, $requested_id);
-        if ($may_edit && AVPVH_Roles::can_manage_members()) {
+        if ($may_edit && AVPVH_Roles::can_manage_members() && AVPVH_Access::current_session_has_2fa()) {
             $view = 'admin';
         } elseif ($may_edit && $own_member) {
             $view = 'edit';

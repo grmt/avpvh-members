@@ -2091,6 +2091,14 @@ class AVPVH_DB {
         return $result !== false;
     }
 
+    /** Raw participants for authorization, even when a label or identity cache row is absent. */
+    public static function get_relationship(int $id): ?object {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}avm_relationships WHERE id = %d", $id
+        )) ?: null;
+    }
+
     /** Removes the relationship only when it belongs to $member_id (either side). */
     public static function remove_relationship(int $relationship_id, int $member_id): bool {
         global $wpdb;

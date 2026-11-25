@@ -22,7 +22,7 @@ class AVPVH_Member_Profile_Form {
      * profile page, without the previous action's notice.
      */
     public static function back_url(): string {
-        return remove_query_arg(self::NOTICE_ARGS, wp_get_referer() ?: home_url('/member-profile/'));
+        return remove_query_arg(self::NOTICE_ARGS, AVPVH_Access::safe_same_site_redirect(wp_get_referer() ?: home_url('/member-profile/')));
     }
 
     /**
@@ -85,6 +85,23 @@ class AVPVH_Member_Profile_Form {
             wp_send_json_error(__('Vul ook het telefoonnummer van je noodcontact in.', 'avpvh-members'));
         }
 
+        $address_data = null;
+        $confirmed = false;
+        if (!empty($_POST['street']) || !empty($_POST['postal_code'])) {
+            $address_data = [
+                'street' => sanitize_text_field(wp_unslash($_POST['street'] ?? '')),
+                'house_number' => sanitize_text_field(wp_unslash($_POST['house_number'] ?? '')),
+                'house_number_addition' => sanitize_text_field(wp_unslash($_POST['house_number_addition'] ?? '')),
+                'postal_code' => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
+                'city' => sanitize_text_field(wp_unslash($_POST['city'] ?? '')),
+                'country' => sanitize_text_field(wp_unslash($_POST['country'] ?? 'Nederland')),
+            ];
+            $confirmed = AVPVH_Roles::can_manage_members() && $has_2fa && !$is_own_profile;
+            if ($confirmed) {
+                AVPVH_Roles::require_address_household_admin((int) $member->id, (object) $address_data);
+            }
+        }
+
         try {
             // Save language preference if provided
             if (isset($_POST['user_locale'])) {
@@ -122,21 +139,9 @@ class AVPVH_Member_Profile_Form {
                 }
             }
 
-            // Update address if provided
-            if (!empty($_POST['street']) || !empty($_POST['postal_code'])) {
-                $address_data = [
-                    'street' => sanitize_text_field(wp_unslash($_POST['street'] ?? '')),
-                    'house_number' => sanitize_text_field(wp_unslash($_POST['house_number'] ?? '')),
-                    'house_number_addition' => sanitize_text_field(wp_unslash($_POST['house_number_addition'] ?? '')),
-                    'postal_code' => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
-                    'city' => sanitize_text_field(wp_unslash($_POST['city'] ?? '')),
-                    'country' => sanitize_text_field(wp_unslash($_POST['country'] ?? 'Nederland')),
-                ];
-                // The form always re-sends the address; an unchanged one
-                // must not add a new history row (see add_member_address()).
-                // A new address from a member gives no household rights
-                // until the board confirms it (AVPVH_DB::addresses_grant_household()).
-                AVPVH_DB::add_member_address((int) $member->id, $address_data, !AVPVH_Roles::can_manage_members());
+            if ($address_data !== null) {
+                // Self-service addresses grant household rights only after confirmation.
+                AVPVH_DB::add_member_address((int) $member->id, $address_data, !$confirmed);
             }
 
             wp_send_json_success(__('Profiel succesvol bijgewerkt!', 'avpvh-members'));
@@ -155,10 +160,11 @@ class AVPVH_Member_Profile_Form {
     /** Members someone can pick as emergency contact: active members/admins see everyone with an address; visitors/ex-members only keep their current pick. */
     public static function emergency_candidates(object $member, ?object $own_member): array {
         $candidates = [];
-        $may_list_members = AVPVH_Roles::can_manage_members()
+        $admin = AVPVH_Roles::can_manage_members() && AVPVH_Access::current_session_has_2fa();
+        $may_list_members = $admin
             || ($own_member && (!isset($own_member->status) || $own_member->status === 'active'));
         if ($may_list_members) {
-            foreach (AVPVH_DB::get_members_with_address((int) ($own_member->id ?? 0), AVPVH_Roles::can_manage_members()) as $m) {
+            foreach (AVPVH_DB::get_members_with_address((int) ($own_member->id ?? 0), $admin) as $m) {
                 if ((int) $m->id !== (int) $member->id) {
                     $candidates[(int) $m->id] = avpvh_format_name($m);
                 }
@@ -395,9 +401,15 @@ class AVPVH_Member_Profile_Form {
             wp_die(esc_html__('Lid niet gevonden.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 404]);
         }
 
-        if ((int) $member->id === (int) $own_member->id) {
+        if ($own_member && (int) $member->id === (int) $own_member->id) {
             wp_die(esc_html__('Je kunt geen verzoek naar jezelf sturen.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 400]);
         }
+
+        $rate_key = 'avpvh_identity_request_rate_' . get_current_user_id() . '_' . $member_id;
+        if (get_transient($rate_key)) {
+            wp_die(esc_html__('Dit verzoek is al verstuurd. Probeer het later opnieuw.', 'avpvh-members'), '', ['response' => 429]);
+        }
+        set_transient($rate_key, 1, HOUR_IN_SECONDS);
 
         $requester_user = wp_get_current_user();
         $requester_name = $requester_user->display_name ?: $requester_user->user_login;
@@ -455,7 +467,22 @@ class AVPVH_Member_Profile_Form {
             wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
-        if (!$related_member_id || !$label_id || !AVPVH_DB::get_member($related_member_id)) {
+        AVPVH_Roles::require_elevated_target_admin($member_id);
+        AVPVH_Roles::require_elevated_target_admin($related_member_id);
+        $label_ids = array_map('intval', array_column(AVPVH_DB::get_relationship_labels(), 'id'));
+        $valid_date = static function (?string $date): bool {
+            if ($date === null) {
+                return true;
+            }
+            $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            return $parsed && $parsed->format('Y-m-d') === $date;
+        };
+        if (!$related_member_id || $member_id === $related_member_id
+            || !AVPVH_DB::get_member($member_id) || !AVPVH_DB::get_member($related_member_id)
+            || !in_array($label_id, $label_ids, true)
+            || !$valid_date($valid_from) || !$valid_date($valid_until)
+            || ($valid_from && $valid_until && $valid_from > $valid_until)
+            || ($activity_id && !$activity)) {
             wp_die(esc_html__('Ongeldige relatie.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 400]);
         }
 
@@ -487,6 +514,13 @@ class AVPVH_Member_Profile_Form {
             wp_die(esc_html__('Geen toegang.', 'avpvh-members'), esc_html__('Fout', 'avpvh-members'), ['response' => 403]);
         }
 
+        AVPVH_Roles::require_elevated_target_admin($member_id);
+        $relationship = AVPVH_DB::get_relationship($relationship_id);
+        if (!$relationship || !in_array($member_id, [(int) $relationship->member_id, (int) $relationship->related_member_id], true)) {
+            wp_die(esc_html__('Ongeldige relatie.', 'avpvh-members'), '', ['response' => 400]);
+        }
+        AVPVH_Roles::require_elevated_target_admin((int) $relationship->member_id);
+        AVPVH_Roles::require_elevated_target_admin((int) $relationship->related_member_id);
         $removed = $relationship_id && AVPVH_DB::remove_relationship($relationship_id, $member_id);
 
         wp_safe_redirect(add_query_arg(['member_id' => $member_id, $removed ? 'relationship_removed' : 'relationship_error' => '1'], self::back_url()));

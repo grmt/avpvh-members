@@ -207,7 +207,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             <th><?php esc_html_e('E-mail', 'avpvh-members'); ?></th>
             <td>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:.5rem;align-items:center"
-                    onsubmit="return confirm('<?php echo esc_js(__('Contactadres van het account wijzigen?', 'avpvh-members')); ?>');">
+                    data-avpvh-confirm="<?php echo esc_attr(__('Contactadres van het account wijzigen?', 'avpvh-members')); ?>">
                     <?php wp_nonce_field('avpvh_update_email'); ?>
                     <input type="hidden" name="action" value="avpvh_update_email">
                     <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
@@ -327,7 +327,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <span class="description" title="<?php esc_attr_e('Het enige geverifieerde inlogadres kan niet weg: koppel hieronder een ander adres en laat het lid daarmee één keer inloggen.', 'avpvh-members'); ?>"><?php esc_html_e('Enige geverifieerde', 'avpvh-members'); ?></span>
                     <?php else : ?>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block"
-                        onsubmit="return confirm('<?php echo esc_js(__('Dit e-mailadres verwijderen?', 'avpvh-members')); ?>');">
+                        data-avpvh-confirm="<?php echo esc_attr(__('Dit e-mailadres verwijderen?', 'avpvh-members')); ?>">
                         <?php wp_nonce_field('avpvh_delete_identity'); ?>
                         <input type="hidden" name="action" value="avpvh_delete_identity">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
@@ -437,7 +437,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                         <input type="hidden" name="action" value="avpvh_delete_name_alias">
                         <input type="hidden" name="id" value="<?php echo esc_attr($alias->id); ?>">
                         <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                        <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js(__('Deze naamvariant verwijderen?', 'avpvh-members')); ?>');"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
+                        <button type="submit" class="button button-small" data-avpvh-confirm="<?php echo esc_attr(__('Deze naamvariant verwijderen?', 'avpvh-members')); ?>"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
                     </form>
                 </td>
             </tr>
@@ -533,7 +533,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <input type="hidden" name="action" value="avpvh_delete_address">
                     <input type="hidden" name="id" value="<?php echo esc_attr($a->id); ?>">
                     <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
-                    <button type="submit" class="button button-small" onclick="return confirm('<?php echo esc_js(__('Dit adres verwijderen?', 'avpvh-members')); ?>');"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
+                    <button type="submit" class="button button-small" data-avpvh-confirm="<?php echo esc_attr(__('Dit adres verwijderen?', 'avpvh-members')); ?>"><?php esc_html_e('Verwijderen', 'avpvh-members'); ?></button>
                 </form>
                     </td>
             </tr>

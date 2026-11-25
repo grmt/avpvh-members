@@ -52,6 +52,31 @@ Browser ──► nginx ──auth_request──► Authelia ──LDAP──►
   plugin admin page (`AVPVH_Roles::current_user_needs_wp_admin()`); others
   are sent to the home page. admin-post/AJAX stay open for front-end forms.
 
+### Security boundaries
+
+REST single items, comments (including submissions), collections and canonical
+redirects follow the same content permissions on the main site and tenants.
+Administrative REST, AJAX and admin-post actions require a session with verified
+2FA; explicit frontend actions retain their own nonce and target checks.
+Companion plugins can register frontend exceptions with
+`avpvh_mbrs_2fa_frontend_ajax_actions` and
+`avpvh_mbrs_2fa_frontend_admin_post_actions`; only add actions that enforce
+self-service scope themselves. Application Passwords and authenticated XML-RPC
+are disabled on both modes.
+
+OAuth replaces the incoming browser's WordPress session and ends its Authelia
+session. Tenant member download links also require the issuing member's current
+session and access on each download; e-mail links follow the current share list.
+Share e-mail guessing is limited per IP and per share.
+
+New private-media JWTs expire after 15 minutes. The session watchdog refreshes
+through WordPress, checking current membership, within the original eight-hour
+session boundary. Existing eight-hour JWTs are accepted during migration and
+retain their original expiry at OpenResty. Publishing media is still a one-way
+operation: moving a previously public page behind an access boundary cannot
+revoke copies or old public URLs. DMARC and document-search pages never promote
+new uploads to public storage.
+
 ### Rechtspreker tenant sites
 
 With `wp-content/avpvh-tenant.php` (or the constant `AVPVH_TENANT_CONFIG`)

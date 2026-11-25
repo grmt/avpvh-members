@@ -1,5 +1,6 @@
 <?php
 defined('ABSPATH') || exit;
+require_once __DIR__ . '/class-content-guard.php';
 
 class AVPVH_Access {
 
@@ -25,6 +26,24 @@ class AVPVH_Access {
         'avpvh_gallery_share_tidy',
         'avpvh_gallery_share_delete',
         'avpvh_gallery_share_recreate',
+        'avbk_apply_balance_selection',
+        'avbk_book_order',
+        'avbk_check_book_email',
+        'avbk_tshirt_order',
+        'avbk_check_tshirt_email',
+        'avbk_congress_register',
+    ];
+
+    /** Front-end AJAX handlers still enforce their own nonce and target rules. */
+    private const FRONTEND_AJAX_ACTIONS = [
+        'avpvh_save_member_profile', 'avpvh_address_lookup', 'avpvh_media_session_status',
+        'avpvh_logged_in', 'avbk_dismiss_popup', 'avbk_check_book_email', 'avbk_check_tshirt_email',
+        'gallery', 'page', 'video_proxy', 'nieuwsbrief_image', 'nieuwsbrief_pdf',
+        'gallery_marks', 'gallery_mark', 'gallery_tag_add', 'gallery_tag_list', 'gallery_tag_delete',
+        'gallery_comment_add', 'gallery_comment_list', 'gallery_reaction_add', 'gallery_reaction_list',
+        'gallery_tag_candidates', 'gallery_share_create', 'gallery_dig_captions',
+        'gallery_filter', 'gallery_filter_options', 'gallery_filter_save',
+        'gallery_filter_share', 'gallery_filter_recipients', 'gallery_filter_preset_save', 'gallery_filter_preset_delete',
     ];
 
     /** @var array{method: string, two_factor: bool}|null */
@@ -40,9 +59,11 @@ class AVPVH_Access {
         add_action('wp_login',           [$this, 'reset_session_idle_timer'], 10, 2);
         add_action('admin_init',         [$this, 'restrict_wordpress_admin']);
         add_action('admin_init',         [$this, 'enforce_step_up_2fa_for_admin_post'], 5);
+        add_action('admin_init',         [$this, 'enforce_step_up_2fa_for_ajax'], 5);
         add_filter('attach_session_information', [$this, 'attach_session_auth_metadata']);
         add_filter('xmlrpc_enabled',     '__return_false');
-        add_action('template_redirect',  [$this, 'handle_login_bridge']);
+        add_filter('wp_is_application_passwords_available', '__return_false');
+        add_action('template_redirect',  [$this, 'handle_login_bridge'], 5);
         add_filter('show_admin_bar',     [$this, 'filter_admin_bar_visibility'], 20);
         add_filter('user_has_cap',       [$this, 'filter_member_capabilities'], 10, 4);
         add_filter('the_content',        [$this, 'inject_login_form'], 5);
@@ -63,6 +84,7 @@ class AVPVH_Access {
         add_filter('rest_request_before_callbacks',  [$this, 'enforce_step_up_2fa_for_rest'], 5, 3);
         add_filter('rest_request_before_callbacks',  [$this, 'hide_members_page_from_rest'], 10, 3);
         add_filter('oembed_request_post_id',         [$this, 'hide_members_page_from_oembed']);
+        new AVPVH_Content_Guard([$this, 'post_is_restricted']);
 
         add_action('wp_head',                      [$this, 'noindex_members_content']);
         add_filter('wp_sitemaps_posts_query_args', [$this, 'sitemap_exclude_protected']);
@@ -99,7 +121,8 @@ class AVPVH_Access {
         }
         $manager = \WP_Session_Tokens::get_instance(get_current_user_id());
         $session = $manager->get($token);
-        if (is_array($session) && empty($session[self::SESSION_2FA_KEY])) {
+        if (is_array($session) && (!isset($session[self::SESSION_AUTH_KEY]) || empty($session[self::SESSION_2FA_KEY]))) {
+            $session[self::SESSION_AUTH_KEY] ??= 'proxy';
             $session[self::SESSION_2FA_KEY] = true;
             $manager->update($token, $session);
         }
@@ -115,15 +138,15 @@ class AVPVH_Access {
             return false;
         }
         if (!function_exists('wp_get_session_token') || !class_exists('WP_Session_Tokens')) {
-            return true;
+            return false;
         }
         $token = wp_get_session_token();
         if ($token === '') {
-            return true;
+            return false;
         }
         $session = \WP_Session_Tokens::get_instance(get_current_user_id())->get($token);
         if (!is_array($session) || !isset($session[self::SESSION_AUTH_KEY])) {
-            return true;
+            return false;
         }
         return !empty($session[self::SESSION_2FA_KEY]);
     }
@@ -144,9 +167,8 @@ class AVPVH_Access {
     }
 
     /**
-     * All plugin admin-post actions outside FRONTEND_ADMIN_POST_ACTIONS live
-     * behind wp-admin pages. Because Authelia bypasses admin-post.php for
-     * front-end forms, verify the session actually stepped up to 2FA.
+     * Plugin admin-post actions, and other administrative actions for
+     * privileged users, need step-up outside the explicit frontend allowlist.
      */
     public function enforce_step_up_2fa_for_admin_post(): void {
         global $pagenow;
@@ -155,7 +177,11 @@ class AVPVH_Access {
         }
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing gate; each handler verifies its own nonce
         $action = sanitize_key(wp_unslash($_REQUEST['action'] ?? ''));
-        if ($action === '' || !str_starts_with($action, 'avpvh_') || in_array($action, self::FRONTEND_ADMIN_POST_ACTIONS, true)) {
+        $frontend = (array) apply_filters('avpvh_mbrs_2fa_frontend_admin_post_actions', self::FRONTEND_ADMIN_POST_ACTIONS);
+        if ($action === '' || in_array($action, $frontend, true)) {
+            return;
+        }
+        if (!str_starts_with($action, 'avpvh_') && !AVPVH_Roles::current_user_needs_wp_admin()) {
             return;
         }
         if (!self::current_session_has_2fa()) {
@@ -164,6 +190,20 @@ class AVPVH_Access {
                 esc_html__('Tweestapsverificatie vereist', 'avpvh-members'),
                 ['response' => 403]
             );
+        }
+    }
+
+    public function enforce_step_up_2fa_for_ajax(): void {
+        global $pagenow;
+        if (($pagenow ?? '') !== 'admin-ajax.php' || !is_user_logged_in()
+            || self::current_session_has_2fa() || !AVPVH_Roles::current_user_needs_wp_admin()) {
+            return;
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing only; each handler checks its nonce
+        $action = sanitize_key(wp_unslash($_REQUEST['action'] ?? ''));
+        $frontend = (array) apply_filters('avpvh_mbrs_2fa_frontend_ajax_actions', self::FRONTEND_AJAX_ACTIONS);
+        if (!in_array($action, $frontend, true)) {
+            wp_die(esc_html__('Voor deze actie is tweestapsverificatie (2FA) nodig.', 'avpvh-members'), '', ['response' => 403]);
         }
     }
 
@@ -178,7 +218,7 @@ class AVPVH_Access {
         if (!is_user_logged_in() || self::current_session_has_2fa()) {
             return $response;
         }
-        $route = $request->get_route();
+        $route = strtolower($request->get_route());
         if (str_starts_with($route, '/avpvh/v1/')) {
             return $response;
         }
@@ -192,7 +232,7 @@ class AVPVH_Access {
         }
         $method = strtoupper((string) $request->get_method());
         $is_write = !in_array($method, ['GET', 'HEAD', 'OPTIONS'], true);
-        $is_sensitive_read = (bool) preg_match('#^/wp/v2/(users|settings)(/|$)#', $route);
+        $is_sensitive_read = (bool) preg_match('#^/wp/v2/(users|settings)(/|$)#i', $route);
         if ($is_write || $is_sensitive_read) {
             return new \WP_Error(
                 'avpvh_2fa_required',
@@ -673,22 +713,26 @@ class AVPVH_Access {
      * @return mixed the unchanged response, or a WP_Error
      */
     public function hide_members_page_from_rest($response, array $handler, \WP_REST_Request $request) { // NOSONAR -- $handler: the filter passes it before $request
-        $route = $request->get_route();
+        $route = strtolower($request->get_route());
         if (preg_match('#^/wp/v2/media/(\d+)(?:/|$)#i', $route, $media)
             && !$this->current_user_may_read_members_section()
             && !str_starts_with((string) get_post_meta((int) $media[1], '_wp_attached_file', true), 'public/')) {
             return new \WP_Error('rest_forbidden', __('Geen toegang.', 'avpvh-members'), ['status' => 403]);
         }
-        if (!preg_match('#^/wp/v2/pages/(\d+)#', $route, $match)) {
+        if (!preg_match('#^/wp/v2/pages/(\d+)(?:/|$)#i', $route, $match)) {
             return $response;
         }
         $page_id = (int) $match[1];
-        $blocked = in_array($page_id, $this->restricted_page_ids_for_current_user(), true)
-            || (!$this->current_user_may_read_members_section() && $this->is_password_protected_post($page_id));
+        $blocked = $this->post_is_restricted($page_id);
         if ($blocked) {
             return new \WP_Error('rest_post_invalid_id', __('Ongeldige bericht-ID.', 'avpvh-members'), ['status' => 404]);
         }
         return $response;
+    }
+
+    public function post_is_restricted(int $post_id): bool {
+        return in_array($post_id, $this->restricted_page_ids_for_current_user(), true)
+            || (!$this->current_user_may_read_members_section() && $this->is_password_protected_post($post_id));
     }
 
     /** Public REST media listings may expose only files deliberately published to public/. */
@@ -813,7 +857,7 @@ class AVPVH_Access {
         }
         $req_path = (string) wp_parse_url(sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'] ?? '')), PHP_URL_PATH);
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing detection only; REST performs authentication and nonce checks
-        if (isset($_GET['rest_route']) || preg_match('#/wp-json(?:/|$)#', $req_path)) {
+        if (isset($_GET['rest_route']) || isset($_POST['rest_route']) || preg_match('#/wp-json(?:/|$)#i', $req_path)) {
             return;
         }
 

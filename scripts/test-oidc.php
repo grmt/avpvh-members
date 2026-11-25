@@ -46,7 +46,7 @@ check('google, email_verified false: refused', $verify('google', ['email_verifie
 check('google, email_verified missing: refused', $verify('google', array_diff_key($google, ['email_verified' => 1])), null);
 check('google, email_verified "true" string: refused', $verify('google', ['email_verified' => 'true'] + $google), null);
 check('other audience: refused', $verify('google', ['aud' => 'client-2'] + $google), null);
-check('audience as list: accepted', $verify('google', ['aud' => ['client-2', 'client-1']] + $google), 'lid@example.org');
+check('audience as list: accepted', $verify('google', ['aud' => ['client-2', 'client-1'], 'azp' => 'client-1'] + $google), 'lid@example.org');
 check('other issuer: refused', $verify('google', ['iss' => 'https://evil.example'] + $google), null);
 check('expired: refused', $verify('google', ['exp' => time() - 1] + $google), null);
 check('wrong nonce: refused', $verify('google', $google, 'n2'), null);
@@ -70,12 +70,36 @@ $params = AVPVH_OIDC::authorize_params($flow);
 check('PKCE challenge is S256 of the verifier', $params['code_challenge'], AVPVH_OIDC::base64url(hash('sha256', $flow['verifier'], true)));
 check('state and nonce sent along', [$params['state'], $params['nonce']], [$flow['state'], $flow['nonce']]);
 
-$_COOKIE[AVPVH_OIDC::STATE_COOKIE] = $flow['state'];
+$_COOKIE[AVPVH_OIDC::state_cookie_name()] = $flow['state'];
 check('state from this browser: accepted', AVPVH_OIDC::state_matches_browser($flow['state']), true);
-$_COOKIE[AVPVH_OIDC::STATE_COOKIE] = 'someone-else';
+$_COOKIE[AVPVH_OIDC::state_cookie_name()] = 'someone-else';
 check('state started in another browser: refused', AVPVH_OIDC::state_matches_browser($flow['state']), false);
-unset($_COOKIE[AVPVH_OIDC::STATE_COOKIE]);
+unset($_COOKIE[AVPVH_OIDC::state_cookie_name()]);
 check('no state cookie: refused', AVPVH_OIDC::state_matches_browser($flow['state']), false);
 check('empty state: refused', AVPVH_OIDC::state_matches_browser(''), false);
+
+check('multi-audience ID token without azp is rejected', $verify('google', ['aud' => ['client-1', 'client-2']] + $google), null);
+check('ID token with another authorized party is rejected', $verify('google', ['azp' => 'client-2'] + $google), null);
+check('HTTPS state cookie uses the host-only cookie prefix', AVPVH_OIDC::state_cookie_name(), '__Host-avpvh_oauth_state');
+class WP_Session_Tokens {
+    public function __construct(private int $id) {}
+    public static function get_instance(int $id): self { return new self($id); }
+    public function destroy(string $token): void { $GLOBALS['destroyed'][] = [$this->id, $token]; }
+}
+function wp_parse_auth_cookie(string $cookie, string $scheme): array|false { return $GLOBALS['incoming_cookie']; }
+function wp_validate_auth_cookie(string $cookie, string $scheme): int|false { return $GLOBALS['cookie_user']; }
+function is_user_logged_in(): bool { return false; } // nonce-less REST has reset the user
+function wp_clear_auth_cookie(): void { $GLOBALS['cookies_cleared'] = true; }
+function wp_logout(): void { throw new RuntimeException('REST current user should be anonymous'); }
+function wp_set_current_user(int $id): void { $GLOBALS['current_user'] = $id; }
+$GLOBALS['incoming_cookie'] = ['username' => 'fixture.previous', 'token' => 'previous-session'];
+$GLOBALS['cookie_user'] = 123;
+$GLOBALS['destroyed'] = [];
+AVPVH_OIDC::retire_browser_session();
+check('OAuth retires the prior cookie session even with REST current user zero', $GLOBALS['destroyed'], [[123, 'previous-session']]);
+check('OAuth clears the incoming browser cookies', $GLOBALS['cookies_cleared'], true);
+$GLOBALS['cookie_user'] = false;
+AVPVH_OIDC::retire_browser_session();
+check('invalid cookies cannot revoke a server-side session', count($GLOBALS['destroyed']), 1);
 
 echo "OIDC tests: OK\n";

@@ -212,9 +212,7 @@ class AVPVH_OAuth {
         // OAuth and Authelia keep separate browser sessions. End the old WP
         // session first; the Authelia session is ended below, so an Authelia
         // (2FA) session of another account can't outlive this login.
-        if (is_user_logged_in()) {
-            wp_logout();
-        }
+        AVPVH_OIDC::retire_browser_session();
         AVPVH_Access::mark_next_session_auth('oauth', false);
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID, true);

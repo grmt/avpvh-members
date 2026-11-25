@@ -35,8 +35,8 @@ function check_elevated(string $label, array $keep_account, array $remove_accoun
     $method = new ReflectionMethod(AVPVH_Member_Merge::class, 'involves_elevated_access');
     $actual = $method->invoke(
         null,
-        (object) ['wp_user_id' => $keep_wp_user],
-        (object) ['wp_user_id' => null],
+        (object) ['wp_user_id' => $keep_wp_user, 'lldap_user_id' => 'fixture.keep'],
+        (object) ['wp_user_id' => null, 'lldap_user_id' => $remove_account['exists'] ? 'fixture.remove' : ''],
         ['keep' => $keep_account, 'remove' => $remove_account]
     );
     echo ($actual === $expected ? '[OK] ' : '[FAIL] ') . $label . PHP_EOL;
@@ -60,6 +60,7 @@ check_elevated('it-beheer', account(['it-beheer']), account([]), true);
 check_elevated('bloggers', account(['bloggers']), account([]), true);
 check_elevated('boek group', account(['boek']), account([]), true);
 check_elevated('groups of an existing account unreadable', account([], true, false), account([]), true);
+check_elevated('missing directory account with a stored uid fails closed', account([], false, false), account([]), true);
 check_elevated('WP administrator', account(['leden']), account([]), true, 2);
 check_elevated('WP editor role', account(['leden']), account([]), true, 3);
 

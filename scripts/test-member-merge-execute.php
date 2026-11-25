@@ -90,6 +90,8 @@ class AVPVH_Roles {
     const ALL_ROLES = ['bestuur'];
     const IT_GROUP = 'it-beheer';
     const BLOGGER_GROUP = 'bloggers';
+    public static function strip_bestuur_roles(int $id): bool { $GLOBALS['status_sync'][] = ['strip', $id]; return true; }
+    public static function sync_status_group(int $id): true|WP_Error { $GLOBALS['status_sync'][] = ['sync', $id]; return true; }
 }
 class AVPVH_DB {
     public static array $emails = [1 => 'alfa@example.test', 2 => 'alfa.oud@example.test'];
@@ -253,4 +255,8 @@ setup([], ['update wp_avm_members {"birth_year"']);
 $r = run('update fails', []);
 check('member update fails: rolled back with the step name', $code($r) === 'failed' && str_contains($r->message, 'lidgegevens bijwerken mislukt'));
 
+setup(['status' => 'inactive']);
+$GLOBALS['status_sync'] = [];
+$r = run('merge inactivates member', ['fields' => ['status' => 'remove']]);
+check('status change after merge strips elevated groups and syncs membership', $code($r) === 'ok' && $GLOBALS['status_sync'] === [['strip', 1], ['sync', 1]]);
 echo "Member merge execute tests: OK\n";

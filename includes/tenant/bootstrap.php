@@ -15,26 +15,9 @@ require_once AVPVH_PLUGIN_DIR . 'includes/tenant/class-tenant-files.php';
 require_once AVPVH_PLUGIN_DIR . 'includes/class-account-privacy.php';
 
 $avpvh_tenant_config = AVPVH_Tenant_Config::current();
+add_filter('wp_is_application_passwords_available', '__return_false');
+add_filter('xmlrpc_enabled', '__return_false');
 
-// Only the plugin's own texts are translated; the AVP-PvH language switcher
-// (AVPVH_I18n) would change the locale of the whole site, so it is not
-// loaded. plugin_locale sets the language of these texts only. WordPress
-// keeps translations per locale, so that language is applied here directly.
-$avpvh_plugin_locale = (string) $avpvh_tenant_config->get('plugin_locale');
-if ($avpvh_plugin_locale !== '') {
-    add_filter('gettext_avpvh-members', static function (string $translation, string $text) use ($avpvh_plugin_locale): string {
-        static $mo = null;
-        if ($mo === null) {
-            $mo = new MO();
-            $mo->import_from_file(AVPVH_PLUGIN_DIR . 'languages/avpvh-members-' . $avpvh_plugin_locale . '.mo');
-        }
-        return $mo->translate($text);
-    }, 10, 2);
-} else {
-    add_action('init', static function (): void {
-        load_plugin_textdomain('avpvh-members', false, dirname(plugin_basename(AVPVH_PLUGIN_DIR . 'avpvh-members.php')) . '/languages');
-    });
-}
 $avpvh_tenant_accounts = new AVPVH_Account_Privacy();
 
 if (!$avpvh_tenant_config->is_valid()) {
@@ -61,7 +44,7 @@ if (!$avpvh_tenant_config->is_valid()) {
             exit;
         }
     }, 0);
-    add_action('template_redirect', static function (): void {
+    $avpvh_deny_invalid_tenant = static function (): void {
         if (!current_user_can('manage_options')) {
             wp_die(
                 esc_html__('Deze website is tijdelijk niet beschikbaar vanwege een configuratiefout. Probeer het later opnieuw.', 'avpvh-members'),
@@ -69,7 +52,9 @@ if (!$avpvh_tenant_config->is_valid()) {
                 ['response' => 503]
             );
         }
-    }, 0);
+    };
+    add_action('template_redirect', $avpvh_deny_invalid_tenant, 0);
+    add_action('admin_init', $avpvh_deny_invalid_tenant, 0);
     add_filter('rest_authentication_errors', static function ($result) {
         if (current_user_can('manage_options')) {
             return $result;
@@ -90,6 +75,26 @@ if (!$avpvh_tenant_config->is_valid()) {
         }
     }, 0);
     return;
+}
+
+// Only the plugin's own texts are translated; the AVP-PvH language switcher
+// (AVPVH_I18n) would change the locale of the whole site, so it is not
+// loaded. plugin_locale sets the language of these texts only. WordPress
+// keeps translations per locale, so that language is applied here directly.
+$avpvh_plugin_locale = (string) $avpvh_tenant_config->get('plugin_locale');
+if ($avpvh_plugin_locale !== '') {
+    add_filter('gettext_avpvh-members', static function (string $translation, string $text) use ($avpvh_plugin_locale): string {
+        static $mo = null;
+        if ($mo === null) {
+            $mo = new MO();
+            $mo->import_from_file(AVPVH_PLUGIN_DIR . 'languages/avpvh-members-' . $avpvh_plugin_locale . '.mo');
+        }
+        return $mo->translate($text);
+    }, 10, 2);
+} else {
+    add_action('init', static function (): void {
+        load_plugin_textdomain('avpvh-members', false, dirname(plugin_basename(AVPVH_PLUGIN_DIR . 'avpvh-members.php')) . '/languages');
+    });
 }
 
 $avpvh_tenant_sso = new AVPVH_Tenant_SSO($avpvh_tenant_config);

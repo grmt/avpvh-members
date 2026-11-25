@@ -33,7 +33,7 @@ $wpdb = new class {
 };
 
 class AVPVH_DB {
-    public static function get_member(int $id): object { return (object) ['id' => $id, 'user_id' => 'test.user']; }
+    public static function get_member(int $id): object { return (object) ['id' => $id, 'user_id' => 'test.user', 'status' => 'active']; }
 }
 class AVPVH_Directory {
     public static function cached_user_groups(string $uid): array { return $GLOBALS['test_groups']; }

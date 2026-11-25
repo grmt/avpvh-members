@@ -29,15 +29,11 @@
 
         // Browsers may suspend this timer in a background tab. The wake-up
         // event handlers below compare the absolute expiry as a backstop.
-        expiryTimer = window.setTimeout(closeProtectedPage, delay);
+        expiryTimer = window.setTimeout(checkSession, delay);
     }
 
     function checkSession() {
         if (requestInFlight) return;
-        if (expiresAt && Date.now() >= expiresAt) {
-            closeProtectedPage();
-            return;
-        }
 
         requestInFlight = true;
         fetch(endpoint.toString(), {

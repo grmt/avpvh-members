@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 toggle.textContent = parts.length ? parts.join(', ') : i18n.all;
             }
 
-            var optionsByKey = {};
+            var optionsByKey = Object.create(null);
             values.forEach(function (v) {
                 var key = v.toLowerCase();
                 var option = document.createElement('button');
