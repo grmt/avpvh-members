@@ -171,7 +171,12 @@ D, the day grid from E-T, and nawacht/notes/diet from W-Z. Camps up to 2014
 predate that sheet: their `Inschrijving` sheet (header `VOORNAAM & ACHTERNAAM`)
 is read instead, and an archive camp folder without an overview falls back to
 its top-level workbooks named `*inschrijvingen*` or `*algemeen*`. An import replaces
-that participant's day-by-day attendance for the camp. The overview option
+that participant's day-by-day attendance for the camp. Names are matched on the
+official name and on the recorded name variants (Naamvarianten). The camp is
+the year's existing Kamp activity, whatever its name (with several, the one
+named after the place); a new one is named after the place only (folder
+`2021 Goeblange III` gives `Goeblange`), with the folder as kenmerk and the
+grid's first and last day as dates. The overview option
 name is derived from the campaign year (for example
 `avpvh_kamp_2026_overzicht`); use `--year` or `--option-name` when the year
 cannot be inferred correctly.
