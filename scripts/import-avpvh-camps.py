@@ -143,7 +143,10 @@ def extract_year_activity(path: Path) -> tuple[int | None, str, str]:
             year = int(match.group())
             break
     kenmerk = re.sub(r'\b(19|20)\d{2}\b', '', path.parent.name).strip(' _-')
-    activity_name = re.sub(r'\s+[IVX]+$', '', kenmerk).strip() or kenmerk
+    words = kenmerk.split()
+    if len(words) > 1 and re.fullmatch(r'[IVX]+', words[-1]):
+        words = words[:-1]
+    activity_name = ' '.join(words) or kenmerk
     return year, activity_name, kenmerk
 
 

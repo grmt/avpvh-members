@@ -376,6 +376,7 @@ def test_import_file_skips_unreadable_layout(tmp_path, capsys):
     ('2019 Plaats ', (2019, 'Plaats', 'Plaats')),
     ('2011 Twee Woorden', (2011, 'Twee Woorden', 'Twee Woorden')),
     ('Zonder jaar', (None, 'Zonder jaar', 'Zonder jaar')),
+    ('2015 II', (2015, 'II', 'II')),
 ])
 def test_extract_year_activity_names_camp_after_place(tmp_path, folder, expected):
     assert camps.extract_year_activity(tmp_path / folder / 'x.xlsx') == expected
@@ -427,7 +428,8 @@ def test_activity_created_with_dates_or_announced_in_dry_run(capsys):
     assert not cursor.inserts('pvh_avm_activities')
     assert "would create Kamp activity: Plaats (2021), kenmerk 'Plaats III'" in capsys.readouterr().out
     activity_id, usable = camps.get_or_create_activity(cursor, 'Plaats', 2021, 'Plaats III', 7, DATES, False)
-    assert usable and activity_id == cursor.lastrowid
+    assert usable
+    assert activity_id == cursor.lastrowid
     (_, params), = cursor.inserts('pvh_avm_activities')
     assert params == ('Plaats', 7, 2021, 'Plaats III', '2021-07-24', '2021-08-07')
 
