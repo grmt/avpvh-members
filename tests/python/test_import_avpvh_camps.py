@@ -85,24 +85,37 @@ def open_sheet(path: Path):
 # --- fakes -----------------------------------------------------------------
 
 class FakeCursor:
-    def __init__(self, members=(), activities=(), kamp_type=7):
+    """Answers the importer's queries from in-memory rows.
+
+    activities: (id, name, year, type_id) tuples.
+    """
+
+    def __init__(self, members=(), aliases=(), activities=(), kamp_type=7):
         self.members = list(members)
-        self.activities = dict(activities)
+        self.aliases = list(aliases)
+        self.activities = list(activities)
         self.kamp_type = kamp_type
         self.executed = []
         self._result = []
-        self.lastrowid = 0
+        self.lastrowid = 100
 
     def execute(self, sql, params=()):
-        self.executed.append((' '.join(sql.split()), params))
+        sql = ' '.join(sql.split())
+        self.executed.append((sql, params))
+        self._result = []
         if 'FROM pvh_avm_members' in sql:
             self._result = self.members
+        elif 'FROM pvh_avm_member_name_aliases' in sql:
+            self._result = self.aliases
         elif 'FROM pvh_avm_activity_types' in sql:
             self._result = [(self.kamp_type,)] if self.kamp_type else []
-        elif 'FROM pvh_avm_activities' in sql:
-            found = self.activities.get(tuple(params))
-            self._result = [(found,)] if found else []
-        elif sql.lstrip().startswith('INSERT'):
+        elif 'FROM pvh_avm_activities WHERE type_id' in sql:
+            type_id, year = params
+            self._result = [(a, n) for a, n, y, t in self.activities if t == type_id and y == year]
+        elif 'FROM pvh_avm_activities WHERE name' in sql:
+            name, year = params
+            self._result = [(a,) for a, n, y, _ in self.activities if n == name and y == year]
+        elif sql.startswith('INSERT'):
             self.lastrowid += 1
 
     def fetchall(self):
@@ -110,6 +123,10 @@ class FakeCursor:
 
     def fetchone(self):
         return self._result[0] if self._result else None
+
+    def inserts(self, table):
+        return [(sql, params) for sql, params in self.executed
+                if sql.startswith(f'INSERT INTO {table} ')]
 
 
 class FakeXlrdSheet:
@@ -324,7 +341,7 @@ def test_import_file_dry_run_counts_without_writing(tmp_path, capsys):
     assert result == (1, 1, 0)
     assert not any(sql.startswith('INSERT') for sql, _ in cursor.executed)
     output = capsys.readouterr().out
-    assert "activity='2011 Plaats'" in output
+    assert "activity='Plaats'" in output
     assert 'UNMATCHED: Onbekend Persoon' in output
 
 
@@ -334,9 +351,9 @@ def test_import_file_writes_participation_and_days(tmp_path):
     matcher = camps.MemberMatcher(cursor)
     result = camps.import_file(cursor, matcher, path, kamp_type_id=7, dry_run=False)
     assert result == (1, 1, 0)
-    inserts = [sql for sql, _ in cursor.executed if sql.startswith('INSERT')]
-    assert any('pvh_avm_activities' in sql for sql in inserts)
-    assert sum('participation_days' in sql for sql in inserts) == 2
+    (_, params), = cursor.inserts('pvh_avm_activities')
+    assert params == ('Plaats', 7, 2011, 'Plaats', '2011-07-22', '2011-08-02')
+    assert len(cursor.inserts('pvh_avm_activity_participation_days')) == 2
 
 
 def test_import_file_skips_unreadable_layout(tmp_path, capsys):
@@ -350,3 +367,77 @@ def test_import_file_skips_unreadable_layout(tmp_path, capsys):
                                folder / 'Inschrijvingen.xlsx', 7, True)
     assert result == (0, 0, 0)
     assert 'SKIP (neither sheet' in capsys.readouterr().out
+
+
+# --- camp activity and name variants ---------------------------------------
+
+@pytest.mark.parametrize('folder, expected', [
+    ('2021 Plaats III', (2021, 'Plaats', 'Plaats III')),
+    ('2019 Plaats ', (2019, 'Plaats', 'Plaats')),
+    ('2011 Twee Woorden', (2011, 'Twee Woorden', 'Twee Woorden')),
+    ('Zonder jaar', (None, 'Zonder jaar', 'Zonder jaar')),
+])
+def test_extract_year_activity_names_camp_after_place(tmp_path, folder, expected):
+    assert camps.extract_year_activity(tmp_path / folder / 'x.xlsx') == expected
+
+
+def test_matcher_uses_recorded_name_variants():
+    cursor = FakeCursor(
+        members=[(1, 'Anna', None, 'Voorbeeld'), (2, 'Bram', 'de', 'Testpersoon')],
+        aliases=[(1, 'Annie', '', 'Voorbeeld'), (2, 'Anna', '', 'Voorbeeld')],
+    )
+    matcher = camps.MemberMatcher(cursor)
+    assert matcher.find('Annie Voorbeeld') == (1, 'matched')
+    assert matcher.find('Bram de Testpersoon') == (2, 'matched')
+    # A variant equal to another member's name makes it ambiguous.
+    assert matcher.find('Anna Voorbeeld') == (None, 'ambiguous')
+    assert matcher.find('Cor Onbekend') == (None, 'unmatched')
+
+
+DATES = [date(2021, 7, 24), date(2021, 8, 7)]
+
+
+def test_activity_reuses_the_years_only_camp_whatever_its_name(capsys):
+    cursor = FakeCursor(activities=[(11, 'Plaats', 2021, 7), (40, 'Lezing', 2021, 3)])
+    result = camps.get_or_create_activity(cursor, 'Plaats', 2021, 'Plaats III', 7, DATES, False)
+    assert result == (11, True)
+    cursor = FakeCursor(activities=[(11, 'Andere naam', 2021, 7)])
+    assert camps.get_or_create_activity(cursor, 'Plaats', 2021, 'Plaats III', 7, DATES, False) == (11, True)
+    assert not cursor.inserts('pvh_avm_activities')
+    assert "using Kamp activity id=11 'Andere naam'" in capsys.readouterr().out
+
+
+def test_activity_with_several_camps_needs_a_unique_name(capsys):
+    cursor = FakeCursor(activities=[(11, 'Plaats', 2021, 7), (12, 'Elders', 2021, 7)])
+    assert camps.get_or_create_activity(cursor, 'plaats', 2021, 'Plaats', 7, DATES, False) == (11, True)
+    assert camps.get_or_create_activity(cursor, 'Derde', 2021, 'Derde', 7, DATES, False) == (None, False)
+    assert 'SKIP: several Kamp activities in 2021' in capsys.readouterr().out
+
+
+def test_activity_refuses_name_taken_by_other_type(capsys):
+    cursor = FakeCursor(activities=[(40, 'Plaats', 2021, 3)])
+    assert camps.get_or_create_activity(cursor, 'Plaats', 2021, 'Plaats', 7, DATES, False) == (None, False)
+    assert 'non-Kamp activity' in capsys.readouterr().out
+    assert not cursor.inserts('pvh_avm_activities')
+
+
+def test_activity_created_with_dates_or_announced_in_dry_run(capsys):
+    cursor = FakeCursor()
+    assert camps.get_or_create_activity(cursor, 'Plaats', 2021, 'Plaats III', 7, DATES, True) == (None, True)
+    assert not cursor.inserts('pvh_avm_activities')
+    assert "would create Kamp activity: Plaats (2021), kenmerk 'Plaats III'" in capsys.readouterr().out
+    activity_id, usable = camps.get_or_create_activity(cursor, 'Plaats', 2021, 'Plaats III', 7, DATES, False)
+    assert usable and activity_id == cursor.lastrowid
+    (_, params), = cursor.inserts('pvh_avm_activities')
+    assert params == ('Plaats', 7, 2021, 'Plaats III', '2021-07-24', '2021-08-07')
+
+
+def test_import_file_skips_workbook_when_camp_is_ambiguous(tmp_path):
+    path = camp_dir_workbook(tmp_path)
+    cursor = FakeCursor(
+        members=[(1, 'Anna', None, 'Voorbeeld')],
+        activities=[(11, 'Een', 2011, 7), (12, 'Twee', 2011, 7)],
+    )
+    result = camps.import_file(cursor, camps.MemberMatcher(cursor), path, 7, False)
+    assert result == (0, 0, 0)
+    assert not cursor.inserts('pvh_avm_activity_participation')

@@ -130,15 +130,20 @@ def workbook_paths(source: Path, latest: bool) -> list[Path]:
 
 
 def extract_year_activity(path: Path) -> tuple[int | None, str, str]:
-    """The archive's parent directory is the authoritative camp identity."""
+    """The archive's parent directory is the authoritative camp identity.
+
+    "2021 Goeblange III" gives year 2021, kenmerk "Goeblange III" and the
+    activity name "Goeblange": Kamp activities are named after the place
+    only, like the ones entered in the admin.
+    """
     year = None
     for value in (path.parent.name, path.stem):
         match = re.search(r'\b(19|20)\d{2}\b', value)
         if match:
             year = int(match.group())
             break
-    activity_name = path.parent.name
-    kenmerk = re.sub(r'\b(19|20)\d{2}\b', '', activity_name).strip(' _-')
+    kenmerk = re.sub(r'\b(19|20)\d{2}\b', '', path.parent.name).strip(' _-')
+    activity_name = re.sub(r'\s+[IVX]+$', '', kenmerk).strip() or kenmerk
     return year, activity_name, kenmerk
 
 
@@ -221,24 +226,38 @@ def normalized_full_name(value: str) -> str:
 
 
 class MemberMatcher:
-    """Match exact full names and refuse duplicate/ambiguous matches."""
+    """Match exact full names and refuse duplicate/ambiguous matches.
+
+    Besides each member's official name, the name variants recorded for
+    them (Naamvarianten on Ledendetail: old spellings, maiden names, ...)
+    are matched too.
+    """
 
     def __init__(self, cursor):
+        self.by_name = defaultdict(set)
         cursor.execute(
             f'SELECT id, first_name, suffix, last_name FROM {WP_PREFIX}avm_members'
         )
-        self.by_name = defaultdict(set)
-        for member_id, first_name, suffix, last_name in cursor.fetchall():
-            first_name = first_name or ''
-            suffix = suffix or ''
-            last_name = last_name or ''
-            variants = {
-                f'{first_name} {suffix} {last_name}',
-                f'{first_name} {last_name}',
-                f'{last_name}, {first_name}',
-            }
-            for variant in variants:
-                self.by_name[normalized_full_name(variant)].add(int(member_id))
+        for row in cursor.fetchall():
+            self._add(*row)
+        cursor.execute(
+            f'SELECT member_id, first_name, suffix, last_name '
+            f'FROM {WP_PREFIX}avm_member_name_aliases'
+        )
+        for row in cursor.fetchall():
+            self._add(*row)
+
+    def _add(self, member_id, first_name, suffix, last_name) -> None:
+        first_name = first_name or ''
+        suffix = suffix or ''
+        last_name = last_name or ''
+        variants = {
+            f'{first_name} {suffix} {last_name}',
+            f'{first_name} {last_name}',
+            f'{last_name}, {first_name}',
+        }
+        for variant in variants:
+            self.by_name[normalized_full_name(variant)].add(int(member_id))
 
     def find(self, full_name: str) -> tuple[int | None, str]:
         matches = self.by_name.get(normalized_full_name(full_name), set())
@@ -259,25 +278,54 @@ def get_kamp_type_id(cursor) -> int:
 
 
 def get_or_create_activity(cursor, name: str, year: int, kenmerk: str,
-                           kamp_type_id: int, dry_run: bool) -> int | None:
+                           kamp_type_id: int, dates: list[date],
+                           dry_run: bool) -> tuple[int | None, bool]:
+    """Return (activity_id, usable) for the year's Kamp activity.
+
+    There is one camp a year, so an existing Kamp activity of that year is
+    reused whatever its name. With several, the one named like the camp
+    folder wins; otherwise the workbook is not imported (usable False).
+    A new activity gets the place name, the folder as kenmerk and the
+    grid's first and last day. In a dry-run it is only announced
+    (activity_id None, usable True).
+    """
+    cursor.execute(
+        f'SELECT id, name FROM {WP_PREFIX}avm_activities '
+        'WHERE type_id = %s AND year = %s ORDER BY id',
+        (kamp_type_id, year),
+    )
+    existing = [(int(activity_id), existing_name) for activity_id, existing_name in cursor.fetchall()]
+    if len(existing) > 1:
+        existing = [row for row in existing if row[1].casefold() == name.casefold()]
+        if len(existing) != 1:
+            print(f'  SKIP: several Kamp activities in {year}, none uniquely named {name!r}')
+            return None, False
+    if existing:
+        activity_id, existing_name = existing[0]
+        print(f'  using Kamp activity id={activity_id} {existing_name!r}')
+        return activity_id, True
+
+    # name+year is unique over all activity types.
     cursor.execute(
         f'SELECT id FROM {WP_PREFIX}avm_activities WHERE name = %s AND year = %s',
         (name, year),
     )
-    row = cursor.fetchone()
-    if row:
-        return int(row[0])
+    if cursor.fetchone():
+        print(f'  SKIP: a non-Kamp activity {name!r} ({year}) already exists')
+        return None, False
     if dry_run:
-        print(f'  [dry-run] would create Kamp activity: {name} ({year})')
-        return None
+        print(f'  [dry-run] would create Kamp activity: {name} ({year}), kenmerk {kenmerk!r}')
+        return None, True
     cursor.execute(
         f'''INSERT INTO {WP_PREFIX}avm_activities
-            (name, type_id, year, kenmerk) VALUES (%s, %s, %s, %s)''',
-        (name, kamp_type_id, year, kenmerk),
+            (name, type_id, year, kenmerk, start_date, end_date)
+            VALUES (%s, %s, %s, %s, %s, %s)''',
+        (name, kamp_type_id, year, kenmerk,
+         min(dates).isoformat(), max(dates).isoformat()),
     )
     activity_id = int(cursor.lastrowid)
     print(f'  created activity id={activity_id}')
-    return activity_id
+    return activity_id, True
 
 
 def save_participation(cursor, member_id: int, activity_id: int,
@@ -532,9 +580,12 @@ def import_file(cursor, matcher: MemberMatcher, path: Path,
         f'\n{path.name} -> activity={activity_name!r}, year={year}, '
         f'dates={min(date_columns.values())}..{max(date_columns.values())}'
     )
-    activity_id = get_or_create_activity(
-        cursor, activity_name, year, kenmerk, kamp_type_id, dry_run
+    activity_id, usable = get_or_create_activity(
+        cursor, activity_name, year, kenmerk, kamp_type_id,
+        list(date_columns.values()), dry_run
     )
+    if not usable:
+        return 0, 0, 0
 
     imported = unmatched = ambiguous = 0
     for participant in participants:
