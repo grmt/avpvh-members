@@ -56,6 +56,12 @@ jobs:
   quality:
     name: "Quality"
     uses: grmt/wp-plugin-ci/.github/workflows/quality.yml@main
+    # Also pytest for the Python import scripts (tests/python), with its
+    # coverage of scripts/ passed to SonarQube Cloud.
+    with:
+      pytest: true
+      python-requirements: scripts/requirements-test.txt
+      python-coverage-source: scripts
     permissions:
       contents: read
       id-token: write

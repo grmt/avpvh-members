@@ -1,0 +1,4 @@
+# Dependencies of the Python import scripts, for their tests (CI: quality.yml pytest job).
+openpyxl==3.1.5
+xlrd==2.0.2
+PyMySQL==1.2.4
