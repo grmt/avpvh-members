@@ -61,11 +61,16 @@ $case = $argv[1] ?? '';
 if ($case !== '') {
     $shares = new AVPVH_Tenant_Shares($config, $content);
     $share = ['title' => 'Fixture share', 'file' => 'fixture.txt', 'emails' => ['allowed@example.invalid']];
-    if ($case === 'share_throttle') {
+    if ($case === 'share_throttle' || $case === 'share_form') {
         $key = 'avpvh_share_total_' . hash('sha256', 'fixture');
-        $GLOBALS['transients'][$key] = AVPVH_Tenant_Shares::MAX_SHARE_TRIES;
+        $GLOBALS['transients'][$key] = $case === 'share_throttle' ? AVPVH_Tenant_Shares::MAX_SHARE_TRIES : 0;
         $_SERVER['REMOTE_ADDR'] = '192.0.2.123'; // a fresh IP must still hit the share-wide cap
-        $_POST = ['_wpnonce' => 'fixture-nonce', 'email' => 'allowed@example.invalid'];
+        $_POST = ['_wpnonce' => 'fixture-nonce', 'email' => $case === 'share_form' ? 'unknown@example.invalid' : 'allowed@example.invalid'];
+        if ($case === 'share_form') {
+            register_shutdown_function(static function () use ($key): void {
+                if (($GLOBALS['transients'][$key] ?? 0) !== 1) { echo '[FAIL] shared rate counter'; exit(1); }
+            });
+        }
         (new ReflectionMethod($shares, 'handle_form'))->invoke($shares, 'fixture', $share);
         exit(1);
     }
@@ -107,7 +112,7 @@ $decide = new ReflectionMethod($files, 'decide');
 check('logged-in non-member cannot use another account\'s Authelia cookie', $decide->invoke($files) === 403 && $GLOBALS['probes'] === 0);
 $GLOBALS['user'] = 0;
 check('anonymous file request may use its own Authelia session', $decide->invoke($files) === 204);
-foreach (['member_allowed', 'member_revoked', 'other_user', 'uid_allowed', 'uid_revoked', 'email_allowed', 'email_removed', 'share_throttle'] as $case) {
+foreach (['member_allowed', 'member_revoked', 'other_user', 'uid_allowed', 'uid_revoked', 'email_allowed', 'email_removed', 'share_throttle', 'share_form'] as $case) {
     $process = proc_open([PHP_BINARY, __FILE__, $case], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
     $output = stream_get_contents($pipes[1]);
     $errors = stream_get_contents($pipes[2]);
@@ -115,7 +120,7 @@ foreach (['member_allowed', 'member_revoked', 'other_user', 'uid_allowed', 'uid_
     fclose($pipes[2]);
     $status = proc_close($process);
     $allowed = str_ends_with($case, '_allowed');
-    $expected = $allowed ? 'FICTIONAL DOWNLOAD CONTENT' : ($case === 'share_throttle' ? 'Te veel pogingen' : 'niet meer geldig');
+    $expected = $allowed ? 'FICTIONAL DOWNLOAD CONTENT' : ($case === 'share_throttle' ? 'Te veel pogingen' : ($case === 'share_form' ? 'Dit e-mailadres heeft geen toegang' : 'niet meer geldig'));
     check($case, $status === 0 && $errors === '' && str_contains($output, $expected) && ($allowed || !str_contains($output, 'FICTIONAL DOWNLOAD CONTENT')));
 }
 exit($failures ? 1 : 0);

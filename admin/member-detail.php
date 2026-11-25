@@ -547,6 +547,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
     <summary><h2><?php esc_html_e('Groepen (toegangsrechten)', 'avpvh-members'); ?></h2></summary>
     <p class="description"><?php esc_html_e('Groepslidmaatschap regelt echte toegang (bijv. secretaris-rechten, de boek-groep voor "Zoeken in documenten") — los van de kenmerken hierboven, die alleen labels/filters zijn. De groepen leden en ex-leden volgen de status hierboven.', 'avpvh-members'); ?></p>
     <?php
+    $can_manage_groups = current_user_can('manage_options');
     $all_groups     = AVPVH_Directory::list_groups();
     $current_groups = AVPVH_Directory::get_user_groups($member->lldap_user_id);
     if (!is_wp_error($all_groups)) {
@@ -560,6 +561,7 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
             <?php wp_nonce_field('avpvh_save_groups'); ?>
             <input type="hidden" name="action" value="avpvh_save_groups">
             <input type="hidden" name="member_id" value="<?php echo esc_attr($member_id); ?>">
+            <fieldset <?php disabled(!$can_manage_groups); ?>>
             <p>
                 <?php foreach ($all_groups as $group) : ?>
                     <?php AVPVH_Member_Status::render_group_checkbox($group, $current_groups); ?>
@@ -568,7 +570,12 @@ if (!empty($_GET['sync_lldap']) && check_admin_referer('avpvh_sync_lldap_' . $me
                     <em><?php esc_html_e('Geen groepen gevonden.', 'avpvh-members'); ?></em>
                 <?php endif; ?>
             </p>
-            <?php submit_button(__('Groepen opslaan', 'avpvh-members'), 'secondary'); ?>
+            </fieldset>
+            <?php if ($can_manage_groups) : ?>
+                <?php submit_button(__('Groepen opslaan', 'avpvh-members'), 'secondary'); ?>
+            <?php else : ?>
+                <p class="description"><?php esc_html_e('Alleen een beheerder kan toegangsrechten wijzigen.', 'avpvh-members'); ?></p>
+            <?php endif; ?>
         </form>
     <?php endif; ?>
     </details>

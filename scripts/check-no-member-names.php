@@ -70,7 +70,7 @@ $names = array_values(array_unique(array_filter(
         && ($include_single_parts || str_contains($name, ' '))
 )));
 
-$extensions = ['php', 'py', 'sh', 'md', 'yml', 'yaml', 'json', 'js', 'css'];
+$extensions = ['php', 'py', 'sh', 'md', 'yml', 'yaml', 'json', 'js', 'cjs', 'css'];
 $skip_directories = ['.git', '.venv', 'vendor', 'node_modules', '.claude'];
 $hits = [];
 $scan_contents = static function (string $label, string $contents) use ($names, &$hits): void {

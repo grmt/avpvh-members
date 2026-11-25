@@ -59,7 +59,7 @@ $confirm_msg = sprintf(
     <?php endif; ?>
 
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-        onsubmit="return confirm('<?php echo esc_js($confirm_msg); ?>');">
+        data-avpvh-confirm="<?php echo esc_attr($confirm_msg); ?>">
         <?php wp_nonce_field('avpvh_send_newsletter'); ?>
         <input type="hidden" name="action" value="avpvh_send_newsletter">
         <table class="form-table">

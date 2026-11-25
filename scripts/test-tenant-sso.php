@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+ob_start();
 
 /**
  * Checks for the Rechtspreker tenant layer (includes/tenant/): config
@@ -112,6 +113,7 @@ class WP_Session_Tokens {
         return $token === 'test-token' && $this->user_id === $GLOBALS['test_current'] ? $GLOBALS['test_session'] : null;
     }
 }
+function is_ssl(): bool { return true; }
 function wp_logout(): void { $GLOBALS['test_current'] = 0; $GLOBALS['test_auth_cookie'] = 0; }
 function do_action(string $hook, mixed ...$args): void {
     // Other login listeners are not part of this test.
@@ -598,8 +600,23 @@ $_SERVER['REQUEST_URI'] = '/';
 $sso->recheck_session();
 check('OAuth recheck rejects raw elevated capabilities', $test_current === 0);
 $_GET = ['avpvh_tenant_logout' => 'nonce-avpvh_tenant_logout'];
+$_POST = [];
+$_SERVER['REQUEST_METHOD'] = 'GET';
 try { $sso->handle_logout(); } catch (AVPVH_Test_Exit $exit) {}
-check('deny-page logout still ends Authelia after WordPress already logged out', $exit->kind === 'redirect' && str_starts_with($exit->detail, 'https://auth.example.invalid/logout?rd='));
+check('signed-out logout asks for explicit confirmation', $exit->kind === 'die' && $exit->status === 200 && str_contains($exit->detail, 'method="post"'));
+$cookie_name = '__Host-avpvh_tenant_logout_confirm';
+$_SERVER['REQUEST_METHOD'] = 'POST';
+$_POST = ['avpvh_tenant_logout' => 'nonce-avpvh_tenant_logout', 'avpvh_logout_confirmation' => 'another-browser'];
+try { $sso->handle_logout(); } catch (AVPVH_Test_Exit $exit) {}
+check('a confirmation from another browser cannot end this session', $exit->kind === 'die' && !str_contains($exit->detail, '/logout?rd='));
+$_POST['avpvh_logout_confirmation'] = $_COOKIE[$cookie_name];
+$cookie = $_COOKIE[$cookie_name];
+unset($_COOKIE[$cookie_name]);
+try { $sso->handle_logout(); } catch (AVPVH_Test_Exit $exit) {}
+check('signed-out confirmation needs its browser cookie', $exit->kind === 'die' && $exit->status === 200);
+$_POST['avpvh_logout_confirmation'] = $_COOKIE[$cookie_name];
+try { $sso->handle_logout(); } catch (AVPVH_Test_Exit $exit) {}
+check('confirmed deny-page logout ends Authelia after WordPress logged out', $exit->kind === 'redirect' && str_starts_with($exit->detail, 'https://auth.example.invalid/logout?rd=') && !isset($_COOKIE[$cookie_name]));
 
 echo $failures ? "\n$failures check(s) failed.\n" : "\nAll checks passed.\n";
 exit($failures ? 1 : 0);

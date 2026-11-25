@@ -84,7 +84,7 @@ class AVPVH_Access {
         add_filter('rest_request_before_callbacks',  [$this, 'enforce_step_up_2fa_for_rest'], 5, 3);
         add_filter('rest_request_before_callbacks',  [$this, 'hide_members_page_from_rest'], 10, 3);
         add_filter('oembed_request_post_id',         [$this, 'hide_members_page_from_oembed']);
-        new AVPVH_Content_Guard([$this, 'post_is_restricted']);
+        AVPVH_Content_Guard::register([$this, 'post_is_restricted']);
 
         add_action('wp_head',                      [$this, 'noindex_members_content']);
         add_filter('wp_sitemaps_posts_query_args', [$this, 'sitemap_exclude_protected']);

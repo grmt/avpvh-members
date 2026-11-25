@@ -2,12 +2,12 @@
     'use strict';
 
     document.addEventListener('submit', function (event) {
-        var message = event.target.getAttribute('data-avpvh-confirm');
+        var message = event.target.dataset.avpvhConfirm;
         if (message && !window.confirm(message)) event.preventDefault();
     });
     document.addEventListener('click', function (event) {
         var button = event.target.closest('button[data-avpvh-confirm], a[data-avpvh-confirm]');
-        if (button && !window.confirm(button.getAttribute('data-avpvh-confirm'))) event.preventDefault();
+        if (button && !window.confirm(button.dataset.avpvhConfirm)) event.preventDefault();
     });
     document.addEventListener('change', function (event) {
         if (event.target.matches('select[data-avpvh-navigate]')) {
@@ -27,11 +27,11 @@
             var selected = select.value;
             select.querySelectorAll('option[data-avpvh-plain]').forEach(function (option) { option.remove(); });
             members.forEach(function (member) {
-                if (term && member.first.toLowerCase().indexOf(term) !== 0 && member.last.toLowerCase().indexOf(term) !== 0) return;
+                if (term && (member.first || '').toLowerCase().indexOf(term) === -1 && (member.last || '').toLowerCase().indexOf(term) === -1) return;
                 var option = document.createElement('option');
                 option.value = member.id;
                 option.textContent = member.label;
-                option.setAttribute('data-avpvh-plain', '1');
+                option.dataset.avpvhPlain = '1';
                 select.appendChild(option);
             });
             select.value = selected;

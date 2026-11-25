@@ -8,6 +8,14 @@ class AVPVH_Content_Guard {
 
     public function __construct(callable $restricted) {
         $this->restricted = $restricted;
+    }
+
+    public static function register(callable $restricted): void {
+        $guard = new self($restricted);
+        $guard->register_hooks();
+    }
+
+    private function register_hooks(): void {
         add_filter('rest_request_before_callbacks', [$this, 'guard_rest_comments'], 10, 3);
         add_filter('comments_open', [$this, 'comments_open'], 10, 2);
         add_action('pre_comment_on_post', [$this, 'guard_comment_submission']);
@@ -30,7 +38,7 @@ class AVPVH_Content_Guard {
     }
 
     /** Check both the existing parent and a new parent supplied on a write. */
-    public function guard_rest_comments($response, array $handler, \WP_REST_Request $request) {
+    public function guard_rest_comments($response, array $handler, \WP_REST_Request $request) { // NOSONAR -- WordPress supplies $handler before $request.
         $route = strtolower($request->get_route());
         if (!preg_match('#^/wp/v2/comments(?:/(\d+))?(?:/|$)#i', $route, $match)) {
             return $response;

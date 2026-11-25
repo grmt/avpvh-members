@@ -36,7 +36,7 @@ class AVPVH_Tenant_Content {
         add_filter('rest_request_before_callbacks', [$this, 'hide_from_rest_item'], 10, 3);
         add_filter('oembed_request_post_id',     [$this, 'hide_from_oembed']);
         add_filter('wp_sitemaps_posts_query_args', [$this, 'exclude_from_rest_query']);
-        new AVPVH_Content_Guard(fn(int $id): bool => !$this->current_user_may_read() && in_array($id, $this->protected_ids(), true));
+        AVPVH_Content_Guard::register(fn(int $id): bool => !$this->current_user_may_read() && in_array($id, $this->protected_ids(), true));
         add_action('wp_head',                    [$this, 'noindex']);
     }
 

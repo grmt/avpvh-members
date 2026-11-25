@@ -162,7 +162,10 @@ function wp_unslash(mixed $v): mixed { return $v; }
 function wp_parse_url(string $u, int $c = -1): mixed { return parse_url($u, $c); }
 function untrailingslashit(string $u): string { return rtrim($u, '/'); }
 function home_url(string $p = '/'): string { return 'https://site.example.invalid/' . ltrim($p, '/'); }
-function add_query_arg(string $k, string $v, string $u): string { return $u . (str_contains($u, '?') ? '&' : '?') . $k . '=' . $v; }
+function add_query_arg(array|string $k, mixed $v, ?string $u = null): string {
+    if (is_array($k)) { return $v . '?' . http_build_query($k); }
+    return $u . (str_contains($u, '?') ? '&' : '?') . $k . '=' . $v;
+}
 function is_wp_error(mixed $v): bool { return $v instanceof WP_Error; }
 function is_admin(): bool { return $GLOBALS['test_admin']; }
 function wp_doing_ajax(): bool { return $GLOBALS['test_ajax'] ?? false; }
@@ -171,6 +174,7 @@ function is_user_logged_in(): bool { return $GLOBALS['test_logged_in']; }
 function get_current_user_id(): int { return $GLOBALS['test_user_id']; }
 function wp_get_current_user(): WP_User { return $GLOBALS['test_users'][get_current_user_id()]; }
 function absint(mixed $v): int { return abs((int) $v); }
+function check_admin_referer(string $action): void { $GLOBALS['test_nonce_action'] = $action; }
 function check_ajax_referer(string $action, string $key): void {}
 function wp_send_json_error(mixed $data, ?int $status = null): void { throw new Test_Exit('json_error', $status ?? 200, (string) $data); }
 function wp_get_session_token(): string { return $GLOBALS['test_session_token'] ?? 'tok-1'; }
@@ -254,6 +258,7 @@ class AVPVH_Directory_Cache {
 require_once dirname(__DIR__) . '/includes/class-avpvh-address-normalizer.php';
 require_once dirname(__DIR__) . '/includes/class-avpvh-address-matcher.php';
 require_once dirname(__DIR__) . '/includes/class-db.php';
+require_once dirname(__DIR__) . '/includes/class-admin.php';
 require_once dirname(__DIR__) . '/includes/class-roles.php';
 require_once dirname(__DIR__) . '/includes/class-nav-auth.php';
 require_once dirname(__DIR__) . '/includes/class-access.php';
@@ -280,14 +285,24 @@ $wpdb = new class($wpdb) {
     public function prepare(string $sql, mixed ...$args): array { return [$sql, $args]; }
     public function get_var(mixed $q): mixed { return $this->inner->get_var($q); }
     public function get_col(string $sql): array { return $this->inner->get_col($sql); }
-    public function get_results(mixed $q): array {
+    public function get_results(mixed $q): ?array {
+        if (!empty($GLOBALS['test_address_unavailable'])) { return null; }
         if (is_string($q) && str_contains($q, 'YEAR(post_date)')) { return [(object) ['ID' => 501, 'y' => 2015], (object) ['ID' => 502, 'y' => 2025]]; }
         return $GLOBALS['test_address_rows'] ?? [];
     }
-    public function query(mixed $q): int { return 0; }
+    public function query(mixed $q): int {
+        if (is_array($q) && str_contains($q[0], 'DELETE FROM wp_avm_relationships')) { $GLOBALS['test_db_writes'][] = ['query', $q]; return 1; }
+        return 0;
+    }
+    public function update(string $table, array $data, array $where, mixed ...$formats): int { $GLOBALS['test_db_writes'][] = ['update', $table, $data, $where]; return 1; }
+    public function delete(string $table, array $where, mixed ...$formats): int { $GLOBALS['test_db_writes'][] = ['delete', $table, $where]; return 1; }
     public function get_row(mixed $q): ?object {
         if (is_array($q)) {
             [$sql, $args] = $q;
+            if (str_contains($sql, 'FROM wp_avm_relationships')) {
+                $row = $GLOBALS['test_relationship'] ?? null;
+                return $row && $row->id === (int) $args[0] ? $row : null;
+            }
             if (str_contains($sql, 'INNER JOIN') && !empty($GLOBALS['test_cache_missing'])) { return null; }
             if (str_contains($sql, 'avm_members WHERE id = %d') || str_contains($sql, 'WHERE m.id = %d')) {
                 return $GLOBALS['test_members'][(int) $args[0]] ?? null;
@@ -841,6 +856,56 @@ AVPVH_Roles::require_address_household_admin(20, $address);
 check('ordinary address confirmations remain available to officers', true);
 wp_set_current_user(6);
 check('inactive member gets no stale File List groups', AVPVH_Roles::user_filelist_groups([], 6) === []);
+
+// Administrative address requests use the real handlers and database layer.
+wp_set_current_user(3);
+$GLOBALS['test_groups']['voorz.test'] = ['leden', 'secretaris'];
+AVPVH_Directory::forget_groups('voorz.test');
+$GLOBALS['test_session_data'] = ['avpvh_auth_method' => 'proxy', 'avpvh_2fa' => true];
+$admin = new AVPVH_Admin();
+foreach (['handle_update_address', 'handle_confirm_address', 'handle_delete_address'] as $handler) {
+    foreach ([20, 10] as $member_id) {
+        $GLOBALS['test_db_writes'] = [];
+        $GLOBALS['test_address_rows'] = [(object) (['id' => 101, 'member_id' => $member_id, 'member_entered' => 1] + (array) $address)];
+        $_POST = ['id' => 101, 'member_id' => $member_id, 'valid_from' => '2026-01-01', 'valid_until' => '2027-01-01'];
+        $result = null;
+        try { $admin->$handler(); } catch (Test_Exit $e) { $result = $e; }
+        check($handler . ': target permission is enforced before persistence', $member_id === 10
+            ? $result?->status === 403 && !$GLOBALS['test_db_writes']
+            : $result?->kind === 'redirect' && count($GLOBALS['test_db_writes']) === 1);
+        if ($member_id === 20) {
+            $write = $GLOBALS['test_db_writes'][0];
+            $where = $write[$write[0] === 'update' ? 3 : 2];
+            check($handler . ': writes bind both the address and member', $where === ['id' => 101, 'member_id' => 20]);
+        }
+    }
+}
+wp_set_current_user(1);
+AVPVH_Roles::require_address_household_admin(20, $address);
+check('WordPress administrator may administer household addresses', true);
+wp_set_current_user(3);
+$GLOBALS['test_address_unavailable'] = true;
+$unavailable = false;
+try { AVPVH_Roles::require_address_household_admin(20, $address); } catch (Test_Exit $e) { $unavailable = $e->status === 503; }
+check('unavailable address checks stop before saving', $unavailable);
+unset($GLOBALS['test_address_unavailable']);
+$GLOBALS['test_relationship'] = (object) ['id' => 700, 'member_id' => 20, 'related_member_id' => 40];
+check('relationship lookup returns the stored participants', AVPVH_DB::get_relationship(700) === $GLOBALS['test_relationship']);
+check('relationship lookup reports missing rows', AVPVH_DB::get_relationship(701) === null);
+foreach ([700 => 403, 701 => 400] as $id => $expected) {
+    $_POST = ['member_id' => 20, 'relationship_id' => $id];
+    $GLOBALS['test_db_writes'] = [];
+    $result = null;
+    try { $profile_form->handle_remove_relationship(); } catch (Test_Exit $e) { $result = $e; }
+    check('relationship removal validates both stored participants: ' . $id, $result?->status === $expected && !$GLOBALS['test_db_writes']);
+}
+$guard = new AVPVH_Content_Guard([$access, 'post_is_restricted']);
+$unchanged = new stdClass();
+check('unrelated REST callbacks retain their response', $guard->guard_rest_comments($unchanged, [], new WP_REST_Request('/fixture/v1/items')) === $unchanged);
+wp_logout();
+$pagenow = 'admin-ajax.php';
+$access->enforce_step_up_2fa_for_ajax();
+check('anonymous AJAX keeps its handler-specific permissions', true);
 
 echo $failures ? "\n$failures failure(s)\n" : "\nAccess hardening tests: OK\n";
 exit($failures ? 1 : 0);

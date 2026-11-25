@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+ob_start();
 
 /**
  * Ad-hoc checks for AVPVH_OIDC, the OAuth/OIDC checks shared by the main
@@ -88,9 +89,9 @@ class WP_Session_Tokens {
 }
 function wp_parse_auth_cookie(string $cookie, string $scheme): array|false { return $GLOBALS['incoming_cookie']; }
 function wp_validate_auth_cookie(string $cookie, string $scheme): int|false { return $GLOBALS['cookie_user']; }
-function is_user_logged_in(): bool { return false; } // nonce-less REST has reset the user
+function is_user_logged_in(): bool { return ($GLOBALS['current_user'] ?? 0) > 0; } // nonce-less REST has reset the user
 function wp_clear_auth_cookie(): void { $GLOBALS['cookies_cleared'] = true; }
-function wp_logout(): void { throw new RuntimeException('REST current user should be anonymous'); }
+function wp_logout(): void { $GLOBALS['logouts'] = ($GLOBALS['logouts'] ?? 0) + 1; $GLOBALS['current_user'] = 0; }
 function wp_set_current_user(int $id): void { $GLOBALS['current_user'] = $id; }
 $GLOBALS['incoming_cookie'] = ['username' => 'fixture.previous', 'token' => 'previous-session'];
 $GLOBALS['cookie_user'] = 123;
@@ -102,4 +103,9 @@ $GLOBALS['cookie_user'] = false;
 AVPVH_OIDC::retire_browser_session();
 check('invalid cookies cannot revoke a server-side session', count($GLOBALS['destroyed']), 1);
 
+$GLOBALS['cookie_user'] = 123;
+$GLOBALS['current_user'] = 123;
+AVPVH_OIDC::retire_browser_session();
+check('replacing an authenticated session invokes WordPress logout', $GLOBALS['logouts'], 1);
+check('incoming cookie token is retired independently of current-user state', count($GLOBALS['destroyed']), 2);
 echo "OIDC tests: OK\n";

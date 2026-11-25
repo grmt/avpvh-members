@@ -152,7 +152,8 @@ class AVPVH_Tenant_OAuth {
 
         $user_id = $this->sso->provision($identity, $role, true);
         if (is_wp_error($user_id)) {
-            $this->fail('link', $name, $identity['uid'], $user_id->get_error_code(), $target);
+            $reason = $user_id->get_error_code() === 'oauth_elevated_account' ? 'admin' : 'link';
+            $this->fail($reason, $name, $identity['uid'], $user_id->get_error_code(), $target);
         }
         // Reject any account that already holds more than subscriber privileges
         // before mutating metadata or issuing a session.

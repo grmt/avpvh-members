@@ -91,7 +91,7 @@ class AVPVH_Roles {
     const IT_GROUP = 'it-beheer';
     const BLOGGER_GROUP = 'bloggers';
     public static function strip_bestuur_roles(int $id): bool { $GLOBALS['status_sync'][] = ['strip', $id]; return true; }
-    public static function sync_status_group(int $id): true|WP_Error { $GLOBALS['status_sync'][] = ['sync', $id]; return true; }
+    public static function sync_status_group(int $id): true|WP_Error { $GLOBALS['status_sync'][] = ['sync', $id]; return empty($GLOBALS['sync_error']) ? true : new WP_Error('fixture', 'Fixture unavailable'); }
 }
 class AVPVH_DB {
     public static array $emails = [1 => 'alfa@example.test', 2 => 'alfa.oud@example.test'];
@@ -259,4 +259,9 @@ setup(['status' => 'inactive']);
 $GLOBALS['status_sync'] = [];
 $r = run('merge inactivates member', ['fields' => ['status' => 'remove']]);
 check('status change after merge strips elevated groups and syncs membership', $code($r) === 'ok' && $GLOBALS['status_sync'] === [['strip', 1], ['sync', 1]]);
+setup(['status' => 'inactive']);
+$GLOBALS['sync_error'] = true;
+$r = run('status synchronization warning', ['fields' => ['status' => 'remove']]);
+check('completed merge reports a directory synchronization warning', $code($r) === 'ok' && count($r['warnings']) === 1 && str_contains($r['warnings'][0], 'directorygroepen'));
+unset($GLOBALS['sync_error']);
 echo "Member merge execute tests: OK\n";

@@ -18,8 +18,11 @@ define('WP_CONTENT_DIR', __DIR__ . '/no-such-dir');
 
 $GLOBALS['hooks'] = [];
 function plugin_dir_path(string $file): string { return dirname($file) . '/'; }
+function plugin_dir_url(string $file): string { return 'https://example.test/plugin/'; }
+function wp_enqueue_style(mixed ...$args): void {}
+function wp_enqueue_script(string $handle, mixed ...$args): void { $GLOBALS['scripts'][$handle] = $args; }
 function register_activation_hook(...$args): void {}
-function add_action(string $hook, ...$args): void { $GLOBALS['hooks'][] = $hook; }
+function add_action(string $hook, ...$args): void { $GLOBALS['hooks'][] = $hook; $GLOBALS['callbacks'][$hook][] = $args[0]; }
 function add_filter(string $hook, ...$args): void { $GLOBALS['hooks'][] = $hook; }
 function remove_action(...$args): void {}
 function add_shortcode(...$args): void {}
@@ -31,7 +34,9 @@ function __($s, $d = '') { return $s; }
 
 require_once dirname(__DIR__) . '/avpvh-members.php';
 
+$GLOBALS['callbacks']['wp_enqueue_scripts'][0]();
 foreach ([
+    'frontend behavior script registered' => isset($GLOBALS['scripts']['avpvh-ui-actions']) && str_ends_with($GLOBALS['scripts']['avpvh-ui-actions'][0], '/assets/ui-actions.js'),
     'member database class loaded'      => class_exists('AVPVH_DB', false),
     'contribution classes loaded'       => class_exists('AVPVH_Fees', false) && class_exists('AVPVH_Fees_Admin', false),
     'contribution handlers hooked'      => in_array('admin_post_avpvh_generate_fees', $GLOBALS['hooks'], true)

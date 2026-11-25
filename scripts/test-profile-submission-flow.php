@@ -229,6 +229,11 @@ try {
     $_POST['relationship_id'] = 8;
     profile_action([$form, 'handle_remove_relationship']);
     check('relationship removal is scoped to the selected member', $GLOBALS['removed_relations'] === [['id' => 8, 'member' => 20]]);
+    reset_profile();
+    $GLOBALS['officer'] = true;
+    $_POST = ['member_id' => 10, 'related_member_id' => 20, 'label_id' => 1];
+    profile_action([$form, 'handle_add_relationship']);
+    check('an undated relationship retains open validity dates', count($GLOBALS['relations']) === 1 && $GLOBALS['relations'][0][3] === null && $GLOBALS['relations'][0][4] === null);
     foreach (['self_link', 'missing_source', 'missing_target', 'missing_label', 'invalid_date', 'reversed_dates', 'elevated_source', 'elevated_target'] as $case) {
         reset_profile();
         $GLOBALS['officer'] = true;
