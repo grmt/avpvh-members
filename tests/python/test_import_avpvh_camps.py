@@ -460,8 +460,8 @@ def test_import_file_skips_workbook_when_camp_is_ambiguous(tmp_path):
     ('Fictief van der Voorbeeld', ('Fictief', 'van der', 'Voorbeeld', False)),
 ])
 def test_split_full_name(name, expected):
-    split = camps.split_full_name(name)
-    assert (split['first_name'], split['suffix'], split['last_name'], split['review']) == expected
+    keys = ('first_name', 'suffix', 'last_name', 'review')
+    assert camps.split_full_name(name) == dict(zip(keys, expected))
 
 
 def test_matcher_matches_last_name_first_with_trailing_tussenvoegsel():
@@ -497,7 +497,45 @@ def test_write_unmatched_proposes_split_and_lists_camps(tmp_path, capsys):
     assert 'Wrote 2 unmatched people' in capsys.readouterr().out
 
 
-def test_main_refuses_unmatched_out_outside_local_files(tmp_path, monkeypatch):
-    monkeypatch.setattr(sys, 'argv', ['import-avpvh-camps.py', str(tmp_path), '--unmatched-out', 'names.json'])
-    with pytest.raises(SystemExit, match='local'):
+@pytest.mark.parametrize('name', ['names.json', '../x.local.json', '/tmp/x.local.json', 'sub/x.local.json'])
+def test_main_refuses_unmatched_out_other_than_a_local_file_name(tmp_path, monkeypatch, name):
+    monkeypatch.setattr(sys, 'argv', ['import-avpvh-camps.py', str(tmp_path), '--unmatched-out', name])
+    with pytest.raises(SystemExit, match='file name'):
         camps.main()
+
+
+def test_unmatched_path_is_next_to_the_script():
+    assert camps.unmatched_path('camp-unmatched.local.json') == camps.UNMATCHED_DIR / 'camp-unmatched.local.json'
+
+
+def test_main_dry_run_writes_unmatched_file(tmp_path, monkeypatch):
+    path = camp_dir_workbook(tmp_path)
+    cursor = FakeCursor(members=[(1, 'Anna', None, 'Voorbeeld')], activities=[(5, 'Plaats', 2011, 7)])
+
+    class Connection:
+        def cursor(self):
+            class Context:
+                def __enter__(self_inner):
+                    return cursor
+                def __exit__(self_inner, *exc):
+                    return False
+            return Context()
+        rolled_back = closed = False
+        def rollback(self):
+            Connection.rolled_back = True
+        def commit(self):
+            raise AssertionError('dry-run must not commit')
+        def close(self):
+            Connection.closed = True
+
+    monkeypatch.setattr(camps, 'UNMATCHED_DIR', tmp_path)
+    monkeypatch.setattr(camps, 'read_secret', lambda _: 'x')
+    monkeypatch.setattr(camps, 'get_db', lambda _: Connection())
+    monkeypatch.setattr(sys, 'argv', ['import-avpvh-camps.py', str(path.parent.parent),
+                                      '--dry-run', '--unmatched-out', 'camp.local.json'])
+    with pytest.raises(SystemExit) as exit_info:
+        camps.main()
+    assert exit_info.value.code == 2
+    assert Connection.rolled_back and Connection.closed
+    data = json.loads((tmp_path / 'camp.local.json').read_text(encoding='utf-8'))
+    assert [p['name'] for p in data['people']] == ['Onbekend Persoon']

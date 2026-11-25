@@ -20,6 +20,11 @@
             <directory suffix=".php">includes</directory>
             <directory suffix=".php">admin</directory>
             <file>avpvh-members.php</file>
+            <directory suffix=".php">scripts</directory>
         </include>
+        <exclude>
+            <directory suffix=".php">scripts/tenant-e2e</directory>
+            <directory prefix="test-" suffix=".php">scripts</directory>
+        </exclude>
     </source>
 </phpunit>

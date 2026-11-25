@@ -174,7 +174,7 @@ Bezoeker (status `visitor`, name only, no login):
 ```bash
 # 1. Dry-run that also writes the unmatched people (Git-ignored *.local.* file).
 python3 scripts/import-avpvh-camps.py /path/to/Opgravingen/ --dry-run \
-    --unmatched-out scripts/camp-unmatched.local.json
+    --unmatched-out camp-unmatched.local.json   # written to scripts/
 # 2. Review the file: fix the proposed first name / tussenvoegsel / last name,
 #    clear "review": true, and set "create": false for anyone who already
 #    exists under another spelling (add a Naamvariant to that person instead).

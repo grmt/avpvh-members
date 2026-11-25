@@ -12,7 +12,7 @@
  *
  * Input (override with AVPVH_CAMP_VISITORS_FILE; must match scripts/*.local.*
  * so Git never tracks it): scripts/camp-unmatched.local.json, as written by
- *   import-avpvh-camps.py <archive> --dry-run --unmatched-out scripts/camp-unmatched.local.json
+ *   import-avpvh-camps.py <archive> --dry-run --unmatched-out camp-unmatched.local.json
  * {
  *   "status": "visitor",
  *   "people": [{
@@ -92,17 +92,15 @@ function avpvh_create_camp_visitors(array $people, bool $apply): array {
  * @return array<int, mixed>|string the people, or an error message
  */
 function avpvh_camp_visitors_load(string $file): array|string {
+    $input = is_file($file) ? json_decode((string) file_get_contents($file), true) : null;
     if (!is_file($file)) {
-        return "Bestand ontbreekt: {$file}";
+        $error = "Bestand ontbreekt: {$file}";
+    } elseif (!is_array($input) || !isset($input['people']) || !is_array($input['people'])) {
+        $error = 'Ongeldig bestand: verwacht een people-array.';
+    } elseif (($input['status'] ?? 'visitor') !== 'visitor') {
+        $error = 'Alleen status visitor (Bezoeker) wordt ondersteund.';
     }
-    $input = json_decode((string) file_get_contents($file), true);
-    if (!is_array($input) || !isset($input['people']) || !is_array($input['people'])) {
-        return 'Ongeldig bestand: verwacht een people-array.';
-    }
-    if (($input['status'] ?? 'visitor') !== 'visitor') {
-        return 'Alleen status visitor (Bezoeker) wordt ondersteund.';
-    }
-    return $input['people'];
+    return $error ?? $input['people'];
 }
 
 /** Print the outcome; returns the exit status. */
