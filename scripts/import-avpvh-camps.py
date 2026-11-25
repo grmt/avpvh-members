@@ -12,8 +12,18 @@ has a fixed, calculation-heavy layout:
   - columns E-T: day status (normally "n", "on" or "?");
   - columns W/X/Y/Z: nawacht, two note fields and diet.
 
+Camps up to 2014 have no such sheet. Their registrations are in the older
+form's "Inschrijving" sheet: a header cell "VOORNAAM & ACHTERNAAM" (column A
+or B), day numbers to its right on the same row, month headings two rows
+above, then one participant per row. Columns after the day grid are found by
+their heading ("nachten", "opmerkingen", "eetopmerkingen"/"dieet"). Each
+workbook's layout is detected from its sheets.
+
 The source may be one overview workbook or an archive directory. Directory
-imports consider only filenames containing "overzicht"; --latest selects the
+imports consider filenames containing "overzicht". A camp directory without
+any overview falls back to its top-level workbooks whose name contains
+"inschrijvingen" or "algemeen" (the older collected registration lists);
+per-person forms and blank templates are not matched. --latest selects the
 most recently modified overview. Re-running updates existing participation
 and replaces its day grid, so the operation is idempotent.
 
@@ -61,6 +71,12 @@ NAWACHT_COLUMN = 23   # W
 NOTES_COLUMNS = (24, 25)  # X, Y
 DIET_COLUMN = 26      # Z
 
+LEGACY_SHEET_NAME = 'inschrijving'
+LEGACY_NAME_HEADER = 'voornaam & achternaam'
+LEGACY_HEADER_SEARCH_ROWS = 20
+LEGACY_HEADER_SEARCH_COLUMNS = 4
+LEGACY_LIST_NAME = re.compile(r'inschrijvingen|algemeen', re.IGNORECASE)
+
 DUTCH_MONTHS = {
     'januari': 1,
     'februari': 2,
@@ -85,16 +101,32 @@ def workbook_paths(source: Path, latest: bool) -> list[Path]:
     if not source.is_dir():
         raise SystemExit(f'ERROR: source does not exist: {source}')
 
-    paths = sorted(
+    workbooks = sorted(
         path for path in source.rglob('*')
         if path.is_file()
         and path.suffix.lower() in SUPPORTED_SUFFIXES
-        and 'overzicht' in path.name.casefold()
         and not path.name.startswith('~$')
     )
+    paths = [path for path in workbooks if 'overzicht' in path.name.casefold()]
+    if latest:
+        if not paths:
+            raise SystemExit(f'ERROR: no camp overview XLS/XLSX files found under {source}')
+        return [max(paths, key=lambda path: path.stat().st_mtime)]
+
+    def camp_dir(path: Path) -> Path:
+        return source / path.relative_to(source).parts[0]
+
+    camps_with_overview = {camp_dir(path) for path in paths}
+    paths += [
+        path for path in workbooks
+        if path.parent != source
+        and path.parent == camp_dir(path)
+        and path.parent not in camps_with_overview
+        and LEGACY_LIST_NAME.search(path.name)
+    ]
     if not paths:
         raise SystemExit(f'ERROR: no camp overview XLS/XLSX files found under {source}')
-    return [max(paths, key=lambda path: path.stat().st_mtime)] if latest else paths
+    return sorted(paths)
 
 
 def extract_year_activity(path: Path) -> tuple[int | None, str, str]:
@@ -314,6 +346,172 @@ def participant_rows(sheet, workbook_type: str, date_columns: dict[int, date]):
         }
 
 
+def sheet_size(sheet, workbook_type: str) -> tuple[int, int]:
+    if workbook_type == 'openpyxl':
+        return sheet.max_row, sheet.max_column
+    return sheet.nrows, sheet.ncols
+
+
+def is_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def get_legacy_sheet(workbook, workbook_type: str):
+    """Return (sheet, header_row, name_column) of the older registration form."""
+    if workbook_type == 'openpyxl':
+        names = {name.strip().casefold(): name for name in workbook.sheetnames}
+        exact = names.get(LEGACY_SHEET_NAME)
+        sheet = workbook[exact] if exact else None
+    else:
+        sheet = next(
+            (workbook.sheet_by_index(index) for index in range(workbook.nsheets)
+             if workbook.sheet_by_index(index).name.strip().casefold() == LEGACY_SHEET_NAME),
+            None,
+        )
+    if sheet is None:
+        return None
+    rows, columns = sheet_size(sheet, workbook_type)
+    for row in range(1, min(rows, LEGACY_HEADER_SEARCH_ROWS) + 1):
+        for column in range(1, min(columns, LEGACY_HEADER_SEARCH_COLUMNS) + 1):
+            text = cell_text(sheet, workbook_type, row, column).casefold()
+            if text.startswith(LEGACY_NAME_HEADER):
+                return sheet, row, column
+    return None
+
+
+def legacy_date_columns(sheet, workbook_type: str, header_row: int,
+                        name_column: int, campaign_year: int) -> dict[int, date]:
+    """Day numbers follow the name header; months are two rows above."""
+    _, columns = sheet_size(sheet, workbook_type)
+    day_columns = []
+    for column in range(name_column + 1, columns + 1):
+        if not is_number(cell_value(sheet, workbook_type, header_row, column)):
+            break
+        day_columns.append(column)
+    if not day_columns:
+        raise ValueError(f'no day numbers right of the name header in row {header_row}')
+
+    month_row = header_row - 2
+    months = {}
+    for column in day_columns:
+        label = cell_text(sheet, workbook_type, month_row, column).casefold()
+        if label:
+            if label not in DUTCH_MONTHS:
+                raise ValueError(f'unknown month heading {label!r} in column {column}')
+            months[column] = DUTCH_MONTHS[label]
+    if not months:
+        raise ValueError(f'no month headings in row {month_row}')
+
+    # Month headings sit on merged cells and need not line up with the
+    # month break, so only the first one is used; after that a day number
+    # lower than the previous one starts the next month.
+    result = {}
+    current_month = months[min(months)]
+    current_year = campaign_year
+    previous_day = None
+    for column in day_columns:
+        day = int(cell_value(sheet, workbook_type, header_row, column))
+        if previous_day is not None and day < previous_day:
+            current_month += 1
+            if current_month > 12:
+                current_month, current_year = 1, current_year + 1
+        previous_day = day
+        result[column] = date(current_year, current_month, day)
+    return result
+
+
+def legacy_label_columns(sheet, workbook_type: str, header_row: int,
+                         last_day_column: int) -> dict[str, list[int]]:
+    """Find nights/notes/diet columns after the day grid by their headings."""
+    _, columns = sheet_size(sheet, workbook_type)
+    found = {'nights': [], 'notes': [], 'diet': []}
+    for column in range(last_day_column + 1, columns + 1):
+        label = ' '.join(
+            cell_text(sheet, workbook_type, row, column)
+            for row in range(max(1, header_row - 2), header_row + 1)
+        ).casefold()
+        if 'eetopmerking' in label or 'dieet' in label:
+            found['diet'].append(column)
+        elif 'opmerking' in label:
+            found['notes'].append(column)
+        elif 'nachten' in label:
+            found['nights'].append(column)
+    return found
+
+
+def legacy_participant_rows(sheet, workbook_type: str, header_row: int,
+                            name_column: int, date_columns: dict[int, date]):
+    """Yield people from the older form, skipping per-day total rows."""
+    rows, _ = sheet_size(sheet, workbook_type)
+    labels = legacy_label_columns(sheet, workbook_type, header_row, max(date_columns))
+
+    def texts(row: int, columns: list[int]) -> list[str]:
+        return [
+            cell_text(sheet, workbook_type, row, column) for column in columns
+            if cell_text(sheet, workbook_type, row, column)
+            and not is_number(cell_value(sheet, workbook_type, row, column))
+        ]
+
+    for row in range(header_row + 1, rows + 1):
+        name = cell_text(sheet, workbook_type, row, name_column)
+        if not name or name.casefold().startswith('totaal'):
+            continue
+        # Summary rows ("Volwassenen", "Kinders", ...) hold counts per day.
+        if any(is_number(cell_value(sheet, workbook_type, row, column))
+               for column in date_columns):
+            continue
+
+        days = {
+            day: cell_text(sheet, workbook_type, row, column)
+            for column, day in date_columns.items()
+        }
+        notes = texts(row, labels['notes'])
+        diet = texts(row, labels['diet'])
+        if not any(days.values()) and not notes and not diet:
+            continue
+
+        nights = None
+        for column in labels['nights']:
+            value = cell_value(sheet, workbook_type, row, column)
+            if is_number(value):
+                nights = int(value)
+                break
+        if nights is None:
+            nights = sum(
+                bool(status) and status.casefold() != 'on' and '?' not in status
+                for status in days.values()
+            )
+
+        yield {
+            'name': name,
+            'days': days,
+            'nights': nights,
+            'nawacht': 0,
+            'notes': '\n'.join(notes) or None,
+            'diet': '; '.join(diet) or None,
+        }
+
+
+def read_participants(workbook, workbook_type: str, year: int):
+    """Return (date_columns, participants) for whichever layout the workbook has."""
+    sheet = get_camp_sheet(workbook, workbook_type)
+    if sheet is not None:
+        date_columns = camp_date_columns(sheet, workbook_type, year)
+        return date_columns, participant_rows(sheet, workbook_type, date_columns)
+
+    legacy = get_legacy_sheet(workbook, workbook_type)
+    if legacy is None:
+        raise ValueError(
+            f'neither sheet {SHEET_NAME!r} nor a {LEGACY_SHEET_NAME!r} sheet '
+            f'with a {LEGACY_NAME_HEADER!r} header'
+        )
+    sheet, header_row, name_column = legacy
+    date_columns = legacy_date_columns(sheet, workbook_type, header_row, name_column, year)
+    return date_columns, legacy_participant_rows(
+        sheet, workbook_type, header_row, name_column, date_columns
+    )
+
+
 def import_file(cursor, matcher: MemberMatcher, path: Path,
                 kamp_type_id: int, dry_run: bool) -> tuple[int, int, int]:
     year, activity_name, kenmerk = extract_year_activity(path)
@@ -324,13 +522,8 @@ def import_file(cursor, matcher: MemberMatcher, path: Path,
     workbook, workbook_type = open_workbook(path)
     if not workbook:
         return 0, 0, 0
-    sheet = get_camp_sheet(workbook, workbook_type)
-    if sheet is None:
-        print(f'  SKIP (sheet {SHEET_NAME!r} not found): {path}')
-        return 0, 0, 0
-
     try:
-        date_columns = camp_date_columns(sheet, workbook_type, year)
+        date_columns, participants = read_participants(workbook, workbook_type, year)
     except ValueError as error:
         print(f'  SKIP ({error}): {path}')
         return 0, 0, 0
@@ -344,7 +537,7 @@ def import_file(cursor, matcher: MemberMatcher, path: Path,
     )
 
     imported = unmatched = ambiguous = 0
-    for participant in participant_rows(sheet, workbook_type, date_columns):
+    for participant in participants:
         member_id, result = matcher.find(participant['name'])
         if not member_id:
             print(f'  {result.upper()}: {participant["name"]}')

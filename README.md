@@ -167,7 +167,10 @@ python3 scripts/sync-kamp-overzicht.py /path/to/exports/
 
 `import-avpvh-camps.py` exits with status 2 when names remain unmatched or
 ambiguous, after reporting them for manual review. It reads names from column
-D, the day grid from E-T, and nawacht/notes/diet from W-Z. An import replaces
+D, the day grid from E-T, and nawacht/notes/diet from W-Z. Camps up to 2014
+predate that sheet: their `Inschrijving` sheet (header `VOORNAAM & ACHTERNAAM`)
+is read instead, and an archive camp folder without an overview falls back to
+its top-level workbooks named `*inschrijvingen*` or `*algemeen*`. An import replaces
 that participant's day-by-day attendance for the camp. The overview option
 name is derived from the campaign year (for example
 `avpvh_kamp_2026_overzicht`); use `--year` or `--option-name` when the year
