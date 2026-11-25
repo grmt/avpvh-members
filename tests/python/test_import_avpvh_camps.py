@@ -5,6 +5,7 @@ No database is used: a fake cursor stands in for pymysql.
 """
 
 import importlib.util
+import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -443,3 +444,60 @@ def test_import_file_skips_workbook_when_camp_is_ambiguous(tmp_path):
     result = camps.import_file(cursor, camps.MemberMatcher(cursor), path, 7, False)
     assert result == (0, 0, 0)
     assert not cursor.inserts('pvh_avm_activity_participation')
+
+
+# --- unmatched people for create-camp-visitors.php --------------------------
+
+@pytest.mark.parametrize('name, expected', [
+    ('Fictief van den Proef', ('Fictief', 'van den', 'Proef', False)),
+    ('Anna de Proef', ('Anna', 'de', 'Proef', False)),
+    ('Proef, Fictief van den', ('Fictief', 'van den', 'Proef', False)),
+    ('Voorbeeld, Anna', ('Anna', '', 'Voorbeeld', False)),
+    ('Piet  Voorbeeld', ('Piet', '', 'Voorbeeld', False)),
+    ('Anna Maria Voorbeeld', ('Anna', '', 'Maria Voorbeeld', True)),
+    ('Fictief v.d. Proef', ('Fictief', '', 'v.d. Proef', True)),
+    ('Eenwoord', ('Eenwoord', '', '', True)),
+    ('Fictief van der Voorbeeld', ('Fictief', 'van der', 'Voorbeeld', False)),
+])
+def test_split_full_name(name, expected):
+    split = camps.split_full_name(name)
+    assert (split['first_name'], split['suffix'], split['last_name'], split['review']) == expected
+
+
+def test_matcher_matches_last_name_first_with_trailing_tussenvoegsel():
+    cursor = FakeCursor(members=[(4, 'Fictief', 'van den', 'Voorbeeld')])
+    matcher = camps.MemberMatcher(cursor)
+    assert matcher.find('Voorbeeld, Fictief van den') == (4, 'matched')
+
+
+def test_import_file_collects_unmatched_people_once(tmp_path):
+    path = camp_dir_workbook(tmp_path)
+    cursor = FakeCursor(members=[(1, 'Anna', None, 'Voorbeeld')])
+    matcher = camps.MemberMatcher(cursor)
+    unknown = {}
+    camps.import_file(cursor, matcher, path, kamp_type_id=7, dry_run=True, unknown=unknown)
+    camps.import_file(cursor, matcher, path, kamp_type_id=7, dry_run=True, unknown=unknown)
+    assert unknown == {'onbekend persoon': {'name': 'Onbekend Persoon', 'camps': {'2011 Plaats'}}}
+
+
+def test_write_unmatched_proposes_split_and_lists_camps(tmp_path, capsys):
+    out = tmp_path / 'camp-unmatched.local.json'
+    camps.write_unmatched(out, {
+        'zeta persoon': {'name': 'Zeta Persoon', 'camps': {'2013 B', '2012 A'}},
+        'anna de proef': {'name': 'Anna de Proef', 'camps': {'2011 C'}},
+    })
+    data = json.loads(out.read_text(encoding='utf-8'))
+    assert data['status'] == 'visitor'
+    assert [p['name'] for p in data['people']] == ['Anna de Proef', 'Zeta Persoon']
+    assert data['people'][0] == {
+        'name': 'Anna de Proef', 'first_name': 'Anna', 'suffix': 'de',
+        'last_name': 'Proef', 'review': False, 'camps': ['2011 C'], 'create': True,
+    }
+    assert data['people'][1]['camps'] == ['2012 A', '2013 B']
+    assert 'Wrote 2 unmatched people' in capsys.readouterr().out
+
+
+def test_main_refuses_unmatched_out_outside_local_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['import-avpvh-camps.py', str(tmp_path), '--unmatched-out', 'names.json'])
+    with pytest.raises(SystemExit, match='local'):
+        camps.main()
