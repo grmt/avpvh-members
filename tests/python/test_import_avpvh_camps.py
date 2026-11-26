@@ -6,6 +6,7 @@ No database is used: a fake cursor stands in for pymysql.
 
 import importlib.util
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -322,6 +323,52 @@ def test_read_participants_uses_legacy_sheet_and_reports_neither(tmp_path):
     other.active.title = 'Blad1'
     with pytest.raises(ValueError, match='neither sheet'):
         camps.read_participants(other, 'openpyxl', 2011)
+
+
+def test_read_participants_reads_2015_2018_overview_in_older_shape(tmp_path):
+    """'totaal inschrijvingen' with the name header in column C, rows 3 and 5."""
+    rows = [
+        {'name': 'Totaal', 'd0': 14, 'd1': 11},
+        {'name': 'Volwassenen', 'd0': 12, 'd1': 9},
+        {'name': 'VOORNAAM & ACHTERNAAM hieronder'},
+        {'name': 'Hanna Fictief', 'd0': 'n', 'd1': 'n', 'd2': 'on', 'x0': 2, 'x1': 'x', 'x2': 'Komt laat'},
+        {'name': 'Ids Voorbeeld', 'd3': 'n'},
+    ]
+    path = legacy_workbook(
+        tmp_path / 'o.xlsx', name_column=3, header_row=5, rows=rows,
+        sheet_name='totaal inschrijvingen', month_labels={0: 'Juli'},
+        days=(25, 26, 27, 28), extra_headers={0: (-1, 'Aantal Nachten'), 1: (-1, 'Nawacht'), 2: (-1, 'Opmerkingen:')},
+    )
+    workbook, kind = open_sheet(path)
+    dates, participants = camps.read_participants(workbook, kind, 2015)
+    people = list(participants)
+
+    assert min(dates.values()) == date(2015, 7, 25)
+    assert [person['name'] for person in people] == ['Hanna Fictief', 'Ids Voorbeeld']
+    assert people[0]['nights'] == 2
+    assert people[0]['nawacht'] == 1
+    assert people[0]['notes'] == 'Komt laat'
+    assert people[1]['nawacht'] == 0
+
+
+def test_read_participants_keeps_fixed_grid_when_header_is_in_column_d(tmp_path):
+    path = modern_workbook(tmp_path / 'm.xlsx', [('Fien Fictief', ['n', 'n', 'on'])])
+    workbook, kind = open_sheet(path)
+    workbook.active.cell(row=camps.DAY_ROW, column=camps.NAME_COLUMN, value='VOORNAAM & ACHTERNAAM hieronder')
+    _, participants = camps.read_participants(workbook, kind, 2025)
+    assert [person['name'] for person in participants] == ['Fien Fictief']
+
+
+def test_workbook_paths_reads_one_of_a_workbook_and_its_exported_copy(tmp_path):
+    folder = tmp_path / '2014 Plaats'
+    older = touch(folder / 'Inschrijvingen Overzicht 2014.xlsx')
+    newer = touch(folder / 'Inschrijvingen Overzicht 2014.xlsx.xlsx')
+    other = touch(folder / 'Inschrijvingen Overzicht 2014 voor gemeente.xlsx')
+    os.utime(older, (1_000_000, 1_000_000))
+    os.utime(newer, (2_000_000, 2_000_000))
+    assert camps.workbook_paths(tmp_path, latest=False) == sorted([newer, other])
+    os.utime(older, (3_000_000, 3_000_000))
+    assert camps.workbook_paths(tmp_path, latest=False) == sorted([older, other])
 
 
 def camp_dir_workbook(tmp_path):
