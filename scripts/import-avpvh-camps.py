@@ -27,8 +27,16 @@ per-person forms and blank templates are not matched. --latest selects the
 most recently modified overview. Re-running updates existing participation
 and replaces its day grid, so the operation is idempotent.
 
+Unmatched names can be written to an ignored local file with
+--unmatched-out (dry-run or not), next to this script: one entry per person, with a proposed
+split into first name, tussenvoegsel and last name and the camps they were
+on. After review, scripts/create-camp-visitors.php creates them as
+Bezoeker, and a second import then matches them.
+
 Usage:
     python3 import-avpvh-camps.py /path/to/Opgravingen/ --dry-run
+    python3 import-avpvh-camps.py /path/to/Opgravingen/ --dry-run \
+        --unmatched-out camp-unmatched.local.json
     python3 import-avpvh-camps.py /path/to/Opgravingen/ --latest
 
 Dependencies:
@@ -36,6 +44,8 @@ Dependencies:
 """
 
 import argparse
+import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -52,6 +62,7 @@ except ImportError:
 
 from _avpvh_import_common import (
     SECRET_FILE,
+    TUSSENVOEGSEL_PREFIXES,
     WP_PREFIX,
     get_db,
     read_secret,
@@ -258,6 +269,7 @@ class MemberMatcher:
             f'{first_name} {suffix} {last_name}',
             f'{first_name} {last_name}',
             f'{last_name}, {first_name}',
+            f'{last_name}, {first_name} {suffix}',
         }
         for variant in variants:
             self.by_name[normalized_full_name(variant)].add(int(member_id))
@@ -267,6 +279,100 @@ class MemberMatcher:
         if len(matches) == 1:
             return next(iter(matches)), 'matched'
         return None, 'ambiguous' if matches else 'unmatched'
+
+
+SUFFIX_WORDS = sorted(
+    (prefix.split() for prefix in TUSSENVOEGSEL_PREFIXES),
+    key=len, reverse=True,
+)
+
+
+def _suffix_at(words: list[str], start: int) -> list[str] | None:
+    """The tussenvoegsel starting at words[start], when a last name follows."""
+    lowered = [word.casefold() for word in words[start:]]
+    return next(
+        (candidate for candidate in SUFFIX_WORDS
+         if len(lowered) > len(candidate) and lowered[:len(candidate)] == candidate),
+        None,
+    )
+
+
+def _split_last_name_first(name: str) -> tuple[str, str, str]:
+    """"Proef, Fictief van den" -> Fictief / van den / Proef."""
+    last, _, rest = (part.strip() for part in name.partition(','))
+    words = rest.split()
+    for candidate in SUFFIX_WORDS:
+        size = len(candidate)
+        if len(words) > size and [word.casefold() for word in words[-size:]] == candidate:
+            return ' '.join(words[:-size]), ' '.join(words[-size:]), last
+    return ' '.join(words), '', last
+
+
+def _split_first_name_first(name: str) -> tuple[str, str, str]:
+    """"Fictief van den Proef" -> Fictief / van den / Proef."""
+    words = name.split()
+    for start in range(1, len(words) - 1):
+        candidate = _suffix_at(words, start)
+        if candidate:
+            end = start + len(candidate)
+            return ' '.join(words[:start]), ' '.join(words[start:end]), ' '.join(words[end:])
+    return (words[0] if words else ''), '', ' '.join(words[1:])
+
+
+def split_full_name(full_name: str) -> dict:
+    """Propose first name, tussenvoegsel and last name for a sheet name.
+
+    "Fictief van den Proef" and "Proef, Fictief van den" both give
+    Fictief / van den / Proef. Without a tussenvoegsel the first word is
+    the first name. The proposal needs a human look ("review": True) when
+    it is a guess: more than two words without a tussenvoegsel, or an
+    abbreviation such as "v.d.", which is never expanded.
+    """
+    name = ' '.join(full_name.split())
+    split = _split_last_name_first if ',' in name else _split_first_name_first
+    first, suffix, last = split(name)
+    guessed = not suffix and len(name.replace(',', ' ').split()) > 2
+    abbreviated = bool(re.search(r'[./]', name))
+    return {
+        'first_name': first,
+        'suffix': suffix,
+        'last_name': last,
+        'review': guessed or abbreviated or not first or not last,
+    }
+
+
+UNMATCHED_DIR = Path(__file__).resolve().parent
+UNMATCHED_NAME = re.compile(r'[\w-]+\.local\.json')
+
+
+def unmatched_path(file_name: str) -> Path:
+    """The file for --unmatched-out: a bare *.local.json name, next to this script.
+
+    Only a file name is accepted, never a path, and it must match
+    scripts/*.local.* so Git ignores it (it holds names of real people).
+    """
+    base = os.path.basename(file_name)
+    if base != file_name or not UNMATCHED_NAME.fullmatch(base):
+        raise SystemExit(
+            'ERROR: --unmatched-out takes a file name like camp-unmatched.local.json '
+            '(no directory); it is written next to this script'
+        )
+    return UNMATCHED_DIR / base
+
+
+def write_unmatched(path: Path, unknown: dict) -> None:
+    """Write the collected unmatched people as JSON for create-camp-visitors.php."""
+    people = []
+    for entry in sorted(unknown.values(), key=lambda e: normalized_full_name(e['name'])):
+        people.append({
+            'name': entry['name'],
+            **split_full_name(entry['name']),
+            'camps': sorted(entry['camps']),
+            'create': True,
+        })
+    path.write_text(json.dumps({'status': 'visitor', 'people': people},
+                               ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    print(f'Wrote {len(people)} unmatched people to {path}')
 
 
 def get_kamp_type_id(cursor) -> int:
@@ -564,7 +670,8 @@ def read_participants(workbook, workbook_type: str, year: int):
 
 
 def import_file(cursor, matcher: MemberMatcher, path: Path,
-                kamp_type_id: int, dry_run: bool) -> tuple[int, int, int]:
+                kamp_type_id: int, dry_run: bool,
+                unknown: dict | None = None) -> tuple[int, int, int]:
     year, activity_name, kenmerk = extract_year_activity(path)
     if not year:
         print(f'  SKIP (no year found in camp directory or filename): {path}')
@@ -597,6 +704,12 @@ def import_file(cursor, matcher: MemberMatcher, path: Path,
             print(f'  {result.upper()}: {participant["name"]}')
             unmatched += result == 'unmatched'
             ambiguous += result == 'ambiguous'
+            if result == 'unmatched' and unknown is not None:
+                entry = unknown.setdefault(
+                    normalized_full_name(participant['name']),
+                    {'name': participant['name'], 'camps': set()},
+                )
+                entry['camps'].add(path.parent.name)
             continue
 
         if not dry_run and activity_id is not None:
@@ -622,18 +735,24 @@ def main():
     parser.add_argument('--latest', action='store_true',
                         help='Import only the newest camp overview workbook')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--unmatched-out', metavar='NAME.local.json',
+                        help='Write unmatched people to this file next to the script, '
+                             'for create-camp-visitors.php')
     args = parser.parse_args()
+    unmatched_out = unmatched_path(args.unmatched_out) if args.unmatched_out else None
 
     paths = workbook_paths(args.source, args.latest)
     print(f'Found {len(paths)} camp overview workbook(s)')
     connection = get_db(read_secret(SECRET_FILE))
     totals = [0, 0, 0]
+    unknown = {} if unmatched_out else None
     try:
         with connection.cursor() as cursor:
             kamp_type_id = get_kamp_type_id(cursor)
             matcher = MemberMatcher(cursor)
             for path in paths:
-                result = import_file(cursor, matcher, path, kamp_type_id, args.dry_run)
+                result = import_file(cursor, matcher, path, kamp_type_id,
+                                     args.dry_run, unknown)
                 totals = [left + right for left, right in zip(totals, result)]
         if args.dry_run:
             connection.rollback()
@@ -647,6 +766,8 @@ def main():
     finally:
         connection.close()
 
+    if unknown is not None:
+        write_unmatched(unmatched_out, unknown)
     print(
         f'Total: imported/updated={totals[0]} '
         f'unmatched={totals[1]} ambiguous={totals[2]}'

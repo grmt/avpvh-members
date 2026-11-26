@@ -166,7 +166,40 @@ python3 scripts/sync-kamp-overzicht.py /path/to/exports/
 ```
 
 `import-avpvh-camps.py` exits with status 2 when names remain unmatched or
-ambiguous, after reporting them for manual review. It reads names from column
+ambiguous, after reporting them for manual review.
+
+Participants who are not in the member administration can be added as
+Bezoeker (status `visitor`, name only, no login):
+
+```bash
+# 1. Dry-run that also writes the unmatched people (Git-ignored *.local.* file).
+python3 scripts/import-avpvh-camps.py /path/to/Opgravingen/ --dry-run \
+    --unmatched-out camp-unmatched.local.json   # written to scripts/
+# 2. Review the file: fix the proposed first name / tussenvoegsel / last name,
+#    clear "review": true, and set "create": false for anyone who already
+#    exists under another spelling (add a Naamvariant to that person instead).
+# 3. Create them (dry-run first), in the WP-CLI container. Mount the
+#    checkout's scripts/ read-only: never copy the names file into
+#    wp-content, which is web-reachable.
+cd /opt/docker/scripts
+docker compose run -T --rm --no-deps -v "$OLDPWD/scripts:/camp:ro" \
+    -e AVPVH_CAMP_VISITORS_FILE=/camp/camp-unmatched.local.json \
+    wpcli-pvh wp eval-file /camp/create-camp-visitors.php
+docker compose run -T --rm --no-deps -v "$OLDPWD/scripts:/camp:ro" \
+    -e AVPVH_CAMP_VISITORS_FILE=/camp/camp-unmatched.local.json \
+    -e AVPVH_CAMP_VISITORS_APPLY=1 \
+    wpcli-pvh wp eval-file /camp/create-camp-visitors.php
+cd -
+# 4. Import again: the new Bezoekers now match.
+python3 scripts/import-avpvh-camps.py /path/to/Opgravingen/ --dry-run
+python3 scripts/import-avpvh-camps.py /path/to/Opgravingen/
+```
+
+`create-camp-visitors.php` uses the same `create_person()` as *Nieuwe
+persoon* (directory account with a placeholder address, member row), skips
+anyone whose name or a recorded variant already matches, and prints entry
+numbers and member ids, never names. Ambiguous names (two people with the
+same name) stay manual. It reads names from column
 D, the day grid from E-T, and nawacht/notes/diet from W-Z. Camps up to 2014
 predate that sheet: their `Inschrijving` sheet (header `VOORNAAM & ACHTERNAAM`)
 is read instead, and an archive camp folder without an overview falls back to
