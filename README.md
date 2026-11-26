@@ -176,11 +176,13 @@ Bezoeker (status `visitor`, name only, no login):
 python3 scripts/import-avpvh-camps.py /path/to/Opgravingen/ --dry-run \
     --unmatched-out camp-unmatched.local.json   # written to scripts/
 # 2. Review the file: fix the proposed first name / tussenvoegsel / last name,
-#    clear "review": true, and set "create": false for anyone who already
-#    exists under another spelling (add a Naamvariant to that person instead).
+#    clear "review": true, set "alias_of": <member id> for anyone who already
+#    exists under another spelling (recorded as a Naamvariant of that person),
+#    and "create": false for entries that are not a person.
 # 3. Create them (dry-run first), in the WP-CLI container. Mount the
 #    checkout's scripts/ read-only: never copy the names file into
-#    wp-content, which is web-reachable.
+#    wp-content, which is web-reachable. The container user must be able to
+#    read the file (mode 644 in a folder only you can enter).
 cd /opt/docker/scripts
 docker compose run -T --rm --no-deps -v "$OLDPWD/scripts:/camp:ro" \
     -e AVPVH_CAMP_VISITORS_FILE=/camp/camp-unmatched.local.json \

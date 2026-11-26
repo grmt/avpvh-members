@@ -511,6 +511,16 @@ def test_split_full_name(name, expected):
     assert camps.split_full_name(name) == dict(zip(keys, expected))
 
 
+@pytest.mark.parametrize('sheet_name, expected', [
+    ('Fictief Proef (aspirant)', 'Fictief Proef'),
+    ('Fictief\xa0 Proef', 'Fictief Proef'),
+    ('Fictief (Fie) Proef', 'Fictief (Fie) Proef'),
+    ('Fictief Proef', 'Fictief Proef'),
+])
+def test_person_name_drops_a_trailing_note(sheet_name, expected):
+    assert camps.person_name(sheet_name) == expected
+
+
 def test_matcher_matches_last_name_first_with_trailing_tussenvoegsel():
     cursor = FakeCursor(members=[(4, 'Fictief', 'van den', 'Voorbeeld')])
     matcher = camps.MemberMatcher(cursor)

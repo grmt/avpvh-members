@@ -254,6 +254,14 @@ def parse_bool(value: str) -> int:
     return int(value.strip().casefold() not in ('', '0', 'nee', 'no', 'false', 'n.v.t.'))
 
 
+TRAILING_NOTE = re.compile(r'\s*\([^()]*\)$')
+
+
+def person_name(sheet_name: str) -> str:
+    """The name without a trailing note: "Fictief Proef (aspirant)" -> "Fictief Proef"."""
+    return TRAILING_NOTE.sub('', ' '.join(sheet_name.split()))
+
+
 def normalized_full_name(value: str) -> str:
     return re.sub(r'[^\w]+', ' ', value.casefold(), flags=re.UNICODE).strip()
 
@@ -728,15 +736,16 @@ def import_file(cursor, matcher: MemberMatcher, path: Path,
 
     imported = unmatched = ambiguous = 0
     for participant in participants:
-        member_id, result = matcher.find(participant['name'])
+        name = person_name(participant['name'])
+        member_id, result = matcher.find(name)
         if not member_id:
-            print(f'  {result.upper()}: {participant["name"]}')
+            print(f'  {result.upper()}: {name}')
             unmatched += result == 'unmatched'
             ambiguous += result == 'ambiguous'
             if result == 'unmatched' and unknown is not None:
                 entry = unknown.setdefault(
-                    normalized_full_name(participant['name']),
-                    {'name': participant['name'], 'camps': set()},
+                    normalized_full_name(name),
+                    {'name': name, 'camps': set()},
                 )
                 entry['camps'].add(path.parent.name)
             continue
