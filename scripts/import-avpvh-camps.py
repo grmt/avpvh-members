@@ -16,14 +16,19 @@ Camps up to 2014 have no such sheet. Their registrations are in the older
 form's "Inschrijving" sheet: a header cell "VOORNAAM & ACHTERNAAM" (column A
 or B), day numbers to its right on the same row, month headings two rows
 above, then one participant per row. Columns after the day grid are found by
-their heading ("nachten", "opmerkingen", "eetopmerkingen"/"dieet"). Each
-workbook's layout is detected from its sheets.
+their heading ("nachten", "nawacht", "opmerkingen", "eetopmerkingen"/"dieet").
+The 2015-2018 overviews do have a "totaal inschrijvingen" sheet, but in that
+older shape (the header in column B or C, left of the fixed grid's column D),
+so they are read the same way. Each workbook's layout is detected from its
+sheets.
 
 The source may be one overview workbook or an archive directory. Directory
 imports consider filenames containing "overzicht". A camp directory without
 any overview falls back to its top-level workbooks whose name contains
 "inschrijvingen" or "algemeen" (the older collected registration lists);
-per-person forms and blank templates are not matched. --latest selects the
+per-person forms and blank templates are not matched. Of a workbook that is
+also there as an exported copy ("x.xlsx" next to "x.xlsx.xlsx"), only the
+most recently modified one is read. --latest selects the
 most recently modified overview. Re-running updates existing participation
 and replaces its day grid, so the operation is idempotent.
 
@@ -137,7 +142,21 @@ def workbook_paths(source: Path, latest: bool) -> list[Path]:
     ]
     if not paths:
         raise SystemExit(f'ERROR: no camp overview XLS/XLSX files found under {source}')
-    return sorted(paths)
+    return sorted(drop_exported_copies(paths))
+
+
+def drop_exported_copies(paths: list[Path]) -> list[Path]:
+    """Keep one of "x.xlsx" and its copy "x.xlsx.xlsx": the newest."""
+    newest: dict[tuple[Path, str], Path] = {}
+    for path in paths:
+        stem = path.name
+        while Path(stem).suffix.lower() in SUPPORTED_SUFFIXES:
+            stem = Path(stem).stem
+        key = (path.parent, stem.casefold())
+        kept = newest.get(key)
+        if kept is None or path.stat().st_mtime > kept.stat().st_mtime:
+            newest[key] = path
+    return list(newest.values())
 
 
 def extract_year_activity(path: Path) -> tuple[int | None, str, str]:
@@ -527,12 +546,18 @@ def get_legacy_sheet(workbook, workbook_type: str):
         )
     if sheet is None:
         return None
+    header = find_name_header(sheet, workbook_type)
+    return (sheet, *header) if header else None
+
+
+def find_name_header(sheet, workbook_type: str) -> tuple[int, int] | None:
+    """Row and column of the first "VOORNAAM & ACHTERNAAM" header cell."""
     rows, columns = sheet_size(sheet, workbook_type)
     for row in range(1, min(rows, LEGACY_HEADER_SEARCH_ROWS) + 1):
         for column in range(1, min(columns, LEGACY_HEADER_SEARCH_COLUMNS) + 1):
             text = cell_text(sheet, workbook_type, row, column).casefold()
             if text.startswith(LEGACY_NAME_HEADER):
-                return sheet, row, column
+                return row, column
     return None
 
 
@@ -581,7 +606,7 @@ def legacy_label_columns(sheet, workbook_type: str, header_row: int,
                          last_day_column: int) -> dict[str, list[int]]:
     """Find nights/notes/diet columns after the day grid by their headings."""
     _, columns = sheet_size(sheet, workbook_type)
-    found = {'nights': [], 'notes': [], 'diet': []}
+    found = {'nights': [], 'nawacht': [], 'notes': [], 'diet': []}
     for column in range(last_day_column + 1, columns + 1):
         label = ' '.join(
             cell_text(sheet, workbook_type, row, column)
@@ -591,6 +616,8 @@ def legacy_label_columns(sheet, workbook_type: str, header_row: int,
             found['diet'].append(column)
         elif 'opmerking' in label:
             found['notes'].append(column)
+        elif 'nawacht' in label:
+            found['nawacht'].append(column)
         elif 'nachten' in label:
             found['nights'].append(column)
     return found
@@ -611,7 +638,7 @@ def legacy_participant_rows(sheet, workbook_type: str, header_row: int,
 
     for row in range(header_row + 1, rows + 1):
         name = cell_text(sheet, workbook_type, row, name_column)
-        if not name or name.casefold().startswith('totaal'):
+        if not name or name.casefold().startswith(('totaal', LEGACY_NAME_HEADER)):
             continue
         # Summary rows ("Volwassenen", "Kinders", ...) hold counts per day.
         if any(is_number(cell_value(sheet, workbook_type, row, column))
@@ -643,7 +670,7 @@ def legacy_participant_rows(sheet, workbook_type: str, header_row: int,
             'name': name,
             'days': days,
             'nights': nights,
-            'nawacht': 0,
+            'nawacht': max((parse_bool(text) for text in texts(row, labels['nawacht'])), default=0),
             'notes': '\n'.join(notes) or None,
             'diet': '; '.join(diet) or None,
         }
@@ -652,11 +679,13 @@ def legacy_participant_rows(sheet, workbook_type: str, header_row: int,
 def read_participants(workbook, workbook_type: str, year: int):
     """Return (date_columns, participants) for whichever layout the workbook has."""
     sheet = get_camp_sheet(workbook, workbook_type)
-    if sheet is not None:
+    header = find_name_header(sheet, workbook_type) if sheet is not None else None
+    if sheet is not None and (header is None or header[1] >= NAME_COLUMN):
         date_columns = camp_date_columns(sheet, workbook_type, year)
         return date_columns, participant_rows(sheet, workbook_type, date_columns)
 
-    legacy = get_legacy_sheet(workbook, workbook_type)
+    # The 2015-2018 overviews: a camp sheet in the older form's shape.
+    legacy = (sheet, *header) if sheet is not None else get_legacy_sheet(workbook, workbook_type)
     if legacy is None:
         raise ValueError(
             f'neither sheet {SHEET_NAME!r} nor a {LEGACY_SHEET_NAME!r} sheet '
