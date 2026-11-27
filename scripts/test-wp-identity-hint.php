@@ -110,7 +110,9 @@ check('invalid user id returns empty email',
     AVPVH_Nav_Auth::identity_email_for_user(0) === '');
 
 // 3. Cookie lifecycle hooks
-$nav = (new ReflectionClass(AVPVH_Nav_Auth::class))->newInstanceWithoutConstructor();
+$nav = new AVPVH_Nav_Auth();
+check('unknown user id returns empty email',
+    AVPVH_Nav_Auth::identity_email_for_user(999) === '');
 $_COOKIE = [];
 $nav->on_logged_in_cookie('cookie', time() + 3600, time() + 3600, 5, 'logged_in', 'tok');
 check('on_logged_in_cookie sets hint cookie',
@@ -140,7 +142,31 @@ $nav->sync_wp_identity_cookie();
 check('sync_wp_identity_cookie clears stale cookie when logged out',
     !isset($_COOKIE[AVPVH_Nav_Auth::WP_IDENTITY_COOKIE]));
 
+// clearing when absent is a no-op; invalid email / no shared domain is a no-op
+$nav->clear_wp_identity_cookie();
+AVPVH_Nav_Auth::set_wp_identity_cookie('not-an-email', time() + 3600);
+check('invalid email does not set cookie',
+    !isset($_COOKIE[AVPVH_Nav_Auth::WP_IDENTITY_COOKIE]));
+
+// on_logged_in_cookie and sync_wp_identity_cookie clear cookie when user has no email
+$_COOKIE[AVPVH_Nav_Auth::WP_IDENTITY_COOKIE] = 'stale@example.invalid';
+$nav->on_logged_in_cookie('cookie', 0, time() + 3600, 999, 'logged_in', 'tok');
+check('on_logged_in_cookie clears cookie when user has no email',
+    !isset($_COOKIE[AVPVH_Nav_Auth::WP_IDENTITY_COOKIE]));
+
+$_COOKIE[AVPVH_Nav_Auth::WP_IDENTITY_COOKIE] = 'stale@example.invalid';
+$GLOBALS['test_logged_in'] = true;
+$GLOBALS['test_current_user_id'] = 999;
+$nav->sync_wp_identity_cookie();
+check('sync_wp_identity_cookie clears cookie when logged-in user has no email',
+    !isset($_COOKIE[AVPVH_Nav_Auth::WP_IDENTITY_COOKIE]));
+$GLOBALS['test_logged_in'] = false;
+
 // 4. Safe post-logout redirect validation
+check('empty redirect_to falls back to home',
+    AVPVH_Nav_Auth::safe_logout_redirect('') === 'https://www.avphilipsvanhorne.nl/');
+check('malformed redirect_to falls back to home',
+    AVPVH_Nav_Auth::safe_logout_redirect('http://:invalid') === 'https://www.avphilipsvanhorne.nl/');
 check('same-site redirect_to allowed',
     AVPVH_Nav_Auth::safe_logout_redirect('https://www.avphilipsvanhorne.nl/wp-admin/about.php')
         === 'https://www.avphilipsvanhorne.nl/wp-admin/about.php');
@@ -189,5 +215,17 @@ try {
         str_contains($r->url, 'https://auth.avphilipsvanhorne.nl/logout?')
         && str_contains($r->url, rawurlencode(rawurlencode('https://www.avphilipsvanhorne.nl/wp-admin/about.php'))));
 }
+
+// 6. safe_logout_redirect delegates to AVPVH_Access when loaded
+if (!class_exists('AVPVH_Access', false)) {
+    class AVPVH_Access {
+        public static function safe_same_site_redirect(string $url): string {
+            return 'https://www.avphilipsvanhorne.nl/delegated';
+        }
+    }
+}
+check('safe_logout_redirect delegates to AVPVH_Access when available',
+    AVPVH_Nav_Auth::safe_logout_redirect('https://www.avphilipsvanhorne.nl/anything')
+        === 'https://www.avphilipsvanhorne.nl/delegated');
 
 echo "WP identity hint tests: OK\n";
