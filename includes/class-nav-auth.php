@@ -7,6 +7,9 @@ class AVPVH_Nav_Auth {
     const AUTHELIA_SESSION_COOKIE = 'avpvh_session';
     // Short-lived, read once by nav-auth.js to show "Uitgelogd als ...".
     const SIGNED_OUT_COOKIE = 'avpvh_signed_out';
+    // Non-secret hint on the shared parent domain so Authelia prefills and
+    // locks the active WordPress account during 2FA step-up.
+    const WP_IDENTITY_COOKIE = 'avpvh_wp_identity';
 
     // Page IDs whose nav items require active membership.
     const MEMBERS_PAGE_IDS = [647, 36];
@@ -26,6 +29,9 @@ class AVPVH_Nav_Auth {
         // After auto_login_from_proxy_header() (priority 1), so a session
         // that came from Authelia is the user the nonce was made for.
         add_action('init',               [$this, 'handle_logout'], 2);
+        add_action('set_logged_in_cookie', [$this, 'on_logged_in_cookie'], 10, 6);
+        add_action('clear_auth_cookie',    [$this, 'clear_wp_identity_cookie']);
+        add_action('init',                 [$this, 'sync_wp_identity_cookie'], 20);
         add_filter('allowed_redirect_hosts', [$this, 'allow_authelia_host']);
     }
 
@@ -165,8 +171,15 @@ class AVPVH_Nav_Auth {
      * The logout link: home with a nonce, so another site can't log a
      * member out by embedding or linking to it (logout CSRF).
      */
-    public static function logout_url(): string {
-        return add_query_arg(self::LOGOUT_ACTION, wp_create_nonce(self::LOGOUT_ACTION), home_url('/'));
+    public static function logout_url(string $redirect_to = ''): string {
+        $url = add_query_arg(self::LOGOUT_ACTION, wp_create_nonce(self::LOGOUT_ACTION), home_url('/'));
+        if ($redirect_to !== '') {
+            $safe = self::safe_logout_redirect($redirect_to);
+            if ($safe !== home_url('/')) {
+                $url = add_query_arg('redirect_to', $safe, $url);
+            }
+        }
+        return $url;
     }
 
     /**
@@ -180,13 +193,17 @@ class AVPVH_Nav_Auth {
         if ($nonce === '') {
             return;
         }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- validated to same-site URL below
+        $redirect_to = sanitize_text_field(wp_unslash($_GET['redirect_to'] ?? ''));
+        $target = self::safe_logout_redirect($redirect_to);
         if (!is_user_logged_in()) {
-            wp_safe_redirect(home_url('/'));
+            self::clear_wp_identity_cookie();
+            wp_safe_redirect($target);
             exit;
         }
         if (!wp_verify_nonce($nonce, self::LOGOUT_ACTION)) {
             wp_die(
-                '<p>' . esc_html__('Wil je uitloggen?', 'avpvh-members') . '</p><p><a class="button" href="' . esc_url(self::logout_url()) . '">'
+                '<p>' . esc_html__('Wil je uitloggen?', 'avpvh-members') . '</p><p><a class="button" href="' . esc_url(self::logout_url($target)) . '">'
                     . esc_html__('Uitloggen', 'avpvh-members') . '</a> <a href="' . esc_url(home_url('/')) . '">' . esc_html__('Nee, terug', 'avpvh-members') . '</a></p>',
                 esc_html__('Uitloggen', 'avpvh-members'),
                 ['response' => 200]
@@ -195,8 +212,160 @@ class AVPVH_Nav_Auth {
         self::remember_signed_out_identities();
         wp_logout();
         self::invalidate_authelia_session();
-        wp_safe_redirect(self::authelia_logout_url(home_url('/')));
+        wp_safe_redirect(self::authelia_logout_url($target));
         exit;
+    }
+
+    /** Validates an optional post-logout redirect target to stay on this site. */
+    public static function safe_logout_redirect(string $redirect_to): string {
+        $fallback = home_url('/');
+        if ($redirect_to === '') {
+            return $fallback;
+        }
+        if (class_exists('AVPVH_Access') && method_exists('AVPVH_Access', 'safe_same_site_redirect')) {
+            return AVPVH_Access::safe_same_site_redirect($redirect_to);
+        }
+        $parsed = wp_parse_url($redirect_to);
+        $home   = wp_parse_url($fallback);
+        if (!is_array($parsed) || !is_array($home)) {
+            return $fallback;
+        }
+        $scheme = strtolower((string) ($parsed['scheme'] ?? ''));
+        $host   = strtolower((string) ($parsed['host'] ?? ''));
+        if (($scheme !== 'https' && $scheme !== 'http') || $host === '' || $host !== strtolower((string) ($home['host'] ?? ''))) {
+            return $fallback;
+        }
+        return $redirect_to;
+    }
+
+    /**
+     * Common parent cookie domain shared between WordPress and Authelia
+     * (e.g. ".avphilipsvanhorne.nl"), or '' when the hosts share no parent
+     * domain of at least two labels (such as localhost dev environments).
+     */
+    public static function shared_cookie_domain(?string $site_host = null, ?string $authelia_host = null): string {
+        $a = strtolower(rtrim((string) ($site_host ?? wp_parse_url(home_url('/'), PHP_URL_HOST) ?? ''), '.'));
+        $b = strtolower(rtrim((string) ($authelia_host ?? wp_parse_url(self::AUTHELIA_URL, PHP_URL_HOST) ?? ''), '.'));
+        if ($a === '' || $b === '' || filter_var($a, FILTER_VALIDATE_IP) || filter_var($b, FILTER_VALIDATE_IP)) {
+            return '';
+        }
+        $parts_a = array_reverse(explode('.', $a));
+        $parts_b = array_reverse(explode('.', $b));
+        $common  = [];
+        $limit   = min(count($parts_a), count($parts_b));
+        for ($i = 0; $i < $limit; $i++) {
+            if ($parts_a[$i] === '' || $parts_a[$i] !== $parts_b[$i]) {
+                break;
+            }
+            $common[] = $parts_a[$i];
+        }
+        if (count($common) < 2) {
+            return '';
+        }
+        return '.' . implode('.', array_reverse($common));
+    }
+
+    /**
+     * Directory e-mail for a WordPress user so Authelia's LDAP users_filter
+     * (matching uid OR mail) resolves the exact same account on 2FA step-up.
+     */
+    public static function identity_email_for_user(int $user_id): string {
+        if ($user_id <= 0) {
+            return '';
+        }
+        if (function_exists('avpvh_get_member_by_wp_user')) {
+            $member = avpvh_get_member_by_wp_user($user_id);
+            if ($member && !empty($member->email)) {
+                $email = sanitize_email((string) $member->email);
+                if ($email !== '') {
+                    return $email;
+                }
+            }
+        }
+        if (function_exists('get_user_by')) {
+            $user = get_user_by('id', $user_id);
+            if ($user && !empty($user->user_email)) {
+                return sanitize_email((string) $user->user_email);
+            }
+        }
+        return '';
+    }
+
+    public function on_logged_in_cookie(
+        string $logged_in_cookie,
+        int $expire,
+        int $expiration,
+        int $user_id,
+        string $scheme,
+        string $token
+    ): void {
+        unset($logged_in_cookie, $expiration, $scheme, $token);
+        $email = self::identity_email_for_user($user_id);
+        if ($email === '') {
+            self::clear_wp_identity_cookie();
+            return;
+        }
+        self::set_wp_identity_cookie($email, $expire === 0 ? 0 : time() + DAY_IN_SECONDS);
+    }
+
+    /**
+     * Keeps the non-secret parent-domain hint cookie aligned with the active
+     * WordPress session so already-logged-in sessions pick it up and expired
+     * or signed-out sessions clear it.
+     */
+    public function sync_wp_identity_cookie(): void {
+        if ((function_exists('wp_doing_ajax') && wp_doing_ajax())
+            || (function_exists('wp_doing_cron') && wp_doing_cron())
+            || (defined('REST_REQUEST') && REST_REQUEST)) {
+            return;
+        }
+        if (!is_user_logged_in()) {
+            self::clear_wp_identity_cookie();
+            return;
+        }
+        $expected = self::identity_email_for_user(get_current_user_id());
+        if ($expected === '') {
+            self::clear_wp_identity_cookie();
+            return;
+        }
+        $current = sanitize_email(wp_unslash((string) ($_COOKIE[self::WP_IDENTITY_COOKIE] ?? '')));
+        if ($current !== $expected) {
+            self::set_wp_identity_cookie($expected, time() + DAY_IN_SECONDS);
+        }
+    }
+
+    public static function set_wp_identity_cookie(string $email, int $expires): void {
+        $email  = sanitize_email($email);
+        $domain = self::shared_cookie_domain();
+        if ($email === '' || $domain === '' || headers_sent()) {
+            return;
+        }
+        setcookie(self::WP_IDENTITY_COOKIE, $email, [
+            'expires'  => $expires,
+            'path'     => '/',
+            'domain'   => $domain,
+            'secure'   => is_ssl(),
+            'httponly' => false, // Read by authelia-custom.js on auth.<domain>.
+            'samesite' => 'Lax',
+        ]);
+        $_COOKIE[self::WP_IDENTITY_COOKIE] = $email;
+    }
+
+    public static function clear_wp_identity_cookie(): void {
+        $had_cookie = isset($_COOKIE[self::WP_IDENTITY_COOKIE]);
+        unset($_COOKIE[self::WP_IDENTITY_COOKIE]);
+        $domain = self::shared_cookie_domain();
+        if (!$had_cookie || $domain === '' || headers_sent()) {
+            return;
+        }
+        setcookie(self::WP_IDENTITY_COOKIE, '', [
+            'expires'  => time() - YEAR_IN_SECONDS,
+            'path'     => '/',
+            'domain'   => $domain,
+            'secure'   => is_ssl(),
+            'httponly' => false,
+            'samesite' => 'Lax',
+        ]);
     }
 
     /**
